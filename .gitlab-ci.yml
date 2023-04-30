@@ -35,8 +35,8 @@ Publish Node Patch:
     - git checkout -q ${CI_DEFAULT_BRANCH}
     - git pull
     - echo "TAG=$(npm version patch --git-tag-version --allow-same-version)" >> variables.env
-    - npm config set @vision:registry https://git.visionos.pt/api/v4/projects/35/packages/npm/
-    - npm config set -- '//git.visionos.pt/api/v4/projects/35/packages/npm/:_authToken' "glpat-mypmHyyJumsV6dkVP4n7"
+    - npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
+    - npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "9a62c99f1da9d4417fd2c396e5fba566a868bfbe"
     - npm publish
     - git push origin ${TAG}
     - git push
@@ -64,8 +64,8 @@ Publish Node Minor:
     - git checkout -q ${CI_DEFAULT_BRANCH}
     - git pull
     - echo "TAG=$(npm version minor --git-tag-version --allow-same-version)" >> variables.env
-    - npm config set @vision:registry https://git.visionos.pt/api/v4/projects/35/packages/npm/
-    - npm config set -- '//git.visionos.pt/api/v4/projects/35/packages/npm/:_authToken' "glpat-mypmHyyJumsV6dkVP4n7"
+    - npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
+    - npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "9a62c99f1da9d4417fd2c396e5fba566a868bfbe"
     - npm publish
     - git push origin ${TAG}
     - git push
@@ -93,8 +93,8 @@ Publish Node Major:
     - git checkout -q ${CI_DEFAULT_BRANCH}
     - git pull
     - echo "TAG=$(npm version major --git-tag-version --allow-same-version)" >> variables.env
-    - npm config set @vision:registry https://git.visionos.pt/api/v4/projects/35/packages/npm/
-    - npm config set -- '//git.visionos.pt/api/v4/projects/35/packages/npm/:_authToken' "glpat-mypmHyyJumsV6dkVP4n7"
+    - npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
+    - npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "9a62c99f1da9d4417fd2c396e5fba566a868bfbe"
     - npm publish
     - git push origin ${TAG}
     - git push
@@ -114,8 +114,8 @@ Publish Node Release:
       when: always
     - when: never
   script:
-    - npm config set @vision:registry https://git.visionos.pt/api/v4/projects/35/packages/npm/
-    - npm config set -- '//git.visionos.pt/api/v4/projects/35/packages/npm/:_authToken' "glpat-mypmHyyJumsV6dkVP4n7"
+    - npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
+    - npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "9a62c99f1da9d4417fd2c396e5fba566a868bfbe"
     - npm publish
 
 Publish Git Release:
