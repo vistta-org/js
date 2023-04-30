@@ -129,7 +129,7 @@ Publish Git Release:
   script:
     - echo "Release $TAG"
   release:
-    name: 'VisionJS $TAG - $CI_COMMIT_TITLE'
-    description: 'VisionJS $TAG - $CI_COMMIT_TITLE'
+    name: 'VisttaJS $TAG - $CI_COMMIT_TITLE'
+    description: 'VisttaJS $TAG - $CI_COMMIT_TITLE'
     tag_name: '$TAG'
     ref: '$CI_COMMIT_SHA'

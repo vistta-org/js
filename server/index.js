@@ -1,13 +1,13 @@
-import { fs } from "./lib/filesystem.js";
-import { isIPAddress, randomID } from "../utils/index.js";
+import { fs } from "./filesystem";
+import { isIPAddress, randomID } from "../utils";
 import { EventEmitter } from "node:events";
 import express from "express";
 import http from "http";
 import http2 from "http2";
 import http2express from "http2-express-bridge";
 import { Server as SocketServer } from "socket.io";
-import compression, { filter } from "./lib/compression.js";
-import { Router } from "./lib/router/index.js";
+import compression, { filter } from "./compression";
+import { Router } from "./router";
 
 class Server {
   #id = randomID();
@@ -156,10 +156,10 @@ class Server {
 }
 
 export default Server;
-export * from "./lib/console.js";
-export * from "./lib/crypto.js";
-export * from "./lib/filesystem.js";
-export * from "./lib/process.js";
+export * from "./console";
+export * from "./crypto";
+export * from "./filesystem";
+export * from "./process";
 
 //
 

@@ -1,22 +1,23 @@
 import { isBuiltin } from "node:module";
 import { fileURLToPath, pathToFileURL, URLSearchParams } from "node:url";
-import { fs } from "../server/lib/filesystem.js";
+import { fs } from "../../server/filesystem/index.js";
 import script from "./extensions/script.js";
 import css from "./extensions/css.js";
 import html from "./extensions/html.js";
 import json from "./extensions/json.js";
 import file from "./extensions/file.js";
-import Cache from "../loaders/cache.js";
+import Cache from "./cache.js";
 
 const EXTENSIONS = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"];
 const CONTEXT = {};
+const CWD = process.cwd();
 
 export const cache = new Cache();
 
 export function resolve(specifier, context, next, options) {
   [specifier, options] = specifier.split(/\?(.*)/);
   options = new URLSearchParams(options);
-  const { parentURL = process.cwd(), bundler } = context;
+  const { parentURL = CWD, bundler } = context;
   if (isBuiltin(specifier)) {
     if (bundler) context.builtin = true;
     return next(specifier, context);

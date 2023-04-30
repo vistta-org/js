@@ -1,12 +1,12 @@
-#!/usr/bin/env node --no-warnings --loader=@vision/visionjs/loader
+#!/usr/bin/env node --no-warnings --loader=@vistta/visttajs/loader
 "use strict";
 import { Console, fork, fs } from "../server/index.js";
-import { validate } from "../server/lib/typescript.js";
-import Cache from "../loaders/cache.js";
+import { validate } from "./loaders/typescript.js";
+import Cache from "./loaders/cache.js";
 import pkg from "../package.json";
 new Cache(true);
 new Console(console);
-console.announce("Starting VisionJS...");
+console.announce("Starting VisttaJS...");
 const dirname = fs.dirname(import.meta.url);
 const abort = (error) => (console.error(error), process.exit(0));
 let custom = false;
@@ -41,7 +41,7 @@ const childProcess = await fork(main, args, { env });
 if (custom && type === "development")
   fs.watchFile(main, async () => {
     console.clear();
-    console.announce("Restarting VisionJS...");
+    console.announce("Restarting VisttaJS...");
     await childProcess.stop();
     console.clear();
     const { errors } = validation !== "none" ? validate(main) : {};

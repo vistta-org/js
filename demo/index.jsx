@@ -1,18 +1,17 @@
-import { createStoreConfig } from "@vision/visionjs";
+// import { createStoreConfig } from "@vistta/visttajs";
 import Template from "./@template";
-import FunctionCounter from "./@components/FunctionalCounter"; 
+// import FunctionCounter from "./@components/FunctionalCounter"; 
 import icon from "../logo.png";
 
 const Home = () => {
   return (<Template title="home">
-    <FunctionCounter/>
-    <FunctionCounter/>
+    <h1>Hello World</h1>
   </Template>)
 };
 
 export default Home;
 
-export const config = {
+/*export const config = {
   icon: icon,
   store: [
     createStoreConfig(
@@ -33,4 +32,4 @@ export const config = {
       (name, type) => console.log(name, type)
     )
   ]
-}
+}*/

@@ -41,7 +41,7 @@ export default class Server {
   emit(event: string, ...args: any): void;*/
 }
 
-export * from "./lib/console";
-export * from "./lib/crypto";
-export * from "./lib/filesystem";
-export * from "./lib/process";
+export * from "./console";
+export * from "./crypto";
+export * from "./filesystem";
+export * from "./process";

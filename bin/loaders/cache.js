@@ -1,6 +1,6 @@
-import { fs } from "../server/lib/filesystem.js";
-import { hash } from "../server/lib/crypto.js";
-import { encode, decode } from "../utils/string.js";
+import { fs } from "../../server/filesystem/index.js";
+import { hash } from "../../server/crypto/index.js";
+import { encode, decode } from "../../utils/string.js";
 import { tmpdir } from "node:os";
 
 function fsHash(string) {

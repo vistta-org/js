@@ -6,7 +6,7 @@ import * as utils from "../utils";
 
 const { system, isValidUrl } = utils;
 //const { createElement, StrictMode } = react;
-system.set("vision", { /*...react, useRouter, useSocket, createStoreConfig,*/ ...utils });
+system.set("vistta", { /*...react, useRouter, useSocket, createStoreConfig,*/ ...utils });
 
 /*router.navigate = async function (href, callback) {
   const force = href === true;

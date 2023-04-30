@@ -1,5 +1,5 @@
 import { transformSync } from "esbuild";
-import { tsconfig } from "../../server/lib/typescript.js";
+import { tsconfig } from "../typescript.js";
 
 export default function (source, { extension }) {
   try {

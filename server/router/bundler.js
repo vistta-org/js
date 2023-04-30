@@ -1,4 +1,4 @@
-import { resolve, load } from "../../../loaders/index.js";
+import { resolve, load } from "../../bin/loaders";
 import { build } from "esbuild";
 
 class Bundler {
@@ -32,7 +32,7 @@ class Bundler {
       minify: mode === "production",
       plugins: [
         {
-          name: "vision",
+          name: "vistta",
           setup: (build) => (
             build.onResolve({ filter }, this.resolve.bind(instance)), build.onLoad({ filter }, this.load.bind(instance))
           ),
@@ -47,8 +47,8 @@ class Bundler {
 
   resolve({ path, resolveDir }) {
     switch (path) {
-      case "@vision/visionjs":
-        return { path: "vision", namespace: "window" };
+      case "@vistta/visttajs":
+        return { path: "vistta", namespace: "window" };
       case "@content":
         return { path: "content", external: true };
       case "@socket":

@@ -7,17 +7,17 @@
   "exports": {
     ".": "./index.js",
     "./server": "./server/index.js",
-    "./loader": "./loaders/index.js",
+    "./loader": "./bin/loaders/index.js",
     "./tsconfig": "./tsconfig.json"
   },
   "type": "module",
   "bin": {
-    "vision": "./bin/cli.js"
+    "vistta": "./bin/cli.js"
   },
   "scripts": {
     "checks": "eslint --fix .",
-    "dev": "vision start ./demo --dev",
-    "prod": "vision start ./demo"
+    "dev": "node --no-warnings --loader=@vistta/visttajs/loader ./bin/cli.js start ./demo --dev",
+    "prod": "node --no-warnings --loader=@vistta/visttajs/loader ./bin/cli.js start ./demo"
   },
   "repository": {
     "type": "git",

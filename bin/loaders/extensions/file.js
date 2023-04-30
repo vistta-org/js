@@ -1,5 +1,5 @@
-import { hash } from "../../server/lib/crypto.js";
-import { fs } from "../../server/lib/filesystem.js";
+import { hash } from "../../../server/crypto/index.js";
+import { fs } from "../../../server/filesystem/index.js";
 
 export default function (source) {
   const urlHash = hash(source, "md5", "hex") + fs.extname(source);

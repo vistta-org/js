@@ -13,6 +13,6 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "typeRoots": ["./index.d.ts"]
+    "typeRoots": ["./index.d.ts"],
   }
 }

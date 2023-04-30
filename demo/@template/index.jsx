@@ -1,11 +1,12 @@
-import { useRouter } from "@vision/visionjs";
+// import { useRouter } from "@vistta/visttajs";
 import Template from "./template.html";
 import style from "./style.scss";
 
 const nav = ["home", "about", "contacts"];
 
 const PageTemplate = ({ title, children }) => {
-  const { navigate } = useRouter();
+  // const { navigate } = useRouter();
+  const navigate = (arg) => console.log(arg);
   return <Template
     styles={style}
     title={title}

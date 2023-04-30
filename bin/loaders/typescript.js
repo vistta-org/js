@@ -1,4 +1,4 @@
-import { fs } from "./filesystem.js";
+import { fs } from "../../server/filesystem/index.js";
 import ts from "typescript";
 
 export const tsconfig = {

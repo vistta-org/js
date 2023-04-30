@@ -1,10 +1,10 @@
 import Server, { fs, Console } from "../server/index.js";
 import { trim, capitalize } from "../utils/index.js";
 new Console(console);
-console.announce(`VisionJS v${process.env.VISION_VERSION}`);
+console.announce(`VisttaJS v${process.env.VISION_VERSION}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const options = await (async (args) => {
-  const config = (await import(fs.resolve("./package.json"))).default?.["vision-config"] || {};
+  const config = (await import(fs.resolve("./package.json"))).default?.["vistta-config"] || {};
   const folder = args.shift() || config.folder;
   if (!folder) return abort(`Missing main folder. Either define it as an argument or on the package.`);
   args.forEach((arg) => {

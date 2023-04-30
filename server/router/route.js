@@ -1,12 +1,12 @@
-import { fs } from "../filesystem.js";
-import { hash, randomID } from "../crypto.js";
+import { fs } from "../filesystem";
+import { hash, randomID } from "../crypto";
 // import { createElement } from "../../../core/dom";
-import { store } from "../../../core/store";
+// import { store } from "../../../core/store";
 // import { renderToString } from "react-dom/server";
 import { bundle } from "./bundler.js";
-import { validate } from "../typescript.js";
-import { system, stringify, encode } from "../../../utils/index.js";
-import { importModule } from "../../../loaders/index.js";
+import { validate } from "../../bin/loaders/typescript";
+import { system, stringify, encode } from "../../utils";
+import { importModule } from "../../bin/loaders";
 // import { URL } from "url";
 
 system.set("document", {});
@@ -16,7 +16,7 @@ system.set("sessionStorage", { setItem: () => null, getItem: () => undefined, re
 const dirname = fs.dirname(import.meta.url);
 const { TYPESCRIPT_VALIDATION, NODE_ENV } = process.env;
 const isDev = NODE_ENV === "development";
-const client = await (async (path) => (await bundle(path))?.code)(fs.resolve(dirname, "../../../core/client.js"));
+const client = await (async (path) => (await bundle(path))?.code)(fs.resolve(dirname, "../../client"));
 
 class Route {
   watchedFiles = [];
@@ -95,8 +95,8 @@ class Route {
   get template() {
     const imports = {};
     system.set("route", this);
-    if (this.config?.store) store.set(this.config?.store);
-    const content = renderToString(createElement("app-root", null, createElement(this.app)));
+    // if (this.config?.store) store.set(this.config?.store);
+    const content = ""; // renderToString(createElement("app-root", null, createElement(this.app)));
     if (this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
     return renderToHtml({ ...(this.config || {}), imports, content, client, styles: Array.from(this.styles.values()) });
@@ -127,6 +127,7 @@ function renderToHtml({
   const nonce = "v" + randomID();
   return (
     "<!doctype html>\n" +
+    "" /*
     renderToString(
       createElement(
         "html",
@@ -134,15 +135,15 @@ function renderToHtml({
         createElement(
           "head",
           null,
-          createElement("title", null, title || "Vision JS"),
+          createElement("title", null, title || "Vistta JS"),
           createElement("base", { href: href || "/" }),
           createElement("meta", { name: "referrer", content: referrer || "origin" }),
           createElement("meta", {
             name: "viewport",
             content: viewport || "width=device-width,initial-scale=1,minimum-scale=1.0",
           }),
-          createElement("meta", { name: "description", content: description || "Page generated using VisionJS" }),
-          createElement("meta", { name: "keywords", content: keywords || "visionjs" }),
+          createElement("meta", { name: "description", content: description || "Page generated using VisttaJS" }),
+          createElement("meta", { name: "keywords", content: keywords || "visttajs" }),
           createElement("meta", { name: "theme-color", content: theme || "#ffffff" }),
           createElement("meta", {
             httpEquiv: "Content-Security-Policy",
@@ -165,7 +166,7 @@ function renderToHtml({
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
         .replace(/&amp;/g, "&")
-    )
+    )*/
   );
 }
 

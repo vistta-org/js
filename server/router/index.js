@@ -1,6 +1,6 @@
-import { fs } from "../filesystem.js";
-import { isValidUrlPathname } from "../../../utils/index.js";
-import { Route } from "./route.js";
+import { fs } from "../filesystem";
+import { isValidUrlPathname } from "../../utils";
+import { Route } from "./route";
 
 class Router {
   subdomains = { "": {} };
