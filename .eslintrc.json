@@ -1,0 +1,30 @@
+{
+  "env": {
+    "node": true,
+    "browser": true,
+    "es2021": true
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  },
+  "extends": ["eslint:recommended", "plugin:react/recommended", "plugin:sonarjs/recommended"],
+  "overrides": [],
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true,
+      "ts": true,
+      "tsx": true
+    },
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "plugins": ["react", "sonarjs", "better-styled-components"],
+  "rules": {
+    "better-styled-components/sort-declarations-alphabetically": 2,
+    "sonarjs/cognitive-complexity": "off",
+    "sonarjs/no-useless-catch": "off",
+    "react/react-in-jsx-scope": "off"
+  }
+}
