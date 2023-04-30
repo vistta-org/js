@@ -36,5 +36,3 @@ declare module "*.ico" {
   const path: string;
   export default path;
 }
-
-declare const React: typeof import("react");

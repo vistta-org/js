@@ -1,0 +1,32 @@
+header {
+  position: absolute;
+  height: 2rem;
+  width: 95vw;
+  top: 0px;
+  left: 0px;
+  display: flex;
+  align-items: center;
+  padding: 0 2.5vw;
+
+  h3 {
+    flex: 0 0 auto;
+    text-transform: capitalize;
+    margin-right: auto;
+  }
+}
+
+.container {
+  position: absolute;
+  height: calc(100vh - 6rem);
+  width: 100vw;
+  top: 3rem;
+  left: 0px;
+}
+
+footer {
+  position: absolute;
+  height: 1rem;
+  width: 100vw;
+  bottom: 2px;
+  left: 0px;
+}
