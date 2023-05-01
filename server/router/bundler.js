@@ -1,4 +1,4 @@
-import { resolve, load } from "../../bin/loaders";
+import { resolve, load } from "@/bin/loaders";
 import { build } from "esbuild";
 
 class Bundler {

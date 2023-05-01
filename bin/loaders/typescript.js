@@ -1,40 +1,30 @@
 import { fs } from "../../server/filesystem/index.js";
 import ts from "typescript";
 
-export const tsconfig = {
-  importsNotUsedAsValues: "remove",
-  jsxFactory: "createElement",
-  jsxFragmentFactory: "Fragment",
-  strict: true,
-  noImplicitAny: false,
-  allowSyntheticDefaultImports: true,
-  esModuleInterop: true,
-  resolveJsonModule: true,
-};
+const Compiler = ts.createCompilerHost({});
 
-const typescript = {
-  compiler: null,
-  config: {
-    target: "esnext",
-    module: "esnext",
-    lib: ["lib.esnext.full.d.ts", fs.resolve(fs.dirname(import.meta.url), "../../index.d.ts")],
-    noEmit: true,
-    declaration: false,
-    jsx: "react",
-    ...tsconfig,
-  },
-};
+export const tsconfig = Object.assign((() => {
+  try {
+    const json = fs.readFileSync(fs.resolve(fs.dirname(import.meta.url), "../../tsconfig.json"), "utf-8");
+    return JSON.parse(json)?.compilerOptions || {};
+  }
+  catch {
+    return {};
+  }
+})(), {
+  module: "esnext",
+  lib: ["lib.esnext.full.d.ts", fs.resolve(fs.dirname(import.meta.url), "../../index.d.ts")],
+});
 
 export function validate(path, source) {
-  if (!typescript.compiler) typescript.compiler = ts.createCompilerHost({});
   const errors = [];
   const sourceFile = source && ts.createSourceFile(path, source, ts.ScriptTarget.Latest);
   const program = ts.createProgram({
     rootNames: [path],
-    options: typescript.config,
-    host: Object.assign({}, typescript.compiler, {
+    options: tsconfig,
+    host: Object.assign({}, Compiler, {
       getSourceFile: (name, languageVersion) =>
-        name === path && sourceFile ? sourceFile : typescript.compiler.getSourceFile(name, languageVersion),
+        name === path && sourceFile ? sourceFile : Compiler.getSourceFile(name, languageVersion),
     }),
   });
   ts.getPreEmitDiagnostics(program)
@@ -45,4 +35,14 @@ export function validate(path, source) {
       errors.push(`${path} (${line || 0},${character || 0}): ${message}`);
     });
   return errors ? { errors } : null;
+}
+
+export function compilerResolver(path, cwd) {
+  const paths =  Object.keys(tsconfig?.paths || {});
+  for(let i = 0, len = paths?.length || 0; i < len; i++) {
+    if(!paths[i].endsWith("*")) continue;
+    const regex = paths[i].slice(0, -1);
+    if(new RegExp(`^${regex}.*`).test(path)) return path.replace(new RegExp(`^${regex}`), cwd);
+  }
+  return path;
 }

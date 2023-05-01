@@ -1,6 +1,7 @@
 import { isBuiltin } from "node:module";
 import { fileURLToPath, pathToFileURL, URLSearchParams } from "node:url";
 import { fs } from "../../server/filesystem/index.js";
+import { compilerResolver } from "./typescript.js";
 import script from "./extensions/script.js";
 import css from "./extensions/css.js";
 import html from "./extensions/html.js";
@@ -22,6 +23,7 @@ export function resolve(specifier, context, next, options) {
     if (bundler) context.builtin = true;
     return next(specifier, context);
   }
+  specifier = compilerResolver(specifier, CWD + "/");
   if (!/^(\w:|\.?\.?\/)/.test(specifier)) return next(specifier, context);
   if (specifier?.startsWith("file://")) specifier = fileURLToPath(specifier);
   specifier = resolver(specifier, { cwd: parentURL });

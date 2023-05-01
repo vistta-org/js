@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { date } from "../../utils/date.js";
+import { date } from "@/utils/date.js";
 
 const code = {
   reset: "\x1b[0m",

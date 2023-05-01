@@ -4,9 +4,9 @@ import { hash, randomID } from "../crypto";
 // import { store } from "../../../core/store";
 // import { renderToString } from "react-dom/server";
 import { bundle } from "./bundler.js";
-import { validate } from "../../bin/loaders/typescript";
-import { system, stringify, encode } from "../../utils";
-import { importModule } from "../../bin/loaders";
+import { importModule } from "@/bin/loaders";
+import { validate } from "@/bin/loaders/typescript";
+import { system, stringify, encode } from "@/utils";
 // import { URL } from "url";
 
 system.set("document", {});
