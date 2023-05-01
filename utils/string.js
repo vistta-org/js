@@ -101,3 +101,14 @@ export const isValidUrl = (string) => {
 };
 
 export const isValidUrlPathname = (string) => !/[^A-Za-z0-9/\-._~!$&'()*+,;=:@/]/g.test(string);
+
+export function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, char => map[char]);
+}

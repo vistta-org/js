@@ -1,12 +1,11 @@
 // import { createStoreConfig } from "@vistta/visttajs";
-import Template from "./@template";
+// import Template from "./@template";
 // import FunctionCounter from "./@components/FunctionalCounter"; 
 import icon from "../logo.png";
 
 const Home = () => {
-  return (<Template title="home">
-    <h1>Hello World</h1>
-  </Template>)
+  const span = "<span></span>";
+  return (<h1>Hello World {span}</h1>)
 };
 
 export default Home;

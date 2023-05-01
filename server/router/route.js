@@ -1,6 +1,6 @@
 import { fs } from "../filesystem";
 import { hash, randomID } from "../crypto";
-// import { createElement } from "../../../core/dom";
+import { createElement, renderToString } from "@/core/dom";
 // import { store } from "../../../core/store";
 // import { renderToString } from "react-dom/server";
 import { bundle } from "./bundler.js";
@@ -96,7 +96,7 @@ class Route {
     const imports = {};
     system.set("route", this);
     // if (this.config?.store) store.set(this.config?.store);
-    const content = ""; // renderToString(createElement("app-root", null, createElement(this.app)));
+    const content = renderToString(createElement("app-root", null, createElement(this.app)));
     if (this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
     return renderToHtml({ ...(this.config || {}), imports, content, client, styles: Array.from(this.styles.values()) });
@@ -127,7 +127,6 @@ function renderToHtml({
   const nonce = "v" + randomID();
   return (
     "<!doctype html>\n" +
-    "" /*
     renderToString(
       createElement(
         "html",
@@ -156,17 +155,10 @@ function renderToHtml({
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || [])
         ),
-        createElement("body", { dangerouslySetInnerHTML: { __html: content } }),
-        createElement("script", { nonce, dangerouslySetInnerHTML: { __html: client } })
+        createUnescapedElement("body", {}, content),
+        createElement("script", { nonce }, client)
       )
-    ).replace(/(?<=<(style|script).*>)[^<]*(?=<\/(style|script)>)/gm, (style) =>
-      style
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&amp;/g, "&")
-    )*/
+    )
   );
 }
 
@@ -220,4 +212,8 @@ function getLocation(request, pathname) {
     headers: { host, referer },
   } = request;
   return new URL(pathname, referer || `${protocol}://${host}`);
+}
+
+function createUnescapedElement(type, props, ...children) {
+  return { type, props, children, unescaped: true };
 }
