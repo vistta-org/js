@@ -16,8 +16,8 @@
   },
   "scripts": {
     "checks": "eslint --fix .",
-    "dev": "node --no-warnings --loader=@vistta/visttajs/loader ./bin/cli.js start ./demo --dev",
-    "prod": "node --no-warnings --loader=@vistta/visttajs/loader ./bin/cli.js start ./demo"
+    "dev": "nodemon --no-warnings --loader=@vistta/visttajs/loader ./bin/cli.js start ./demo --dev",
+    "prod": "nodemon --no-warnings --loader=@vistta/visttajs/loader ./bin/cli.js start ./demo"
   },
   "repository": {
     "type": "git",

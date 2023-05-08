@@ -1,6 +1,6 @@
 import { fs } from "../filesystem";
 import { hash, randomID } from "../crypto";
-import { createElement, renderToString } from "@/core/dom";
+import { createElement, renderToString } from "../dom";
 // import { store } from "../../../core/store";
 // import { renderToString } from "react-dom/server";
 import { bundle } from "./bundler.js";
@@ -16,7 +16,7 @@ system.set("sessionStorage", { setItem: () => null, getItem: () => undefined, re
 const dirname = fs.dirname(import.meta.url);
 const { TYPESCRIPT_VALIDATION, NODE_ENV } = process.env;
 const isDev = NODE_ENV === "development";
-const client = await (async (path) => (await bundle(path))?.code)(fs.resolve(dirname, "../../client"));
+const client = await (async (path) => (await bundle(path))?.code)(fs.resolve(dirname, "../../core/client"));
 
 class Route {
   watchedFiles = [];
@@ -155,7 +155,7 @@ function renderToHtml({
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || [])
         ),
-        createUnescapedElement("body", {}, content),
+        createElement("body", { unescaped: true }, content),
         createElement("script", { nonce }, client)
       )
     )
@@ -212,8 +212,4 @@ function getLocation(request, pathname) {
     headers: { host, referer },
   } = request;
   return new URL(pathname, referer || `${protocol}://${host}`);
-}
-
-function createUnescapedElement(type, props, ...children) {
-  return { type, props, children, unescaped: true };
 }

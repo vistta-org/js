@@ -3,3 +3,5 @@
 // export { useSocket } from "./core/socket.js";
 // export { createStoreConfig } from "./core/store.js";
 export * from "./utils/index.js";
+//
+export { useState } from "./core/state"; 

@@ -1,12 +1,20 @@
 "use strict";
+import { render } from "./dom"; 
+import { useState } from "./state"; 
 // import { router, useRouter, buildUrl, isAppUrl } from "./router";
 // import { useSocket } from "./socket";
 // import { store, createStoreConfig } from "./store";
 import * as utils from "../utils";
 
-const { system, isValidUrl } = utils;
+const { system } = utils; // isValidUrl
 //const { createElement, StrictMode } = react;
-system.set("vistta", { /*...react, useRouter, useSocket, createStoreConfig,*/ ...utils });
+system.set("vistta", { useState, /*...react, useRouter, useSocket, createStoreConfig,*/ ...utils });
+
+(async () => {
+  const content = (await import(`http://localhost:8080/resources/app`)).default;
+  render(document.querySelector("body > app-root"), content);
+})();
+
 
 /*router.navigate = async function (href, callback) {
   const force = href === true;
