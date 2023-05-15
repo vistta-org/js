@@ -1,18 +1,12 @@
-import { dom } from "./dom";
-
-class State {
+export class State {
   #value;
   #listeners = new Set();
-  get type() {
-    return Symbol("State");
-  }
 
   constructor(initialValue) {
     this.#value = initialValue;
   }
 
   get value() {
-    this.#subscribe(dom.context.element, dom.context.attribute, () => this.#value);
     return this.#value;
   }
 
@@ -22,23 +16,20 @@ class State {
   }
 
   compute(callback) {
-    const value = () => callback(this.#value);
-    const subscribe = (element, attribute) => this.#subscribe(element, attribute, value);
-    return  {
-      get type() {
-        return Symbol("State");
-      },
+    class Computed extends State {
+      constructor(value, subscribe) {
+        super();
+        this.#value = value;
+        this.subscribe = subscribe;
+      }
+
       get value() {
-        subscribe(dom.context.element, dom.context.attribute);
-        return value();
-      },
-      valueOf() {
-        return this.value;
-      },
-      toString() {
-        return `${this.value}`;
-      },
+        return this.#value();
+      }
+
+      set value(x) {}
     }
+    return new Computed(() => callback(this.#value), (cb) => this.subscribe(cb));
   }
 
   valueOf() {
@@ -46,19 +37,12 @@ class State {
   }
 
   toString() {
+    if(this.value == null || typeof this.value === "object") return "";
     return `${this.value}`;
   }
 
-  #subscribe(element, attribute, value) {
-    if(!element) return;
-    if(attribute) return this.#listeners.add(() => attribute(value()));
-    this.#listeners.add(() => {
-      const _value = value();
-      console.dir(element.node);
-      console.log(typeof _value);
-      //(element.node.nodeValue = value())
-    });
-    
+  subscribe(callback) {
+    this.#listeners.add(callback);
   }
 }
 

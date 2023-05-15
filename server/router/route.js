@@ -96,10 +96,10 @@ class Route {
     const imports = {};
     system.set("route", this);
     // if (this.config?.store) store.set(this.config?.store);
-    const content = renderToString(createElement("app-root", null, createElement(this.app)));
+    const body = renderToString(createElement("body", null, createElement(this.app)));
     if (this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
-    return renderToHtml({ ...(this.config || {}), imports, content, client, styles: Array.from(this.styles.values()) });
+    return renderToHtml({ ...(this.config || {}), imports, body, client, styles: Array.from(this.styles.values()) });
   }
 }
 
@@ -118,7 +118,7 @@ function renderToHtml({
   theme,
   icon,
   imports,
-  content,
+  body,
   client,
   links,
   styles,
@@ -155,7 +155,7 @@ function renderToHtml({
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || [])
         ),
-        createElement("body", { unescaped: true }, content),
+        body,
         createElement("script", { nonce }, client)
       )
     )
