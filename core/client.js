@@ -12,9 +12,9 @@ system.set("vistta", { useState, /*...react, useRouter, useSocket, createStoreCo
 
 (async () => {
   const content = (await import(`http://localhost:8080/resources/app`)).default;
-  const performance = window.performance.now();
+  console.time("Initial Render");
   const dom = new VirtualDom();
-  dom.render(content, () => console.log(`${window.performance.now() - performance}ms`));
+  dom.render(content, () => console.timeEnd("Initial Render"));
 })();
 
 /*router.navigate = async function (href, callback) {

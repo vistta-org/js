@@ -1,6 +1,6 @@
 export class State {
   #value;
-  #listeners = new Set();
+  #listeners = [];
 
   constructor(initialValue) {
     this.#value = initialValue;
@@ -12,7 +12,7 @@ export class State {
 
   set value(x) {
     this.#value = x;
-    this.#listeners.forEach((l) => l());
+    for (let i = 0, len = this.#listeners.length; i < len; i++) this.#listeners[i]();
   }
 
   compute(callback) {
@@ -29,7 +29,10 @@ export class State {
 
       set value(x) {}
     }
-    return new Computed(() => callback(this.#value), (cb) => this.subscribe(cb));
+    return new Computed(
+      () => callback(this.#value),
+      (cb) => this.subscribe(cb)
+    );
   }
 
   valueOf() {
@@ -37,17 +40,15 @@ export class State {
   }
 
   toString() {
-    if(this.value == null || typeof this.value === "object") return "";
+    if (this.value == null || typeof this.value === "object") return "";
     return `${this.value}`;
   }
 
   subscribe(callback) {
-    this.#listeners.add(callback);
+    this.#listeners.push(callback);
   }
 }
 
 export function useState(initialValue) {
   return new State(initialValue);
 }
-
-//

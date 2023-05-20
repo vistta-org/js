@@ -18,6 +18,13 @@ export type system = {
   set: (key: string, value: any) => void;
 };
 
+export class ContentMap<K = any, V = any> {
+  set(key: K, value: V): void;
+  get(key: K): V;
+  get(key: K): boolean;
+  get size(): number;
+}
+
 export * from "./date.js";
 export * from "./object.js";
 export * from "./string.js";

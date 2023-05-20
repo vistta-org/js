@@ -96,7 +96,7 @@ class Route {
     const imports = {};
     system.set("route", this);
     // if (this.config?.store) store.set(this.config?.store);
-    const body = renderToString(createElement("body", null, createElement(this.app)));
+    const body = renderToString(createElement(this.app));
     if (this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
     return renderToHtml({ ...(this.config || {}), imports, body, client, styles: Array.from(this.styles.values()) });
@@ -155,7 +155,7 @@ function renderToHtml({
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || [])
         ),
-        body,
+        createElement("body", { unescaped: true }, body),
         createElement("script", { nonce }, client)
       )
     )
