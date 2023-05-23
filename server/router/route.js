@@ -96,7 +96,7 @@ class Route {
     const imports = {};
     system.set("route", this);
     // if (this.config?.store) store.set(this.config?.store);
-    const body = renderToString(createElement(this.app));
+    const body = renderToString(createElement("v-route", {}, createElement(this.app)));
     if (this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
     return renderToHtml({ ...(this.config || {}), imports, body, client, styles: Array.from(this.styles.values()) });
@@ -167,7 +167,7 @@ function rootStyle() {
     href:
       "data:text/css;base64," +
       encode(
-        `app-root {
+        `v-root {
   position: fixed;
   top: 0;
   left: 0;
@@ -179,7 +179,7 @@ function rootStyle() {
   overflow-x: hidden;
 }
 
-app-root:after {
+v-root:after {
   position: fixed;
   width: 48px;
   height: 48px;
@@ -188,11 +188,11 @@ app-root:after {
   backdrop-filter: invert(85%);
   border-radius: 50%;
   transform: translate(-50%, -50%) scale(0);
-  animation: app-root-animation 1s ease-in-out infinite;
+  animation: v-root-animation 1s ease-in-out infinite;
 }
-app-root.loading:after { content: ""; }
+v-root.loading:after { content: ""; }
 
-@keyframes app-root-animation {
+@keyframes v-root-animation {
   0%{
     transform: translate(-50%, -50%) scale(0);
     opacity: 1;

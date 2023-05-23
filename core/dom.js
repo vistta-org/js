@@ -1,25 +1,5 @@
 import { system } from "@/utils";
-import { State } from "./state";
-
-export default class VirtualDom {
-  #node;
-  #content;
-
-  constructor(node) {
-    this.#node = node || document.body;
-  }
-
-  render(content, callback) {
-    const fragment = document.createDocumentFragment();
-    this.#content = apply(fragment, content);
-    this.#node.replaceChildren(fragment);
-    clearFragment(this.#content, fragment, this.#node);
-    console.log(this.#content);
-    callback && callback();
-  }
-}
-
-//
+import { State, Ref } from "./hooks";
 
 const Fragment = Symbol("Fragment");
 const TextNode = Symbol("TextNode");
@@ -38,14 +18,14 @@ class Element {
 
 const createElement = (type, props, ...children) => {
   if (typeof type === "function") {
+    if (children?.length > 0) props.children = children;
+    const element = type(props);
+    if (Array.isArray(element)) return new Element({ type: Fragment, children: element });
+    if (element && element instanceof State) return element;
+    ({ type, props, children } = element || {});
     const { key, ref } = props || {};
     if (key) delete props.key;
     if (ref) delete props.ref;
-    if (children?.length > 0) props.children = children;
-    const element = type(props);
-    if (Array.isArray(element)) return new Element({ key, ref, type: Fragment, children: element });
-    if (element && element instanceof State) return element;
-    ({ type, props, children } = element);
     return new Element({ key, ref, type, props, children });
   }
   const { key, ref } = props || {};
@@ -61,51 +41,93 @@ export { Fragment, createElement };
 
 //
 
-function apply(parent, element) {
-  if (!element == null) return null;
-  if (typeof element === "function") return apply(parent, element());
-  if (!(element instanceof Element)) {
-    if (element instanceof State) {
-      element = new Element({ type: Fragment, value: element });
-      element.children = convertToArray(element);
-      element.value.subscribe(() => update(element));
-    } else if (Array.isArray(element)) element = new Element({ type: Fragment, children: element });
-    else element = new Element({ type: TextNode, value: `${element != null ? element : ""}` });
+export default class VirtualDom {
+  #node;
+  #content;
+  #keys = {};
+  children = [];
+
+  constructor(node) {
+    this.#node = node || document.body;
   }
-  //
-  const { type, props, children, value } = element;
-  let node;
-  if (type === TextNode) node = document.createTextNode(value);
-  else if (type !== Fragment) node = document.createElement(type);
-  element.parent = parent;
-  if (props) {
-    const keys = Object.keys(props);
-    for (let i = 0, len = keys?.length || 0; i < len; i++) {
-      const name = keys[i],
-        value = props[name];
-      if (value && value instanceof State) value.subscribe(() => setAttribute(node, name, value));
-      setAttribute(node, name, value);
+
+  render(content, callback) {
+    const fragment = document.createDocumentFragment();
+    this.#content = this.#apply((child) => (fragment.append(child.node), this.#node), content);
+    this.#node.replaceChildren(fragment);
+    this.children = [...this.#node.children];
+    callback && callback();
+  }
+
+  #apply(append, element) {
+    if (!element == null) return null;
+    if (typeof element === "function") return this.#apply(append, element());
+    if (!(element instanceof Element)) {
+      if (element instanceof State) {
+        element = new Element({ type: Fragment, value: element });
+        element.children = convertToArray(element);
+        element.value.subscribe(() => this.#update(element));
+      } else if (Array.isArray(element)) element = new Element({ type: Fragment, children: element });
+      else element = new Element({ type: TextNode, value: `${element != null ? element : ""}` });
     }
+    //
+    const { key, ref, type, props, children, value } = element;
+    if (!this.#keys?.[key]) {
+      if (type === TextNode) element.node = document.createTextNode(value);
+      else if (type !== Fragment) element.node = document.createElement(type);
+      else element.nodes = [];
+      if (key) this.#keys[key] = element.node;
+      if (ref) {
+        const typeofRef = typeof ref;
+        if (ref instanceof Ref) ref.register(element.node);
+        else if (typeofRef === "function") ref(element.node);
+        else if (typeofRef === "object") ref.current = element.node;
+      }
+      if (props) {
+        const keys = Object.keys(props);
+        for (let i = 0, len = keys?.length || 0; i < len; i++) {
+          const name = keys[i],
+            value = props[name];
+          if (value && value instanceof State) value.subscribe(() => setAttribute(element.node, name, value));
+          setAttribute(element.node, name, value);
+        }
+      }
+      if (children) {
+        const appendChild =
+          type === Fragment
+            ? (child) => {
+                element.nodes.push(child.node);
+                element.parent = append(child);
+                return element.parent;
+              }
+            : (child) => {
+                element.node.append(child.node);
+                return element.node;
+              };
+        for (let i = 0, len = children?.length || 0; i < len; i++)
+          element.children[i] = this.#apply(appendChild, children[i]);
+      }
+    } else element.node = this.#keys[key];
+    if (type !== Fragment) element.parent = append(element);
+    return element;
   }
-  if (children) {
-    for (let i = 0, len = children?.length || 0; i < len; i++) element.children[i] = apply(node || parent, children[i]);
+
+  #update(element) {
+    const fragment = document.createDocumentFragment();
+    const previous = element?.nodes || [];
+    const parent = element.parent;
+    element.children = convertToArray(element);
+    this.#apply((child) => (fragment.append(child.node), parent), element);
+    // FUTURE: Improvement would be to remove multiple Nodes with one node commit
+    const nextSibling = previous?.[previous.length - 1]?.nextSibling;
+    for (let i = 0, len = previous.length; i < len; i++) previous[i].remove();
+    if (nextSibling) parent.insertBefore(fragment, nextSibling);
+    else parent.appendChild(fragment);
+    if (parent === this.#node) this.children = [...this.#node.children];
   }
-  if (node) parent.appendChild(((element.node = node), node));
-  return element;
 }
 
-function update(element) {
-  const fragment = document.createDocumentFragment();
-  const previous = element?.children || [];
-  const parent = element.parent;
-  element.children = convertToArray(element);
-  apply(fragment, element);
-  // FUTURE: Improvement would be to remove multiple Nodes with one node commit
-  const nextSibling = remove({ children: previous });
-  element.parent = parent;
-  if (nextSibling) parent.insertBefore(fragment, nextSibling);
-  else parent.appendChild(fragment);
-}
+//
 
 function convertToArray(element) {
   const value = element.value?.valueOf();
@@ -121,23 +143,4 @@ function setAttribute(node, name, value) {
   if (!value) node.removeAttribute(name);
   if (name.includes("-")) node.setAttribute(name, value);
   else node[name] = value;
-}
-
-function remove({ node, children }) {
-  if (node) {
-    const nextSibling = node.nextSibling;
-    node.remove();
-    return nextSibling;
-  }
-  let nextSibling;
-  if (children) for (let i = 0, len = children?.length || 0; i < len; i++) nextSibling = remove(children[i]);
-  return nextSibling;
-}
-
-function clearFragment(element, fragment, parent) {
-  if (element.parent !== fragment) return;
-  element.parent = parent;
-  for (let i = 0, len = element?.children?.length || 0; i < len; i++) {
-    clearFragment(element.children[i], fragment, parent);
-  }
 }

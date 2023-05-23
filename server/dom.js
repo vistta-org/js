@@ -1,5 +1,7 @@
 import { createElement as _createElement, Fragment } from "@/core/dom";
-import { escapeHtml } from "@/utils";
+import { escapeHtml, system } from "@/utils";
+
+system.set("MutationObserver", class {});
 
 export function renderToString(dom) {
   if (dom == null || typeof dom === "boolean") return "";

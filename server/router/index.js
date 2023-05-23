@@ -1,6 +1,7 @@
 import { fs } from "../filesystem";
 import { Route } from "./route";
 import { isValidUrlPathname } from "@/utils";
+const pattern = new RegExp("^[A-Za-z]");
 
 class Router {
   subdomains = { "": {} };
@@ -75,7 +76,7 @@ function getValidRoutesFromFilepath(basepath) {
     const fullpath = basepath + path;
     if (fs.isDirectory(fullpath))
       return fs.readdirSync(fullpath).forEach((entry) => {
-        if (/^\W/.test(entry) && !/\[\w*\]\.(jsx|tsx)$/.test(entry)) return;
+        if (!pattern.test(entry) && !/\[\w*\]\.(jsx|tsx)$/.test(entry)) return;
         if (entry === "resources") return console.warn("Resources is a reserved path");
         recursive(path + "/" + entry);
       });
@@ -98,6 +99,7 @@ function getConfig(router, path) {
   if (path.startsWith("/")) path = path.slice(1);
   path = path === "" ? [] : path?.split("/");
   for (let i = 0, len = path.length; i < len; i++) {
+    if (!router?.[path[i]]) break;
     router = router[path[i]];
     config ??= router?.["@route"]?.config;
   }

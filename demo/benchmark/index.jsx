@@ -1,15 +1,22 @@
 /* eslint-disable react/prop-types */
-import { useState } from "@vistta/visttajs";
-import Test1 from "./1";
-import Test2 from "./2";
-import Test3 from "./3";
-import Test4 from "./4";
-import Style from "./style";
+import { useState, useEffect, useRoute } from "@vistta/visttajs";
+import Test1 from "./_tests/1";
+import Test2 from "./_tests/2";
+import Test3 from "./_tests/3";
+import Test4 from "./_tests/4";
+import Style from "./_style";
 const ITERATIONS = 1000;
 const BENCMARK_RUNS = 100;
-const NUMBER_OF_TESTS = 4;
+const TESTS = {
+  "1": { active: true },
+  "2": { active: true },
+  "3": { active: true },
+  "4": { active: true }
+}
+const ENABLED_TESTS = Object.values(TESTS).filter(x => x.active).length;
 
 export default function Benchmark() {
+  const { navigate } = useRoute();
   const counter = useState(1);
   const tests = {};
   const benchRun = () => {
@@ -23,7 +30,7 @@ export default function Benchmark() {
     if (!tests.results[id]) tests.results[id] = time;
     else tests.results[id] += time;
     tests.completed++;
-    if (tests.completed === NUMBER_OF_TESTS) {
+    if (tests.completed === ENABLED_TESTS) {
       tests.completed = 0;
       requestIdleCallback(() => {
         if (counter.value < BENCMARK_RUNS) return counter.value++;
@@ -47,6 +54,9 @@ export default function Benchmark() {
         <Bench id="3" run={counter} Test={Test3} onRender={runComplete} />
         <Bench id="4" run={counter} Test={Test4} onRender={runComplete} />
         <div className="controls">
+          <button className="runner" onClick={() => navigate("/")}>
+            Home
+          </button>
           <button className="runner" onClick={() => counter.value++}>
             Single Run
           </button>
@@ -60,21 +70,22 @@ export default function Benchmark() {
 }
 
 function Bench({ id, run, Test, onRender }) {
+  if(!TESTS[id].active) return null;
   let initial = 0;
-  const timeStart = run.compute(() => (initial = performance(), initial));
-  const timeEnd = run.compute(() => {
+  const timeStart = () => useEffect(() => (initial = performance(), initial), [run]);
+  const timeEnd = () => useEffect(() => {
     const actualTime = performance() - initial;
     onRender(id, actualTime);
     return actualTime;
-  });
+  }, [run]);
   return (
-    <div className="bench" data-time={timeStart}>
+    <div className="bench" data-time={timeStart()}>
       <p>Benchmark #{id}</p>
       <div className="container">
         <Test run={run} iterations={ITERATIONS} />
       </div>
       <p>Run: {run}</p>
-      <p>Time: {timeEnd}ms</p>
+      <p>Time: {timeEnd()}ms</p>
     </div>
   );
 }
