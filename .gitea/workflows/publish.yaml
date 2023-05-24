@@ -15,6 +15,6 @@ jobs:
           node-version: '19.x'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/js/npm/
-      - run: npm config set -- '//git.vistta.me/api/packages/vistta/js/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
+      - run: npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
+      - run: npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
       - run: npm publish

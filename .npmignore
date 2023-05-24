@@ -1,6 +1,5 @@
 .eslintrc.json
 .prettierrc.json
-.gitlab-ci.yml
 .gitea
 logo.png
 README.md
