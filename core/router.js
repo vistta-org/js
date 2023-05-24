@@ -8,10 +8,6 @@ const route = system.register(
     #active;
     #routes = {};
 
-    set loading(value) {
-      this?.classList?.toggle("loading", !!value);
-    }
-
     constructor() {
       super();
       if (isServer()) return;
@@ -26,8 +22,10 @@ const route = system.register(
       if (!force && this.#active === href) return;
       const cached = this.#routes?.[href];
       history.pushState({}, "", href);
+      this.#active = new URL(href).pathname;
       if (force || !cached) {
-        const content = (await import(`${href}${href.endsWith("/") ? "" : "/"}resources/app`)).default;
+        const content = (await import(`${href}${href.endsWith("/") ? "" : "/"}resources/app?v=${new Date().toISOString()}`))
+          .default;
         //const config = (await import(`${href}${href.endsWith("/") ? "" : "/"}resources/app/config`))?.config;
         //if (config?.store) store.set(config.store);
         const dom = new VirtualDom(this);
@@ -36,10 +34,20 @@ const route = system.register(
           callback && callback();
         });
       }
-      this.#active = new URL(href).pathname;
       this.replaceChildren(...cached.children);
       document.adoptedStyleSheets = cached.stylesheets;
       callback && callback();
+    }
+
+    refresh(href) {
+      if (this.#routes?.[href]) delete this.#routes[href];
+      if (href !== this.#active) return;
+      this.classList.toggle("loading", true);
+      this.navigate(true, () => this.classList.toggle("loading", false));
+    }
+
+    get active() {
+      return this.#active;
     }
 
     get location() {
@@ -77,15 +85,9 @@ export const useRoute = () => ({
 //
 
 function handleSocket(router) {
-  if (socket.active === false) return;
-  if (!socket?.serverId) return setTimeout(() => handleSocket(router), 250);
+  if (socket.active === false) return setTimeout(() => handleSocket(router), 250);
   socket.router = router;
-  socket.instance.on(`/${socket.serverId}/refresh`, (href) => {
-    router.routes.delete(href);
-    if (href !== router.active) return;
-    router.loading = true;
-    router.navigate(true, () => (router.loading = false));
-  });
+  socket.instance.on(`system/refresh`, (href) => router.refresh(href));
 }
 
 function buildUrl(href) {

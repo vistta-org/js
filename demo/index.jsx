@@ -1,14 +1,16 @@
 import Template from "./_template";
+import global from "./global.scss"
 import icon from "../logo.png";
 
 export default function Home() {
   return <Template>
-    <p>Hello World</p>
+    <p>Welcome to Vistta.js</p>
   </Template>;
 }
 
 export const config = {
-  icon: icon
+  icon: icon,
+  styles: [global]
 }
 
 /*

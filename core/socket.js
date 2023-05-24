@@ -1,7 +1,7 @@
 import { isServer, system } from "@/utils";
 
 class Socket {
-  active = true;
+  active = false;
   get href() {
     return this.router.active;
   }
@@ -16,8 +16,8 @@ class Socket {
   connect(io) {
     if (!io || this.instance) return;
     this.instance = io({ reconnectionDelay: 10000 });
+    this.instance.on("connect", () => (this.active = true));
     this.instance.io.on("reconnect", () => location.reload());
-    //this.instance.once("register", (id) => (this.serverId = id));
   }
 
   /*emit(event, ...args) {
@@ -28,7 +28,7 @@ class Socket {
   on(event, callback) {
     if (this.active === false) return;
     this.instance.on(`/${this.serverId}${this.href}/${event}`, callback);
-  }*/
+  }
 
   get global() {
     const { active, serverId, instance: socket } = this;
@@ -42,7 +42,7 @@ class Socket {
         socket.on(`/g/${serverId}/${event}`, callback);
       },
     };
-  }
+  }*/
 }
 
 const socket = new Socket();

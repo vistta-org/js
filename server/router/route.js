@@ -6,7 +6,8 @@ import { createElement, renderToString } from "../dom";
 import { bundle } from "./bundler.js";
 import { importModule } from "@/bin/loaders";
 import { validate } from "@/bin/loaders/typescript";
-import { system, stringify, encode } from "@/utils";
+import { system, stringify } from "@/utils";
+import routeStyle from "./route.css";
 // import { URL } from "url";
 
 system.set("document", {});
@@ -22,7 +23,6 @@ class Route {
   watchedFiles = [];
   resources = {};
   socket = isDev;
-  styles = new Map([["root", rootStyle()]]);
 
   constructor({ filepath, pathname, type = "", config, callback }) {
     this.id = hash(filepath);
@@ -99,7 +99,7 @@ class Route {
     const body = renderToString(createElement("v-route", {}, createElement(this.app)));
     if (this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
-    return renderToHtml({ ...(this.config || {}), imports, body, client, styles: Array.from(this.styles.values()) });
+    return renderToHtml({ ...(this.config || {}), imports, body, client });
   }
 }
 
@@ -125,6 +125,8 @@ function renderToHtml({
   scripts,
 } = {}) {
   const nonce = "v" + randomID();
+  if (!styles || !Array.isArray(styles)) styles = [routeStyle];
+  else styles.push(routeStyle);
   return (
     "<!doctype html>\n" +
     renderToString(
@@ -151,7 +153,7 @@ function renderToHtml({
           icon ? createElement("link", { rel: "shortcut icon", href: icon }) : null,
           icon ? createElement("link", { rel: "apple-touch-icon", href: icon }) : null,
           ...(links?.map((props) => createElement("link", props)) || []),
-          ...(styles?.map(({ id, href }) => createElement("link", { rel: "stylesheet", id, href })) || []),
+          ...(styles?.map(({ value }) => createElement("style", {}, value)) || []),
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || [])
         ),
@@ -160,50 +162,6 @@ function renderToHtml({
       )
     )
   );
-}
-
-function rootStyle() {
-  return {
-    href:
-      "data:text/css;base64," +
-      encode(
-        `v-root {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  color: white;
-  background: rgb(35,35,35);
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-v-root:after {
-  position: fixed;
-  width: 48px;
-  height: 48px;
-  right: 1vw;
-  bottom: 1vw;
-  backdrop-filter: invert(85%);
-  border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  animation: v-root-animation 1s ease-in-out infinite;
-}
-v-root.loading:after { content: ""; }
-
-@keyframes v-root-animation {
-  0%{
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 1;
-  }
-  100%{
-    transform: translate(-50%, -50%) scale(1.0);
-    opacity: 0;
-  }
-}`.replace(/(?<= ) | +$|(?<=\n)\n/gm, "")
-      ),
-  };
 }
 
 function getLocation(request, pathname) {

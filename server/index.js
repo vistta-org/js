@@ -88,7 +88,13 @@ class Server {
   get(...args) {
     const [subdomain, pathname, filepath, ...callback] = getHTTPMethodArgs(args, true);
     if (!validateHTTPArgs("get", subdomain, pathname)) return;
-    this.#router.set(subdomain, "get", pathname, filepath, callback);
+    if (filepath)
+      this.#router.set(subdomain, "get", pathname, filepath, (event) => {
+        const { type, event: name, pathname: href } = event;
+        if (type === "standard" && name === "changed") this.#socket.to(subdomain).emit("system/refresh", href);
+        if (callback?.[0]) callback[0](event);
+      });
+    this.#router.set(subdomain, "get", pathname, null, callback);
   }
 
   move(...args) {
@@ -129,22 +135,22 @@ class Server {
 
   on(...args) {
     if (!this.#router.has(args[0])) args.unshift("");
-    const [subdomain, event, ...rest] = args;
-    /*const { subdomain, event } = typeof e === "string" ? { event: e } : e;
+    /*const [subdomain, event, ...rest] = args;
+    const { subdomain, event } = typeof e === "string" ? { event: e } : e;
     // this.#events.on(`/g/${this.#id}/${event}`, callback);*/
   }
 
   #routeHandler() {
     return (request, response) => {
-      const { method, url, hostname } = request;
+      const { method, path, hostname } = request;
       const subdomain = getSubdomain(hostname) || "";
-      const error = this.#router.get(subdomain, "error", url, "404") || {};
+      const error = this.#router.get(subdomain, "error", path, "404") || {};
       const reject = (request, response) => (
         response.status(404),
         error?.handler?.call(error, request, response, () => response.end("Page not Found")) ||
           response.end("Page not Found")
       );
-      const [pathname, resource] = url.split(/\/resources\/(.*)/);
+      const [pathname, resource] = path.split(/\/resources\/(.*)/);
       const route = this.#router.get(subdomain, method.toLowerCase(), pathname) || {};
       if (route?.handler) {
         request.resource = resource;

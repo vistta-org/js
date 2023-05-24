@@ -39,7 +39,7 @@ class Router {
             pathname: curpath,
             type: isErrorPage ? "error" : "standard",
             config: getConfig(this.subdomains[subdomain]["get"], curpath),
-            callback: callback?.[0],
+            callback,
           });
           this.set(subdomain, isErrorPage ? "error" : "get", curpath, null, await route.import());
         }

@@ -23,6 +23,9 @@ const options = await (async (args) => {
 const app = new Server(options.ports, options.certs, ({ protocol, port }) =>
   console.log(`${protocol.toUpperCase()} server app listen on ${protocol}://localhost:${port}`)
 );
+
+app.get("/test", () => console.log("test"));
+
 console.time("page");
 app.get("/", options.folder, ({ pathname, event, type }) => {
   type = type !== "standard" ? type + " " : "";
