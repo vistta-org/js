@@ -1,4 +1,4 @@
-import { createElement as _createElement, Fragment } from "@/core/dom";
+import { createElement as _createElement, Fragment, StyleSheet } from "@/core/dom";
 import { escapeHtml, system } from "@/utils";
 
 system.set("MutationObserver", class {});
@@ -6,6 +6,7 @@ system.set("MutationObserver", class {});
 export function renderToString(dom) {
   if (dom == null || typeof dom === "boolean") return "";
   let { type, props, children, unescaped } = dom;
+  if (type === StyleSheet) type = "style";
   if (type === "script" || type === "style") unescaped = true;
   props = ((target) => {
     if (typeof target !== "object") return "";
@@ -25,7 +26,7 @@ export function renderToString(dom) {
       })
       .join("");
   })(children);
-  if (typeof type === "symbol") return children;
+  if (type === Fragment) return children;
   return `<${type}${props}>${children}</${type}>`;
 }
 

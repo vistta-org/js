@@ -1,10 +1,11 @@
-import { isServer, system } from "../utils";
-import { socket } from "./socket";
+import VirtualDom from "./dom";
+import socket from "./socket";
+import { isServer, isValidUrl, system } from "@/utils";
 
-const Route = system.register(
+const route = system.register(
   "v-route",
   class extends HTMLElement {
-    active;
+    #active;
     #routes = {};
 
     set loading(value) {
@@ -14,20 +15,31 @@ const Route = system.register(
     constructor() {
       super();
       if (isServer()) return;
-      const interval = setInterval(() => {
-        if (typeof this?.navigate !== "function") return;
-        clearInterval(interval);
-        this.navigate();
-        handleSocket(this);
-      }, 0);
+      this.navigate();
+      handleSocket(this);
     }
 
-    get(href) {
-      return this.#routes?.[href];
-    }
-
-    set(href, dom) {
-      this.#routes[href] = dom;
+    async navigate(href, callback) {
+      const force = href === true;
+      if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
+      if (!isAppUrl(href)) return (location.href = href);
+      if (!force && this.#active === href) return;
+      const cached = this.#routes?.[href];
+      history.pushState({}, "", href);
+      if (force || !cached) {
+        const content = (await import(`${href}${href.endsWith("/") ? "" : "/"}resources/app`)).default;
+        //const config = (await import(`${href}${href.endsWith("/") ? "" : "/"}resources/app/config`))?.config;
+        //if (config?.store) store.set(config.store);
+        const dom = new VirtualDom(this);
+        return dom.render(content, () => {
+          this.#routes[href] = dom;
+          callback && callback();
+        });
+      }
+      this.#active = new URL(href).pathname;
+      this.replaceChildren(...cached.children);
+      document.adoptedStyleSheets = cached.stylesheets;
+      callback && callback();
     }
 
     get location() {
@@ -51,18 +63,16 @@ const Route = system.register(
   }
 );
 
-export default Route;
+export default route;
 
 export const useRoute = () => ({
-  navigate: (...args) => Route.navigate(...args),
-  emit: (...args) => Route.emit(...args),
-  on: (...args) => Route.on(...args),
+  navigate: (...args) => route.navigate(...args),
+  emit: (...args) => route.emit(...args),
+  on: (...args) => route.on(...args),
   get location() {
-    return Route.location;
+    return route.location;
   },
 });
-
-export { buildUrl, isAppUrl };
 
 //
 

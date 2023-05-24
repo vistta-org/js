@@ -23,11 +23,7 @@ export default function (source, { path }) {
     .match(/(?<=[^{])\{(?=[^{}]*\})(?=[^"]*(?:"[^"]*"[^"]*)*$)[^}\s]*(?=[^{}]*\})\}/g)
     .forEach((match) => props.add(match.slice(1, -1)));
   return script(
-    `const template = ({${Array.from(props).join(
-      ", "
-    )}, ...props }) => createElement(Template, props, <>${source.trim()}</>);
-template.displayName = "Template.Provider";
-export default template;`,
+    `const Template = ({ ${Array.from(props).join(", ")} }) => (<>${source.trim()}</>);\nexport default Template;`,
     { extension: "jsx" }
   );
 }

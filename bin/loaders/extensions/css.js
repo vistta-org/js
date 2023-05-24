@@ -16,7 +16,7 @@ export default function (source, { path }) {
       hash: urlHash,
     });
     return {
-      code: `export default (${stringify({ id: generateId(path), value: code, hash: urlHash })});`,
+      code: `export default createStyle(${stringify({ id: generateId(path), value: code, hash: urlHash })});`,
       resources,
       files,
     };

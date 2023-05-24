@@ -1,4 +1,4 @@
-import { isServer, system } from "../utils";
+import { isServer, system } from "@/utils";
 
 class Socket {
   active = true;
@@ -45,7 +45,9 @@ class Socket {
   }
 }
 
-export const socket = new Socket();
+const socket = new Socket();
+
+export default socket;
 
 export const useSocket = () => {
   if (isServer()) system.set("route.socket", true);

@@ -2,6 +2,7 @@ import { system } from "@/utils";
 import { State, Ref } from "./hooks";
 
 const Fragment = Symbol("Fragment");
+const StyleSheet = Symbol("StyleSheet");
 const TextNode = Symbol("TextNode");
 
 class Element {
@@ -17,6 +18,7 @@ class Element {
 }
 
 const createElement = (type, props, ...children) => {
+  if (!props) props = {};
   if (typeof type === "function") {
     if (children?.length > 0) props.children = children;
     const element = type(props);
@@ -34,10 +36,23 @@ const createElement = (type, props, ...children) => {
   return new Element({ key, ref, type, props, children });
 };
 
+const createStyle = (stylesheet) => {
+  const { id, value, hash } = stylesheet || {};
+  if (!id || !value || !hash) return null;
+  function Style({ children }) {
+    children = applyScope(id, children);
+    children.unshift(createElement(StyleSheet, {}, createScope(id, value)));
+    return children;
+  }
+  Style.value = value;
+  return Style;
+};
+
 system.set("Fragment", Fragment);
 system.set("createElement", createElement);
+system.set("createStyle", createStyle);
 
-export { Fragment, createElement };
+export { Fragment, StyleSheet, createElement };
 
 //
 
@@ -45,6 +60,7 @@ export default class VirtualDom {
   #node;
   #content;
   #keys = {};
+  stylesheets = [];
   children = [];
 
   constructor(node) {
@@ -74,7 +90,13 @@ export default class VirtualDom {
     const { key, ref, type, props, children, value } = element;
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = document.createTextNode(value);
-      else if (type !== Fragment) element.node = document.createElement(type);
+      else if (type === StyleSheet) {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(children?.[0] || "");
+        this.stylesheets.push(sheet);
+        document.adoptedStyleSheets = this.stylesheets;
+        return element;
+      } else if (type !== Fragment) element.node = document.createElement(type);
       else element.nodes = [];
       if (key) this.#keys[key] = element.node;
       if (ref) {
@@ -140,7 +162,48 @@ function setAttribute(node, name, value) {
     node.addEventListener(name.charAt(2).toLowerCase() + name.slice(3), value);
     return;
   }
+  if (name === "className") name = "class";
   if (!value) node.removeAttribute(name);
-  if (name.includes("-")) node.setAttribute(name, value);
-  else node[name] = value;
+  else if (name === "style") Object.assign(node.style, value);
+  else node.setAttribute(name, value);
+}
+
+function createScope(id, code) {
+  const regex = /([^{}\s][^{}]*)\s*(?=\{)/g;
+  const add = (value) => {
+    const spaceIndex = value.indexOf(" ");
+    const greaterIndex = value.indexOf(">");
+    const index =
+      spaceIndex !== -1 && greaterIndex !== -1
+        ? Math.min(spaceIndex, greaterIndex)
+        : spaceIndex !== -1
+        ? spaceIndex
+        : greaterIndex !== -1
+        ? greaterIndex
+        : -1;
+    if (index === -1) return value + `[scope~="${id}"]`;
+    return value.slice(0, index) + `[scope~="${id}"]` + value.slice(index);
+  };
+  const replacer = (value) => {
+    if (value.includes("@")) return value;
+    if (value.includes(","))
+      return value
+        .split(",")
+        .reduce((acc, c) => `${acc}${add(c)},`, "")
+        .slice(0, -1);
+    return add(value);
+  };
+  return code.match(regex) ? code.replace(regex, (v) => replacer(v.trim())) : code;
+}
+
+function applyScope(scope, target) {
+  if (!target || typeof target !== "object") return target;
+  if (Array.isArray(target)) {
+    for (let i = 0, len = target.length; i < len; i++) target[i] = applyScope(scope, target[i]);
+    return target;
+  }
+  const { type, children } = target;
+  if (type === Fragment) return applyScope(scope, children);
+  target.props.scope = scope;
+  return target;
 }

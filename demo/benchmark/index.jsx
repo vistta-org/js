@@ -1,10 +1,10 @@
 /* eslint-disable react/prop-types */
 import { useState, useEffect, useRoute } from "@vistta/visttajs";
+import Style from "./style.scss";
 import Test1 from "./_tests/1";
 import Test2 from "./_tests/2";
 import Test3 from "./_tests/3";
 import Test4 from "./_tests/4";
-import Style from "./_style";
 const ITERATIONS = 1000;
 const BENCMARK_RUNS = 100;
 const TESTS = {
@@ -46,8 +46,7 @@ export default function Benchmark() {
     }
   };
   return (
-    <>
-      <Style/>
+    <Style>
       <div className="container">
         <Bench id="1" run={counter} Test={Test1} onRender={runComplete} />
         <Bench id="2" run={counter} Test={Test2} onRender={runComplete} />
@@ -65,7 +64,7 @@ export default function Benchmark() {
           </button>
         </div>
       </div>
-    </>
+    </Style>
   );
 }
 

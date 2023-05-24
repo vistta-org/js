@@ -1,7 +1,7 @@
 import { fs } from "../filesystem";
 import { Route } from "./route";
 import { isValidUrlPathname } from "@/utils";
-const pattern = new RegExp("^[A-Za-z]");
+const pattern = new RegExp("^[A-Za-z0-9]");
 
 class Router {
   subdomains = { "": {} };
