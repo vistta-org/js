@@ -11,7 +11,7 @@ jobs:
       -
         name: Test
         run: |
-          labels=${{ gitea.event.pull_request.labels.*.name }}
+          labels=${{ gitea.event.pull_request.labels }}
           echo $labels[0].name
 #          for label in "${labels[@]}"; do
 #            echo "Label: $label"
