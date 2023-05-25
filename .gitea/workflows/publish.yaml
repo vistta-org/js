@@ -45,7 +45,7 @@ jobs:
         run: |
           version="${{ steps.release.outputs.version }}"
           if [[ $version == "release" ]]; then
-            result=${npm pkg get version}
+            result=$(npm pkg get version)
           else
             git config user.email "devops@vistta.me"
             git config user.name "devops"
