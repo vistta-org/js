@@ -11,9 +11,11 @@ jobs:
       - name: Check Labels
         id: check-labels
         run: |
-          for label in "${{gitea.event.pull_request.label[@]}}"; do
-            echo "Item: $label.name"
-            # Add your actions that use the array item
+          labels=$(echo "${{ toJson(github.event.pull_request.labels) }}" | jq -r '.[].name')
+          IFS=$'\n' read -rd '' -a labelArray <<<"$labels"
+          for label in "${labelArray[@]}"; do
+            echo "Label: $label"
+            # Add your actions that use the label
           done
 #      - uses: actions/checkout@v3
 #      - uses: actions/setup-node@v3
