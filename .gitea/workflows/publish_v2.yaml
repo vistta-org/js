@@ -8,42 +8,10 @@ jobs:
   Validation-Actions:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-      -
-        name: Check Release
-        id: release
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      - name: Print branch names
         run: |
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Patch') }}" == "true" ]]; then
-            echo "::set-output name=version::patch"
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Minor') }}" == "true" ]]; then
-            echo "::set-output name=version::minor"
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Major') }}" == "true" ]]; then
-            echo "::set-output name=version::major"
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Manual') }}" == "true" ]]; then
-            echo "::set-output name=version::manual"
-          else
-            echo "::set-output name=version::skip"
-          fi
-      -
-        name: Install
-        if: ${{ steps.release.outputs.version != 'skip' }}
-        run: npm ci
-      -
-        name: Node Version
-        if: ${{ steps.release.outputs.version != 'skip' }}
-        id: version
-        run: |
-          version="${{ steps.release.outputs.version }}"
-          git config user.email "devops@vistta.me"
-          git config user.name "devops"
-          if [[ $version == "release" ]]; then
-            result=$(npm pkg get version)
-          else
-            result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
-            git push --tags
-          fi
-          git push origin HEAD:${{ env.GITEA_REF }}
-          git push origin HEAD:${{ env.GITEA_HEAD_REF  }}
-          echo "::set-output name=number::$result"
+          echo "Target branch: ${{ env.GITEA_REF }}"
+          echo "Source branch: ${{ env.GITEA_HEAD_REF }}"

@@ -3,7 +3,7 @@ run-name: ${{ gitea.actor }} is validating Vistta.JS
 on:
   pull_request:
     branches:    
-      - master
+      - master2
 jobs:
   Validation-Actions:
     runs-on: ubuntu-latest
