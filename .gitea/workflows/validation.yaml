@@ -1,0 +1,19 @@
+name: Validation
+run-name: ${{ gitea.actor }} is validating Vistta.JS
+on:
+  pull_request:
+    branches:    
+      - master
+jobs:
+  Explore-Gitea-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      # Setup .npmrc file to publish to npm
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '19.x'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm outdated
+      - run: npm run checks

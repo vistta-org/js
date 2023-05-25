@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useState, useEffect, useRoute } from "@vistta/visttajs";
 import Style from "./style.scss";
 import Test1 from "./_tests/1";

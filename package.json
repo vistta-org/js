@@ -16,6 +16,7 @@
   },
   "scripts": {
     "checks": "eslint --fix .",
+    "temp": "eslint --fix . && tsc .",
     "dev": "nodemon --no-warnings --loader=@vistta/visttajs/loader ./bin/cli.js start ./demo --dev",
     "prod": "nodemon --no-warnings --loader=@vistta/visttajs/loader ./bin/cli.js start ./demo"
   },
