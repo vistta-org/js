@@ -11,16 +11,10 @@ jobs:
       - name: Check Labels
         id: check-labels
         run: |
-          echo "The labels on the pull request are: ${{ github.event.pull_request.labels[0].name }}"
-          if [[ "label1" == "${{ github.event.label.name }}" ]]; then
-            echo "Performing action for label1"
-            # Add your specific actions for label1
-          elif [[ "label2" == "${{ github.event.label.name }}" ]]; then
-            echo "Performing action for label2"
-            # Add your specific actions for label2
-          else
-            echo "No matching label found"
-          fi
+          for label in "${{gitea.event.pull_request.label[@]}}"; do
+            echo "Item: $label.name"
+            # Add your actions that use the array item
+          done
 #      - uses: actions/checkout@v3
 #      - uses: actions/setup-node@v3
 #        with:
