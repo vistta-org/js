@@ -16,3 +16,5 @@ jobs:
           echo "Target/ref branch: ${{ gitea.ref }}"
           echo "Source/head_ref branch: ${{ gitea.head_ref }}"
           echo "Source/base_ref branch: ${{ gitea.base_ref }}"
+          echo "${{ toJson(gitea.event.pull_request.labels.*.name) }}"
+          echo "${{ toJson(gitea.event.pull_request) }}"
