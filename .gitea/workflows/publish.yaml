@@ -16,14 +16,14 @@ jobs:
         name: Check Commit
         id: commit
         run: |
-          commitMessage=$(git log -1 --pretty=format:%s ${{ github.sha }})
+          commitMessage="$(git log -1 --pretty=format:%s ${{ github.sha }})"
           if [[ $commitMessage == "Patch"* ]]; then
             echo "::set-output name=version::patch"
-          else if [[ $commitMessage == "Minor"* ]]; then
+          elif  [[ $commitMessage == "Minor"* ]]; then
             echo "::set-output name=version::minor"
-          else if [[ $commitMessage == "Major"* ]]; then
+          elif  [[ $commitMessage == "Major"* ]]; then
             echo "::set-output name=version::major"
-          else if [[ $commitMessage == "Release"* ]]; then
+          elif  [[ $commitMessage == "Release"* ]]; then
             echo "::set-output name=version::release"
           else
             echo "::set-output name=version::skip"
