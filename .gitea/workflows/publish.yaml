@@ -44,6 +44,8 @@ jobs:
           steps.release.outputs.version != 'skip' && steps.release.outputs.version != 'release'
         id: version
         run: |
+          git config user.email "devops@vistta.me"
+          git config user.name "devops"
           result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
           echo "::set-output name=number::$result"
       - 
