@@ -12,7 +12,7 @@ jobs:
         name: Test
         run: |
           x=${{ toJson(github.event.pull_request.labels.*.name) }}
-          echo $x
+          echo "$x"
 #          for label in "${labels[@]}"; do
 #            echo "Label: $label"
 #            # Add your actions that use the label
