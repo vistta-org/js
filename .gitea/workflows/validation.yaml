@@ -11,8 +11,8 @@ jobs:
       -
         name: Test
         run: |
-          labels=${{ gitea.event.pull_request.labels }}
-          echo $labels[0].name
+          labelLength=${{ gitea.event.pull_request.labels | length }}
+          echo "Label length: $labelLength"
 #          for label in "${labels[@]}"; do
 #            echo "Label: $label"
 #            # Add your actions that use the label
