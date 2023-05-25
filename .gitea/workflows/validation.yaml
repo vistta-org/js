@@ -10,10 +10,15 @@ jobs:
     steps:
       -
         name: Test
+        id: release
         run: |
+          type=""
           for label in "${{ toJson(gitea.event.pull_request.labels) }}"; do
-            echo "Label: $label"
+            if [[ $label.name == "Release"* ]]; then
+              type="${label.name#*/}"
+            fi
           done
+          echo "Type: $type"
 #          for label in "${labels[@]}"; do
 #            echo "Label: $label"
 #            # Add your actions that use the label
