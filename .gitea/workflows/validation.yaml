@@ -11,8 +11,7 @@ jobs:
       - name: Check Labels
         id: check-labels
         run: |
-          echo "The labels on the pull request are: ${{ github.event.pull_request.labels }}"
-          echo "The labels on the pull request are: ${{ github.event.label.name }}"
+          echo "The labels on the pull request are: ${{ github.event.pull_request.labels[0] }}"
           if [[ "label1" == "${{ github.event.label.name }}" ]]; then
             echo "Performing action for label1"
             # Add your specific actions for label1
