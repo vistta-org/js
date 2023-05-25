@@ -4,7 +4,6 @@ import Style from "./style.scss";
 
 const nav = ["home", "about", "benchmark"];
 
-// eslint-disable-next-line react/prop-types
 const PageTemplate = ({ title, children }) => {
   const { navigate } = useRoute();
   return <Style>
