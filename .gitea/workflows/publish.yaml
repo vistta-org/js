@@ -48,9 +48,9 @@ jobs:
           echo "::set-output name=number::$result"
       - 
         name: Git Version
-        if: ${{ steps.version-type.outputs.action != 'skip' }}
+        if: ${{ steps.release.outputs.version != 'skip' }}
         run: |
-          run: echo Version: ${{ steps.version-number.outputs.result }}"
+          run: echo Version: ${{ steps.version.outputs.number }}"
 #      - 
 #        name: Node Publish
 #        if: ${{ steps.version-type.outputs.action != 'skip' }}
