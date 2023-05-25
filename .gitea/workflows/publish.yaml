@@ -68,7 +68,7 @@ jobs:
       -
         name: Git Release
         if: ${{ steps.release.outputs.version != 'skip' }}
-        uses: gitea-actions/create-release@v1
+        uses: actions/create-release@v1
         with:
           server-url: ${{ secrets.GITEA_SERVER_URL }}
           token: ${{ secrets.GITEA_TOKEN }}
