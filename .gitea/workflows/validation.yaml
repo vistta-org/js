@@ -13,16 +13,18 @@ jobs:
         id: release
         run: |
           type=""
-          for label in "${{ toJson(gitea.event.pull_request.labels) }}"; do
-            if [[ $label.name == "Release"* ]]; then
-              type="${label.name#*/}"
-            fi
+          for label in "${{ gitea.event.pull_request.labels[@] }}"; do
+            echo "Label: $label"
+            echo "Label: $label.name"
           done
           echo "Type: $type"
 #          for label in "${labels[@]}"; do
 #            echo "Label: $label"
 #            # Add your actions that use the label
 #          done
+#            if [[ $label.name == "Release"* ]]; then
+#              type="${label.name#*/}"
+#            fi
 #      - uses: actions/checkout@v3
 #      - uses: actions/setup-node@v3
 #        with:
