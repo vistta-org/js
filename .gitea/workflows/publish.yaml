@@ -9,46 +9,57 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        name: Publish Type
-        id: version-type
+        name: Check Message
+        id: check-commit
         run: |
-            read -p "Enter the desired version or skip [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]: " version
-            echo "::set-output name=action::$version"
+          commitMessage=$(git log -1 --pretty=format:%s ${{ github.sha }})
+          echo "::set-output name=commit-message::$commitMessage"
       -
-        name: Checkout
-        if: ${{ steps.version-type.outputs.action != 'skip' }}
-        uses: actions/checkout@v3
-      -
-        name: Setup
-        if: ${{ steps.version-type.outputs.action != 'skip' }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: '19.x'
-          registry-url: 'https://registry.npmjs.org'
-      -
-        name: Install
-        if: ${{ steps.version-type.outputs.action != 'skip' }}
-        run: npm ci
-      -
-        name: Node Version
-        if: ${{ steps.version-type.outputs.action != 'skip' }}
-        id: version-number
+        name: Perform Action
         run: |
-          result=$(npm version ${{ steps.version-type.outputs.action }} --git-tag-version --allow-same-version)
-          echo "::set-output name=result::$result"
-      - 
-        name: Git Version
-        if: ${{ steps.version-type.outputs.action != 'skip' }}
-        run: |
-          run: echo Version: ${{ steps.version-number.outputs.result }}"
-      - 
-        name: Node Publish
-        if: ${{ steps.version-type.outputs.action != 'skip' }}
-        run: |
-          npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
-          npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
-          npm publish
-
+          echo "Commit message is present: ${{ steps.check-commit.outputs.commit-message }}"
+#    steps:
+#      -
+#        name: Publish Type
+#        id: version-type
+#        run: |
+#            read -p "Enter the desired version or skip [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]: " version
+#            echo "::set-output name=action::$version"
+#      -
+#        name: Checkout
+#        if: ${{ steps.version-type.outputs.action != 'skip' }}
+#        uses: actions/checkout@v3
+#      -
+#        name: Setup
+#        if: ${{ steps.version-type.outputs.action != 'skip' }}
+#        uses: actions/setup-node@v3
+#        with:
+#          node-version: '19.x'
+#          registry-url: 'https://registry.npmjs.org'
+#      -
+#        name: Install
+#        if: ${{ steps.version-type.outputs.action != 'skip' }}
+#        run: npm ci
+#      -
+#        name: Node Version
+#        if: ${{ steps.version-type.outputs.action != 'skip' }}
+#        id: version-number
+#        run: |
+#          result=$(npm version ${{ steps.version-type.outputs.action }} --git-tag-version --allow-same-version)
+#          echo "::set-output name=result::$result"
+#      - 
+#        name: Git Version
+#        if: ${{ steps.version-type.outputs.action != 'skip' }}
+#        run: |
+#          run: echo Version: ${{ steps.version-number.outputs.result }}"
+#      - 
+#        name: Node Publish
+#        if: ${{ steps.version-type.outputs.action != 'skip' }}
+#        run: |
+#          npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
+#          npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
+#          npm publish
+#
 #Publish Git Release:
 #  stage: git_release
 #  image: registry.gitlab.com/gitlab-org/release-cli:latest
