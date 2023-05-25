@@ -12,16 +12,14 @@ jobs:
         name: deploy        
         if:      
         run: |
-          if [[contains(${{github.event.pull_request.labels.*.name}}, 'Release/Patch')]]; then
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Patch') }}" == "true" ]]; then
             echo "patch"
-          elif [[contains(${{github.event.pull_request.labels.*.name}}, 'Release/Minor')]]; then
-            echo "minor"
-          elif [[contains(${{github.event.pull_request.labels.*.name}}, 'Release/Major')]]; then
+          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Minor') }}" == "true" ]]; then
             echo "major"
-          elif [[contains(${{github.event.pull_request.labels.*.name}}, 'Release/Manual')]]; then
+          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Major') }}" == "true" ]]; then
+            echo "major"
+          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Manual') }}" == "true" ]]; then
             echo "manual"
-          else
-            echo "skip"
           fi
           echo "deploy"
 #      - uses: actions/checkout@v3
