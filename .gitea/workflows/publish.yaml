@@ -9,15 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        name: Check Message
-        id: check-commit
-        run: |
-          commitMessage=$(git log -1 --pretty=format:%s ${{ gitea.sha }})
-          echo "::set-output name=commit-message::$commitMessage"
-      -
         name: Perform Action
         run: |
-          echo "Commit message is present: ${{ steps.check-commit.outputs.commit-message }}"
+          echo "Commit message is present: ${{ gitea.sha }}"
 #    steps:
 #      -
 #        name: Publish Type
