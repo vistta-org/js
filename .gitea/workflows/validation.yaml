@@ -11,10 +11,8 @@ jobs:
       -
         name: Test
         run: |
-          labels=$(echo "${{ toJson(gitea.event.pull_request.labels) }}" | jq -r '.[].name')
-          IFS=$'\n' read -rd '' -a labelArray <<<"$labels"
           containsRelease=false
-          for label in "${labelArray[@]}"; do
+          for label in "${{ github.event.pull_request.labels.*.name }}"; do
             echo "Label: $label"
             if [[ $label == *"Release"* ]]; then
               containsRelease=true
