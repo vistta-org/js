@@ -12,7 +12,8 @@ jobs:
       name: Checkout
       uses: actions/checkout@v3
       with:
-        ssh-key: ${{ secrets.DEPLOY_KEY }}
+        ref: ${{ gitea.event.pull_request.base.ref }}
+        token: "9a62c99f1da9d4417fd2c396e5fba566a868bfbe"
     -
       name: Check Release
       id: release
