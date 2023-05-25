@@ -40,19 +40,23 @@ jobs:
         run: npm ci
       -
         name: Node Version
-        if: |
-          steps.release.outputs.version != 'skip' && steps.release.outputs.version != 'release'
+        if: ${{ steps.release.outputs.version != 'skip' }}
         id: version
         run: |
-          git config user.email "devops@vistta.me"
-          git config user.name "devops"
-          result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
+          version="${{ steps.release.outputs.version }}"
+          if [[ $version == "release" ]]; then
+            result=${npm pkg get version}
+          else
+            git config user.email "devops@vistta.me"
+            git config user.name "devops"
+            result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
+          fi
           echo "::set-output name=number::$result"
       - 
         name: Git Version
         if: ${{ steps.release.outputs.version != 'skip' }}
         run: |
-          run: echo Version: ${{ steps.version.outputs.number }}"
+          echo Version: ${{ steps.version.outputs.number }}"
 #      - 
 #        name: Node Publish
 #        if: ${{ steps.version-type.outputs.action != 'skip' }}
