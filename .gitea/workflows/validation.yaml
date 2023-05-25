@@ -11,11 +11,12 @@ jobs:
       - name: Check Labels
         id: check-labels
         run: |
-          labels=$(${{ toJson(github.event.pull_request.labels) }})
-          for label in "${labels[@]}"; do
-            echo "Label: $label"
-            # Add your actions that use the label
-          done
+          labels=${{github.event.pull_request.labels}}
+          echo "Label: $labels"
+#          for label in "${labels[@]}"; do
+#            echo "Label: $label"
+#            # Add your actions that use the label
+#          done
 #      - uses: actions/checkout@v3
 #      - uses: actions/setup-node@v3
 #        with:
