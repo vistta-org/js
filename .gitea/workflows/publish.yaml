@@ -48,10 +48,11 @@ jobs:
           git config user.name "devops"
           if [[ $version == "release" ]]; then
             result=$(npm pkg get version)
+            git push --tags
           else
             result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
           fi
-          git push --tags
+          git push --force
           echo "::set-output name=number::$result"
       - 
         name: Git Version
@@ -65,16 +66,3 @@ jobs:
           npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
           npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
           npm publish
-#      -
-#        name: Git Release
-#        if: ${{ steps.release.outputs.version != 'skip' }}
-#        uses: actions/create-release@v1
-#        with:
-#          server-url: ${{ secrets.GITEA_SERVER_URL }}
-#          token: ${{ secrets.GITEA_TOKEN }}
-#          repository: vistta/js
-#          tag: ${{ steps.version.outputs.number }}
-#          name: Release ${{ steps.version.outputs.number }}
-#          target-commitish: main
-#          prerelease: false
-#          draft: false
