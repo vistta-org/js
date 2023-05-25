@@ -13,15 +13,25 @@ jobs:
         if: ${{ steps.version-type.outputs.action != 'skip' }}
         uses: actions/checkout@v3
       -
-        name: Check Commit Message
-        id: check-commit
+        name: Check Commit
+        id: commit
         run: |
           commitMessage=$(git log -1 --pretty=format:%s ${{ github.sha }})
-          echo "::set-output name=commit-message::$commitMessage"
+          if [[ $commitMessage == "Patch"* ]]; then
+            echo "::set-output name=version::patch"
+          else if [[ $commitMessage == "Minor"* ]]; then
+            echo "::set-output name=version::minor"
+          else if [[ $commitMessage == "Major"* ]]; then
+            echo "::set-output name=version::major"
+          else if [[ $commitMessage == "Release"* ]]; then
+            echo "::set-output name=version::release"
+          else
+            echo "::set-output name=version::skip"
+          fi
       -
         name: Perform Action
         run: |
-          echo "Commit message is present: ${{ steps.check-commit.outputs.commit-message }}"
+          echo "Commit message is present: ${{ steps.commit.outputs.version }}"
 #    steps:
 #      -
 #        name: Publish Type
