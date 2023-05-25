@@ -56,7 +56,7 @@ jobs:
         name: Git Version
         if: ${{ steps.release.outputs.version != 'skip' }}
         run: |
-          echo Version: ${{ steps.version.outputs.number }}"
+          echo "Version: ${{ steps.version.outputs.number }}"
 #      - 
 #        name: Node Publish
 #        if: ${{ steps.version-type.outputs.action != 'skip' }}
