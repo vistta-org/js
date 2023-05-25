@@ -10,7 +10,7 @@ jobs:
     steps:
       -
         name: deploy        
-        if: contains(gitea.event.pull_request.labels.*.name, 'Release')      
+        if: contains(gitea.event.pull_request.labels.*.name, 'Release/')      
         run: |
           echo "Release"
 #          for label in "${labels[@]}"; do
