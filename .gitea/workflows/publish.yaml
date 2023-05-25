@@ -9,9 +9,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
+        name: Checkout
+        if: ${{ steps.version-type.outputs.action != 'skip' }}
+        uses: actions/checkout@v3
+      -
+        name: Check Commit Message
+        id: check-commit
+        run: |
+          commitMessage=$(git log -1 --pretty=format:%s ${{ github.sha }})
+          echo "::set-output name=commit-message::$commitMessage"
+      -
         name: Perform Action
         run: |
-          echo "Commit message is present: ${{ gitea.sha }}"
+          echo "Commit message is present: ${{ steps.check-commit.outputs.commit-message }}"
 #    steps:
 #      -
 #        name: Publish Type
