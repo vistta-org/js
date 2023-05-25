@@ -52,7 +52,8 @@ jobs:
             result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
             git push --tags
           fi
-          git push --force
+          git push origin master --force
+          git push origin development --force
           echo "::set-output name=number::$result"
       - 
         name: Git Version
