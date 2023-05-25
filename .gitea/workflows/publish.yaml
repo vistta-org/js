@@ -12,7 +12,7 @@ jobs:
         name: Check Message
         id: check-commit
         run: |
-          commitMessage=$(git log -1 --pretty=format:%s ${{ github.sha }})
+          commitMessage=$(git log -1 --pretty=format:%s ${{ gitea.sha }})
           echo "::set-output name=commit-message::$commitMessage"
       -
         name: Perform Action
