@@ -8,25 +8,11 @@ jobs:
   Validation-Actions:
     runs-on: ubuntu-latest
     steps:
-       -
-        name: deploy        
-        if:      
-        run: |
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Patch') }}" == "true" ]]; then
-            echo "patch"
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Minor') }}" == "true" ]]; then
-            echo "major"
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Major') }}" == "true" ]]; then
-            echo "major"
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Manual') }}" == "true" ]]; then
-            echo "manual"
-          fi
-          echo "deploy"
-#      - uses: actions/checkout@v3
-#      - uses: actions/setup-node@v3
-#        with:
-#          node-version: '19.x'
-#          registry-url: 'https://registry.npmjs.org'
-#      - run: npm ci
-#      - run: npm outdated
-#      - run: npm run checks
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '19.x'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm outdated
+      - run: npm run checks
