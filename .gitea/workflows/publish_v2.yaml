@@ -44,5 +44,6 @@ jobs:
             result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
             git push --tags
           fi
-          git push
+          git push origin HEAD:${{ env.GITEA_REF }}
+          git push origin HEAD:${{ env.GITEA_HEAD_REF  }}
           echo "::set-output name=number::$result"
