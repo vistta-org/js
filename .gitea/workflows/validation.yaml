@@ -8,13 +8,11 @@ jobs:
   Validation-Actions:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Labels
-        id: check-labels
+      -
+        name: deploy        
+        if: contains(gitea.event.pull_request.labels.*.name, 'Release')      
         run: |
-          labels=${{github.event.pull_request.labels}}
-          for label in "${labels[@]}"; do
-            echo "Label: $label"
-          done
+          echo "Release"
 #          for label in "${labels[@]}"; do
 #            echo "Label: $label"
 #            # Add your actions that use the label
