@@ -9,10 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        name: deploy        
-        if: contains(gitea.event.pull_request.labels.*.name, 'Release/')      
+        name: Test
         run: |
-          echo "Release"
+          x=${{ toJson(github.event.pull_request.labels.*.name) }}
+          echo $x
 #          for label in "${labels[@]}"; do
 #            echo "Label: $label"
 #            # Add your actions that use the label
