@@ -11,9 +11,8 @@ jobs:
       - name: Check Labels
         id: check-labels
         run: |
-          labels=$(echo "${{ toJson(github.event.pull_request.labels) }}" | jq -r '.[].name')
-          IFS=$'\n' read -rd '' -a labelArray <<<"$labels"
-          for label in "${labelArray[@]}"; do
+          labels=$(${{ toJson(github.event.pull_request.labels) }})
+          for label in "${labels[@]}"; do
             echo "Label: $label"
             # Add your actions that use the label
           done
