@@ -11,16 +11,9 @@ jobs:
       -
         name: Test
         run: |
-          containsRelease=false
-          for label in "${{ github.event.pull_request.labels }}"; do
-            echo "Label: $label.name"
-            if [[ $label == *"Release"* ]]; then
-              containsRelease=true
-              break
-            fi
+          for label in "${{ toJson(gitea.event.pull_request.labels) }}"; do
+            echo "Label: $label"
           done
-
-          echo "Contains Release Label: $containsRelease"
 #          for label in "${labels[@]}"; do
 #            echo "Label: $label"
 #            # Add your actions that use the label
