@@ -12,13 +12,18 @@ jobs:
         name: Loop through labels
         run: |
           labels="${{ toJson(gitea.event.pull_request.labels) }}"
-          while IFS= read -r line; do
-            name=$(echo "$line" | grep -o '"name": *"[^"]*"' | cut -d '"' -f 4)
+          IFS='},{'
+          read -ra label_arr <<< "$labels"
+          for label in "${label_arr[@]}"; do
+            label="${label%]*}"
+            label="${label#*[}"
+            name="${label#*\"name\":\"}"
+            name="${name%%\"*}"
             if [[ $name == Release/* ]]; then
-              rest=${name#Release/}
+              rest="${name#Release/}"
               echo "Label: $name, Extracted: $rest"
             fi
-          done <<< "$labels"
+          done
 #          for label in "${labels[@]}"; do
 #            echo "Label: $label"
 #            # Add your actions that use the label
