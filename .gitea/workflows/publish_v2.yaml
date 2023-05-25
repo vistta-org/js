@@ -13,5 +13,6 @@ jobs:
         
       - name: Print branch names
         run: |
-          echo "Target branch: ${{ env.GITEA_REF }}"
-          echo "Source branch: ${{ env.GITEA_HEAD_REF }}"
+          echo "Target/ref branch: ${{ gitea.ref }}"
+          echo "Source/head_ref branch: ${{ gitea.head_ref }}"
+          echo "Source/base_ref branch: ${{ gitea.base_ref }}"
