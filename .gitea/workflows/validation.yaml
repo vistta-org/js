@@ -13,7 +13,7 @@ jobs:
         run: |
           containsRelease=false
           for label in "${{ github.event.pull_request.labels }}"; do
-            echo "Label: $label"
+            echo "Label: $label.name"
             if [[ $label == *"Release"* ]]; then
               containsRelease=true
               break
