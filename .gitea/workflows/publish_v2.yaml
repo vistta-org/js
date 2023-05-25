@@ -11,6 +11,8 @@ jobs:
     -
       name: Checkout
       uses: actions/checkout@v3
+      with:
+        ssh-key: ${{ secrets.DEPLOY_KEY }}
     -
       name: Check Release
       id: release
@@ -36,8 +38,6 @@ jobs:
       id: version
       run: |
         version="${{ steps.release.outputs.version }}"
-        git config user.email "devops@vistta.me"
-        git config user.name "devops"
         if [[ $version == "release" ]]; then
           result=$(npm pkg get version)
         else
