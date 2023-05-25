@@ -48,9 +48,9 @@ jobs:
           git config user.name "devops"
           if [[ $version == "release" ]]; then
             result=$(npm pkg get version)
-            git push --tags
           else
             result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
+            git push --tags
           fi
           git push --force
           echo "::set-output name=number::$result"
