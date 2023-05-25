@@ -44,38 +44,37 @@ jobs:
         id: version
         run: |
           version="${{ steps.release.outputs.version }}"
+          git config user.email "devops@vistta.me"
+          git config user.name "devops"
           if [[ $version == "release" ]]; then
             result=$(npm pkg get version)
           else
-            git config user.email "devops@vistta.me"
-            git config user.name "devops"
             result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
           fi
+          git push --force
           echo "::set-output name=number::$result"
       - 
         name: Git Version
         if: ${{ steps.release.outputs.version != 'skip' }}
         run: |
           echo "Versions: ${{ steps.version.outputs.number }}"
-#      - 
-#        name: Node Publish
-#        if: ${{ steps.version-type.outputs.action != 'skip' }}
-#        run: |
-#          npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
-#          npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
-#          npm publish
-#Publish Git Release:
-#  stage: git_release
-#  image: registry.gitlab.com/gitlab-org/release-cli:latest
-#  allow_failure: false
-#  rules:
-#    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && ($CI_COMMIT_TITLE =~ /^patch:/i || $CI_COMMIT_TITLE =~ /^minor:/i || $CI_COMMIT_TITLE =~ /^major:/i)
-#      when: always
-#    - when: never
-#  script:
-#    - echo "Release $TAG"
-#  release:
-#    name: 'VisttaJS $TAG - $CI_COMMIT_TITLE'
-#    description: 'VisttaJS $TAG - $CI_COMMIT_TITLE'
-#    tag_name: '$TAG'
-#    ref: '$CI_COMMIT_SHA'
+      - 
+        name: Node Publish
+        if: ${{ steps.release.outputs.version != 'skip' }}
+        run: |
+          npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
+          npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
+          npm publish
+      -
+        name: Git Release
+        if: ${{ steps.release.outputs.version != 'skip' }}
+        uses: gitea-actions/create-release@v1
+        with:
+          server-url: ${{ secrets.GITEA_SERVER_URL }}
+          token: ${{ secrets.GITEA_TOKEN }}
+          repository: vistta/js
+          tag: ${{ steps.version.outputs.number }}
+          name: Release ${{ steps.version.outputs.number }}
+          target-commitish: main
+          prerelease: false
+          draft: false
