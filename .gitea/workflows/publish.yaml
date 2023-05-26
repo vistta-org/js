@@ -1,69 +1,65 @@
 name: Publish
 run-name: ${{ gitea.actor }} is publishing Vistta.JS
 on:
-  push:
-    branches:
+  pull_request:
+    types:
+      - closed
+    branches:    
       - master
 jobs:
-  Publish-Actions:
+  Validation-Actions:
+    if: gitea.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-      -
-        name: Check Release
-        id: release
-        run: |
-          commitMessage="$(git log -1 --pretty=format:%s ${{ github.sha }})"
-          if [[ $commitMessage == "Patch"* ]]; then
-            echo "::set-output name=version::patch"
-          elif  [[ $commitMessage == "Minor"* ]]; then
-            echo "::set-output name=version::minor"
-          elif  [[ $commitMessage == "Major"* ]]; then
-            echo "::set-output name=version::major"
-          elif  [[ $commitMessage == "Release"* ]]; then
-            echo "::set-output name=version::release"
-          else
-            echo "::set-output name=version::skip"
-          fi
-      -
-        name: Setup
-        if: ${{ steps.release.outputs.version != 'skip' }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: '19.x'
-          registry-url: 'https://registry.npmjs.org'
-      -
-        name: Install
-        if: ${{ steps.release.outputs.version != 'skip' }}
-        run: npm ci
-      -
-        name: Node Version
-        if: ${{ steps.release.outputs.version != 'skip' }}
-        id: version
-        run: |
-          version="${{ steps.release.outputs.version }}"
-          git config user.email "devops@vistta.me"
-          git config user.name "devops"
-          if [[ $version == "release" ]]; then
-            result=$(npm pkg get version)
-          else
-            result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
-            git push --tags
-          fi
-          git push origin master --force
-          git push origin development --force
-          echo "::set-output name=number::$result"
-      - 
-        name: Git Version
-        if: ${{ steps.release.outputs.version != 'skip' }}
-        run: |
-          echo "Versions: ${{ steps.version.outputs.number }}"
-      - 
-        name: Node Publish
-        if: ${{ steps.release.outputs.version != 'skip' }}
-        run: |
-          npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
-          npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
-          npm publish
+    -
+      name: Checkout
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ gitea.event.pull_request.base.ref }}
+        token: ${{ secrets.GIT_TOKEN }}
+    -
+      name: Check Release
+      id: release
+      run: |
+        if [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Patch') }}" == "true" ]]; then
+          echo "::set-output name=version::patch"
+        elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Minor') }}" == "true" ]]; then
+          echo "::set-output name=version::minor"
+        elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Major') }}" == "true" ]]; then
+          echo "::set-output name=version::major"
+        elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Package') }}" == "true" ]]; then
+          echo "::set-output name=version::package"
+        else
+          echo "::set-output name=version::skip"
+        fi
+    -
+      name: Install
+      if: ${{ steps.release.outputs.version != 'skip' }}
+      run: npm ci
+    -
+      name: Node Version
+      if: ${{ steps.release.outputs.version != 'skip' }}
+      id: version
+      run: |
+        version="${{ steps.release.outputs.version }}"
+        git config user.email "devops@vistta.me"
+        git config user.name "${{ steps.release.outputs.version }}"
+        if [[ $version == "release" ]]; then
+          result=$(npm pkg get version)
+        else
+          result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
+          git push --tags
+        fi
+        git push origin ${{ gitea.event.pull_request.base.ref }} --force
+        git checkout ${{ gitea.event.pull_request.head.ref }}
+        git merge --no-ff origin/${{ gitea.event.pull_request.base.ref }}
+        git commit -m "$(result)"
+        git push origin ${{ gitea.event.pull_request.head.ref }} --force
+        echo "::set-output name=number::$result"
+    - 
+      name: Node Publish
+      if: ${{ steps.release.outputs.version != 'skip' }}
+      run: |
+        npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
+        npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
+        npm publish
