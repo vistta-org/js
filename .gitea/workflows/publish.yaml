@@ -51,10 +51,6 @@ jobs:
           git push --tags
         fi
         git push origin ${{ gitea.event.pull_request.base.ref }} --force
-        git checkout origin/${{ gitea.event.pull_request.head.ref }}
-        git merge --no-ff origin/${{ gitea.event.pull_request.base.ref }}
-        git commit -m "$(result)"
-        git push origin ${{ gitea.event.pull_request.head.ref }} --force
         echo "::set-output name=number::$result"
     - 
       name: Node Publish
