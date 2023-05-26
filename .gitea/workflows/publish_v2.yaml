@@ -8,6 +8,11 @@ jobs:
   Validation-Actions:
     runs-on: ubuntu-latest
     steps:
+    - name: Clear SSH known hosts cache
+      run: |
+        mkdir -p ~/.ssh
+        touch ~/.ssh/known_hosts
+        ssh-keygen -R 192.168.86.22
     -
       name: Checkout
       uses: actions/checkout@v3
