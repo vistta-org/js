@@ -47,6 +47,6 @@ jobs:
           result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
           git push --tags
         fi
-        git push origin HEAD:${{ gitea.event.pull_request.head.ref }}
+        git push origin HEAD:${{ gitea.event.pull_request.base.ref }}
         echo "::set-output name=number::$result"
-#        git push origin HEAD:${{ gitea.event.pull_request.base.ref }}
+#        git push origin HEAD:${{ gitea.event.pull_request.head.ref }}
