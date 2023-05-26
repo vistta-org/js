@@ -27,8 +27,8 @@ jobs:
           echo "::set-output name=version::minor"
         elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Major') }}" == "true" ]]; then
           echo "::set-output name=version::major"
-        elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Package') }}" == "true" ]]; then
-          echo "::set-output name=version::package"
+        elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'Release/Auto') }}" == "true" ]]; then
+          echo "::set-output name=version::auto"
         else
           echo "::set-output name=version::skip"
         fi
