@@ -7,7 +7,7 @@ on:
     branches:    
       - master
 jobs:
-  Validation-Actions:
+  Publish-Actions:
     if: gitea.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
