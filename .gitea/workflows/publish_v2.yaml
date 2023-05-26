@@ -39,14 +39,14 @@ jobs:
       id: version
       run: |
         version="${{ steps.release.outputs.version }}"
-        git config user.email "tiagoterenas@gmail.com"
-        git config user.name "tiago"
+        git config user.email "devops@vistta.me"
+        git config user.name "devops"
         if [[ $version == "release" ]]; then
           result=$(npm pkg get version)
         else
           result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
           git push --tags
         fi
-        git push origin HEAD:${{ gitea.event.pull_request.base.ref }}
+        git push origin HEAD:${{ gitea.event.pull_request.base.ref }} --force
         echo "::set-output name=number::$result"
 #        git push origin HEAD:${{ gitea.event.pull_request.head.ref }}
