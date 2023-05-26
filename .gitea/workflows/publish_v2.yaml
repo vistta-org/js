@@ -8,18 +8,12 @@ jobs:
   Validation-Actions:
     runs-on: ubuntu-latest
     steps:
-    - name: Clear SSH known hosts cache
-      run: |
-        mkdir -p ~/.ssh
-        touch ~/.ssh/known_hosts
-        ssh-keygen -R 192.168.86.22
     -
       name: Checkout
       uses: actions/checkout@v3
       with:
         ref: ${{ gitea.event.pull_request.base.ref }}
-        ssh-key: ${{ secrets.DEPLOY_KEY }}
-        ssh-strict: false
+        token: "9a62c99f1da9d4417fd2c396e5fba566a868bfbe"
     -
       name: Check Release
       id: release
@@ -45,6 +39,8 @@ jobs:
       id: version
       run: |
         version="${{ steps.release.outputs.version }}"
+        git config user.email "tiagoterenas@gmail.com"
+        git config user.name "tiago"
         if [[ $version == "release" ]]; then
           result=$(npm pkg get version)
         else
