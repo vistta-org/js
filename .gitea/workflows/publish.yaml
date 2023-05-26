@@ -57,5 +57,5 @@ jobs:
       if: ${{ steps.release.outputs.version != 'skip' }}
       run: |
         npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
-        npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.NPM_TOKEN }}"
+        npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.GIT_TOKEN }}"
         npm publish
