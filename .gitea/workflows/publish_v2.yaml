@@ -13,7 +13,7 @@ jobs:
       uses: actions/checkout@v3
       with:
         ref: ${{ gitea.event.pull_request.base.ref }}
-        token: "9a62c99f1da9d4417fd2c396e5fba566a868bfbe"
+        token: ${{ secrets.GIT_TOKEN }}
     -
       name: Check Release
       id: release
@@ -40,7 +40,7 @@ jobs:
       run: |
         version="${{ steps.release.outputs.version }}"
         git config user.email "devops@vistta.me"
-        git config user.name "devops"
+        git config user.name "${{ steps.release.outputs.version }}"
         if [[ $version == "release" ]]; then
           result=$(npm pkg get version)
         else
