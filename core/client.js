@@ -2,7 +2,7 @@
 import { useRef, useState, useEffect } from "./hooks";
 import { useRoute } from "./router";
 import { useSocket } from "./socket";
-// import { store, createStoreConfig } from "./store";
+import { Store, useStore } from "./store";
 import * as utils from "@/utils";
 
 const { system } = utils;
@@ -13,6 +13,7 @@ system.set("vistta", {
   useEffect,
   useRoute,
   useSocket,
-  //createStoreConfig,
+  useStore,
+  Store,
   ...utils,
 });

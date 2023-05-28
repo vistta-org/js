@@ -24,13 +24,14 @@ class Route {
   resources = {};
   socket = isDev;
 
-  constructor({ filepath, pathname, type = "", config, callback }) {
+  constructor(filepath, pathname, method, config, callback) {
     this.id = hash(filepath);
     this.filepath = fs.resolve(filepath);
     this.pathname = pathname;
-    this.type = type;
+    this.method = method;
+    this.type = method === "get" ? "standard" : "error";
     this.config = config;
-    this.listener = (event) => callback && callback({ filepath, pathname, event, type });
+    this.listener = (event) => callback && callback({ filepath, pathname, event, type: this.type });
   }
 
   async handler(request, response, reject) {
@@ -50,11 +51,11 @@ class Route {
     if (!resource) return response.status(200).send(this.template).end();
     if (resource === "app") return response.type(".js").status(200).send(this.code).end();
     if (resource === "app/config") {
-      if (this.config.origin !== this.pathname) {
+      if (this.config?.origin === this.pathname) return response.type(".js").status(200).send(this.config.export).end();
+      else if (this?.config?.origin) {
         const url = new URL(`${this.config.origin}/resources/app/config`.replace(/\/\//g, "/"), this.location);
         return response.redirect(url.toString());
       }
-      return response.type(".js").status(200).send(this.code).end();
     }
     return reject();
   }
@@ -65,12 +66,15 @@ class Route {
       const { errors } = TYPESCRIPT_VALIDATION !== "none" ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
       const { default: app, config } = await importModule(this.filepath, { cache: !isRefresh });
-      const { code, resources, files } = await bundle(this.filepath, { encode: true });
+      const { code, resources, files } = await bundle(this.filepath, { encode: true, exports: "default" });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       this.app = app;
       this.code = code;
       this.resources = resources;
-      if (config) this.config = ((config.origin = this.pathname), config);
+      if (config) {
+        this.config = ((config.origin = this.pathname), config);
+        this.config.export = (await bundle(this.filepath, { encode: true, exports: "config", sideEffects: false })).code;
+      }
       if (isDev) this.watch(files);
       this.listener(isRefresh ? "refreshed" : "compiled");
       return this;
@@ -95,7 +99,7 @@ class Route {
   get template() {
     const imports = {};
     system.set("route", this);
-    // if (this.config?.store) store.set(this.config?.store);
+    if (this.config?.store) this.store = this.config.store;
     const body = renderToString(createElement("v-route", {}, createElement(this.app)));
     if (this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
@@ -125,8 +129,7 @@ function renderToHtml({
   scripts,
 } = {}) {
   const nonce = "v" + randomID();
-  if (!styles || !Array.isArray(styles)) styles = [routeStyle];
-  else styles.push(routeStyle);
+  if (!styles || !Array.isArray(styles)) styles = [];
   return (
     "<!doctype html>\n" +
     renderToString(
@@ -154,6 +157,7 @@ function renderToHtml({
           icon ? createElement("link", { rel: "apple-touch-icon", href: icon }) : null,
           ...(links?.map((props) => createElement("link", props)) || []),
           ...(styles?.map(({ value }) => createElement("style", {}, value)) || []),
+          createElement("style", {}, routeStyle.value),
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || [])
         ),

@@ -76,55 +76,68 @@ class Server {
   copy(...args) {
     const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
     if (!validateHTTPArgs("copy", subdomain, pathname)) return;
-    this.#router.set(subdomain, "copy", pathname, null, callback);
+    this.#router.set(subdomain, "copy", pathname, callback);
   }
 
   delete(...args) {
     const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
     if (!validateHTTPArgs("delete", subdomain, pathname)) return;
-    this.#router.set(subdomain, "delete", pathname, null, callback);
+    this.#router.set(subdomain, "delete", pathname, callback);
   }
 
   get(...args) {
-    const [subdomain, pathname, filepath, ...callback] = getHTTPMethodArgs(args, true);
+    const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
     if (!validateHTTPArgs("get", subdomain, pathname)) return;
-    if (filepath)
-      this.#router.set(subdomain, "get", pathname, filepath, (event) => {
-        const { type, event: name, pathname: href } = event;
-        if (type === "standard" && name === "changed") this.#socket.to(subdomain).emit("system/refresh", href);
-        if (callback?.[0]) callback[0](event);
-      });
-    this.#router.set(subdomain, "get", pathname, null, callback);
+    this.#router.set(subdomain, "get", pathname, callback);
   }
 
   move(...args) {
     const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
     if (!validateHTTPArgs("move", subdomain, pathname)) return;
-    this.#router.set(subdomain, "move", pathname, null, callback);
+    this.#router.set(subdomain, "move", pathname, callback);
   }
 
   patch(...args) {
     const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
     if (!validateHTTPArgs("patch", subdomain, pathname)) return;
-    this.#router.set(subdomain, "patch", pathname, null, callback);
+    this.#router.set(subdomain, "patch", pathname, callback);
   }
 
   post(...args) {
     const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
     if (!validateHTTPArgs("post", subdomain, pathname)) return;
-    this.#router.set(subdomain, "post", pathname, null, callback);
+    this.#router.set(subdomain, "post", pathname, callback);
   }
 
   put(...args) {
     const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
     if (!validateHTTPArgs("put", subdomain, pathname)) return;
-    this.#router.set(subdomain, "put", pathname, null, callback);
+    this.#router.set(subdomain, "put", pathname, callback);
   }
 
   error(...args) {
     const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
     if (!validateHTTPArgs("error", subdomain, pathname)) return;
-    this.#router.set(subdomain, "error", pathname, null, callback);
+    this.#router.set(subdomain, "error", pathname, callback);
+  }
+
+  async use(folder, ...args) {
+    if (args.length == 2) args.unshift("");
+    const [subdomain, pathname, options] = args; // callback,
+    if (!validateHTTPArgs("use", subdomain, pathname)) return;
+    const { callback, ignore, useApiRoute } = options || {};
+    const files = Router.readFolder(folder, ignore);
+    for (let i = 0, len = files.length; i < len; i++) {
+      const { filepath, pathname } = files[i];
+      if (useApiRoute === false || !pathname.startsWith("/api")) {
+        const method = Router.isErrorRoute(pathname.split("/")?.pop()) ? "error" : "get";
+        await this.#router.setComponent(filepath, subdomain, pathname || "/", method, (event) => {
+          const { type, event: name, pathname: href } = event;
+          if (type === "standard" && name === "changed") this.#socket.to(subdomain).emit("system/refresh", href);
+          if (callback) callback(event);
+        });
+      } else await this.#router.setApi(filepath, subdomain, pathname || "/");
+    }
   }
 
   emit(...args) {
@@ -173,26 +186,14 @@ function validateHTTPArgs(method, subdomain, pathname) {
   if (subdomain !== "" && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain))
     return console.warn(`Invalid subdomain for "${subdomain}"`), false;
   if (!pathname) return console.warn(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`), false;
-  if (!pathname.startsWith("/")) return console.warn(`Invalid args for ${method.toUpperCase()} "${pathname}"`), false;
+  if (!pathname.startsWith("/")) return console.warn(`Invalid arguments for ${method.toUpperCase()} "${pathname}"`), false;
   return true;
 }
 
-function getHTTPMethodArgs(args, acceptsFilepath) {
+function getHTTPMethodArgs(args) {
   if (typeof args[0] !== "string") return [];
-  if (!acceptsFilepath) {
-    if (typeof args[1] !== "string" || typeof args[2] !== "function") return [];
-    if (typeof args[1] === "function") args.unshift("");
-    return args;
-  }
-  //
-  if (args[0].startsWith("/")) args.unshift("");
-  else if (typeof args[1] !== "string") return [];
-  if (typeof args[2] === "function") return args.splice(2, 0, ""), args;
-  if (
-    typeof args[2] === "string" &&
-    ((typeof args[3] !== "function" && typeof args[3] !== "undefined") || typeof args[4] !== "undefined")
-  )
-    return [];
+  if (typeof args[1] !== "string" || typeof args[2] !== "function") return [];
+  if (typeof args[1] === "function") args.unshift("");
   return args;
 }
 

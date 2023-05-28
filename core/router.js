@@ -6,6 +6,7 @@ const route = system.register(
   "v-route",
   class extends HTMLElement {
     #active;
+    #store;
     #routes = {};
 
     constructor() {
@@ -24,18 +25,19 @@ const route = system.register(
       history.pushState({}, "", href);
       this.#active = new URL(href).pathname;
       if (force || !cached) {
-        const content = (await import(`${href}${href.endsWith("/") ? "" : "/"}resources/app?v=${new Date().toISOString()}`))
-          .default;
-        //const config = (await import(`${href}${href.endsWith("/") ? "" : "/"}resources/app/config`))?.config;
-        //if (config?.store) store.set(config.store);
+        let app = href + (href.endsWith("/") ? "" : "/") + "resources/app";
+        const store = await loadStore(app);
+        if (store) this.#store = store;
+        if (force) app += "?v=" + new Date().toISOString();
         const dom = new VirtualDom(this);
-        return dom.render(content, () => {
-          this.#routes[href] = dom;
+        return dom.render((await import(app)).default, () => {
+          this.#routes[href] = { dom, store };
           callback && callback();
         });
       }
-      this.replaceChildren(...cached.children);
-      document.adoptedStyleSheets = cached.stylesheets;
+      if (cached?.store) this.#store = cached?.store;
+      this.replaceChildren(...cached.dom.children);
+      document.adoptedStyleSheets = cached.dom.stylesheets;
       callback && callback();
     }
 
@@ -53,6 +55,11 @@ const route = system.register(
     get location() {
       if (isServer()) return system.get("route.location");
       return window.location;
+    }
+
+    get store() {
+      if (isServer()) return system.get("route.store");
+      return this.#store;
     }
 
     emit(event, details) {
@@ -102,4 +109,12 @@ function buildUrl(href) {
 
 function isAppUrl(href) {
   return new URL(window.location.href).host === new URL(href).host;
+}
+
+async function loadStore(href) {
+  try {
+    return (await import(`${href}/config`))?.config?.store;
+  } catch {
+    return null;
+  }
 }

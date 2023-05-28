@@ -24,25 +24,25 @@ const app = new Server(options.ports, options.certs, ({ protocol, port }) =>
   console.log(`${protocol.toUpperCase()} server app listen on ${protocol}://localhost:${port}`)
 );
 
-app.get("/test", () => console.log("test"));
-
 console.time("page");
-app.get("/", options.folder, ({ pathname, event, type }) => {
-  type = type !== "standard" ? type + " " : "";
-  switch (event) {
-    case "changed":
-      return console.log(`${capitalize(type)}Page "${pathname}" was modified.`);
-    case "refresh":
-      return console.time(pathname);
-    case "refreshed":
-      return console.timeEnd(
-        pathname,
-        `${capitalize(type)}Page "${pathname}" ${console.code.cyan}refreshed${console.code.reset}`
-      );
-    case "compiled":
-      return console.timeEnd(
-        "page",
-        `${capitalize(type)}Page "${pathname}" ${console.code.green}ready${console.code.reset}`
-      );
-  }
+app.use(options.folder, "/", {
+  callback: ({ pathname, event, type }) => {
+    type = type !== "standard" ? type + " " : "";
+    switch (event) {
+      case "changed":
+        return console.log(`${capitalize(type)}Page "${pathname}" was modified.`);
+      case "refresh":
+        return console.time(pathname);
+      case "refreshed":
+        return console.timeEnd(
+          pathname,
+          `${capitalize(type)}Page "${pathname}" ${console.code.cyan}refreshed${console.code.reset}`
+        );
+      case "compiled":
+        return console.timeEnd(
+          "page",
+          `${capitalize(type)}Page "${pathname}" ${console.code.green}ready${console.code.reset}`
+        );
+    }
+  },
 });
