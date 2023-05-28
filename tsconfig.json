@@ -17,7 +17,6 @@
     "incremental": true,
     "typeRoots": ["./index.d.ts"],
     "paths": {
-      "@/*": ["./*"],
       "@vistta/visttajs": ["./index"]
     }
   }

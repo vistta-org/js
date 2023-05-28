@@ -1,14 +1,11 @@
 import { fs } from "../filesystem";
 import { hash, randomID } from "../crypto";
 import { createElement, renderToString } from "../dom";
-// import { store } from "../../../core/store";
-// import { renderToString } from "react-dom/server";
 import { bundle } from "./bundler.js";
-import { importModule } from "@/bin/loaders";
-import { validate } from "@/bin/loaders/typescript";
-import { system, stringify } from "@/utils";
+import { importModule } from "../../bin/loaders";
+import { validate } from "../../bin/loaders/typescript";
+import { system, stringify } from "../../utils";
 import routeStyle from "./route.css";
-// import { URL } from "url";
 
 system.set("document", {});
 system.set("HTMLElement", class {});

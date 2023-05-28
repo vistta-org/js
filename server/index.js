@@ -1,5 +1,5 @@
 import { fs } from "./filesystem";
-import { isIPAddress, randomID } from "@/utils";
+import { isIPAddress, randomID } from "../utils";
 import { EventEmitter } from "node:events";
 import express from "express";
 import http from "http";
