@@ -1,6 +1,6 @@
 import VirtualDom from "./dom";
 import socket from "./socket";
-import { isServer, isValidUrl, system } from "@/utils";
+import { isServer, isValidUrl, system } from "../utils";
 
 const route = system.register(
   "v-route",

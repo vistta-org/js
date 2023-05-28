@@ -1,4 +1,4 @@
-import { isServer, system } from "@/utils";
+import { isServer, system } from "../utils";
 
 class Socket {
   active = false;

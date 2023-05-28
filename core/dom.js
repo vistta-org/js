@@ -1,4 +1,4 @@
-import { system } from "@/utils";
+import { system } from "../utils";
 import { State, Ref } from "./hooks";
 
 const Fragment = Symbol("Fragment");
@@ -52,7 +52,7 @@ system.set("Fragment", Fragment);
 system.set("createElement", createElement);
 system.set("createStyle", createStyle);
 
-export { Fragment, StyleSheet, createElement };
+export { Fragment, StyleSheet, TextNode, Element, createElement };
 
 //
 

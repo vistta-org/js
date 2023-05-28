@@ -1,9 +1,9 @@
 #!/usr/bin/env node --no-warnings --loader=@vistta/visttajs/loader
 "use strict";
-import { Console, fork, fs } from "@/server/index.js";
+import { Console, fork, fs } from "../server/index.js";
 import { validate } from "./loaders/typescript.js";
 import Cache from "./loaders/cache.js";
-import pkg from "@/package.json";
+import pkg from "../package.json";
 new Cache(true);
 new Console(console);
 console.announce("Starting VisttaJS...");

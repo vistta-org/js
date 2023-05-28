@@ -1,5 +1,5 @@
 import { Route } from "./route";
-import { isValidUrlPathname } from "@/utils";
+import { isValidUrlPathname } from "../../utils";
 import { fs } from "../filesystem";
 
 class Router {

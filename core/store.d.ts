@@ -3,12 +3,29 @@ import { State } from "./hooks";
 interface Partition<T> extends State<T> {
   readonly key: string;
   readonly value: any;
-  actions: (() => void)[];
-}
-export class Store {
-  constructor(partitions: Partition<any>[]);
-  static createPartition(key: string, config: any): Partition<any>;
-  static createAction(name: string, action: (...args: any) => void, on: (event: string, value: any) => void);
 }
 
-export function useStore(a: any, b: any): any;
+type PartitionConfig<T> = {
+  initialState?: T;
+  cache?: "none" | "session" | "storage";
+  actions: PartitionAction[];
+};
+
+type PartitionAction = {
+  name: string;
+  action: (...args: any) => void;
+  on?: (event: string, value: any) => void;
+};
+
+export class Store {
+  constructor(partitions: Partition<any>[]);
+  static createPartition<T>(key: string, config: PartitionConfig<T>): Partition<T>;
+  static createAction(
+    name: PartitionAction["name"],
+    action: PartitionAction["action"],
+    on?: PartitionAction["on"]
+  ): PartitionAction;
+  use<T>(partition: string): Partition<T>;
+}
+
+export function useStore<T>(partition: string): Partition<T>;
