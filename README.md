@@ -16,9 +16,8 @@ This is a Node.js module available through this gitlab instance private npm regi
 On you project folder create a `.npmrc` file with the following content:
 
 ```
-@vistta:registry=https://git.vistta.me/api/v4/packages/npm/
-//git.vistta.me/api/v4/packages/npm/:_authToken=glpat-mypmHyyJumsV6dkVP4n7
-//git.vistta.me/api/v4/projects/35/packages/npm/:_authToken=glpat-mypmHyyJumsV6dkVP4n7
+@vistta:registry=https://git.vistta.me/api/packages/Vistta/npm/
+//git.vistta.me/api/packages/Vistta/npm/:_authToken=9a62c99f1da9d4417fd2c396e5fba566a868bfbe
 ```
 
 After that you can install the module
