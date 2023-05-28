@@ -1,6 +1,6 @@
 import route from "./router";
 import { State } from "./hooks";
-import { encode, decode, stringify, parse, isAsync } from "../utils";
+import { encode, decode, stringify, parse, isPromise } from "../utils";
 
 const STORAGE_KEY = "Vistta_Store_";
 
@@ -8,7 +8,7 @@ class Store {
   #partitions = {};
 
   static createPartition(key, config) {
-    return new Partition(key, config);
+    return new Partition(this, key, config);
   }
 
   static createAction(name, action, on) {
@@ -31,26 +31,41 @@ class Store {
 class Partition extends State {
   #key;
 
-  constructor(key, { initialState, cache = "none", actions }) {
+  constructor(store, key, { initialState, cache = "none", actions }) {
     const cacheValue = cache !== "none" ? getCacheValue(key) : undefined;
     super(cacheValue || initialState);
+    this.store = store;
     this.#key = key;
     for (let i = 0, len = actions.length; i < len; i++) {
       const action = actions[i];
-      // TODO: ABORT CONTROLLER
-      this[action.fnName] = async (...args) => {
-        action.on("pending", super.value);
-        try {
-          const returnedValue = isAsync(action) ? await action(super.value, ...args) : action(super.value, ...args);
-          action.on("completed", super.value);
-          if (returnedValue !== undefined && super.value !== returnedValue) {
-            super.value = returnedValue;
-            if (cache !== "none") updateCache(key, super.value, cache);
+      this[action.fnName] = ((...args) => {
+        action.on.call(this, "pending", super.value);
+        const controller = new AbortController();
+        // eslint-disable-next-line no-async-promise-executor
+        const promise = new Promise(async (resolve) => {
+          controller.signal.onabort = () => {
+            action.on.call(this, "rejected", controller.signal.reason);
+            resolve(null);
+          };
+          try {
+            let value = action(super.value, ...args);
+            if (isPromise(value)) value = await value;
+            if (!controller.signal?.aborted) {
+              action.on.call(this, "completed", super.value);
+              if (value !== undefined && super.value !== value) {
+                super.value = value;
+                if (cache !== "none") updateCache(key, super.value, cache);
+                resolve(super.value);
+              }
+            }
+          } catch (e) {
+            action.on.call(this, "rejected", e);
+            resolve(null);
           }
-        } catch {
-          action.on("rejected", super.value);
-        }
-      };
+        });
+        promise.abort = (...args) => controller.abort(...args);
+        return promise;
+      }).bind(this);
     }
   }
 
@@ -63,12 +78,12 @@ class Partition extends State {
   }
 
   set value(x) {
-    /* do nothing */
+    // Do Nothing
   }
 }
 
-function useStore(partition, callback) {
-  return route?.store?.use(partition, callback);
+function useStore(partition) {
+  return route?.store?.use(partition);
 }
 
 export { Store, useStore };

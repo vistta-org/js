@@ -32,7 +32,7 @@ export const isEqual = (arg1, arg2) => {
   return arg1 === arg2;
 };
 
-export const isPromise = (f) => f() instanceof Promise;
+export const isPromise = (f) => f instanceof Promise;
 
 export const isAsync = (f) => f.constructor.name === "AsyncFunction";
 
