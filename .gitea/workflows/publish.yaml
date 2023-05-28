@@ -45,7 +45,7 @@ jobs:
         git config user.email "devops@vistta.me"
         git config user.name "${{ steps.release.outputs.version }}"
         if [[ $version == "auto" ]]; then
-          git tag -l "$(npm pkg get version)"
+          git tag "v$(npm pkg get version)"
         else
           result=$(npm version ${{ steps.release.outputs.version }} --git-tag-version --allow-same-version)
         fi

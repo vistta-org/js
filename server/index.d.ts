@@ -5,6 +5,11 @@ type ListenCallback = (info: { protocol: "http" | "https"; port: number }) => vo
 type HTTP_TYPES = "delete" | "get" | "post" | "put";
 type RequestCallback = (request: Request, response: Response) => void;
 type DefaultCallback = (info: { path: string; href: string; refresh: boolean }) => void;
+type UseOptions = {
+  callback?: RequestCallback;
+  ignore?: RegExp;
+  useApiRoute?: boolean;
+};
 
 export default class Server {
   constructor(ports: { http: number; https: number }, certs: { cert: string; key: string });
@@ -18,6 +23,8 @@ export default class Server {
   copy(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
   delete(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
   delete(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
+  get(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
+  get(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
   move(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
   move(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
   patch(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
@@ -29,10 +36,8 @@ export default class Server {
   error(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
   error(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
 
-  get(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  get(pathname: string, fileOrFolder: string, callback?: RequestCallback): void;
-  get(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  get(subdomain: string, pathname: string, fileOrFolder: string, callback?: RequestCallback): void;
+  use(folder: string, pathname: string, options?: UseOptions): void;
+  use(folder: string, subdomain: string, pathname: string, options?: UseOptions): void;
   /*
   remove(type: HTTP_TYPES | string, path: string, subdomain?: string): void;
   proxy(path: string, options: {});

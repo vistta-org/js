@@ -1,7 +1,6 @@
-import { fs } from "../filesystem";
 import { Route } from "./route";
 import { isValidUrlPathname } from "@/utils";
-const pattern = new RegExp("^[A-Za-z0-9]");
+import { fs } from "../filesystem";
 
 class Router {
   subdomains = { "": {} };
@@ -15,75 +14,87 @@ class Router {
     return this.subdomains[subdomain] != null;
   }
 
-  set(subdomain, method, pathname, filepath, callback) {
+  set(subdomain, method, pathname, callback) {
     const wildcard = pathname?.match(/\/\[(\w*)\]$/)?.[1];
     if (wildcard) pathname = pathname.replace(`/[${wildcard}]`, "/*");
     if (!isValidUrlPathname(pathname)) return console.warn(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`);
     //
     this.register(subdomain);
     let router = this.subdomains[subdomain];
-    if (pathname.endsWith("/")) pathname = pathname.slice(0, -1);
+    if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
     if (!pathname.startsWith("/")) pathname = "/" + pathname;
-    const path = pathname === "/" ? [method] : (method + pathname).split("/");
-    for (let i = 0, len = path.length; i < len; i++) {
+    const path = pathname === "/" ? [""] : pathname.split("/");
+    for (let i = 1, len = path.length; i < len; i++) {
       if (router[path[i]] == null) router[path[i]] = {};
       router = router[path[i]];
     }
-    if (filepath)
-      return (async (routes) => {
-        for (let i = 0, len = routes.length; i < len; i++) {
-          const curpath = ((pathname.endsWith("/") ? pathname : pathname + "/") + routes[i].pathname).replace(/\/\//g, "/");
-          const isErrorPage = isErrorCode(curpath.split("/")?.pop());
-          const route = new Route({
-            filepath: routes[i].filepath,
-            pathname: curpath,
-            type: isErrorPage ? "error" : "standard",
-            config: getConfig(this.subdomains[subdomain]["get"], curpath),
-            callback,
-          });
-          this.set(subdomain, isErrorPage ? "error" : "get", curpath, null, await route.import());
-        }
-      })(getValidRoutesFromFilepath(filepath));
     if (callback instanceof Route) router["@route"] = ((callback.wildcard = wildcard), callback);
-    else if (typeof callback === "function") router["@route"] = { pathname, wildcard, handler: callback };
-    else if (Array.isArray(callback)) router["@route"] = { pathname, wildcard, handler: transformCallback(callback) };
+    else if (typeof callback === "function") router["@route"] = { pathname, method, wildcard, handler: callback };
+    else if (Array.isArray(callback))
+      router["@route"] = { pathname, method, wildcard, handler: transformCallback(callback) };
   }
 
   get(subdomain, method, pathname, strict) {
     let router = this.subdomains[subdomain];
     if (/\?/.test(pathname)) pathname = pathname.split(/\?(.*)/)[0];
+    if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
     if (!pathname.startsWith("/")) pathname = "/" + pathname;
-    if (pathname.endsWith("/")) pathname = pathname.slice(0, -1);
-    const path = (method + pathname)?.split("/");
+    const path = pathname === "/" ? [""] : pathname.split("/");
     let wildcardMatch;
-    for (let i = 0, len = path.length; i < len; i++) {
+    const valid = (curr) => curr && (curr?.["@route"]?.method === "any" || curr?.["@route"]?.method === method);
+    for (let i = 1, len = path.length; i < len; i++) {
       if (!router) break;
-      if (!strict && router?.["*"]) wildcardMatch = router?.["*"];
-      if (typeof strict === "string" && router?.[strict]) wildcardMatch = router?.[strict];
+      if (!strict && valid(router?.["*"])) wildcardMatch = router["*"];
+      if (typeof strict === "string" && valid(router?.["strict"])) wildcardMatch = router[strict];
       router = router?.[path[i]];
     }
-    return (router || wildcardMatch)?.["@route"];
+    if (valid(router)) return router?.["@route"];
+    return wildcardMatch?.["@route"];
+  }
+
+  async setComponent(filepath, subdomain, pathname, method, callback) {
+    const config = getConfig(this.subdomains[subdomain]["get"], pathname);
+    const route = new Route(filepath, pathname, method, config, callback);
+    this.set(subdomain, method, pathname, await route.import());
+  }
+
+  async setApi(filepath, subdomain, pathname) {
+    const handler = (await import(filepath))?.default;
+    this.set(subdomain, "any", pathname, handler);
   }
 }
+
+Router.readFolder = getValidRoutesFromFolder;
+Router.isErrorRoute = isErrorRoute;
 
 export { Router };
 
 //
 
-function getValidRoutesFromFilepath(basepath) {
+function transformCallback(callback) {
+  callback = callback.filter((f) => typeof f === "function");
+  if (callback.length === 0) return null;
+  const transform = (callbacklist) => {
+    const _callback = callbacklist.pop();
+    return (request, response) => _callback(request, response, transform(callbacklist));
+  };
+  return transform(callback);
+}
+
+function getValidRoutesFromFolder(folder, pattern = new RegExp("^[A-Za-z0-9]")) {
   const routes = [];
   const recursive = (path = "") => {
-    const fullpath = basepath + path;
+    const fullpath = folder + path;
     if (fs.isDirectory(fullpath))
       return fs.readdirSync(fullpath).forEach((entry) => {
         if (!pattern.test(entry) && !/\[\w*\]\.(jsx|tsx)$/.test(entry)) return;
         if (entry === "resources") return console.warn("Resources is a reserved path");
         recursive(path + "/" + entry);
       });
-    const extension = fs.extname(path);
-    if (extension !== ".jsx" && extension !== ".tsx") return;
-    else path = path.slice(0, -4);
-    if (path.endsWith("index")) path = path.slice(0, -"index".length);
+    const ext = fs.extname(path);
+    if (![".js", ".jsx", ".ts", ".tsx"].includes(fs.extname(path))) return;
+    else path = path.slice(0, ext.length * -1);
+    if (path.endsWith("index")) path = path.slice(0, ("index".length + 1) * -1);
     routes.push({ filepath: fullpath, pathname: path });
   };
   recursive();
@@ -106,17 +117,7 @@ function getConfig(router, path) {
   return config;
 }
 
-function transformCallback(callback) {
-  callback = callback.filter((f) => typeof f === "function");
-  if (callback.length === 0) return null;
-  const transform = (callbacklist) => {
-    const _callback = callbacklist.pop();
-    return (request, response) => _callback(request, response, transform(callbacklist));
-  };
-  return transform(callback);
-}
-
-function isErrorCode(pathname) {
+function isErrorRoute(pathname) {
   if (pathname.length !== 3) return false;
   const n = +pathname;
   return 400 <= n && n < 600;

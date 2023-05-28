@@ -1,5 +1,6 @@
 import { resolve, load } from "@/bin/loaders";
 import { build } from "esbuild";
+import { dirname, basename } from "path";
 
 class Bundler {
   config = {
@@ -24,11 +25,20 @@ class Bundler {
 
   constructor() {}
 
-  async run(filename, { mode = process.env.NODE_ENV } = {}) {
-    const instance = { code: "", files: [], resources: {} };
+  async run(filename, { mode = process.env.NODE_ENV, exports, sideEffects } = {}) {
+    const instance = {
+      filename,
+      base: basename(filename),
+      exports,
+      dir: dirname(filename),
+      sideEffects,
+      code: "",
+      files: [],
+      resources: {},
+    };
     const filter = /.*/;
     const config = Object.assign({}, this.config, {
-      entryPoints: [filename],
+      entryPoints: [exports ? "@exports" : filename],
       minify: mode === "production",
       plugins: [
         {
@@ -53,12 +63,14 @@ class Bundler {
         return { path: "content", external: true };
       case "@socket":
         return { path: "socket", external: true };
+      case "@exports":
+        return { path: this.base, namespace: "exports" };
       default:
         break;
     }
     return resolve(path, { parentURL: resolveDir, bundler: true }, (final, { builtin, file }) => {
       if (builtin) return { path: final, namespace: "ignore" };
-      if (file) return { path: final };
+      if (file) return { path: final, sideEffects: this.sideEffects };
       return {};
     });
   }
@@ -66,6 +78,11 @@ class Bundler {
   load({ path, namespace }) {
     if (namespace === "ignore") return { contents: "" };
     if (namespace === "window") return { contents: `module.exports = window.${path};` };
+    if (namespace === "exports")
+      return {
+        contents: `export { ${this.exports} } from "./${this.base}";`,
+        resolveDir: this.dir,
+      };
     const { source, resources, files = [] } = load(path, { bundler: true }, () => ({}));
     this.files.push(...files);
     if (!source) return { loader: "js" };
