@@ -25,19 +25,22 @@ class Server {
   get certs() {
     return this.#certs;
   }
-
-  constructor(ports, certs, startOrCallback = true) {
-    if (!(ports?.http || ports?.https)) throw "Missing ports for either http or https";
-    if (ports?.https && !(certs?.cert || certs?.key)) {
-      ports.https = null;
-      console.warn("Disabled HTTPS due to missing certification");
+  // ports, certs, startOrCallback = true
+  constructor({ http, https, cert, key, autoStart, callback }) {
+    if (http === true) http = 80;
+    if (https === true) https = 443;
+    if (!(http || https)) throw "Missing ports for either HTTP or HTTPS";
+    if (https && !(cert || key)) {
+      https = null;
+      if (!http) throw "Missing certification for HTTPS";
+      else console.warn("Disabled HTTPS due to missing certification");
     }
-    this.#ports = ports;
-    this.#certs = certs;
+    this.#ports = { http, https };
+    this.#certs = { cert, key };
     this.#app = http2express(express);
     this.#app.enable("trust proxy");
-    this.#app.use([useSecure(ports), compression({ filter: shouldCompress }), this.#routeHandler()]);
-    if (startOrCallback) this.listen(null, typeof startOrCallback === "function" ? startOrCallback : null);
+    this.#app.use([useSecure({ http, https }), compression({ filter: shouldCompress }), this.#routeHandler()]);
+    if (autoStart || callback) this.listen(null, callback);
   }
 
   listen(protocol, callback) {

@@ -1,4 +1,4 @@
-import { system } from "../utils";
+import { indexOf, system } from "../utils";
 import { State, Ref } from "./hooks";
 
 const Fragment = Symbol("Fragment");
@@ -171,16 +171,7 @@ function setAttribute(node, name, value) {
 function createScope(id, code) {
   const regex = /([^{}\s][^{}]*)\s*(?=\{)/g;
   const add = (value) => {
-    const spaceIndex = value.indexOf(" ");
-    const greaterIndex = value.indexOf(">");
-    const index =
-      spaceIndex !== -1 && greaterIndex !== -1
-        ? Math.min(spaceIndex, greaterIndex)
-        : spaceIndex !== -1
-        ? spaceIndex
-        : greaterIndex !== -1
-        ? greaterIndex
-        : -1;
+    const index = indexOf(value, " ", ">", ":");
     if (index === -1) return value + `[scope~="${id}"]`;
     return value.slice(0, index) + `[scope~="${id}"]` + value.slice(index);
   };

@@ -104,11 +104,21 @@ export const isValidUrlPathname = (string) => !/[^A-Za-z0-9/\-._~!$&'()*+,;=:@/]
 
 export function escapeHtml(text) {
   const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
   };
-  return text.replace(/[&<>"']/g, char => map[char]);
+  return text.replace(/[&<>"']/g, (char) => map[char]);
+}
+
+export function indexOf(string, ...searchStrings) {
+  let index = -1;
+  for (let i = 0, len = searchStrings?.length || 0; i < len; i++) {
+    const curr = string.indexOf(searchStrings[i]);
+    if (index == -1 || (curr > 0 && curr < index)) index = curr;
+    else if (curr == 0) return 0;
+  }
+  return index;
 }

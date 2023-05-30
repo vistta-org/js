@@ -13,3 +13,5 @@ export function isIPAddress(string: string): boolean;
 export function isValidUrl(string: string): boolean;
 
 export function isValidUrlPathname(string: string): boolean;
+
+export function indexOf(string: string, ...searchStrings: string[]): number;

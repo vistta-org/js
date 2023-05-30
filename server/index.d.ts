@@ -1,20 +1,23 @@
 /// <reference types="../global" />
 /// <reference types="node"/>
-
+type ServerOptions = {
+  http?: number | boolean;
+  https?: number | boolean;
+  cert?: string;
+  key?: string;
+  autoStart?: boolean;
+  callback?: ListenCallback;
+};
 type ListenCallback = (info: { protocol: "http" | "https"; port: number }) => void;
-type HTTP_TYPES = "delete" | "get" | "post" | "put";
 type RequestCallback = (request: Request, response: Response) => void;
-type DefaultCallback = (info: { path: string; href: string; refresh: boolean }) => void;
 type UseOptions = {
-  callback?: RequestCallback;
+  callback?: (options: { pathname: string; event: string; type: string }) => void;
   ignore?: RegExp;
   useApiRoute?: boolean;
 };
 
 export default class Server {
-  constructor(ports: { http: number; https: number }, certs: { cert: string; key: string });
-  constructor(ports: { http: number; https: number }, certs: { cert: string; key: string }, autoStart?: boolean);
-  constructor(ports: { http: number; https: number }, certs: { cert: string; key: string }, callback?: ListenCallback);
+  constructor(options: ServerOptions);
 
   listen(callback?: ListenCallback): void;
   listen(protocol: "http" | "https", callback?: ListenCallback): void;

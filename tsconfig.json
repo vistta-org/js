@@ -3,6 +3,7 @@
     "target": "esnext",
     "module": "commonjs",
     "allowJs": true,
+    "jsx": "react",
     "jsxFactory": "createElement",
     "jsxFragmentFactory": "Fragment",
     "declaration": false,
