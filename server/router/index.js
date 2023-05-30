@@ -45,7 +45,7 @@ class Router {
     for (let i = 1, len = path.length; i < len; i++) {
       if (!router) break;
       if (!strict && valid(router?.["*"])) wildcardMatch = router["*"];
-      if (typeof strict === "string" && valid(router?.["strict"])) wildcardMatch = router[strict];
+      if (typeof strict === "string" && valid(router?.[strict])) wildcardMatch = router[strict];
       router = router?.[path[i]];
     }
     if (valid(router)) return router?.["@route"];
@@ -53,7 +53,7 @@ class Router {
   }
 
   async setComponent(filepath, subdomain, pathname, method, callback) {
-    const config = getConfig(this.subdomains[subdomain]["get"], pathname);
+    const config = getConfig(this.subdomains[subdomain], pathname);
     const route = new Route(filepath, pathname, method, config, callback);
     this.set(subdomain, method, pathname, await route.import());
   }

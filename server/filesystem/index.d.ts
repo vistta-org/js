@@ -1,1 +1,2 @@
-export const fs;
+// TODO
+export type fs = {};

@@ -1,27 +1,28 @@
-// CSS
-declare function StyleComponent(props: any): JSX.Element;
+/// <reference path="./jsx.d.ts" />
 
+// CSS
 declare module "*.css" {
+  function StyleComponent(props: { children?: JSX.Node }): JSX.Node;
   export default StyleComponent;
 }
 
 declare module "*.sass" {
+  function StyleComponent(props: { children?: JSX.Node }): JSX.Node;
   export default StyleComponent;
 }
 
 declare module "*.scss" {
+  function StyleComponent(props: { children?: JSX.Node }): JSX.Node;
   export default StyleComponent;
 }
 
 // Template
-declare function TemplateComponent(props: any): JSX.Element;
-
 declare module "*.html" {
+  function TemplateComponent(props: { [key: string]: any }): JSX.Node;
   export default TemplateComponent;
 }
 
 // Files
-
 declare module "*.jpg" {
   const path: string;
   export default path;

@@ -15,14 +15,18 @@ const options = await (async (args) => {
   });
   return {
     folder,
-    ports: { http: config.http || 8080, https: config.https || 8443 },
-    certs: { cert: config.cert, key: config.key },
+    http: config.http || 8080,
+    https: config.https || 8443,
+    cert: config.cert,
+    key: config.key,
   };
 })(process.argv.slice(2));
 
-const app = new Server(options.ports, options.certs, ({ protocol, port }) =>
-  console.log(`${protocol.toUpperCase()} server app listen on ${protocol}://localhost:${port}`)
-);
+const app = new Server({
+  ...options,
+  callback: ({ protocol, port }) =>
+    console.log(`${protocol.toUpperCase()} server app listen on ${protocol}://localhost:${port}`),
+});
 
 console.time("page");
 app.use(options.folder, "/", {
