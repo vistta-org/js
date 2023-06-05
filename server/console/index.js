@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { EventEmitter } from "node:events";
 import { date, stringify } from "../../utils/index.js";
 
