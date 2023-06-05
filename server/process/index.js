@@ -1,13 +1,14 @@
 import childProcess from "node:child_process";
 
 class Process {
+  #process;
+
   constructor(type, main, args, options) {
     this.type = type;
     if (typeof main !== "string") throw `Invalid argument "${type === "fork" ? "file" : "command"}" must be a string`;
     this.main = main;
     this.args = args || [];
     this.options = options || {};
-    this.node = null;
   }
 
   start() {
@@ -15,14 +16,14 @@ class Process {
       try {
         switch (this.type) {
           case "spawn":
-            this.node = childProcess.spawn(this.main, this.args, { ...this.options, shell: true, detached: false });
-            this.node.stderr.on("data", (data) => console.error("error", `${data || ""}`));
+            this.#process = childProcess.spawn(this.main, this.args, { ...this.options, shell: true, detached: false });
+            this.#process.stderr.on("data", (data) => console.error("error", `${data || ""}`));
             break;
           case "fork":
-            this.node = childProcess.fork(this.main, this.args, { ...this.options, detached: false });
+            this.#process = childProcess.fork(this.main, this.args, { ...this.options, detached: false });
             break;
         }
-        this.node.on("close", () => (this.node = null));
+        this.#process.on("close", () => (this.#process = null));
         resolve(true);
       } catch (e) {
         reject(e);
@@ -33,15 +34,23 @@ class Process {
   stop() {
     return new Promise((resolve, reject) => {
       try {
-        const pid = this.node?.pid;
+        const pid = this.#process?.pid;
         if (pid) process.kill(pid);
-        else this.node?.kill("SIGINT");
-        this.node = null;
+        else this.#process?.kill("SIGINT");
+        this.#process = null;
         setTimeout(() => resolve(true), 1000);
       } catch (e) {
         reject(e);
       }
     });
+  }
+
+  send(msg, callback) {
+    this.#process.send(msg, callback);
+  }
+
+  on(callback) {
+    this.#process.on("message", callback);
   }
 }
 

@@ -7,13 +7,11 @@ import css from "./extensions/css.js";
 import html from "./extensions/html.js";
 import json from "./extensions/json.js";
 import file from "./extensions/file.js";
-import Cache from "./cache.js";
+import cache from "./cache.js";
 
 const EXTENSIONS = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"];
 const CONTEXT = {};
 const CWD = process.cwd();
-
-export const cache = new Cache();
 
 export function resolve(specifier, context, next, options) {
   [specifier, options] = specifier.split(/\?(.*)/);

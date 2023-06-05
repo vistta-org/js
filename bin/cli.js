@@ -2,9 +2,7 @@
 "use strict";
 import { fork, fs } from "../server/index.js";
 import { validate } from "./loaders/typescript.js";
-import Cache from "./loaders/cache.js";
 import pkg from "../package.json";
-new Cache(true);
 console.announce("Starting VisttaJS...");
 const dirname = fs.dirname(import.meta.url);
 const abort = (error) => (console.error(error), process.exit(0));
