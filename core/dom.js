@@ -195,7 +195,7 @@ function createScope(id, code) {
     return value.slice(0, index) + `[scope~="${id}"]` + value.slice(index);
   };
   const replacer = (value) => {
-    if (value.includes("@")) return value;
+    if (value.includes("@") || value.includes("%")) return value;
     if (value.includes(","))
       return value
         .split(",")
