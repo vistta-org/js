@@ -1,5 +1,6 @@
-/// <reference types="../global" />
 /// <reference types="node"/>
+/// <reference types="../global" />
+/// <reference types="./console" />
 type ServerOptions = {
   http?: number | boolean;
   https?: number | boolean;
@@ -49,7 +50,6 @@ export default class Server {
   emit(event: string, ...args: any): void;*/
 }
 
-export * from "./console";
 export * from "./crypto";
 export * from "./filesystem";
 export * from "./process";

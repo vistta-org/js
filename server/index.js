@@ -1,3 +1,4 @@
+import "./console";
 import { fs } from "./filesystem";
 import { isIPAddress, randomID } from "../utils";
 import { EventEmitter } from "node:events";
@@ -178,7 +179,6 @@ class Server {
 }
 
 export default Server;
-export * from "./console";
 export * from "./crypto";
 export * from "./filesystem";
 export * from "./process";

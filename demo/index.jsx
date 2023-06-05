@@ -12,7 +12,7 @@ export default function Home() {
     console.log(controller);
   }
   return <Template>
-    <p>Welcome to Vistta.js</p>
+    <p>Welcome to Vistta.JS</p>
     <p>{counter}</p>
     <button onClick={counter.increment}>increment</button>
     <button onClick={counter.decrement}>decrement</button>

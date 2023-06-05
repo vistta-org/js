@@ -16,7 +16,7 @@ export default function (source, { path }) {
       hash: urlHash,
     });
     return {
-      code: `export default createStyle(${stringify({ id: generateId(path), value: code, hash: urlHash })});`,
+      code: `export default createStyle(${stringify({ id: convertToUniqueId(path), value: code, hash: urlHash })});`,
       resources,
       files,
     };
@@ -87,11 +87,7 @@ function convertToSass(input, fallback) {
   }
 }
 
-function generateId(path) {
-  const result = [];
-  const id = `${fs.statSync(path).ino}`;
-  const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const letter = (number) => alphabet.charAt(number % alphabet.length);
-  for (let i = 0; i < id.length; i += 2) result.push(id.slice(i, i + 2));
-  return result.map((v) => letter(+v)).join("");
+function convertToUniqueId(path) {
+  const encoded = Buffer.from(hash(path, "sha256", "hex"), "hex").toString("base64");
+  return encoded.replace(/[+/=]/g, "").slice(0, 8);
 }

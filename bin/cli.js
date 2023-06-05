@@ -1,11 +1,10 @@
 #!/usr/bin/env node --no-warnings --loader=@vistta/visttajs/loader
 "use strict";
-import { Console, fork, fs } from "../server/index.js";
+import { fork, fs } from "../server/index.js";
 import { validate } from "./loaders/typescript.js";
 import Cache from "./loaders/cache.js";
 import pkg from "../package.json";
 new Cache(true);
-new Console(console);
 console.announce("Starting VisttaJS...");
 const dirname = fs.dirname(import.meta.url);
 const abort = (error) => (console.error(error), process.exit(0));

@@ -6,7 +6,7 @@ const route = system.register(
   "v-route",
   class extends HTMLElement {
     #active;
-    #store;
+    #dom;
     #routes = {};
 
     constructor() {
@@ -20,25 +20,23 @@ const route = system.register(
       const force = href === true;
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
+      href = new URL(href).pathname;
       if (!force && this.#active === href) return;
+      this.#active = href;
       const cached = this.#routes?.[href];
       history.pushState({}, "", href);
-      this.#active = new URL(href).pathname;
       if (force || !cached) {
         let app = href + (href.endsWith("/") ? "" : "/") + "resources/app";
-        const store = await loadStore(app);
-        if (store) this.#store = store;
+        const { store, styles } = await loadConfig(app);
         if (force) app += "?v=" + new Date().toISOString();
-        const dom = new VirtualDom(this);
-        return dom.render((await import(app)).default, () => {
-          this.#routes[href] = { dom, store };
+        this.#dom = new VirtualDom(this, styles, store);
+        return this.#dom.render((await import(app)).default, () => {
+          this.#routes[href] = this.#dom;
           callback && callback();
         });
       }
-      if (cached?.store) this.#store = cached?.store;
-      this.replaceChildren(...cached.dom.children);
-      document.adoptedStyleSheets = cached.dom.stylesheets;
-      callback && callback();
+      this.#dom = cached;
+      this.#dom.replace(() => callback && callback());
     }
 
     refresh(href) {
@@ -59,7 +57,7 @@ const route = system.register(
 
     get store() {
       if (isServer()) return system.get("route.store");
-      return this.#store;
+      return this.#dom?.store;
     }
 
     emit(event, details) {
@@ -111,10 +109,10 @@ function isAppUrl(href) {
   return new URL(window.location.href).host === new URL(href).host;
 }
 
-async function loadStore(href) {
+async function loadConfig(href) {
   try {
-    return (await import(`${href}/config`))?.config?.store;
+    return (await import(`${href}/config`))?.config || {};
   } catch {
-    return null;
+    return {};
   }
 }

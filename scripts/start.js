@@ -1,6 +1,5 @@
-import Server, { fs, Console } from "../server/index.js";
+import Server, { fs } from "../server/index.js";
 import { trim, capitalize } from "../utils/index.js";
-new Console(console);
 console.announce(`VisttaJS v${process.env.VISION_VERSION}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const options = await (async (args) => {
@@ -36,14 +35,14 @@ app.use(options.folder, "/", {
       case "changed":
         return console.log(`${capitalize(type)}Page "${pathname}" was modified.`);
       case "refresh":
-        return console.time(pathname);
+        return console.time(pathname, true);
       case "refreshed":
-        return console.timeEnd(
+        return console.timeLog(
           pathname,
           `${capitalize(type)}Page "${pathname}" ${console.code.cyan}refreshed${console.code.reset}`
         );
       case "compiled":
-        return console.timeEnd(
+        return console.timeLog(
           "page",
           `${capitalize(type)}Page "${pathname}" ${console.code.green}ready${console.code.reset}`
         );
