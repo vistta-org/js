@@ -153,8 +153,12 @@ function renderToHtml({
           icon ? createElement("link", { rel: "shortcut icon", href: icon }) : null,
           icon ? createElement("link", { rel: "apple-touch-icon", href: icon }) : null,
           ...(links?.map((props) => createElement("link", props)) || []),
-          ...(styles?.map(({ value }) => createElement("style", {}, value)) || []),
           createElement("style", {}, routeStyle.value),
+          createElement(
+            "style",
+            { id: "route" },
+            styles?.reduce((acc, { value }) => acc + " " + value, "")
+          ),
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || [])
         ),

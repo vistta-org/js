@@ -41,7 +41,7 @@ const createStyle = (stylesheet) => {
   if (!id || !value || !hash) return null;
   function Style({ children }) {
     children = applyScope(id, children);
-    children.unshift(createElement(StyleSheet, {}, createScope(id, value)));
+    children.unshift(createElement(StyleSheet, { key: id }, createScope(id, value)));
     return children;
   }
   Style.value = value;
@@ -59,19 +59,41 @@ export { Fragment, StyleSheet, TextNode, Element, createElement };
 export default class VirtualDom {
   #node;
   #content;
+  #style;
+  #store;
   #keys = {};
-  stylesheets = [];
-  children = [];
+  #children = [];
+  #css = "";
 
-  constructor(node) {
+  constructor(node, styles, store) {
     this.#node = node || document.body;
+    this.#style = document.querySelector("head > style#route");
+    if (!this.#style) {
+      this.#style = document.createElement("style");
+      document.head.appendChild(this.#style);
+    }
+    this.#store = store;
+    this.#css = styles.reduce((acc, { value }) => acc + " " + value, "");
+  }
+
+  get store() {
+    return this.#store;
   }
 
   render(content, callback) {
     const fragment = document.createDocumentFragment();
     this.#content = this.#apply((child) => (fragment.append(child.node), this.#node), content);
     this.#node.replaceChildren(fragment);
-    this.children = [...this.#node.children];
+    if (this.#style.styleSheet) this.#style.styleSheet.cssText = this.#css;
+    else this.#style.replaceChildren(document.createTextNode(this.#css));
+    this.#children = [...this.#node.children];
+    callback && callback();
+  }
+
+  replace(callback) {
+    this.#node.replaceChildren(...this.#children);
+    if (this.#style.styleSheet) this.#style.styleSheet.cssText = this.#css;
+    else this.#style.replaceChildren(document.createTextNode(this.#css));
     callback && callback();
   }
 
@@ -91,10 +113,7 @@ export default class VirtualDom {
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = document.createTextNode(value);
       else if (type === StyleSheet) {
-        const sheet = new CSSStyleSheet();
-        sheet.replaceSync(children?.[0] || "");
-        this.stylesheets.push(sheet);
-        document.adoptedStyleSheets = this.stylesheets;
+        this.#css += ` ${children?.[0] || ""}`;
         return element;
       } else if (type !== Fragment) element.node = document.createElement(type);
       else element.nodes = [];
@@ -145,7 +164,7 @@ export default class VirtualDom {
     for (let i = 0, len = previous.length; i < len; i++) previous[i].remove();
     if (nextSibling) parent.insertBefore(fragment, nextSibling);
     else parent.appendChild(fragment);
-    if (parent === this.#node) this.children = [...this.#node.children];
+    if (parent === this.#node) this.#children = [...this.#node.children];
   }
 }
 

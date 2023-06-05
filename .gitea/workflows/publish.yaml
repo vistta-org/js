@@ -42,8 +42,8 @@ jobs:
       id: version
       run: |
         version="${{ steps.release.outputs.version }}"
-        git config user.email "devops@vistta.me"
-        git config user.name "${{ steps.release.outputs.version }}"
+        git config user.email "release@vistta.me"
+        git config user.name "VisttaJS Release"
         if [[ $version == "auto" ]]; then
           git tag "v$(npm pkg get version)"
         else
