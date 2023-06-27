@@ -32,7 +32,7 @@ export function resolve(specifier, context, next, options) {
     return next(specifier, context);
   }
   //
-  const useCache = options.get("cache") !== "false" && CONTEXT[fileURLToPath(parentURL)]?.useCache !== false;
+  const useCache = !options.has("noCache") && CONTEXT[fileURLToPath(parentURL)]?.useCache !== false;
   if (!useCache) cache.clear(specifier);
   CONTEXT[specifier] = { useCache };
   specifier = pathToFileURL(specifier).href;
@@ -77,9 +77,8 @@ export function load(url, ctx, next) {
   };
 }
 
-export async function importModule(filepath, options) {
-  if (options != null && typeof options === "object" && !Array.isArray(options))
-    filepath += "?" + new URLSearchParams(options).toString();
+export async function importModule(filepath, cache) {
+  if (cache === false) filepath += `?noCache=${Date.now()}`;
   return import(filepath);
 }
 

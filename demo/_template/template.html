@@ -1,10 +1,9 @@
 <template>
   <header>
-    <h3>{title}</h3>
+    <img className="logo" src="{logo}" alt="{title}" />
+    <button className="home" onClick={home}>vistta<span>.js</span></button>
     {nav}
   </header>
-  <div className="container">
-    {children}
-  </div>
-  <footer>{footer}</footer>
+  <main>{children}</main>
+  <footer>© 2023 VISTTA</footer>
 </template>

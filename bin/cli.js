@@ -1,50 +1,102 @@
-#!/usr/bin/env node --no-warnings --loader=@vistta/visttajs/loader
+#!/usr/bin/env node --no-warnings --loader=@vistta/vistta.js/loader
 "use strict";
-import { fork, fs } from "../server/index.js";
-import { validate } from "./loaders/typescript.js";
+import { run, fs, exec } from "../server/index.js";
+import { flatten, parse as _parse, sleep } from "../utils/index.js";
+import { validate as _validate } from "./loaders/typescript.js";
 import pkg from "../package.json";
-console.announce("Starting VisttaJS...");
 const dirname = fs.dirname(import.meta.url);
-const abort = (error) => (console.error(error), process.exit(0));
-let custom = false;
-let type = "production";
-let validation = "none";
-const [main, ...args] = ((argv) => {
-  if (argv.length == 0) return abort(`Missing first argument`);
-  argv = argv.filter((arg) => {
-    if (["--d", "--dev"].includes(arg)) return (type = "development"), false;
-    if (["--t", "--tsc"].includes(arg)) return (validation = "all"), false;
+
+console.announce("Starting VisttaJS...");
+
+const { main, args, env } = await parse(process.argv.slice(2));
+Object.assign(process.env, env);
+
+await validate("modules", null, env);
+if (await validate("typescript", main, env)) abort("");
+
+if (env.VALIDATION !== "only") {
+  const worker = await run(main, args);
+  if (env.CUSTOM_SCRIPT && env.NODE_ENV === "development")
+    fs.watchFile(main, async () => {
+      console.clear();
+      console.announce("Restarting VisttaJS...");
+      await worker.stop();
+      console.clear();
+      if (await validate("typescript", main, env)) abort("");
+      await worker.start();
+    });
+}
+
+//
+
+function abort(error) {
+  console.error(error);
+  process.exit(0);
+}
+
+async function parse([main, ...args]) {
+  if (!main?.length) return abort(`Missing first argument`);
+  let env = flatten((await import(fs.resolve(process.cwd(), "package.json")))?.default?.env || {}, "_", (s) =>
+    s.toUpperCase()
+  );
+  env.APP_VERSION = pkg.version;
+  env.APP_NAME = pkg.name;
+  env.VALIDATION = "modules";
+  let skipNext = false;
+  args = args.filter((arg, index, arr) => {
+    if (skipNext) return (skipNext = false), false;
+    if (["-d", "--dev"].includes(arg.toLowerCase())) return (env.NODE_ENV = "development"), false;
+    if (arg.startsWith("--")) {
+      const value = arr?.[index + 1];
+      const key = transformFlag(arg);
+      if (!value.startsWith("-")) {
+        skipNext = true;
+        env[key] = value;
+      } else env[key] = true;
+      return false;
+    }
     return true;
   });
-  if (fs.isFile(argv[0])) return (custom = true), argv;
-  if (["start"].includes(argv[0])) {
-    argv[0] = fs.resolve(dirname, `../scripts/${argv[0]}.js`);
-    return argv;
+  switch (main) {
+    case "start":
+      main = fs.resolve(dirname, `../scripts/${main}.js`);
+      break;
+    case "checks":
+      env.NODE_ENV = "development";
+      env.VALIDATION = "only";
+      break;
+    default:
+      if (!fs.isFile(main)) return abort(`Invalid first argument, it can either be a main or a command`);
+      env.CUSTOM_SCRIPT = true;
+      break;
   }
-  return abort(`Invalid first argument, it can either be a script or a command`);
-})(process.argv.slice(2));
-const env = Object.assign((await import(fs.resolve(process.cwd(), "package.json")))?.default?.env || {}, {
-  TYPESCRIPT_VALIDATION: validation,
-  VISION_VERSION: pkg.version,
-  NODE_ENV: type,
-});
-
-const { errors } = custom && type === "development" && validation !== "none" ? validate(main) : {};
-if (errors?.length) {
-  errors.forEach((error) => console.error(error));
-  abort("Typescript Error");
+  return { main, args, env };
 }
-const childProcess = await fork(main, args, { env });
-if (custom && type === "development")
-  fs.watchFile(main, async () => {
-    console.clear();
-    console.announce("Restarting VisttaJS...");
-    await childProcess.stop();
-    console.clear();
-    const { errors } = validation !== "none" ? validate(main) : {};
-    if (errors?.length) {
-      errors.forEach((error) => console.error(error));
-      return;
+
+async function validate(target, main, { VALIDATION }) {
+  if (target === "modules") {
+    if (!["modules", "all", "only"].includes(VALIDATION)) return;
+    const outdated = _parse(await exec("npm outdated --json"));
+    const modules = Object.keys(outdated || {});
+    for (let i = 0, len = modules.length; i < len; i++) {
+      const module = modules[i];
+      const { current, wanted, latest } = outdated[module];
+      if (current === wanted) console.print(`${console.code.magenta}Module "${module}" has a new version (${latest})`);
+      else console.print(`${console.code.yellow}Module "${module}" is outdated (${latest})`);
     }
-    await childProcess.start();
-  });
+    if (modules.length) await sleep(2500);
+    return;
+  }
+  if (target === "typescript") {
+    if (!["typescript", "type", "all", "only"].includes(VALIDATION)) return false;
+    const { errors } = _validate(VALIDATION === "only" ? "." : main);
+    if (!errors?.length) return false;
+    errors.forEach((error) => console.print(console.code.red + error));
+    return true;
+  }
+}
+
+function transformFlag(flag) {
+  if (flag === "--validate") flag = "--validation";
+  return flag.slice(2).toUpperCase().replaceAll("-", "_");
+}

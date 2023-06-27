@@ -1,9 +1,9 @@
-import { useState, useEffect, useRoute } from "@vistta/visttajs";
+import { useState, useEffect } from "@vistta/vistta.js";
 import Style from "./style.scss";
-import Test1 from "./_tests/1";
-import Test2 from "./_tests/2";
-import Test3 from "./_tests/3";
-import Test4 from "./_tests/4";
+import Test1 from "./tests/1";
+import Test2 from "./tests/2";
+import Test3 from "./tests/3";
+import Test4 from "./tests/4";
 const ITERATIONS = 1000;
 const BENCMARK_RUNS = 100;
 const TESTS = {
@@ -15,7 +15,6 @@ const TESTS = {
 const ENABLED_TESTS = Object.values(TESTS).filter(x => x.active).length;
 
 export default function Benchmark() {
-  const { navigate } = useRoute();
   const counter = useState(1);
   const tests = {};
   const benchRun = () => {
@@ -52,9 +51,6 @@ export default function Benchmark() {
         <Bench id="3" run={counter} Test={Test3} onRender={runComplete} />
         <Bench id="4" run={counter} Test={Test4} onRender={runComplete} />
         <div className="controls">
-          <button className="runner" onClick={() => navigate("/")}>
-            Home
-          </button>
           <button className="runner" onClick={() => counter.value++}>
             Single Run
           </button>

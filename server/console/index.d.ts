@@ -21,6 +21,7 @@ interface Console {
   clear(): void;
   count(key?: string): void;
   countReset(key?: string): void;
+  print(...data: any[]): void;
   debug(...data: any[]): void;
   dir(item?: any, options?: any): void;
   dirxml(...data: any[]): void;
@@ -40,4 +41,6 @@ interface Console {
   trace(...data: any[]): void;
   warn(...data: any[]): void;
 }
+
+// @ts-ignore
 declare const console: Console;

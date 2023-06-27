@@ -28,7 +28,6 @@ const route = system.register(
       if (force || !cached) {
         let app = href + (href.endsWith("/") ? "" : "/") + "resources/app";
         const { store, styles } = await loadConfig(app);
-        if (force) app += "?v=" + new Date().toISOString();
         this.#dom = new VirtualDom(this, styles, store);
         return this.#dom.render((await import(app)).default, () => {
           this.#routes[href] = this.#dom;

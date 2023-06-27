@@ -12,7 +12,7 @@ system.set("HTMLElement", class {});
 system.set("localStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
 system.set("sessionStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
 const dirname = fs.dirname(import.meta.url);
-const { TYPESCRIPT_VALIDATION, NODE_ENV } = process.env;
+const { VALIDATION, NODE_ENV } = process.env;
 const isDev = NODE_ENV === "development";
 const client = await (async (path) => (await bundle(path))?.code)(fs.resolve(dirname, "../../core/client"));
 
@@ -60,9 +60,9 @@ class Route {
   async import(isRefresh) {
     try {
       if (isRefresh) this.listener("refresh");
-      const { errors } = TYPESCRIPT_VALIDATION !== "none" ? validate(this.filepath) : {};
+      const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
-      const { default: app, config } = await importModule(this.filepath, { cache: !isRefresh });
+      const { default: app, config } = await importModule(this.filepath, !isRefresh);
       const { code, resources, files } = await bundle(this.filepath, { encode: true, exports: "default" });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       this.app = app;

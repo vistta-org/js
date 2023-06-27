@@ -19,3 +19,20 @@ export const stringify = (object, formatted = false) =>
 export const parse = (object) => JSON.parse(object);
 
 export const clone = (object, json) => (json ? parse(stringify(object)) : structuredClone(object));
+
+export const flatten = (object, separator, transformer) => {
+  const helper = (target, prefix) => {
+    let flattened = {};
+    const keys = Object.keys(target || {});
+    for (let i = 0, len = keys.length; i < len; i++) {
+      const _key = keys[i];
+      let key = typeof transformer === "function" ? transformer(_key) : _key;
+      if (prefix) key = `${prefix}${separator}${key}`;
+      if (typeof target[_key] === "object" && target[_key] !== null)
+        flattened = { ...flattened, ...helper(target[_key], key) };
+      else flattened[key] = target[_key];
+    }
+    return flattened;
+  };
+  return helper(object);
+};

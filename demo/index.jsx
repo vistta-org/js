@@ -1,7 +1,5 @@
-import { Store, useStore } from "@vistta/visttajs";
+import { useStore } from "@vistta/vistta.js";
 import Template from "./_template";
-import global from "./global.scss"
-import icon from "../logo.png";
 
 export default function Home() {
   const counter = useStore("counter");
@@ -22,19 +20,4 @@ export default function Home() {
   </Template>;
 }
 
-export const config = {
-  icon: icon,
-  styles: [global],
-  store: new Store([
-    Store.createPartition("counter", {
-      initialState: 0,
-      cache: "storage",
-      actions: [
-        Store.createAction("increment", (prev) => prev + 1, console.log),
-        Store.createAction("decrement", (prev) => prev - 1, console.log),
-        Store.createAction("alert", (prev, message) => window.alert(message + " " + prev), console.log),
-        Store.createAction("test", (prev) => new Promise((resolve) => setTimeout(() => resolve(prev + 100), 5000)), console.log),
-      ]
-    })
-  ])
-}
+export { config } from "./_template";

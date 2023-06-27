@@ -1,6 +1,7 @@
 declare function createElement(type: any, props?: { [name: string]: any }, children?: JSX.Node[]): JSX.Element | null;
 
 declare const Fragment: symbol;
+declare const React: object;
 
 type HtmlProps<E extends HTMLElement | SVGElement> = Partial<
   {

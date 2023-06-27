@@ -1,23 +1,37 @@
-import { useRoute } from "@vistta/visttajs";
+import { Store, useRoute } from "@vistta/vistta.js";
 import Template from "./template.html";
-import Style from "./style.scss";
+import global from "./global.scss"
+import icon from "../../logo.png";
 
-const nav = ["home", "about", "benchmark"];
+const nav = ["docs", "showcase"];
 
 const PageTemplate = ({ title, children }) => {
   const { navigate } = useRoute();
-  return <Style>
-    <Template
+  return <Template
       title={title}
-      nav={nav.reduce((res, cur) => {
-        if(cur !== title) res.push(<button key={cur} onClick={() => navigate("/" + (cur !== "home" ? cur : ""))} style={{ flex: "none" }}>{cur}</button>);
-        return res;
-      }, [])}
-      footer="Demo"
+      logo={icon}
+      home={() => navigate("/")}
+      nav={nav.map((cur) => (<button key={cur} onClick={() => navigate("/" + cur)}>{cur}</button>))}
     >
-      {children}
-    </Template>
-  </Style>;
+    {children}
+  </Template>;
 }
 
 export default PageTemplate;
+
+export const config = {
+  icon: icon,
+  styles: [global],
+  store: new Store([
+    Store.createPartition("counter", {
+      initialState: 0,
+      cache: "storage",
+      actions: [
+        Store.createAction("increment", (prev) => prev + 1, console.log),
+        Store.createAction("decrement", (prev) => prev - 1, console.log),
+        Store.createAction("alert", (prev, message) => window.alert(message + " " + prev), console.log),
+        Store.createAction("test", (prev) => new Promise((resolve) => setTimeout(() => resolve(prev + 100), 5000)), console.log),
+      ]
+    })
+  ])
+}
