@@ -23,7 +23,7 @@ On you project folder create a `.npmrc` file with the following content:
 After that you can install the module
 
 ```console
-npm i @vistta/visttajs
+npm i @vistta/vistta.js
 ```
 
 ## Usage

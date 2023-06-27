@@ -1,6 +1,6 @@
 import Server, { fs } from "../server/index.js";
 import { trim, capitalize } from "../utils/index.js";
-console.announce(`VisttaJS v${process.env.VISION_VERSION}`);
+console.announce(`VisttaJS v${process.env.APP_VERSION}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const options = await (async (args) => {
   const config = (await import(fs.resolve("./package.json"))).default?.["vistta-config"] || {};

@@ -1,7 +1,7 @@
 import { resolve, load } from "../../bin/loaders";
 import { build } from "esbuild";
 import { dirname, basename } from "path";
-
+const name = process.env.APP_NAME;
 class Bundler {
   config = {
     bundle: true,
@@ -56,9 +56,8 @@ class Bundler {
   }
 
   resolve({ path, resolveDir }) {
+    if (path === name) return { path: "vistta", namespace: "window" };
     switch (path) {
-      case "@vistta/visttajs":
-        return { path: "vistta", namespace: "window" };
       case "@content":
         return { path: "content", external: true };
       case "@socket":

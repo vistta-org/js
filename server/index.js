@@ -127,7 +127,7 @@ class Server {
 
   async use(folder, ...args) {
     if (args.length == 2) args.unshift("");
-    const [subdomain, pathname, options] = args; // callback,
+    const [subdomain, pathname, options] = args;
     if (!validateHTTPArgs("use", subdomain, pathname)) return;
     const { callback, ignore, useApiRoute } = options || {};
     const files = Router.readFolder(folder, ignore);
@@ -144,15 +144,29 @@ class Server {
     }
   }
 
-  emit(...args) {
-    if (!this.#router.has(args[0])) args.unshift("");
-    const [subdomain, event, ...rest] = args;
-    this.#socket.to(subdomain).emit(event, ...rest);
+  disable(...args) {
+    if (args.length < 2) args.unshift("");
+    if (!validateHTTPArgs("disable", subdomain, pathname)) return;
+    const [subdomain, pathname] = args;
+    this.#router.disable(subdomain, pathname);
   }
 
-  on(...args) {
-    if (!this.#router.has(args[0])) args.unshift("");
-    /*const [subdomain, event, ...rest] = args;
+  enable(...args) {
+    if (args.length < 2) args.unshift("");
+    if (!validateHTTPArgs("enable", subdomain, pathname)) return;
+    const [subdomain, pathname] = args;
+    this.#router.enable(subdomain, pathname);
+  }
+
+  emit() {
+    /*if (!this.#router.has(args[0])) args.unshift("");
+    const [subdomain, event, ...rest] = args;
+    this.#socket.to(subdomain).emit(event, ...rest);*/
+  }
+
+  on() {
+    /*if (!this.#router.has(args[0])) args.unshift("");
+    const [subdomain, event, ...rest] = args;
     const { subdomain, event } = typeof e === "string" ? { event: e } : e;
     // this.#events.on(`/g/${this.#id}/${event}`, callback);*/
   }
@@ -161,7 +175,7 @@ class Server {
     return (request, response) => {
       const { method, path, hostname } = request;
       const subdomain = getSubdomain(hostname) || "";
-      const error = this.#router.get(subdomain, "error", path, "404") || {};
+      const error = this.#router.get(subdomain, "error", path, { strict: "404" }) || {};
       const reject = (request, response) => (
         response.status(404),
         error?.handler?.call(error, request, response, () => response.end("Page not Found")) ||

@@ -34,14 +34,17 @@ class Router {
       router["@route"] = { pathname, method, wildcard, handler: transformCallback(callback) };
   }
 
-  get(subdomain, method, pathname, strict) {
+  get(subdomain, method, pathname, { strict, disabled } = {}) {
     let router = this.subdomains[subdomain];
     if (/\?/.test(pathname)) pathname = pathname.split(/\?(.*)/)[0];
     if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
     if (!pathname.startsWith("/")) pathname = "/" + pathname;
     const path = pathname === "/" ? [""] : pathname.split("/");
     let wildcardMatch;
-    const valid = (curr) => curr && (curr?.["@route"]?.method === "any" || curr?.["@route"]?.method === method);
+    const valid = (curr) => {
+      const { method, enabled } = curr?.["@route"] || {};
+      return (disabled || enabled !== false) && (method === "any" || method === method);
+    };
     for (let i = 1, len = path.length; i < len; i++) {
       if (!router) break;
       if (!strict && valid(router?.["*"])) wildcardMatch = router["*"];
@@ -50,6 +53,16 @@ class Router {
     }
     if (valid(router)) return router?.["@route"];
     return wildcardMatch?.["@route"];
+  }
+
+  disable(subdomain, pathname) {
+    const route = this.get(subdomain, "any", pathname, { strict: true, disabled: true });
+    route.enabled = false;
+  }
+
+  enable(subdomain, pathname) {
+    const route = this.get(subdomain, "any", pathname, { strict: true, disabled: true });
+    route.enabled = true;
   }
 
   async setComponent(filepath, subdomain, pathname, method, callback) {

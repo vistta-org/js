@@ -52,8 +52,12 @@ console = {
   countReset: (key = "") => {
     counts[key] = 0;
   },
-  debug: (...data) => {
+  print: (...data) => {
     apply({ type: "debug", data });
+    update();
+  },
+  debug: (...data) => {
+    apply({ type: "debug", data, date: date().toString(true) });
     update();
   },
   dir: (item, options) => {
@@ -135,8 +139,7 @@ function apply({ type, data, color, date }) {
 }
 
 function update() {
-  process.stdout.write("\r\u001b[3J\u001b[1J");
-  process.stdout.write("\r\u001b[2J\u001b[0;0H");
+  process.stdout.write("\x1B[2J\x1B[0f");
   for (let i = 0, len = logs.length; i < len; i++) {
     process.stdout.write(logs[i].message + "\n");
   }

@@ -10,7 +10,7 @@
     "noEmit": true,
     "strict": true,
     "noImplicitAny": false,
-    "importsNotUsedAsValues": "remove",
+    "verbatimModuleSyntax": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
@@ -18,7 +18,7 @@
     "incremental": true,
     "typeRoots": ["./index.d.ts"],
     "paths": {
-      "@vistta/visttajs": ["./index"]
+      "@vistta/vistta.js": ["./index"]
     }
   }
 }

@@ -1,4 +1,5 @@
-import { useState, useEffect, useRoute } from "@vistta/visttajs";
+import { useState, useEffect } from "@vistta/vistta.js";
+import Template from "../_template";
 import Style from "./style.scss";
 import Test1 from "./_tests/1";
 import Test2 from "./_tests/2";
@@ -15,7 +16,6 @@ const TESTS = {
 const ENABLED_TESTS = Object.values(TESTS).filter(x => x.active).length;
 
 export default function Benchmark() {
-  const { navigate } = useRoute();
   const counter = useState(1);
   const tests = {};
   const benchRun = () => {
@@ -45,25 +45,24 @@ export default function Benchmark() {
     }
   };
   return (
-    <Style>
-      <div className="container">
-        <Bench id="1" run={counter} Test={Test1} onRender={runComplete} />
-        <Bench id="2" run={counter} Test={Test2} onRender={runComplete} />
-        <Bench id="3" run={counter} Test={Test3} onRender={runComplete} />
-        <Bench id="4" run={counter} Test={Test4} onRender={runComplete} />
-        <div className="controls">
-          <button className="runner" onClick={() => navigate("/")}>
-            Home
-          </button>
-          <button className="runner" onClick={() => counter.value++}>
-            Single Run
-          </button>
-          <button className="runner" onClick={benchRun}>
-            Bench Run
-          </button>
+    <Template>
+      <Style>
+        <div className="container">
+          <Bench id="1" run={counter} Test={Test1} onRender={runComplete} />
+          <Bench id="2" run={counter} Test={Test2} onRender={runComplete} />
+          <Bench id="3" run={counter} Test={Test3} onRender={runComplete} />
+          <Bench id="4" run={counter} Test={Test4} onRender={runComplete} />
+          <div className="controls">
+            <button className="runner" onClick={() => counter.value++}>
+              Single Run
+            </button>
+            <button className="runner" onClick={benchRun}>
+              Bench Run
+            </button>
+          </div>
         </div>
-      </div>
-    </Style>
+      </Style>
+    </Template>
   );
 }
 

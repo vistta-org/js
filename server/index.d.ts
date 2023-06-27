@@ -1,6 +1,6 @@
 /// <reference types="node"/>
-/// <reference types="../global" />
 /// <reference types="./console" />
+
 type ServerOptions = {
   http?: number | boolean;
   https?: number | boolean;
@@ -42,6 +42,11 @@ export default class Server {
 
   use(folder: string, pathname: string, options?: UseOptions): void;
   use(folder: string, subdomain: string, pathname: string, options?: UseOptions): void;
+
+  disable(pathname: string): void;
+  disable(subdomain: string, pathname: string): void;
+  enable(pathname: string): void;
+  enable(subdomain: string, pathname: string): void;
   /*
   remove(type: HTTP_TYPES | string, path: string, subdomain?: string): void;
   proxy(path: string, options: {});

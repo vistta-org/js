@@ -4,12 +4,7 @@
     "browser": true,
     "es2021": true
   },
-  "settings": {
-    "react": {
-      "version": "18.0.0"
-    }
-  },
-  "extends": ["eslint:recommended", "plugin:react/recommended", "plugin:sonarjs/recommended"],
+  "extends": ["eslint:recommended", "plugin:sonarjs/recommended"],
   "overrides": [],
   "parserOptions": {
     "ecmaFeatures": {
@@ -20,12 +15,12 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": ["react", "sonarjs", "better-styled-components"],
+  "plugins": ["jsx", "sonarjs", "better-styled-components"],
   "rules": {
     "better-styled-components/sort-declarations-alphabetically": 2,
     "sonarjs/cognitive-complexity": "off",
     "sonarjs/no-useless-catch": "off",
-    "react/react-in-jsx-scope": "off",
-    "react/prop-types": "off"
+    "jsx/mark-used-vars": 1,
+    "jsx/no-undef": 1
   }
 }

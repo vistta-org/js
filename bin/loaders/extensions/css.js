@@ -1,7 +1,7 @@
 import { fs } from "../../../server/filesystem/index.js";
 import { hash } from "../../../server/crypto/index.js";
 import { stringify } from "../../../utils/index.js";
-import sass from "sass";
+import * as sass from "sass";
 import postcss from "postcss";
 import autoprefixer from "autoprefixer";
 

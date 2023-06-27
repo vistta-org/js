@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { useEffect } from "@vistta/visttajs";
+import { useEffect } from "@vistta/vistta.js";
 
 const Test = ({ run, iterations }) => {
   return useEffect(() => {
