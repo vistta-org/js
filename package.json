@@ -16,8 +16,8 @@
   },
   "scripts": {
     "checks": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js checks && eslint --fix .",
-    "dev": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./demo --dev",
-    "prod": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./demo"
+    "dev": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./docs --dev",
+    "prod": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./docs"
   },
   "repository": {
     "type": "git",
