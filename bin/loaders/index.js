@@ -77,11 +77,6 @@ export function load(url, ctx, next) {
   };
 }
 
-export async function importModule(filepath, cache) {
-  if (cache === false) filepath += `?noCache=${Date.now()}`;
-  return import(filepath);
-}
-
 //
 
 function resolver(specifier, { cwd = process.cwd(), extensions = EXTENSIONS } = {}) {

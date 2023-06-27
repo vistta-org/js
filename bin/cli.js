@@ -39,6 +39,7 @@ async function parse([main, ...args]) {
   let env = flatten((await import(fs.resolve(process.cwd(), "package.json")))?.default?.env || {}, "_", (s) =>
     s.toUpperCase()
   );
+  env.NODE_ENV = "production";
   env.APP_VERSION = pkg.version;
   env.APP_NAME = pkg.name;
   env.VALIDATION = "modules";
@@ -73,7 +74,8 @@ async function parse([main, ...args]) {
   return { main, args, env };
 }
 
-async function validate(target, main, { VALIDATION }) {
+async function validate(target, main, { NODE_ENV, VALIDATION }) {
+  if (NODE_ENV !== "development") return;
   if (target === "modules") {
     if (!["modules", "all", "only"].includes(VALIDATION)) return;
     const outdated = _parse(await exec("npm outdated --json"));

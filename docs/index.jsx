@@ -1,7 +1,9 @@
-import { useStore } from "@vistta/vistta.js";
+
 import Template from "./_template";
+import Style from "./style.scss";
 
 export default function Home() {
+  /*import { useStore } from "@vistta/vistta.js";
   const counter = useStore("counter");
   let controller;
   const test = () => controller = counter.test();
@@ -9,7 +11,6 @@ export default function Home() {
     if(controller?.abort) controller.abort();
     console.log(controller);
   }
-  return <Template>
     <p>Welcome to Vistta.JS</p>
     <p>{counter}</p>
     <button onClick={counter.increment}>increment</button>
@@ -17,6 +18,15 @@ export default function Home() {
     <button onClick={counter.alert.bind(null, "counter:")}>alert</button>
     <button onClick={test}>test</button>
     <button onClick={abort}>abort</button>
+    */
+  return <Template>
+    <Style>
+      <div className="container">
+        <h1>Vistta.JS</h1>
+        <h2>Vistta.js Javascript Framework</h2>
+        <button>Get Started</button>
+      </div>
+    </Style>
   </Template>;
 }
 

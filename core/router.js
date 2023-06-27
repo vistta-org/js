@@ -29,7 +29,7 @@ const route = system.register(
         let app = href + (href.endsWith("/") ? "" : "/") + "resources/app";
         const { store, styles } = await loadConfig(app);
         this.#dom = new VirtualDom(this, styles, store);
-        return this.#dom.render((await import(app)).default, () => {
+        return this.#dom.render((await system.import(app, { cache: false })).default, () => {
           this.#routes[href] = this.#dom;
           callback && callback();
         });
@@ -110,7 +110,7 @@ function isAppUrl(href) {
 
 async function loadConfig(href) {
   try {
-    return (await import(`${href}/config`))?.config || {};
+    return (await system.import(`${href}/config`, { cache: false }))?.config || {};
   } catch {
     return {};
   }

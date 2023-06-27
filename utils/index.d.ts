@@ -16,14 +16,8 @@ export type system = {
   register: (tagname: string, element: HTMLElement) => any;
   get: (key: string) => any;
   set: (key: string, value: any) => void;
+  import: (moduleName: string, options: { cache: boolean }) => any;
 };
-
-export class ContentMap<K = any, V = any> {
-  set(key: K, value: V): void;
-  get(key: K): V;
-  get(key: K): boolean;
-  get size(): number;
-}
 
 export * from "./date.js";
 export * from "./object.js";

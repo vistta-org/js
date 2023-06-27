@@ -1,7 +1,9 @@
 <template>
   <header>
-    <img className="logo" src="{logo}" alt="{title}" />
-    <button className="home" onClick={home}>vistta<span>.js</span></button>
+    <button className="home" onClick="{home}">
+      <img className="logo" src="{logo}" alt="{title}" />
+      <div className="title">vistta<span>.js</span></div>
+    </button>
     {nav}
   </header>
   <main>{children}</main>

@@ -2,7 +2,6 @@ import { fs } from "../filesystem";
 import { hash, randomID } from "../crypto";
 import { createElement, renderToString } from "../dom";
 import { bundle } from "./bundler.js";
-import { importModule } from "../../bin/loaders";
 import { validate } from "../../bin/loaders/typescript";
 import { system, stringify } from "../../utils";
 import routeStyle from "./route.css";
@@ -62,7 +61,7 @@ class Route {
       if (isRefresh) this.listener("refresh");
       const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
-      const { default: app, config } = await importModule(this.filepath, !isRefresh);
+      const { default: app, config } = await system.import(this.filepath, { cache: !isRefresh });
       const { code, resources, files } = await bundle(this.filepath, { encode: true, exports: "default" });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       this.app = app;

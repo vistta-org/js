@@ -75,35 +75,11 @@ export const system = {
     }
     ref[key.shift()] = value;
   },
+  import(moduleName, { cache } = {}) {
+    if (cache === false) moduleName += `?noCache=${Date.now()}`;
+    return import(moduleName);
+  },
 };
-
-export class ContentMap {
-  #keys = [];
-  #values = [];
-
-  set(key, value) {
-    this.#keys.push(key);
-    this.#values.push(value);
-  }
-
-  get(key) {
-    for (let i = 0, len = this.size; i < len; i++) {
-      if (isEqual(key, this.#keys[i])) return this.#values[i];
-    }
-    return null;
-  }
-
-  has(key) {
-    for (let i = 0, len = this.size; i < len; i++) {
-      if (isEqual(key, this.#keys[i])) return true;
-    }
-    return false;
-  }
-
-  get size() {
-    return this.#keys.length;
-  }
-}
 
 export * from "./date.js";
 export * from "./object.js";

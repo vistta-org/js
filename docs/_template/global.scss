@@ -65,16 +65,24 @@ body {
     align-items: center;
     height: 4rem;
 
-    > .logo {
-      height: 3rem;
-      aspect-ratio: 1;
-    }
-
     > .home {
-      font-size: 1.75rem;
+      display: flex;
       margin-right: auto;
-      > span {
-        font-size: 0.75rem;
+      align-items: center;
+
+      > .logo {
+        height: 3rem;
+        aspect-ratio: 1;
+        margin-right: var(--unit-4);
+      }
+
+      > .title {
+        color: var(--brand-color);
+        font-size: 1.75rem;
+
+        > span {
+          font-size: 0.75rem;
+        }
       }
     }
 

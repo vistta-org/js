@@ -3,6 +3,6 @@ import Template from "../_template";
 
 export default function Showcase() {
   return <Template>
-    
+    <div>Docs</div>
   </Template>;
 }

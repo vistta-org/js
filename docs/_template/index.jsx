@@ -1,9 +1,9 @@
-import { Store, useRoute } from "@vistta/vistta.js";
+import { useRoute } from "@vistta/vistta.js";
 import Template from "./template.html";
 import global from "./global.scss"
 import icon from "../../logo.png";
 
-const nav = ["docs", "showcase"];
+const nav = ["docs", "showcase", "benchmark"];
 
 const PageTemplate = ({ title, children }) => {
   const { navigate } = useRoute();
@@ -22,7 +22,7 @@ export default PageTemplate;
 export const config = {
   icon: icon,
   styles: [global],
-  store: new Store([
+  /*store: new Store([
     Store.createPartition("counter", {
       initialState: 0,
       cache: "storage",
@@ -33,5 +33,5 @@ export const config = {
         Store.createAction("test", (prev) => new Promise((resolve) => setTimeout(() => resolve(prev + 100), 5000)), console.log),
       ]
     })
-  ])
+  ])*/
 }
