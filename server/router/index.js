@@ -34,7 +34,7 @@ class Router {
       router["@route"] = { pathname, method, wildcard, handler: transformCallback(callback) };
   }
 
-  get(subdomain, method, pathname, { strict, disabled } = {}) {
+  get(subdomain, _method, pathname, { strict, disabled } = {}) {
     let router = this.subdomains[subdomain];
     if (/\?/.test(pathname)) pathname = pathname.split(/\?(.*)/)[0];
     if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
@@ -43,7 +43,7 @@ class Router {
     let wildcardMatch;
     const valid = (curr) => {
       const { method, enabled } = curr?.["@route"] || {};
-      return (disabled || enabled !== false) && (method === "any" || method === method);
+      return (disabled || enabled !== false) && (method === "any" || method === _method);
     };
     for (let i = 1, len = path.length; i < len; i++) {
       if (!router) break;

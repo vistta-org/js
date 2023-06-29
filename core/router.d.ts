@@ -1,5 +1,12 @@
+type NavigateOptions = {
+  href?: string;
+  pushState?: boolean;
+  force?: boolean;
+  callback?: () => void;
+};
+
 interface Route {
-  navigate: () => void;
+  navigate: (href: string | NavigateOptions) => void;
   emit: (event: string, details?: any) => void;
   on: (event: string, callback: (event: any) => void) => void;
   location: Location;

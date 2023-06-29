@@ -182,11 +182,9 @@ class Server {
           response.end("Page not Found")
       );
       const [pathname, resource] = path.split(/\/resources\/(.*)/);
+      if (resource?.length) request.resource = resource;
       const route = this.#router.get(subdomain, method.toLowerCase(), pathname) || {};
-      if (route?.handler) {
-        request.resource = resource;
-        return route?.handler.call(route, request, response, reject.bind(this, request, response));
-      }
+      if (route?.handler) return route?.handler.call(route, request, response, reject.bind(this, request, response));
       return reject(request, response);
     };
   }
