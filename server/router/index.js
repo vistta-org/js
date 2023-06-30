@@ -34,7 +34,7 @@ class Router {
       router["@route"] = { pathname, method, wildcard, handler: transformCallback(callback) };
   }
 
-  get(subdomain, method, pathname, { strict, disabled } = {}) {
+  get(subdomain, _method, pathname, { strict, disabled } = {}) {
     let router = this.subdomains[subdomain];
     if (/\?/.test(pathname)) pathname = pathname.split(/\?(.*)/)[0];
     if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
@@ -43,7 +43,7 @@ class Router {
     let wildcardMatch;
     const valid = (curr) => {
       const { method, enabled } = curr?.["@route"] || {};
-      return (disabled || enabled !== false) && (method === "any" || method === method);
+      return (disabled || enabled !== false) && (method === "any" || method === _method);
     };
     for (let i = 1, len = path.length; i < len; i++) {
       if (!router) break;
@@ -71,18 +71,28 @@ class Router {
     this.set(subdomain, method, pathname, await route.import());
   }
 
-  async setApi(filepath, subdomain, pathname) {
-    const handler = (await import(filepath))?.default;
-    this.set(subdomain, "any", pathname, handler);
+  async setApi(filepath, subdomain, pathname, callback) {
+    const handler = (await importApi(filepath))?.default;
+    if (handler) this.set(subdomain, "any", pathname, handler);
+    callback({ pathname: pathname || "/", event: "ready", type: "api" });
   }
 }
 
 Router.readFolder = getValidRoutesFromFolder;
 Router.isErrorRoute = isErrorRoute;
+Router.importApi = importApi;
 
 export { Router };
 
 //
+
+async function importApi(filepath) {
+  try {
+    return await import(filepath);
+  } catch {
+    return {};
+  }
+}
 
 function transformCallback(callback) {
   callback = callback.filter((f) => typeof f === "function");

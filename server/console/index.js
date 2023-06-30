@@ -29,65 +29,36 @@ process.stdout.write("\r\u001b[2J\u001b[0;0H");
 // eslint-disable-next-line no-global-assign
 console = {
   code: code,
-  announce: (...data) => {
-    apply({ type: "announce", data, color: code.bright });
-    update();
-  },
+  announce: (...data) => apply({ type: "announce", data, color: code.bright }),
   assert: (condition, ...data) => {
     if (condition) data.unshift(`${code.green}Assertion passed${code.reset}`);
     else data.unshift(`${code.red}Assertion failed${code.reset}`);
     apply({ type: "assert", data });
-    update();
   },
   clear: () => {
     logs.splice(0, logs.length);
-    update();
+    flush();
   },
   count: (key = "") => {
     if (!counts[key]) counts[key] = 0;
     else counts[key]++;
     apply({ type: "count", data: `${key}: ${counts[key]}`, date: date().toString(true) });
-    update();
   },
   countReset: (key = "") => {
     counts[key] = 0;
   },
-  print: (...data) => {
-    apply({ type: "debug", data });
-    update();
-  },
-  debug: (...data) => {
-    apply({ type: "debug", data, date: date().toString(true) });
-    update();
-  },
-  dir: (item, options) => {
-    apply({ type: "dir", data: [item] });
-    update();
-  },
-  dirxml: (...data) => {
-    apply({ type: "dirxml", data });
-    update();
-  },
-  error: (...data) => {
-    apply({ type: "error", data, color: code.red, date: date().toString(true) });
-    update();
-  },
+  print: (...data) => apply({ type: "debug", data }),
+  debug: (...data) => apply({ type: "debug", data, date: date().toString(true) }),
+  dir: (item, options) => apply({ type: "dir", data: [item] }),
+  dirxml: (...data) => apply({ type: "dirxml", data }),
+  error: (...data) => apply({ type: "error", data, color: code.red, date: date().toString(true) }),
   group: (key, ...data) => {},
   groupCollapsed: (key, ...data) => {},
   groupEnd: (key) => {},
-  info: (...data) => {
-    apply({ type: "info", data, color: code.cyan, date: date().toString(true) });
-    update();
-  },
-  log: (...data) => {
-    apply({ type: "log", data, date: date().toString(true) });
-    update();
-  },
+  info: (...data) => apply({ type: "info", data, color: code.cyan, date: date().toString(true) }),
+  log: (...data) => apply({ type: "log", data, date: date().toString(true) }),
   onChange: (callback) => emitter.on("change", callback),
-  sucess: (...data) => {
-    apply({ type: "sucess", data, color: code.green, date: date().toString(true) });
-    update();
-  },
+  sucess: (...data) => apply({ type: "sucess", data, color: code.green, date: date().toString(true) }),
   table: (tabularData, properties) => {},
   time: (key, force = false) => {
     if (!force && timers[key]) return console.warn(`${key} already exists.`);
@@ -102,7 +73,6 @@ console = {
     if (!timers[key]) return;
     data.push(`${code.reset + code.dim}(${date().diff(timers[key], { units: true })})`);
     apply({ type: "timeLog", data, date: date().toString(true) });
-    update();
   },
   timeStamp: (key) => {
     if (!timers[key]) return;
@@ -111,20 +81,16 @@ console = {
       data: `${key} ${code.reset + code.dim}(${date().diff(timers[key], { units: true })})`,
       date: date().toString(true),
     });
-    update();
   },
   trace: (...data) => {
     const error = new Error();
     data.push("\n" + error.stack.split("\n").slice(2).join("\n"));
     apply({ type: "trace", data, date: date().toString(true) });
   },
-  warn: (...data) => {
-    apply({ type: "warn", data, color: code.yellow, date: date().toString(true) });
-    update();
-  },
+  warn: (...data) => apply({ type: "warn", data, color: code.yellow, date: date().toString(true) }),
 };
 
-function apply({ type, data, color, date }) {
+function apply({ type, data, color, date, update, replace }) {
   if (!(data?.length > 0)) return;
   const log = { type, date };
   let initial = color || "";
@@ -135,11 +101,25 @@ function apply({ type, data, color, date }) {
       if (typeof value === "object") return message + spacer + stringify(value, true);
       return message + spacer + `${value}`;
     }, initial) + code.reset;
-  logs.push(log);
+  if (replace) {
+    logs[replace] = log;
+    flush();
+    return;
+  }
+  if (update) logs.splice(update, 1);
+  let index = logs.push(log) - 1;
+  flush();
+  if (update) return index;
+  return {
+    update: (...updatedData) => {
+      index = apply({ type, data: updatedData, color, date, update: index });
+    },
+    replace: (...updatedData) => apply({ type, data: updatedData, color, date: date().toString(true), replace: index }),
+  };
 }
 
-function update() {
-  process.stdout.write("\x1B[2J\x1B[0f");
+function flush() {
+  process.stdout.write("\x1B[2J\x1B[3J\x1B[H\x1Bc");
   for (let i = 0, len = logs.length; i < len; i++) {
     process.stdout.write(logs[i].message + "\n");
   }

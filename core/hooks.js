@@ -43,7 +43,9 @@ export class State {
 
   set value(x) {
     this.#value = x;
-    for (let i = 0, len = this.#listeners.length; i < len; i++) this.#listeners[i]();
+    setTimeout(() => {
+      for (let i = 0, len = this.#listeners.length; i < len; i++) this.#listeners[i]();
+    }, 0);
   }
 
   valueOf() {

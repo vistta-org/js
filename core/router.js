@@ -14,17 +14,19 @@ const route = system.register(
       if (isServer()) return;
       this.navigate();
       handleSocket(this);
+      window.addEventListener("popstate", () => this.navigate({ pushState: false }));
     }
 
-    async navigate(href, callback) {
-      const force = href === true;
+    async navigate(arg) {
+      let { href, pushState, callback, force } = typeof arg === "object" ? arg : { href: arg };
+      if (!force) force = href === true;
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
       href = new URL(href).pathname;
       if (!force && this.#active === href) return;
       this.#active = href;
       const cached = this.#routes?.[href];
-      history.pushState({}, "", href);
+      if (pushState !== false) history.pushState({}, "", href);
       if (force || !cached) {
         let app = href + (href.endsWith("/") ? "" : "/") + "resources/app";
         const { store, styles } = await loadConfig(app);
@@ -42,7 +44,7 @@ const route = system.register(
       if (this.#routes?.[href]) delete this.#routes[href];
       if (href !== this.#active) return;
       this.classList.toggle("loading", true);
-      this.navigate(true, () => this.classList.toggle("loading", false));
+      this.navigate({ force: true, callback: () => this.classList.toggle("loading", false) });
     }
 
     get active() {
@@ -91,16 +93,14 @@ export const useRoute = () => ({
 function handleSocket(router) {
   if (socket.active === false) return setTimeout(() => handleSocket(router), 250);
   socket.router = router;
-  socket.instance.on(`system/refresh`, (href) => router.refresh(href));
+  socket.instance.on(`@app/refresh`, (href) => router.refresh(href));
 }
 
 function buildUrl(href) {
   const url = new URL(window.location.href);
-  if (href?.includes("?")) {
-    const [pathname, search] = href.split(/\?(.*)/s);
-    url.pathname = pathname;
-    url.pathname = search;
-  } else url.pathname = href;
+  const [pathname] = href?.includes("?") ? href.split(/\?(.*)/s) : [href];
+  if (pathname.startsWith(".")) url.pathname += "/" + pathname;
+  else url.pathname = pathname;
   return url.href;
 }
 

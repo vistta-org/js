@@ -20,29 +20,15 @@ class Socket {
     this.instance.io.on("reconnect", () => location.reload());
   }
 
-  /*emit(event, ...args) {
-    if (this.active === false) return;
-    this.instance.emit(`/${this.serverId}${this.href}/${event}`, ...args);
+  emit(event, ...args) {
+    if (this.active === false || typeof event !== "string") return;
+    this.instance.emit(transformEventName(event), ...args);
   }
 
   on(event, callback) {
-    if (this.active === false) return;
-    this.instance.on(`/${this.serverId}${this.href}/${event}`, callback);
+    if (this.active === false || typeof event !== "string") return;
+    this.instance.on(transformEventName(event), callback);
   }
-
-  get global() {
-    const { active, serverId, instance: socket } = this;
-    return {
-      emit(event, ...args) {
-        if (active === false) return;
-        socket.emit(`/g/${serverId}/${event}`, ...args);
-      },
-      on(event, callback) {
-        if (active === false) return;
-        socket.on(`/g/${serverId}/${event}`, callback);
-      },
-    };
-  }*/
 }
 
 const socket = new Socket();
@@ -60,3 +46,12 @@ export const useSocket = () => {
     },
   };
 };
+
+//
+
+function transformEventName(string) {
+  return string
+    .replace(/([A-Z])/g, "_$1")
+    .toLowerCase()
+    .replace(/-/g, "_");
+}
