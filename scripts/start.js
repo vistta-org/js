@@ -27,25 +27,15 @@ const app = new Server({
     console.log(`${protocol.toUpperCase()} server app listen on ${protocol}://localhost:${port}`),
 });
 
-console.time("page");
+const logs = {};
 app.use(options.folder, "/", {
   callback: ({ pathname, event, type }) => {
-    type = type !== "standard" ? type + " " : "";
-    switch (event) {
-      case "changed":
-        return console.log(`${capitalize(type)}Page "${pathname}" was modified.`);
-      case "refresh":
-        return console.time(pathname, true);
-      case "refreshed":
-        return console.timeLog(
-          pathname,
-          `${capitalize(type)}Page "${pathname}" ${console.code.cyan}refreshed${console.code.reset}`
-        );
-      case "compiled":
-        return console.timeLog(
-          "page",
-          `${capitalize(type)}Page "${pathname}" ${console.code.green}ready${console.code.reset}`
-        );
+    if (event === "modified") {
+      return logs[pathname]?.update(`${capitalize(type)} "${pathname}" ${console.code.magenta}modified.`);
+    }
+    if (event === "ready") {
+      if (logs[pathname]) logs[pathname].update(`${capitalize(type)} "${pathname}" ${console.code.green}ready.`);
+      else logs[pathname] = console.log(`${capitalize(type)} "${pathname}" ${console.code.green}ready.`);
     }
   },
 });

@@ -40,7 +40,12 @@ class Server {
     this.#certs = { cert, key };
     this.#app = http2express(express);
     this.#app.enable("trust proxy");
-    this.#app.use([useSecure({ http, https }), compression({ filter: shouldCompress }), this.#routeHandler()]);
+    this.#app.use([
+      useSecure({ http, https }),
+      compression({ filter: shouldCompress }),
+      express.json(),
+      this.#routeHandler(),
+    ]);
     if (autoStart || callback) this.listen(null, callback);
   }
 
@@ -72,7 +77,7 @@ class Server {
     this.#socket.on("connection", (socket) => {
       const subdomain = getSubdomain(socket.handshake.headers.host) || "";
       socket.join(subdomain);
-      socket.onAny((event, callback) => this.#events.emit(subdomain + "/" + event, callback));
+      socket.onAny(console.log);
     });
     this.running = true;
   }
@@ -140,7 +145,10 @@ class Server {
           if (type === "standard" && name === "changed") this.#socket.to(subdomain).emit("system/refresh", href);
           if (callback) callback(event);
         });
-      } else await this.#router.setApi(filepath, subdomain, pathname || "/");
+      } else {
+        await this.#router.setApi(filepath, subdomain, pathname || "/");
+        callback({ pathname: pathname || "/", event: "ready", type: "api" });
+      }
     }
   }
 

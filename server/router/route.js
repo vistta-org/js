@@ -25,9 +25,9 @@ class Route {
     this.filepath = fs.resolve(filepath);
     this.pathname = pathname;
     this.method = method;
-    this.type = method === "get" ? "standard" : "error";
+    this.type = method === "get" ? "page" : "error page";
     this.config = config;
-    this.listener = (event) => callback && callback({ filepath, pathname, event, type: this.type });
+    this.emit = (event) => callback && callback({ filepath, pathname, event, type: this.type });
   }
 
   async handler(request, response, reject) {
@@ -58,7 +58,6 @@ class Route {
 
   async import(isRefresh) {
     try {
-      if (isRefresh) this.listener("refresh");
       const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
       const { default: app, config } = await system.import(this.filepath, { cache: !isRefresh });
@@ -72,7 +71,7 @@ class Route {
         this.config.export = (await bundle(this.filepath, { encode: true, exports: "config", sideEffects: false })).code;
       }
       if (isDev) this.watch(files);
-      this.listener(isRefresh ? "refreshed" : "compiled");
+      this.emit("ready");
       return this;
     } catch (e) {
       console.error(e.stack);
@@ -86,7 +85,7 @@ class Route {
         this.watchedFiles.push(file);
         fs.watchFile(file, () => {
           this.app = null;
-          this.listener("changed");
+          this.emit("modified");
         });
       }
     });
