@@ -77,7 +77,7 @@ class Server {
     this.#socket.on("connection", (socket) => {
       const subdomain = getSubdomain(socket.handshake.headers.host) || "";
       socket.join(subdomain);
-      socket.onAny(console.log);
+      socket.onAny((event, ...args) => this.#events.emit(event, subdomain, socket, args));
     });
     this.running = true;
   }
@@ -142,13 +142,11 @@ class Server {
         const method = Router.isErrorRoute(pathname.split("/")?.pop()) ? "error" : "get";
         await this.#router.setComponent(filepath, subdomain, pathname || "/", method, (event) => {
           const { type, event: name, pathname: href } = event;
-          if (type === "standard" && name === "changed") this.#socket.to(subdomain).emit("system/refresh", href);
+          if (type === "page" && name === "modified") this.#socket.to(subdomain).emit("@app/refresh", href);
           if (callback) callback(event);
         });
-      } else {
-        await this.#router.setApi(filepath, subdomain, pathname || "/");
-        callback({ pathname: pathname || "/", event: "ready", type: "api" });
-      }
+      } else if (pathname === "/api") this.#socketUse(subdomain, await Router.importApi(filepath));
+      else await this.#router.setApi(filepath, subdomain, pathname, callback);
     }
   }
 
@@ -166,17 +164,43 @@ class Server {
     this.#router.enable(subdomain, pathname);
   }
 
-  emit() {
-    /*if (!this.#router.has(args[0])) args.unshift("");
-    const [subdomain, event, ...rest] = args;
-    this.#socket.to(subdomain).emit(event, ...rest);*/
+  emit(subdomain, event, ...args) {
+    if (typeof event !== "string") {
+      console.warn("Cannot emit an empty event");
+      return;
+    }
+    let channel = this.#socket;
+    if (subdomain && subdomain !== "*") channel = channel.to(subdomain);
+    channel.emit(event, ...args);
   }
 
-  on() {
-    /*if (!this.#router.has(args[0])) args.unshift("");
-    const [subdomain, event, ...rest] = args;
-    const { subdomain, event } = typeof e === "string" ? { event: e } : e;
-    // this.#events.on(`/g/${this.#id}/${event}`, callback);*/
+  on(subdomain, event, callback) {
+    if (typeof event !== "string") {
+      console.warn("Cannot listen to an empty event");
+      return;
+    }
+    this.#events.on(transformEventName(event), (_subdomain, socket, args) => {
+      if (subdomain && subdomain !== "*" && subdomain !== _subdomain) return;
+      callback(...args);
+    });
+  }
+
+  #socketUse(subdomain, handlers) {
+    const events = Object.keys(handlers);
+    for (let i = 0, len = events.length; i < len; i++) {
+      const event = events[i];
+      this.#events.on(transformEventName(event), (_subdomain, socket, args) => {
+        if (subdomain !== _subdomain) return;
+        handlers[event](
+          {
+            emit: (_event, ..._args) => socket.emit(transformEventName(_event), ..._args),
+            broadcast: (_event, ..._args) => socket.to(subdomain).emit(transformEventName(_event), ..._args),
+            announce: (_event, ..._args) => this.#socket.to(subdomain).emit(transformEventName(_event), ..._args),
+          },
+          ...args
+        );
+      });
+    }
   }
 
   #routeHandler() {
@@ -245,4 +269,11 @@ function useSecure({ http, https }) {
 
 function shouldCompress(request, response) {
   return !request.headers["x-no-compression"] && filter(request, response);
+}
+
+function transformEventName(string) {
+  return string
+    .replace(/([A-Z])/g, "_$1")
+    .toLowerCase()
+    .replace(/-/g, "_");
 }

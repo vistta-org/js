@@ -47,12 +47,9 @@ export default class Server {
   disable(subdomain: string, pathname: string): void;
   enable(pathname: string): void;
   enable(subdomain: string, pathname: string): void;
-  /*
-  remove(type: HTTP_TYPES | string, path: string, subdomain?: string): void;
-  proxy(path: string, options: {});
-  redirect(path: string, target: URL);
-  on(event: string, callback: (...args: any) => void): void;
-  emit(event: string, ...args: any): void;*/
+
+  emit(subdomain: string, event: string, ...args: any): void;
+  on(subdomain: string, event: string, callback: (...args: any) => void): void;
 }
 
 export * from "./crypto";

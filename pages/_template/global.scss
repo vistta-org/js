@@ -31,7 +31,10 @@ html {
   height: 100dvh;
   width: 100vw;
   color: var(--dark-color);
-  background: mix($light-color, white, 80%);
+  background-blend-mode: overlay;
+  background-color: mix($light-color, white, 80%);
+  background-image: url("./background.svg");
+  background-size: cover;
   --color: var(--dark-color);
   --background: var(--light-color);
   --background-gradient: linear-gradient(to right, #{$light-color}, #{mix($light-color, black, 95%)});
@@ -54,6 +57,7 @@ body {
     inset: var(--border);
     border-radius: calc(var(--border-radius) * 2);
     background: var(--background-gradient);
+    opacity: 0.8;
     z-index: -1;
   }
 
@@ -123,7 +127,7 @@ body {
 @media (prefers-color-scheme: dark) {
   html {
     color: var(--light-color);
-    background: mix($dark-color, white, 90%);
+    background-color: mix($dark-color, white, 90%);
     --color: var(--light-color);
     --background: var(--dark-color);
     --background-gradient: linear-gradient(to right, #{mix($dark-color, black, 95%)}, #{$dark-color});

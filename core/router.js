@@ -93,7 +93,7 @@ export const useRoute = () => ({
 function handleSocket(router) {
   if (socket.active === false) return setTimeout(() => handleSocket(router), 250);
   socket.router = router;
-  socket.instance.on(`system/refresh`, (href) => router.refresh(href));
+  socket.instance.on(`@app/refresh`, (href) => router.refresh(href));
 }
 
 function buildUrl(href) {

@@ -31,3 +31,10 @@ npm i @vistta/vistta.js
 ## Authors
 
 - Tiago Almeida ([@TiagoShadow](https://git.vistta.me/Tiago))
+
+## Benchmarks Result
+
+Benchmark #1: 0.028000000715255737ms
+Benchmark #2: 0.007999999821186066ms
+Benchmark #3: 9.354000000059605ms
+Benchmark #4: 0.019000000804662704ms

@@ -71,18 +71,28 @@ class Router {
     this.set(subdomain, method, pathname, await route.import());
   }
 
-  async setApi(filepath, subdomain, pathname) {
-    const handler = (await import(filepath))?.default;
-    this.set(subdomain, "any", pathname, handler);
+  async setApi(filepath, subdomain, pathname, callback) {
+    const handler = (await importApi(filepath))?.default;
+    if (handler) this.set(subdomain, "any", pathname, handler);
+    callback({ pathname: pathname || "/", event: "ready", type: "api" });
   }
 }
 
 Router.readFolder = getValidRoutesFromFolder;
 Router.isErrorRoute = isErrorRoute;
+Router.importApi = importApi;
 
 export { Router };
 
 //
+
+async function importApi(filepath) {
+  try {
+    return await import(filepath);
+  } catch {
+    return {};
+  }
+}
 
 function transformCallback(callback) {
   callback = callback.filter((f) => typeof f === "function");
