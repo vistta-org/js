@@ -176,8 +176,7 @@ function convertToArray(element) {
 }
 
 function setAttribute(node, name, value) {
-  if (/on[A-Z].*/.test(name)) {
-    if (typeof value !== "function") return;
+  if (/^on\w.*/.test(name) && typeof value === "function") {
     node.addEventListener(name.charAt(2).toLowerCase() + name.slice(3), value);
     return;
   }
