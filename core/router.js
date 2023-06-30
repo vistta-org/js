@@ -98,11 +98,9 @@ function handleSocket(router) {
 
 function buildUrl(href) {
   const url = new URL(window.location.href);
-  if (href?.includes("?")) {
-    const [pathname, search] = href.split(/\?(.*)/s);
-    url.pathname = pathname;
-    url.pathname = search;
-  } else url.pathname = href;
+  const [pathname] = href?.includes("?") ? href.split(/\?(.*)/s) : [href];
+  if (pathname.startsWith(".")) url.pathname += "/" + pathname;
+  else url.pathname = pathname;
   return url.href;
 }
 
