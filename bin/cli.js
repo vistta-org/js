@@ -62,7 +62,7 @@ async function parse([main, ...args]) {
     case "start":
       main = fs.resolve(dirname, `../scripts/${main}.js`);
       break;
-    case "checks":
+    case "validation":
       env.NODE_ENV = "development";
       env.VALIDATION = "only";
       break;

@@ -15,9 +15,11 @@
     "vistta": "./bin/cli.js"
   },
   "scripts": {
-    "checks": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js checks && eslint --fix .",
+    "validation": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js validation",
     "dev": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages --dev",
-    "prod": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages"
+    "prod": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages",
+    "lint": "eslint --fix .",
+    "tsc": "tsc ."
   },
   "repository": {
     "type": "git",
@@ -44,8 +46,8 @@
     "typescript": "^5.1.6"
   },
   "devDependencies": {
-    "@types/node": "^20.3.2",
-    "eslint": "^8.43.0",
+    "@types/node": "^20.3.3",
+    "eslint": "^8.44.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-better-styled-components": "^1.1.2",
     "eslint-plugin-jsx": "^0.1.0",

@@ -1,5 +1,8 @@
 import { spawn as _spawn, fork as _fork, exec as _exec } from "node:child_process";
 import { Worker, SHARE_ENV } from "node:worker_threads";
+import { platform } from "node:os";
+
+const USE_SHELL = platform() === "win32";
 
 class Process {
   #process;
@@ -17,7 +20,7 @@ class Process {
       try {
         switch (this.type) {
           case "spawn":
-            this.#process = _spawn(this.main, this.args, { ...this.options, shell: true, detached: false });
+            this.#process = _spawn(this.main, this.args, { ...this.options, shell: USE_SHELL, detached: false });
             this.#process.stderr.on("data", (data) => console.error("error", `${data || ""}`));
             this.#process.on("close", () => (this.#process = null));
             break;
@@ -100,7 +103,7 @@ export const run = async (file, args, options, autoStart = true) => {
 
 export const exec = (command, options = {}) =>
   new Promise((resolve, reject) => {
-    const { stdoutAsError, ...execOptions } = Object.assign({ shell: true }, options);
+    const { stdoutAsError, ...execOptions } = Object.assign({ shell: USE_SHELL }, options);
     _exec(command, execOptions, (err, stdout, stderr) => {
       if (stderr || err) return reject(stdoutAsError ? stdout : stderr || err);
       resolve(stdout);
