@@ -77,7 +77,7 @@ console = {
     if (!timers[key]) return;
     apply({
       type: "warn",
-      data: `${key} ${code.reset + code.dim}(${date().diff(timers[key], { units: true })})`,
+      data: [`${key} ${code.reset + code.dim}(${date().diff(timers[key], { units: true })})`],
       date: date().toString(true),
     });
   },

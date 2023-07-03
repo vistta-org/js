@@ -3,6 +3,7 @@
 import { run, fs, exec } from "../server/index.js";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
+import https from "https";
 import pkg from "../package.json";
 const dirname = fs.dirname(import.meta.url);
 
@@ -78,15 +79,17 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
   if (NODE_ENV !== "development") return;
   if (target === "modules") {
     if (!["modules", "all", "only"].includes(VALIDATION)) return;
+    //await getLatestPackageVersion("typescript");
     const outdated = _parse(await exec("npm outdated --json"));
-    const modules = Object.keys(outdated || {});
+    console.log({ outdated });
+    /*const modules = Object.keys(outdated || {});
     for (let i = 0, len = modules.length; i < len; i++) {
       const module = modules[i];
       const { current, wanted, latest } = outdated[module];
       if (current === wanted) console.print(`${console.code.magenta}Module "${module}" has a new version (${latest})`);
       else console.print(`${console.code.yellow}Module "${module}" is outdated (${latest})`);
     }
-    if (modules.length) await sleep(2500);
+    if (modules.length) await sleep(2500);*/
     return;
   }
   if (target === "typescript") {
