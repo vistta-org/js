@@ -14,4 +14,5 @@ jobs:
           node-version: '19.x'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
+      - run: npm outdated
       - run: npm run validation
