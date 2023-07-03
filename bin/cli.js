@@ -86,7 +86,7 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
           return {};
         }
       })();
-      const modules = Object.keys();
+      const modules = Object.keys(outdated);
       let valid = true;
       for (let i = 0, len = modules.length; i < len; i++) {
         const module = modules[i];

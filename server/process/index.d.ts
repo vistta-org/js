@@ -16,4 +16,11 @@ export function fork(file: string, args?: string[], options?: ForkOptions, autoS
 
 export function run(file: string, args?: string[], options?: WorkerOptions, autoStart?: boolean): Process<"worker">;
 
-export function exec(command: string, options?: ExecOptions): Process;
+export function exec(
+  command: string,
+  options?: ExecOptions
+): {
+  stdout?: string;
+  stderr?: string;
+  err?: string;
+};
