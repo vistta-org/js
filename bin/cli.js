@@ -78,7 +78,8 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
   if (NODE_ENV !== "development") return;
   if (target === "modules") {
     if (!["modules", "all", "only"].includes(VALIDATION)) return;
-    const outdated = _parse(await exec("npm outdated --json"));
+    console.log(process.stdout.isTTY);
+    /*const outdated = _parse(await exec("npm outdated --json"));
     const modules = Object.keys(outdated || {});
     for (let i = 0, len = modules.length; i < len; i++) {
       const module = modules[i];
@@ -86,7 +87,7 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
       if (current === wanted) console.print(`${console.code.magenta}Module "${module}" has a new version (${latest})`);
       else console.print(`${console.code.yellow}Module "${module}" is outdated (${latest})`);
     }
-    if (modules.length) await sleep(2500);
+    if (modules.length) await sleep(2500);*/
     return;
   }
   if (target === "typescript") {
