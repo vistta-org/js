@@ -1,6 +1,9 @@
 /* eslint-disable no-unused-vars */
 import { EventEmitter } from "node:events";
 import { date, stringify } from "../../utils/index.js";
+import { platform } from "node:os";
+
+process.stdout.write(platform());
 
 const emitter = new EventEmitter();
 const logs = [];
@@ -22,9 +25,6 @@ const code = {
   cyan: "\x1b[36m",
   white: "\x1b[37m",
 };
-
-process.stdout.write("\r\u001b[3J\u001b[1J");
-process.stdout.write("\r\u001b[2J\u001b[0;0H");
 
 // eslint-disable-next-line no-global-assign
 console = {
