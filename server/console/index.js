@@ -1,8 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { EventEmitter } from "node:events";
 import { date, stringify } from "../../utils/index.js";
-import { isMainThread } from "node:worker_threads";
-import { platform } from "node:os";
 
 const emitter = new EventEmitter();
 const logs = [];
@@ -24,6 +22,8 @@ const code = {
   cyan: "\x1b[36m",
   white: "\x1b[37m",
 };
+const DYNAMIC_LOG_ENABLED = !!process.stdout.isTTY;
+let nonTTY = 0;
 
 // eslint-disable-next-line no-global-assign
 console = {
@@ -118,9 +118,16 @@ function apply({ type, data, color, date, update, replace }) {
 }
 
 function flush() {
-  if (!isMainThread) process.stdout.write("\x1B[2J\x1B[3J\x1B[H\x1Bc");
-  for (let i = 0, len = logs.length; i < len; i++) {
-    process.stdout.write(logs[i].message + "\n");
+  let output = "",
+    i = 0;
+  if (DYNAMIC_LOG_ENABLED) output = "\x1B[2J\x1B[3J\x1B[H\x1Bc";
+  else {
+    i = nonTTY;
+    nonTTY = logs.length;
   }
+  for (let len = logs.length; i < len; i++) {
+    output += "\n" + logs[i].message;
+  }
+  process.stdout.write(output);
   emitter.emit("change", logs);
 }
