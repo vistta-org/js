@@ -118,7 +118,7 @@ function apply({ type, data, color, date, update, replace }) {
 }
 
 function flush() {
-  process.stdout.write(isMainThread ? "\x1B[H\x1B[2J" : "\x1B[2J\x1B[3J\x1B[H\x1Bc");
+  if (!isMainThread) process.stdout.write("\x1B[2J\x1B[3J\x1B[H\x1Bc");
   for (let i = 0, len = logs.length; i < len; i++) {
     process.stdout.write(logs[i].message + "\n");
   }
