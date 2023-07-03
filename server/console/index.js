@@ -1,9 +1,8 @@
 /* eslint-disable no-unused-vars */
 import { EventEmitter } from "node:events";
 import { date, stringify } from "../../utils/index.js";
+import { isMainThread } from "node:worker_threads";
 import { platform } from "node:os";
-
-process.stdout.write(platform());
 
 const emitter = new EventEmitter();
 const logs = [];
@@ -119,7 +118,7 @@ function apply({ type, data, color, date, update, replace }) {
 }
 
 function flush() {
-  process.stdout.write("\x1B[2J\x1B[3J\x1B[H\x1Bc");
+  process.stdout.write(isMainThread ? "\x1B[H\x1B[2J" : "\x1B[2J\x1B[3J\x1B[H\x1Bc");
   for (let i = 0, len = logs.length; i < len; i++) {
     process.stdout.write(logs[i].message + "\n");
   }
