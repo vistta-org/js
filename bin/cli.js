@@ -3,7 +3,6 @@
 import { run, fs, exec } from "../server/index.js";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
-import https from "https";
 import pkg from "../package.json";
 const dirname = fs.dirname(import.meta.url);
 
@@ -12,8 +11,8 @@ console.announce("Starting VisttaJS...");
 const { main, args, env } = await parse(process.argv.slice(2));
 Object.assign(process.env, env);
 
-await validate("modules", null, env);
-if (await validate("typescript", main, env)) abort("");
+const needsUpdate = await validate("modules", null, env);
+if (await validate("typescript", main, env)) abort();
 
 if (env.VALIDATION !== "only") {
   const worker = await run(main, args);
@@ -26,13 +25,13 @@ if (env.VALIDATION !== "only") {
       if (await validate("typescript", main, env)) abort("");
       await worker.start();
     });
-}
+} else if (needsUpdate) abort();
 
 //
 
 function abort(error) {
-  console.error(error);
-  process.exit(0);
+  if (error) console.error(error);
+  process.exit(1);
 }
 
 async function parse([main, ...args]) {
@@ -79,17 +78,30 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
   if (NODE_ENV !== "development") return;
   if (target === "modules") {
     if (!["modules", "all", "only"].includes(VALIDATION)) return;
-    //await getLatestPackageVersion("typescript");
-    const outdated = _parse(await exec("npm outdated --json"));
-    console.log({ outdated });
-    /*const modules = Object.keys(outdated || {});
-    for (let i = 0, len = modules.length; i < len; i++) {
-      const module = modules[i];
-      const { current, wanted, latest } = outdated[module];
-      if (current === wanted) console.print(`${console.code.magenta}Module "${module}" has a new version (${latest})`);
-      else console.print(`${console.code.yellow}Module "${module}" is outdated (${latest})`);
+    try {
+      const outdated = await (async () => {
+        try {
+          return _parse((await exec("npm outdated --json")).stdout || "{}");
+        } catch {
+          return {};
+        }
+      })();
+      const modules = Object.keys();
+      let valid = true;
+      for (let i = 0, len = modules.length; i < len; i++) {
+        const module = modules[i];
+        const { current, wanted, latest } = outdated[module];
+        if (current === wanted) console.print(`${console.code.cyan}Module "${module}" has a new version (${latest})`);
+        else {
+          console.print(`${console.code.yellow}Module "${module}" is outdated (${latest})`);
+          valid = false;
+        }
+      }
+      if (modules.length) await sleep(2500);
+      return valid;
+    } catch {
+      /* Do Nothing */
     }
-    if (modules.length) await sleep(2500);*/
     return;
   }
   if (target === "typescript") {

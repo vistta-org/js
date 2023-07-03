@@ -102,11 +102,6 @@ export const run = async (file, args, options, autoStart = true) => {
 };
 
 export const exec = (command, options = {}) =>
-  new Promise((resolve, reject) => {
-    const { stdoutAsError, ...execOptions } = Object.assign({ shell: USE_SHELL }, options);
-    _exec(command, execOptions, (err, stdout, stderr) => {
-      console.log(err);
-      //if (stderr || err) return reject(stdoutAsError ? stdout : stderr || err);
-      resolve(stdout);
-    });
-  });
+  new Promise((resolve) =>
+    _exec(command, Object.assign({ shell: USE_SHELL }, options), (err, stdout, stderr) => resolve({ err, stdout, stderr }))
+  );
