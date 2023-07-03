@@ -105,7 +105,7 @@ export const exec = (command, options = {}) =>
   new Promise((resolve, reject) => {
     const { stdoutAsError, ...execOptions } = Object.assign({ shell: USE_SHELL }, options);
     _exec(command, execOptions, (err, stdout, stderr) => {
-      if (stderr || err) return reject(stdoutAsError ? stdout : stderr || err);
+      //if (stderr || err) return reject(stdoutAsError ? stdout : stderr || err);
       resolve(stdout);
     });
   });
