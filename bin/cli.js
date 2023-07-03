@@ -78,7 +78,7 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
   if (NODE_ENV !== "development") return;
   if (target === "modules") {
     if (!["modules", "all", "only"].includes(VALIDATION)) return;
-    console.log(await exec("npm -v"));
+    console.log(await exec("npm ls"));
     /*const outdated = _parse(await exec("npm outdated --json"));
     const modules = Object.keys(outdated || {});
     for (let i = 0, len = modules.length; i < len; i++) {
