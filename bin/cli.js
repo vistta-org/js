@@ -11,8 +11,8 @@ console.announce("Starting VisttaJS...");
 const { main, args, env } = await parse(process.argv.slice(2));
 Object.assign(process.env, env);
 
-const needsUpdate = await validate("modules", null, env);
-if (await validate("typescript", main, env)) abort();
+const isUpToDate = await validate("modules", null, env);
+if (!(await validate("typescript", main, env))) abort();
 
 if (env.VALIDATION !== "only") {
   const worker = await run(main, args);
@@ -25,7 +25,7 @@ if (env.VALIDATION !== "only") {
       if (await validate("typescript", main, env)) abort("");
       await worker.start();
     });
-} else if (needsUpdate) abort();
+} else if (!isUpToDate) abort();
 
 //
 
@@ -107,9 +107,9 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
   if (target === "typescript") {
     if (!["typescript", "type", "all", "only"].includes(VALIDATION)) return false;
     const { errors } = _validate(VALIDATION === "only" ? "." : main);
-    if (!errors?.length) return false;
+    if (!errors?.length) return true;
     errors.forEach((error) => console.print(console.code.red + error));
-    return true;
+    return false;
   }
 }
 
