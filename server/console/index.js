@@ -22,8 +22,8 @@ const code = {
   cyan: "\x1b[36m",
   white: "\x1b[37m",
 };
-const DYNAMIC_LOG_ENABLED = !!process.stdout.isTTY;
-let nonTTY = 0;
+const DYNAMIC_LOG_ENABLED = !!process.stdout.isTTY || process.env.DYNAMIC_LOG_ENABLED;
+let staticLogSize = 0;
 
 // eslint-disable-next-line no-global-assign
 console = {
@@ -118,15 +118,15 @@ function apply({ type, data, color, date, update, replace }) {
 }
 
 function flush() {
-  let output = "",
-    i = 0;
+  let output = "";
+  let i = 0;
   if (DYNAMIC_LOG_ENABLED) output = "\x1B[2J\x1B[3J\x1B[H\x1Bc";
   else {
-    i = nonTTY;
-    nonTTY = logs.length;
+    i = staticLogSize;
+    staticLogSize = logs.length;
   }
   for (let len = logs.length; i < len; i++) {
-    output += "\n" + logs[i].message;
+    output += logs[i].message + "\n";
   }
   process.stdout.write(output);
   emitter.emit("change", logs);

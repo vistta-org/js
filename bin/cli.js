@@ -43,6 +43,7 @@ async function parse([main, ...args]) {
   env.APP_VERSION = pkg.version;
   env.APP_NAME = pkg.name;
   env.VALIDATION = "modules";
+  env.DYNAMIC_LOG_ENABLED = !!process.stdout.isTTY;
   let skipNext = false;
   args = args.filter((arg, index, arr) => {
     if (skipNext) return (skipNext = false), false;
@@ -75,9 +76,9 @@ async function parse([main, ...args]) {
 }
 
 async function validate(target, main, { NODE_ENV, VALIDATION }) {
-  if (NODE_ENV !== "development") return;
+  if (NODE_ENV !== "development") return true;
   if (target === "modules") {
-    if (!["modules", "all", "only"].includes(VALIDATION)) return;
+    if (!["modules", "all", "only"].includes(VALIDATION)) return true;
     try {
       const outdated = await (async () => {
         try {
@@ -98,14 +99,14 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
         }
       }
       if (modules.length) await sleep(2500);
-      return valid;
+      return valid || VALIDATION !== "only";
     } catch {
       /* Do Nothing */
     }
     return;
   }
   if (target === "typescript") {
-    if (!["typescript", "type", "all", "only"].includes(VALIDATION)) return false;
+    if (!["typescript", "type", "all", "only"].includes(VALIDATION)) return true;
     const { errors } = _validate(VALIDATION === "only" ? "." : main);
     if (!errors?.length) return true;
     errors.forEach((error) => console.print(console.code.red + error));
