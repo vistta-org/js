@@ -19,16 +19,5 @@
     margin-top: 3rem;
     padding: 1.5rem 3rem;
     font-size: 1.5rem;
-    color: var(--dark-color);
-    background: var(--brand-color);
-    border: var(--border-width) solid var(--brand-color);
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    transition: color 0.3s ease-in-out, background 0.3s ease-in-out;
-
-    &:hover {
-      color: var(--light-color);
-      background: var(--dark-color);
-    }
   }
 }

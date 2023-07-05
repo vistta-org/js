@@ -1,5 +1,5 @@
 import { indexOf, system } from "../utils";
-import { State, Ref } from "./hooks";
+import { State } from "./hooks";
 
 const Fragment = Symbol("Fragment");
 const StyleSheet = Symbol("StyleSheet");
@@ -99,13 +99,13 @@ export default class VirtualDom {
 
   #apply(append, element) {
     if (!element == null) return null;
-    if (typeof element === "function") return this.#apply(append, element());
     if (!(element instanceof Element)) {
       if (element instanceof State) {
         element = new Element({ type: Fragment, value: element });
         element.children = convertToArray(element);
         element.value.subscribe(() => this.#update(element));
-      } else if (Array.isArray(element)) element = new Element({ type: Fragment, children: element });
+      } else if (typeof element === "function") return this.#apply(append, element());
+      else if (Array.isArray(element)) element = new Element({ type: Fragment, children: element });
       else element = new Element({ type: TextNode, value: `${element != null ? element : ""}` });
     }
     //
@@ -119,10 +119,8 @@ export default class VirtualDom {
       else element.nodes = [];
       if (key) this.#keys[key] = element.node;
       if (ref) {
-        const typeofRef = typeof ref;
-        if (ref instanceof Ref) ref.register(element.node);
-        else if (typeofRef === "function") ref(element.node);
-        else if (typeofRef === "object") ref.current = element.node;
+        if (typeof ref === "function") ref(element.node);
+        else if (typeof ref === "object") ref.current = element.node;
       }
       if (props) {
         const keys = Object.keys(props);
