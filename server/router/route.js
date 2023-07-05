@@ -4,6 +4,7 @@ import { createElement, renderToString } from "../dom";
 import { bundle } from "./bundler.js";
 import { validate } from "../../bin/loaders/typescript";
 import { system, stringify } from "../../utils";
+import cache from "../../bin/loaders/cache";
 import routeStyle from "./route.css";
 
 system.set("document", {});
@@ -84,6 +85,7 @@ class Route {
       if (!this.watchedFiles.includes(file)) {
         this.watchedFiles.push(file);
         fs.watchFile(file, () => {
+          cache.clear(file);
           this.app = null;
           this.emit("modified");
         });
@@ -155,14 +157,14 @@ function renderToHtml({
           createElement(
             "style",
             { id: "route" },
-            styles?.reduce((acc, { value }) => acc + " " + value, "")
+            styles?.reduce((acc, { value }) => acc + " " + value, ""),
           ),
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
-          ...(scripts?.map((props) => createElement("script", props)) || [])
+          ...(scripts?.map((props) => createElement("script", props)) || []),
         ),
         createElement("body", { unescaped: true }, body),
-        createElement("script", { nonce }, client)
-      )
+        createElement("script", { nonce }, client),
+      ),
     )
   );
 }

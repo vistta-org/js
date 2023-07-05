@@ -34,7 +34,7 @@
     "accepts": "^1.3.8",
     "autoprefixer": "^10.4.14",
     "compressible": "^2.0.18",
-    "esbuild": "^0.18.10",
+    "esbuild": "^0.18.11",
     "express": "^4.18.2",
     "follow-redirects": "^1.15.2",
     "http2-express-bridge": "^1.0.7",
@@ -46,7 +46,7 @@
     "typescript": "^5.1.6"
   },
   "devDependencies": {
-    "@types/node": "^20.3.3",
+    "@types/node": "^20.4.0",
     "eslint": "^8.44.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-better-styled-components": "^1.1.2",

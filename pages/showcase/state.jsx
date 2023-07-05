@@ -8,7 +8,7 @@ export default function Showcase() {
       <button onClick={() => age.set((v) => v - 1)}>-</button>
       {age}
       <button onClick={() => age.set((v) => v + 1)}>+</button>
-      <p>{useEffect(() => (age > 18 ? "Adult" : age > 0 ? "Under Aged" : "Invalid Age"))}</p>
+      <p>{useEffect(() => (age > 18 ? "Adults" : age > 0 ? "Under Aged" : "Invalid Age"))}</p>
     </Template>
   );
 }
