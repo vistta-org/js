@@ -3,6 +3,8 @@ import { State } from "../core/hooks";
 import { escapeHtml, system } from "../utils";
 
 system.set("MutationObserver", class {});
+system.set("IntersectionObserver", class {});
+system.set("ResizeObserver", class {});
 
 function renderToString(element) {
   if (!element == null) return "";
