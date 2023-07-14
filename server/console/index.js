@@ -22,9 +22,8 @@ const code = {
   cyan: "\x1b[36m",
   white: "\x1b[37m",
 };
-
-process.stdout.write("\r\u001b[3J\u001b[1J");
-process.stdout.write("\r\u001b[2J\u001b[0;0H");
+const DYNAMIC_LOG_ENABLED = !!process.stdout.isTTY || process.env.DYNAMIC_LOG_ENABLED;
+let staticLogSize = 0;
 
 // eslint-disable-next-line no-global-assign
 console = {
@@ -78,7 +77,7 @@ console = {
     if (!timers[key]) return;
     apply({
       type: "warn",
-      data: `${key} ${code.reset + code.dim}(${date().diff(timers[key], { units: true })})`,
+      data: [`${key} ${code.reset + code.dim}(${date().diff(timers[key], { units: true })})`],
       date: date().toString(true),
     });
   },
@@ -119,9 +118,16 @@ function apply({ type, data, color, date, update, replace }) {
 }
 
 function flush() {
-  process.stdout.write("\x1B[2J\x1B[3J\x1B[H\x1Bc");
-  for (let i = 0, len = logs.length; i < len; i++) {
-    process.stdout.write(logs[i].message + "\n");
+  let output = "";
+  let i = 0;
+  if (DYNAMIC_LOG_ENABLED) output = "\x1B[2J\x1B[3J\x1B[H\x1Bc";
+  else {
+    i = staticLogSize;
+    staticLogSize = logs.length;
   }
+  for (let len = logs.length; i < len; i++) {
+    output += logs[i].message + "\n";
+  }
+  process.stdout.write(output);
   emitter.emit("change", logs);
 }

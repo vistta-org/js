@@ -10,13 +10,13 @@ export default function ChatPage() {
     user.value = username;
     messages = _messages;
   };
+  const content = useEffect(() =>
+    user.value ? <Chat username={user.value} messages={messages} /> : <Form onLogin={onLogin} />,
+  );
   return (
     <Template>
       <h1>Chat</h1>
-      {useEffect(
-        () => (user.value ? <Chat username={user.value} messages={messages} /> : <Form onLogin={onLogin} />),
-        [user]
-      )}
+      {content}
     </Template>
   );
 }

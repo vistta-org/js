@@ -15,6 +15,7 @@ const route = system.register(
       this.navigate();
       handleSocket(this);
       window.addEventListener("popstate", () => this.navigate({ pushState: false }));
+      window.addEventListener("click", this.#handleClick.bind(this));
     }
 
     async navigate(arg) {
@@ -67,14 +68,21 @@ const route = system.register(
           bubbles: true,
           composed: true,
           detail: details,
-        })
+        }),
       );
     }
 
     on(event, callback) {
       this?.addEventListener(event, callback, false);
     }
-  }
+
+    #handleClick(event) {
+      const { tagName, href, target } = event.target;
+      if (tagName !== "A" || (target && target !== "_self")) return;
+      event.preventDefault();
+      this.navigate(href);
+    }
+  },
 );
 
 export default route;

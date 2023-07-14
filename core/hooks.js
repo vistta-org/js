@@ -1,25 +1,12 @@
+const context = {};
+
 // Ref
 
 export class Ref {
   current;
-  #listeners = [];
-  #value;
 
   constructor(initialValue) {
     this.current = initialValue;
-  }
-
-  register(value) {
-    this.#value = value;
-    if (value && value.nodeType !== Node.ELEMENT_NODE) return;
-    watch(value, ({ type }) => {
-      this.current = type === "added" ? value : null;
-      for (let i = 0, len = this.#listeners.length; i < len; i++) this.#listeners[i]();
-    });
-  }
-
-  subscribe(callback) {
-    this.#listeners.push(callback);
   }
 }
 
@@ -29,100 +16,69 @@ export function useRef(initialValue) {
 
 // State
 
-export class State {
-  #value;
-  #listeners = [];
-
-  constructor(initialValue) {
-    this.#value = initialValue;
-  }
-
-  get value() {
-    return this.#value;
-  }
-
-  set value(x) {
-    this.#value = x;
+export class State {}
+export function useState(value) {
+  const listeners = [];
+  const state = new State();
+  state.set = (x) => {
+    if (value === x) return;
+    if (typeof x === "function") value = x(value);
+    else value = x;
     setTimeout(() => {
-      for (let i = 0, len = this.#listeners.length; i < len; i++) this.#listeners[i]();
+      for (let i = 0, len = listeners.length; i < len; i++) listeners[i]();
     }, 0);
-  }
-
-  valueOf() {
-    return this.value;
-  }
-
-  toString() {
-    if (this.value == null || typeof this.value === "object") return "";
-    return `${this.value}`;
-  }
-
-  subscribe(callback) {
-    this.#listeners.push(callback);
-  }
-}
-
-export function useState(initialValue) {
-  return new State(initialValue);
+  };
+  state.valueOf = () => {
+    if (typeof context?.effect === "function") context.effect(state);
+    return value;
+  };
+  state.toString = () => {
+    if (typeof context?.effect === "function") context.effect(state);
+    if (value == null || typeof value === "object") return "";
+    return `${value}`;
+  };
+  state.subscribe = (callback) => listeners.push(callback);
+  return state;
 }
 
 // Effect
 
-export function useEffect(callback, dependencies = [], runOnRender = true) {
-  class Effect extends State {
-    #value;
-    #listeners = [];
-
-    constructor() {
-      super();
-      if (!Array.isArray(dependencies)) return this;
-      if (runOnRender) this.#value = callback();
-      for (let i = 0, len = dependencies.length; i < len; i++) {
-        const dep = dependencies[i];
-        if (dep instanceof State)
-          dep.subscribe(() => {
-            this.#value = callback();
-            for (let l = 0, llen = this.#listeners.length; l < llen; l++) this.#listeners[l]();
-          });
-        else if (dep instanceof Ref)
-          dep.subscribe(() => {
-            callback();
-            for (let l = 0, llen = this.#listeners.length; l < llen; l++) this.#listeners[l]();
-          });
-      }
-    }
-
-    get value() {
-      return this.#value;
-    }
-
-    valueOf() {
-      return this.value;
-    }
-
-    toString() {
-      if (this.value == null || typeof this.value === "object") return "";
-      return `${this.value}`;
-    }
-
-    subscribe(callback) {
-      this.#listeners.push(callback);
-    }
+class Effect extends State {}
+export function useEffect(callback, dependencies) {
+  const effect = new Effect();
+  const autoDetect = !Array.isArray(dependencies);
+  const listeners = [];
+  let value;
+  if (autoDetect) {
+    dependencies = [];
+    context.effect = (dependency) => dependencies.push(dependency);
+    value = callback();
+    delete context.effect;
+  } else value = callback();
+  for (let i = 0, len = dependencies.length; i < len; i++) {
+    const dependency = unique(dependencies, i);
+    if (dependency)
+      dependency.subscribe(() => {
+        value = callback();
+        for (let n = 0, nlen = listeners.length; n < nlen; n++) listeners[n]();
+      });
   }
-  return new Effect();
+  effect.valueOf = () => value;
+  effect.toString = () => {
+    if (value == null || typeof value === "object") return "";
+    return `${value}`;
+  };
+  effect.subscribe = (callback) => listeners.push(callback);
+  return effect;
 }
 
 //
 
-const watch = (() => {
-  if (typeof window === "undefined") return null;
-  const listeners = {};
-  new MutationObserver((mutations) =>
-    mutations.forEach(({ type, addedNodes, removedNodes }) => {
-      if (type !== "childList") return;
-      addedNodes.forEach((node) => listeners?.[node]?.({ type: "added" }));
-      removedNodes.forEach((node) => listeners?.[node]?.({ type: "removed" }));
-    })
-  ).observe(document.body, { childList: true });
-  return (target, callback) => (listeners[target] = callback);
-})();
+function unique(dependencies, index) {
+  const cur = dependencies[index];
+  if (!(cur instanceof State)) return null;
+  for (let i = 0; i < index; i++) {
+    if (dependencies[i] === cur) return null;
+  }
+  return cur;
+}
