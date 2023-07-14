@@ -5,5 +5,5 @@ export { useRef, useState, useEffect } from "./core/hooks";
 export { Store, useStore } from "./core/store";
 export { useRoute } from "./core/router";
 export { useSocket } from "./core/socket";
-export { Profiler, Suspense, Render, TryCatch } from "./core/components";
+export { Profiler, Suspense, TryCatch } from "./core/components";
 export * from "./utils";
