@@ -9,8 +9,9 @@ $brand-color: #b87333 !default;
   @for $i from 0 through 20 {
     --unit-#{$i}: calc((0.1rem + 0.1vmin) * #{$i});
   }
+  --font-size: 16px;
   --border-width: 1px;
-  --border-radius: 0.5rem;
+  --border-radius: 1.5rem;
   --dark-color: #{$dark-color};
   --light-color: #{$light-color};
   --neutral-color: #{$neutral-color};
@@ -40,6 +41,7 @@ html {
   --color: var(--dark-color);
   --background: var(--light-color);
   --background-gradient: linear-gradient(to right, #{$light-color}, #{mix($light-color, black, 95%)});
+  font-size: var(--font-size);
   font-family: "Calibri";
   overflow: hidden;
 }
@@ -50,14 +52,16 @@ body {
   --border: var(--unit-1);
   --spacing: calc(var(--border) + var(--unit-4));
   padding: var(--spacing);
-  border-radius: calc(var(--border-radius) * 2);
-  box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 10px 5px, rgba(0, 0, 0, 0.2) 0px 0px 6px 0px;
+  border-radius: var(--border-radius);
+  box-shadow:
+    rgba(0, 0, 0, 0.2) 0px 0px 10px 5px,
+    rgba(0, 0, 0, 0.2) 0px 0px 6px 0px;
 
   &::before {
     position: absolute;
     content: "";
     inset: var(--border);
-    border-radius: calc(var(--border-radius) * 2);
+    border-radius: var(--border-radius);
     background: var(--background-gradient);
     opacity: 0.8;
     z-index: -1;
@@ -133,7 +137,9 @@ button {
   border: var(--border-width) solid var(--brand-color);
   border-radius: var(--border-radius);
   cursor: pointer;
-  transition: color var(--transition), background var(--transition);
+  transition:
+    color var(--transition),
+    background var(--transition);
 
   &:hover {
     color: var(--light-color);

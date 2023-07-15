@@ -1,5 +1,5 @@
 import { useState, useEffect } from "@vistta/vistta.js";
-import Template from "../_template";
+import Template from "../../_template";
 import Style from "./style.scss";
 import Test1 from "./_tests/1";
 import Test2 from "./_tests/2";

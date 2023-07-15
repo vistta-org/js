@@ -7,22 +7,24 @@ system.set("IntersectionObserver", class {});
 system.set("ResizeObserver", class {});
 
 function renderToString(element) {
-  if (!element == null) return "";
-  if (typeof element === "function") return renderToString(element());
+  if (element == null) return "";
   if (!(element instanceof Element)) {
     if (element instanceof State) {
-      element = new Element({ type: Fragment, value: element });
+      element = new Element(Fragment, element);
       element.children = convertToArray(element);
-    } else if (Array.isArray(element)) element = new Element({ type: Fragment, children: element });
-    else element = new Element({ type: TextNode, value: `${element != null ? element : ""}` });
+    } else if (Array.isArray(element)) element = new Element(Fragment, null, element);
+    else if (!element?.toString || typeof element === "function") {
+      console.warn("Tried to render an invalid Element");
+      return "";
+    } else element = new Element(TextNode, null, "" + element);
   }
   //
-  let { type, props, children, value, unescaped } = element;
-  if (type === TextNode) return value;
+  let { type, props, children, unescaped } = element;
+  if (type === TextNode) return children;
   if (type === StyleSheet) type = "style";
   if (type === "script" || type === "style") unescaped = true;
   props = ((target) => {
-    if (typeof target !== "object") return "";
+    if (typeof target !== "object" || type === Fragment) return "";
     let result = "";
     Object.entries(target || {}).forEach(([prop, value]) => {
       if (["function", "object"].includes(typeof value) || value == null) return;

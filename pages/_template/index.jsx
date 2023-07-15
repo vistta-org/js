@@ -1,21 +1,27 @@
 import { useRoute } from "@vistta/vistta.js";
 import Template from "./template.html";
-import global from "./global.scss"
+import global from "./global.scss";
 import icon from "../../logo.png";
 
-const nav = ["docs", "showcase", "benchmark"];
+const nav = ["docs", "showcase"];
 
 const PageTemplate = ({ title, children }) => {
   const { navigate } = useRoute();
-  return <Template
+  return (
+    <Template
       title={title}
       logo={icon}
       home={() => navigate("/")}
-      nav={nav.map((cur) => (<button key={cur} onClick={() => navigate("/" + cur)}>{cur}</button>))}
+      nav={nav.map((cur) => (
+        <button key={cur} onClick={() => navigate("/" + cur)}>
+          {cur}
+        </button>
+      ))}
     >
-    {children}
-  </Template>;
-}
+      {children}
+    </Template>
+  );
+};
 
 export default PageTemplate;
 
@@ -34,4 +40,4 @@ export const config = {
       ]
     })
   ])*/
-}
+};

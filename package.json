@@ -16,7 +16,7 @@
   },
   "scripts": {
     "validation": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js validation",
-    "dev": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages --dev",
+    "dev": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages --dev --validation none",
     "prod": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages",
     "lint": "eslint --fix .",
     "tsc": "tsc ."
