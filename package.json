@@ -16,7 +16,7 @@
   },
   "scripts": {
     "validation": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js validation",
-    "dev": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages --dev --validation none",
+    "dev": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages --dev",
     "prod": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages",
     "lint": "eslint --fix .",
     "tsc": "tsc ."
@@ -34,7 +34,7 @@
     "accepts": "^1.3.8",
     "autoprefixer": "^10.4.14",
     "compressible": "^2.0.18",
-    "esbuild": "^0.18.12",
+    "esbuild": "^0.18.13",
     "express": "^4.18.2",
     "follow-redirects": "^1.15.2",
     "http2-express-bridge": "^1.0.7",
