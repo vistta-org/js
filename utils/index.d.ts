@@ -12,6 +12,8 @@ export function isServer(): boolean;
 
 export function isBrowser(): boolean;
 
+export function isProd(): boolean;
+
 export type system = {
   register: (tagname: string, element: HTMLElement) => any;
   get: (key: string) => any;

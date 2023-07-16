@@ -42,6 +42,8 @@ export const isServer = () => typeof global !== "undefined";
 
 export const isBrowser = () => typeof window !== "undefined";
 
+export const isProd = () => "production" === process.env.NODE_ENV;
+
 export const system = {
   register(tagname, element) {
     if (isServer()) return new element();

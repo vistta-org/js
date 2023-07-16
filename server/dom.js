@@ -1,6 +1,6 @@
 import { Fragment, StyleSheet, TextNode, Element, createElement as _createElement } from "../core/dom";
 import { State } from "../core/hooks";
-import { escapeHtml, system } from "../utils";
+import { escapeHtml, isProd, system } from "../utils";
 
 system.set("MutationObserver", class {});
 system.set("IntersectionObserver", class {});
@@ -14,7 +14,7 @@ function renderToString(element) {
       element.children = convertToArray(element);
     } else if (Array.isArray(element)) element = new Element(Fragment, null, element);
     else if (!element?.toString || typeof element === "function") {
-      console.warn("Tried to render an invalid Element");
+      if (!isProd()) console.warn("Tried to render an invalid Element");
       return "";
     } else element = new Element(TextNode, null, "" + element);
   }

@@ -7,7 +7,7 @@ $brand-color: #b87333 !default;
 
 :root {
   @for $i from 0 through 20 {
-    --unit-#{$i}: calc((0.1rem + 0.1vmin) * #{$i});
+    --unit-#{$i}: #{0.2 * $i}rem;
   }
   --font-size: 16px;
   --border-width: 1px;
@@ -131,7 +131,7 @@ body {
 }
 
 button {
-  padding: var(--unit-4) var(--unit-8);
+  padding: var(--unit-2) var(--unit-8);
   color: var(--dark-color);
   background: var(--brand-color);
   border: var(--border-width) solid var(--brand-color);

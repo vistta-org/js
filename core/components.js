@@ -34,7 +34,7 @@ export const TryCatch = ({ children, fallback }) => {
   }
 };
 
-// Component Wrappers
+// Wrappers
 
 class Async extends State {}
 export const async = (Component) => (props) => {

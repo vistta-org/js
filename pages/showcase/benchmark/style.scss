@@ -8,9 +8,13 @@
 .container > .bench {
   position: relative;
   flex: 1;
-  padding: 2rem;
+  padding: var(--unit-8);
   text-align: center;
   color: white;
+
+  [data-content]::after {
+    content: attr(data-content);
+  }
 }
 
 .container > .controls {
@@ -19,12 +23,12 @@
   bottom: 5rem;
   left: 50%;
   transform: translateX(-50%);
+  gap: var(--unit-4);
 }
 
 .container > .controls > button {
   flex: none;
-  height: 4rem;
-  width: 10rem;
+  padding: var(--unit-4) var(--unit-15);
   text-align: center;
 }
 

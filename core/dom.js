@@ -1,10 +1,9 @@
-import { indexOf, system } from "../utils";
+import { indexOf, isProd, system } from "../utils";
 import { State } from "./hooks";
 
 const Fragment = Symbol("Fragment");
 const StyleSheet = Symbol("StyleSheet");
 const TextNode = Symbol("TextNode");
-// const AsyncNode = Symbol("AsyncNode");
 
 class Element {
   constructor(type, props, children) {
@@ -20,7 +19,7 @@ const createElement = (type, props, ...children) => {
     if (children?.length > 0) props.children = children;
     const node = type(props);
     if (node instanceof Promise) {
-      console.warn("Async Components need to be wrapped in async function");
+      if (!isProd()) console.warn("Async Components need to be wrapped in async function");
       return null;
     }
     if (node && node instanceof State) return node;
@@ -107,7 +106,7 @@ export default class VirtualDom {
         element.props.subscribe(() => this.#update(element));
       } else if (Array.isArray(element)) element = new Element(Fragment, null, element);
       else if (!element?.toString || typeof element === "function") {
-        console.warn("Tried to render an invalid Element");
+        if (!isProd()) console.warn("Tried to render an invalid Element");
         return append();
       } else element = new Element(TextNode, null, "" + element);
     }

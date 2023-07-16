@@ -4,7 +4,6 @@ import { createElement, renderToString } from "../dom";
 import { bundle } from "./bundler.js";
 import { validate } from "../../bin/loaders/typescript";
 import { system, stringify } from "../../utils";
-import cache from "../../bin/loaders/cache";
 import routeStyle from "./route.css";
 
 system.set("document", {});
@@ -85,7 +84,6 @@ class Route {
       if (!this.watchedFiles.includes(file)) {
         this.watchedFiles.push(file);
         fs.watchFile(file, () => {
-          cache.clear(file);
           this.app = null;
           this.emit("modified");
         });
