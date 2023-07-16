@@ -21,6 +21,7 @@ export type system = {
   import: (moduleName: string, options: { cache: boolean }) => any;
 };
 
-export * from "./date.js";
-export * from "./object.js";
-export * from "./string.js";
+export * from "./consts";
+export * from "./date";
+export * from "./object";
+export * from "./string";

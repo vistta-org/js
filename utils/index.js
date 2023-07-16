@@ -83,6 +83,7 @@ export const system = {
   },
 };
 
+export * from "./consts.js";
 export * from "./date.js";
 export * from "./object.js";
 export * from "./string.js";

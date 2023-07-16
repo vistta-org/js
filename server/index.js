@@ -1,6 +1,6 @@
 import "./console";
 import { fs } from "./filesystem";
-import { isIPAddress, randomID } from "../utils";
+import { isIPAddress, randomID, INVALID_EVENT_NAME } from "../utils";
 import { EventEmitter } from "node:events";
 import express from "express";
 import http from "http";
@@ -63,7 +63,7 @@ class Server {
                 key: fs.readFileSync(this.#certs.key),
                 allowHTTP1: true,
               },
-              this.#app
+              this.#app,
             );
       server.listen(port, () => {
         this.#socket.attach(server);
@@ -175,11 +175,9 @@ class Server {
   }
 
   on(subdomain, event, callback) {
-    if (typeof event !== "string") {
-      console.warn("Cannot listen to an empty event");
-      return;
-    }
-    this.#events.on(transformEventName(event), (_subdomain, socket, args) => {
+    event = validateEvent(event);
+    if (!event) return console.warn(INVALID_EVENT_NAME), null;
+    this.#events.on(event, (_subdomain, socket, args) => {
       if (subdomain && subdomain !== "*" && subdomain !== _subdomain) return;
       callback(...args);
     });
@@ -188,18 +186,32 @@ class Server {
   #socketUse(subdomain, handlers) {
     const events = Object.keys(handlers);
     for (let i = 0, len = events.length; i < len; i++) {
-      const event = events[i];
-      this.#events.on(transformEventName(event), (_subdomain, socket, args) => {
-        if (subdomain !== _subdomain) return;
-        handlers[event](
-          {
-            emit: (_event, ..._args) => socket.emit(transformEventName(_event), ..._args),
-            broadcast: (_event, ..._args) => socket.to(subdomain).emit(transformEventName(_event), ..._args),
-            announce: (_event, ..._args) => this.#socket.to(subdomain).emit(transformEventName(_event), ..._args),
-          },
-          ...args
-        );
-      });
+      const event = validateEvent(events[i]);
+      const handler = handlers[events[i]];
+      if (event)
+        this.#events.on(event, (_subdomain, socket, args) => {
+          if (subdomain !== _subdomain) return;
+          handler(
+            {
+              emit: (_event, ..._args) => {
+                _event = validateEvent(_event);
+                if (!event) return console.warn(INVALID_EVENT_NAME), null;
+                socket.emit(_event, ..._args);
+              },
+              broadcast: (_event, ..._args) => {
+                _event = validateEvent(_event);
+                if (!event) return console.warn(INVALID_EVENT_NAME), null;
+                socket.to(subdomain).emit(_event, ..._args);
+              },
+              announce: (_event, ..._args) => {
+                _event = validateEvent(_event);
+                if (!event) return console.warn(INVALID_EVENT_NAME), null;
+                this.#socket.to(subdomain).emit(_event, ..._args);
+              },
+            },
+            ...args,
+          );
+        });
     }
   }
 
@@ -271,9 +283,12 @@ function shouldCompress(request, response) {
   return !request.headers["x-no-compression"] && filter(request, response);
 }
 
-function transformEventName(string) {
-  return string
+function validateEvent(event) {
+  if (typeof event !== "string") return null;
+  event = event
     .replace(/([A-Z])/g, "_$1")
     .toLowerCase()
     .replace(/-/g, "_");
+  if (!/^[a-z][\w]*$/.test(event)) return null;
+  return event;
 }
