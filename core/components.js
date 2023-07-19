@@ -1,4 +1,5 @@
-import { useState, State } from "./hooks";
+import { useState, State, CONTEXT, CONTEXT_KEY } from "./hooks";
+import { isBrowser } from "../utils";
 
 export const Profiler = ({ id, children, callback }) => {
   const intial = performance.now();
@@ -46,8 +47,16 @@ export const async = (Component) => (props) => {
     for (let i = 0, len = listeners.length; i < len; i++) listeners[i]();
   });
   _async.valueOf = () => value;
-  _async.subscribe = (callback) => listeners.push(callback);
+  _async.subscribe = (callback) => isBrowser() && listeners.push(callback);
   return _async;
+};
+
+export const context = (Component, _context) => (props) => {
+  const keys = Object.keys(_context);
+  for (let i = 0, len = keys.length; i < len; i++) CONTEXT[CONTEXT_KEY + keys[i]] = _context[keys[i]];
+  const result = Component(props);
+  for (let i = 0, len = keys.length; i < len; i++) delete CONTEXT[CONTEXT_KEY + keys[i]];
+  return result;
 };
 
 //

@@ -1,4 +1,27 @@
-const context = {};
+import { indexOf, isBrowser } from "../utils";
+
+export const CONTEXT_KEY = "#app_";
+export const CONTEXT = {};
+
+// Context
+
+export function useContext(key) {
+  return CONTEXT[CONTEXT_KEY + key];
+}
+
+// Style
+
+export function useStyle(...styles) {
+  const scope = {};
+  for (let i = 0, len = styles.length; i < len; i++) {
+    const { id, raw } = styles[i];
+    scope[id] = createScope(id, raw);
+  }
+  // eslint-disable-next-line no-undef
+  const Scope = ({ children }) => createElement(Fragment, { scope }, children);
+  Scope.scope = scope;
+  return Scope;
+}
 
 // Ref
 
@@ -15,6 +38,7 @@ export function useRef(initialValue) {
 }
 
 // State
+let addDependency;
 
 export class State {}
 export function useState(value) {
@@ -29,15 +53,15 @@ export function useState(value) {
     }, 0);
   };
   state.valueOf = () => {
-    if (typeof context?.effect === "function") context.effect(state);
+    if (typeof addDependency === "function") addDependency(state);
     return value;
   };
   state.toString = () => {
-    if (typeof context?.effect === "function") context.effect(state);
+    if (typeof addDependency === "function") addDependency(state);
     if (value == null || typeof value === "object") return "";
     return `${value}`;
   };
-  state.subscribe = (callback) => listeners.push(callback);
+  state.subscribe = (callback) => isBrowser() && listeners.push(callback);
   return state;
 }
 
@@ -51,9 +75,9 @@ export function useEffect(callback, dependencies) {
   let value;
   if (autoDetect) {
     dependencies = [];
-    context.effect = (dependency) => dependencies.push(dependency);
+    addDependency = (dependency) => dependencies.push(dependency);
     value = callback();
-    delete context.effect;
+    addDependency = null;
   } else value = callback();
   for (let i = 0, len = dependencies.length; i < len; i++) {
     const dependency = unique(dependencies, i);
@@ -68,7 +92,7 @@ export function useEffect(callback, dependencies) {
     if (value == null || typeof value === "object") return "";
     return `${value}`;
   };
-  effect.subscribe = (callback) => listeners.push(callback);
+  effect.subscribe = (callback) => isBrowser() && listeners.push(callback);
   return effect;
 }
 
@@ -81,4 +105,23 @@ function unique(dependencies, index) {
     if (dependencies[i] === cur) return null;
   }
   return cur;
+}
+
+function createScope(id, code) {
+  const regex = /([^{}\s][^{}]*)\s*(?=\{)/g;
+  const add = (value) => {
+    const index = indexOf(value, " ", ">", ":");
+    if (index === -1) return value + `[scope~="${id}"]`;
+    return value.slice(0, index) + `[scope~="${id}"]` + value.slice(index);
+  };
+  const replacer = (value) => {
+    if (value.includes("@") || value.includes("%")) return value;
+    if (value.includes(","))
+      return value
+        .split(",")
+        .reduce((acc, c) => `${acc}${add(c)},`, "")
+        .slice(0, -1);
+    return add(value);
+  };
+  return code.match(regex) ? code.replace(regex, (v) => replacer(v.trim())) : code;
 }

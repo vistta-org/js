@@ -1,3 +1,7 @@
+export function useContext<T = any>(key: string): T;
+
+export function useStyle(...styles: JSX.Style[]): JSX.Component | { scope: string };
+
 interface Ref<T> {
   current?: T;
 }

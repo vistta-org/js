@@ -1,16 +1,15 @@
-import { useRoute } from "@vistta/vistta.js";
+import { useStyle, useRoute } from "@vistta/vistta.js";
 import Template from "../_template";
-import Style from "./style.scss";
+import style from "./style.scss";
 
 export default function Showcase() {
+  const scope = useStyle(style);
   return (
     <Template>
-      <Style>
-        <div className="container">
-          <Card title={"Benchmark"} description={"Performance measuring example"} path={"./benchmark"} />
-          <Card title={"Chat"} description={"Socket Synced chat example"} path={"./chat"} />
-        </div>
-      </Style>
+      <div className="container" {...scope}>
+        <Card title={"Benchmark"} description={"Performance measuring example"} path={"./benchmark"} />
+        <Card title={"Chat"} description={"Socket Synced chat example"} path={"./chat"} />
+      </div>
     </Template>
   );
 }
