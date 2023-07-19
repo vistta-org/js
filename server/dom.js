@@ -1,68 +1,68 @@
-import { Fragment, StyleSheet, TextNode, Element, createElement as _createElement } from "../core/dom";
-import { State } from "../core/hooks";
-import { escapeHtml, isProd, system } from "../utils";
+import Dom, { createElement } from "../core/dom";
+import { system } from "../utils";
 
 system.set("MutationObserver", class {});
 system.set("IntersectionObserver", class {});
 system.set("ResizeObserver", class {});
 
-function renderToString(element) {
-  if (element == null) return "";
-  if (!(element instanceof Element)) {
-    if (element instanceof State) {
-      element = new Element(Fragment, element);
-      element.children = convertToArray(element);
-    } else if (Array.isArray(element)) element = new Element(Fragment, null, element);
-    else if (!element?.toString || typeof element === "function") {
-      if (!isProd()) console.warn("Tried to render an invalid Element");
-      return "";
-    } else element = new Element(TextNode, null, "" + element);
+class ServerDom extends Dom {
+  body = createServerElement("dom");
+  style = { styleSheet: {} };
+
+  constructor() {
+    super(false);
   }
-  //
-  let { type, props, children, unescaped } = element;
-  if (type === TextNode) return children;
-  if (type === StyleSheet) type = "style";
-  if (type === "script" || type === "style") unescaped = true;
-  props = ((target) => {
-    if (typeof target !== "object" || type === Fragment) return "";
-    let result = "";
-    Object.entries(target || {}).forEach(([prop, value]) => {
-      if (["function", "object"].includes(typeof value) || value == null) return;
-      result += ` ${convertProps(prop)}="${value}"`;
-    });
-    return result;
-  })(props);
-  children = ((target) => {
-    if (typeof target !== "object" || !Array.isArray(target)) return "";
-    return target
-      .map((child) => {
-        if (typeof child === "string") return unescaped ? child : escapeHtml(child);
-        return renderToString(child);
-      })
-      .join("");
-  })(children);
-  if (type === Fragment) return children;
-  return `<${type}${props}>${children}</${type}>`;
+
+  createDocumentFragment = () => createServerElement("fragment");
+  createTextNode = (text) => ({ toString: () => "" + text });
+  createElement = (tag) => createServerElement(tag);
 }
 
-function createElement(type, attributes, ...children) {
-  const { unescaped, ...props } = attributes || {};
-  const result = _createElement(type, props, ...children);
-  if (typeof result === "object" && result) result.unescaped = unescaped;
-  return result;
+function renderToString(element) {
+  const dom = new ServerDom();
+  dom.render(element);
+  if (system.get("route")?.style) system.get("route").style += dom.style?.styleSheet?.cssText || "";
+  return dom.body.toString();
 }
 
 export { renderToString, createElement };
 
 //
 
-function convertToArray(element) {
-  const value = element.value?.valueOf();
-  return value instanceof Element && value.type === Fragment ? value.children : [value];
+function createServerElement(type) {
+  const self = {
+    props: { style: {} },
+    children: [],
+  };
+  //console.log()
+  return {
+    type: type,
+    style: self.props.style,
+    children: self.children,
+    toString: () => {
+      const children = self.children?.reduce((acc, cur) => acc + cur, "");
+      return type === "dom" ? children : `<${type}${propsToString(self.props)}>${children}</${type}>`;
+    },
+    append: (child) => self.children.push(child),
+    setAttribute: (name, value) => (self.props[name] = value),
+    removeAttribute: (name) => delete self.props[name],
+    addEventListener: () => null,
+    replaceChildren: (...nodes) => {
+      self.children = [];
+      for (let i = 0, len = nodes.length; i < len; i++) {
+        const { type, children } = nodes[i];
+        if (type === "fragment") self.children.push(...children);
+        else self.children.push(nodes[i]);
+      }
+    },
+  };
 }
 
-function convertProps(prop) {
-  const curr = prop.toLowerCase();
-  if (curr === "classname") return "class";
-  return prop;
+function propsToString(props) {
+  let result = "";
+  Object.entries(props || {}).forEach(([prop, value]) => {
+    if (["function", "object"].includes(typeof value) || value == null) return;
+    result += ` ${prop}="${value}"`;
+  });
+  return result;
 }

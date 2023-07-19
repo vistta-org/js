@@ -94,11 +94,12 @@ class Route {
   get template() {
     const imports = {};
     system.set("route", this);
+    this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
     if (this.config?.store) this.store = this.config.store;
     const body = renderToString(createElement("v-route", {}, createElement(this.app)));
     if (this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
-    return renderToHtml({ ...(this.config || {}), imports, body, client });
+    return renderToHtml({ ...(this.config || {}), imports, body, client, style: this.style });
   }
 }
 
@@ -120,11 +121,10 @@ function renderToHtml({
   body,
   client,
   links,
-  styles,
+  style,
   scripts,
 } = {}) {
   const nonce = "v" + randomID();
-  if (!styles || !Array.isArray(styles)) styles = [];
   return (
     "<!doctype html>\n" +
     renderToString(
@@ -151,12 +151,8 @@ function renderToHtml({
           icon ? createElement("link", { rel: "shortcut icon", href: icon }) : null,
           icon ? createElement("link", { rel: "apple-touch-icon", href: icon }) : null,
           ...(links?.map((props) => createElement("link", props)) || []),
-          createElement("style", {}, routeStyle.value),
-          createElement(
-            "style",
-            { id: "route" },
-            styles?.reduce((acc, { value }) => acc + " " + value, ""),
-          ),
+          createElement("style", {}, routeStyle.raw),
+          createElement("style", { id: "route" }, style),
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || []),
         ),
