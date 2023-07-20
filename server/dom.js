@@ -1,5 +1,5 @@
 import Dom, { createElement } from "../core/dom";
-import { system } from "../utils";
+import { camelCaseToKebabCase, system } from "../utils";
 
 system.set("MutationObserver", class {});
 system.set("IntersectionObserver", class {});
@@ -30,29 +30,26 @@ export { renderToString, createElement };
 //
 
 function createServerElement(type) {
-  const self = {
-    props: { style: {} },
-    children: [],
-  };
-  //console.log()
+  const props = { style: {} };
+  const children = [];
   return {
     type: type,
-    style: self.props.style,
-    children: self.children,
+    style: props.style,
+    children: children,
     toString: () => {
-      const children = self.children?.reduce((acc, cur) => acc + cur, "");
-      return type === "dom" ? children : `<${type}${propsToString(self.props)}>${children}</${type}>`;
+      const _children = children?.reduce((acc, cur) => acc + cur, "");
+      return type === "dom" ? _children : `<${type}${propsToString(props)}>${_children}</${type}>`;
     },
-    append: (child) => self.children.push(child),
-    setAttribute: (name, value) => (self.props[name] = value),
-    removeAttribute: (name) => delete self.props[name],
+    append: (child) => children.push(child),
+    setAttribute: (name, value) => (props[name] = value),
+    removeAttribute: (name) => delete props[name],
     addEventListener: () => null,
     replaceChildren: (...nodes) => {
-      self.children = [];
+      children.splice(0);
       for (let i = 0, len = nodes.length; i < len; i++) {
-        const { type, children } = nodes[i];
-        if (type === "fragment") self.children.push(...children);
-        else self.children.push(nodes[i]);
+        const { type, children: _children } = nodes[i];
+        if (type === "fragment") children.push(..._children);
+        else children.push(nodes[i]);
       }
     },
   };
@@ -60,9 +57,24 @@ function createServerElement(type) {
 
 function propsToString(props) {
   let result = "";
-  Object.entries(props || {}).forEach(([prop, value]) => {
-    if (["function", "object"].includes(typeof value) || value == null) return;
-    result += ` ${prop}="${value}"`;
-  });
+  const attr = Object.keys(props || {});
+  for (let i = 0, len = attr.length; i < len; i++) {
+    const name = attr[i];
+    const value = name === "style" ? styleToString(props[name]) : props[name];
+    if (["function", "object"].includes(typeof value) || value == null) continue;
+    if (value === true) result += ` ${name}`;
+    else result += ` ${name}="${value}"`;
+  }
   return result;
+}
+
+function styleToString(style) {
+  const keys = Object.keys(style || {});
+  if (!keys.length) return null;
+  let result = "";
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const name = keys[i];
+    result += ` ${camelCaseToKebabCase(name)}: ${style[name]};`;
+  }
+  return result.trim();
 }
