@@ -16,7 +16,7 @@ export default function (source, { path }) {
       hash: urlHash,
     });
     return {
-      code: `export default createStyle(${stringify({ id: convertToUniqueId(path), value: code, hash: urlHash })});`,
+      code: `export default (${stringify({ id: convertToUniqueId(path), raw: code, hash: urlHash, path })});`,
       resources,
       files,
     };

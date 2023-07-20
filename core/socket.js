@@ -1,4 +1,4 @@
-import { isServer, system } from "../utils";
+import { isServer, isProd, system, INVALID_EVENT_NAME } from "../utils";
 
 class Socket {
   active = false;
@@ -21,13 +21,17 @@ class Socket {
   }
 
   emit(event, ...args) {
-    if (this.active === false || typeof event !== "string") return;
-    this.instance.emit(transformEventName(event), ...args);
+    event = validateEvent(event);
+    if (!isProd() && !event) console.warn(INVALID_EVENT_NAME);
+    if (this.active === false || !event) return;
+    this.instance.emit(event, ...args);
   }
 
   on(event, callback) {
-    if (this.active === false || typeof event !== "string") return;
-    this.instance.on(transformEventName(event), callback);
+    event = validateEvent(event);
+    if (!isProd() && !event) console.warn(INVALID_EVENT_NAME);
+    if (this.active === false || !event) return;
+    this.instance.on(event, callback);
   }
 }
 
@@ -49,9 +53,12 @@ export const useSocket = () => {
 
 //
 
-function transformEventName(string) {
-  return string
+function validateEvent(event) {
+  if (typeof event !== "string") return null;
+  event = event
     .replace(/([A-Z])/g, "_$1")
     .toLowerCase()
     .replace(/-/g, "_");
+  if (!/^[a-z][\w]*$/.test(event)) return null;
+  return event;
 }

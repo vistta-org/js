@@ -1,79 +1,69 @@
-import { indexOf, system } from "../utils";
+import { isProd, system } from "../utils";
 import { State } from "./hooks";
+// import context from "./context";
 
 const Fragment = Symbol("Fragment");
-const StyleSheet = Symbol("StyleSheet");
 const TextNode = Symbol("TextNode");
 
 class Element {
-  constructor({ key, ref, type, props, children, value }) {
-    if (type == null) return null;
+  constructor(type, props, children) {
     this.type = type;
-    if (key != null) this.key = key;
-    if (ref != null) this.ref = ref;
-    if (props != null) this.props = props;
-    if (children != null) this.children = children;
-    if (value != null) this.value = value;
+    this.props = props || {};
+    this.children = children;
   }
 }
 
 const createElement = (type, props, ...children) => {
-  if (!props) props = {};
+  if (!type) return null;
   if (typeof type === "function") {
+    if (!props) props = {};
     if (children?.length > 0) props.children = children;
-    const element = type(props);
-    if (Array.isArray(element)) return new Element({ type: Fragment, children: element });
-    if (element && element instanceof State) return element;
-    ({ type, props, children } = element || {});
-    const { key, ref } = props || {};
-    if (key) delete props.key;
-    if (ref) delete props.ref;
-    return new Element({ key, ref, type, props, children });
+    const node = type(props);
+    if (node instanceof Element) return node;
+    if (typeof node !== "object" || (node && node instanceof State)) return node;
+    if (Array.isArray(node)) return new Element(Fragment, null, node);
+    if (!isProd() && node instanceof Promise) console.warn("Async Components need to be wrapped in async function");
+    return null;
   }
-  const { key, ref } = props || {};
-  if (key) delete props.key;
-  if (ref) delete props.ref;
-  return new Element({ key, ref, type, props, children });
-};
-
-const createStyle = (stylesheet) => {
-  const { id, value, hash } = stylesheet || {};
-  if (!id || !value || !hash) return null;
-  function Style({ children }) {
-    children = applyScope(id, children);
-    children.unshift(createElement(StyleSheet, { key: id }, createScope(id, value)));
-    return children;
-  }
-  Style.value = value;
-  return Style;
+  const element = new Element(type, props, children);
+  if (element.props?.key) (element.key = element.props.key), delete element.props.key;
+  if (element.props?.ref) (element.ref = element.props.ref), delete element.props.ref;
+  return element;
 };
 
 system.set("Fragment", Fragment);
 system.set("createElement", createElement);
-system.set("createStyle", createStyle);
 
-export { Fragment, StyleSheet, TextNode, Element, createElement };
+export { Fragment, TextNode, Element, createElement };
 
 //
 
 export default class VirtualDom {
-  #node;
   #content;
   #style;
   #store;
   #keys = {};
   #children = [];
-  #css = "";
+  #css = {};
+
+  body = document.body;
+  head = document.head;
+  style;
+  querySelector = (query) => document.querySelector(query);
+  createDocumentFragment = () => document.createDocumentFragment();
+  createTextNode = (text) => document.createTextNode(text);
+  createElement = (tag) => document.createElement(tag);
 
   constructor(node, styles, store) {
-    this.#node = node || document.body;
-    this.#style = document.querySelector("head > style#route");
-    if (!this.#style) {
-      this.#style = document.createElement("style");
-      document.head.appendChild(this.#style);
+    if (node === false) return this;
+    else if (node) this.body = node;
+    this.style = this.head.querySelector("style#route");
+    if (!this.style) {
+      this.style = this.createElement("style");
+      this.head.appendChild(this.style);
     }
     this.#store = store;
-    this.#css = styles.reduce((acc, { value }) => acc + " " + value, "");
+    this.#css = styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {});
   }
 
   get store() {
@@ -81,66 +71,72 @@ export default class VirtualDom {
   }
 
   render(content, callback) {
-    const fragment = document.createDocumentFragment();
-    this.#content = this.#apply((child) => (fragment.append(child.node), this.#node), content);
-    this.#node.replaceChildren(fragment);
-    if (this.#style.styleSheet) this.#style.styleSheet.cssText = this.#css;
-    else this.#style.replaceChildren(document.createTextNode(this.#css));
-    this.#children = [...this.#node.children];
+    const fragment = this.createDocumentFragment();
+    this.#content = this.#apply((child) => {
+      if (child?.node) fragment.append(child.node);
+      return this.body;
+    }, content);
+    this.body.replaceChildren(fragment);
+    if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
+    else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
+    this.#children = [...this.body.children];
     callback && callback();
   }
 
   replace(callback) {
-    this.#node.replaceChildren(...this.#children);
-    if (this.#style.styleSheet) this.#style.styleSheet.cssText = this.#css;
-    else this.#style.replaceChildren(document.createTextNode(this.#css));
+    this.body.replaceChildren(...this.#children);
+    if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
+    else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
     callback && callback();
   }
 
   #apply(append, element) {
-    if (!element == null) return null;
+    if (element == null) return append();
     if (!(element instanceof Element)) {
       if (element instanceof State) {
-        element = new Element({ type: Fragment, value: element });
+        element = new Element(Fragment, element);
         element.children = convertToArray(element);
-        element.value.subscribe(() => this.#update(element));
-      } else if (typeof element === "function") return this.#apply(append, element());
-      else if (Array.isArray(element)) element = new Element({ type: Fragment, children: element });
-      else element = new Element({ type: TextNode, value: `${element != null ? element : ""}` });
+        element.props.subscribe(() => this.#update(element));
+      } else if (Array.isArray(element)) element = new Element(Fragment, null, element);
+      else if (!element?.toString || typeof element === "function") {
+        if (!isProd()) console.warn("Tried to render an invalid Element");
+        return append();
+      } else element = new Element(TextNode, null, "" + element);
     }
     //
-    const { key, ref, type, props, children, value } = element;
+    const { type, key, ref, props, children } = element;
+    if (props.scope) addScope(this.#css, props.scope);
     if (!this.#keys?.[key]) {
-      if (type === TextNode) element.node = document.createTextNode(value);
-      else if (type === StyleSheet) {
-        this.#css += ` ${children?.[0] || ""}`;
-        return element;
-      } else if (type !== Fragment) element.node = document.createElement(type);
+      if (type === TextNode) element.node = this.createTextNode(children);
+      else if (type !== Fragment) element.node = this.createElement(type);
       else element.nodes = [];
       if (key) this.#keys[key] = element.node;
       if (ref) {
         if (typeof ref === "function") ref(element.node);
         else if (typeof ref === "object") ref.current = element.node;
       }
-      if (props) {
+      if (type !== Fragment && props) {
         const keys = Object.keys(props);
         for (let i = 0, len = keys?.length || 0; i < len; i++) {
-          const name = keys[i],
-            value = props[name];
+          const name = keys[i];
+          const value = props[name];
           if (value && value instanceof State) value.subscribe(() => setAttribute(element.node, name, value));
           setAttribute(element.node, name, value);
         }
       }
-      if (children) {
+      if (type !== TextNode && children) {
         const appendChild =
           type === Fragment
             ? (child) => {
-                element.nodes.push(child.node);
+                if (child?.node) {
+                  element.nodes.push(child.node);
+                  if (props.scope && child.type !== TextNode) setAttribute(child.node, "scope", props.scope);
+                }
                 element.parent = append(child);
                 return element.parent;
               }
             : (child) => {
-                element.node.append(child.node);
+                if (child?.node) element.node.append(child.node);
                 return element.node;
               };
         for (let i = 0, len = children?.length || 0; i < len; i++)
@@ -152,24 +148,27 @@ export default class VirtualDom {
   }
 
   #update(element) {
-    const fragment = document.createDocumentFragment();
+    const fragment = this.createDocumentFragment();
     const previous = element?.nodes || [];
     const parent = element.parent;
     element.children = convertToArray(element);
-    this.#apply((child) => (fragment.append(child.node), parent), element);
+    this.#apply((child) => {
+      if (child?.node) fragment.append(child.node);
+      return parent;
+    }, element);
     // FUTURE: Improvement would be to remove multiple Nodes with one node commit
     const nextSibling = previous?.[previous.length - 1]?.nextSibling;
     for (let i = 0, len = previous.length; i < len; i++) previous[i].remove();
     if (nextSibling) parent.insertBefore(fragment, nextSibling);
     else parent.appendChild(fragment);
-    if (parent === this.#node) this.#children = [...this.#node.children];
+    if (parent === this.body) this.#children = [...this.body.children];
   }
 }
 
 //
 
 function convertToArray(element) {
-  const value = element.value?.valueOf();
+  const value = element.props?.valueOf();
   return value instanceof Element && value.type === Fragment ? value.children : [value];
 }
 
@@ -179,38 +178,15 @@ function setAttribute(node, name, value) {
     return;
   }
   if (name === "className") name = "class";
+  if (name === "scope") value = Object.keys(value).join(" ");
   if (!value) node.removeAttribute(name);
   else if (name === "style") Object.assign(node.style, value);
   else node.setAttribute(name, value);
 }
 
-function createScope(id, code) {
-  const regex = /([^{}\s][^{}]*)\s*(?=\{)/g;
-  const add = (value) => {
-    const index = indexOf(value, " ", ">", ":");
-    if (index === -1) return value + `[scope~="${id}"]`;
-    return value.slice(0, index) + `[scope~="${id}"]` + value.slice(index);
-  };
-  const replacer = (value) => {
-    if (value.includes("@") || value.includes("%")) return value;
-    if (value.includes(","))
-      return value
-        .split(",")
-        .reduce((acc, c) => `${acc}${add(c)},`, "")
-        .slice(0, -1);
-    return add(value);
-  };
-  return code.match(regex) ? code.replace(regex, (v) => replacer(v.trim())) : code;
-}
-
-function applyScope(scope, target) {
-  if (!target || typeof target !== "object") return target;
-  if (Array.isArray(target)) {
-    for (let i = 0, len = target.length; i < len; i++) target[i] = applyScope(scope, target[i]);
-    return target;
+function addScope(css, scope) {
+  const keys = Object.keys(scope);
+  for (let i = 0, len = keys.length; i < len; i++) {
+    if (!css[keys[i]]) css[keys[i]] = scope[keys[i]];
   }
-  const { type, children } = target;
-  if (type === Fragment) return applyScope(scope, children);
-  target.props.scope = scope;
-  return target;
 }

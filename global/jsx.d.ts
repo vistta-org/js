@@ -12,6 +12,8 @@ type HtmlProps<E extends HTMLElement | SVGElement> = Partial<
 declare namespace JSX {
   type Element = {};
   type Node = Element | Element[] | null;
+  type Component<T = { [attr: string]: any }> = (props: T) => Element | Element[] | null;
+  type Style = { id: string; raw: string; hash: string; path: string };
 
   interface IntrinsicElements extends IntrinsicElementMap {}
 

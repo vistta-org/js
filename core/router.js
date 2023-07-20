@@ -1,4 +1,4 @@
-import VirtualDom from "./dom";
+import VirtualDom, { createElement } from "./dom";
 import socket from "./socket";
 import { isServer, isValidUrl, system } from "../utils";
 
@@ -32,7 +32,7 @@ const route = system.register(
         let app = href + (href.endsWith("/") ? "" : "/") + "resources/app";
         const { store, styles } = await loadConfig(app);
         this.#dom = new VirtualDom(this, styles, store);
-        return this.#dom.render((await system.import(app, { cache: false })).default, () => {
+        return this.#dom.render(createElement((await system.import(app, { cache: false })).default), () => {
           this.#routes[href] = this.#dom;
           callback && callback();
         });

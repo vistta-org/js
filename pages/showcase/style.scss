@@ -1,0 +1,19 @@
+.container {
+  display: flex;
+  flex-flow: row wrap;
+  gap: var(--unit-8);
+
+  .card {
+    flex: none;
+    width: 16rem;
+    display: flex;
+    flex-flow: column wrap;
+    justify-content: center;
+    align-items: center;
+    gap: var(--unit-4);
+    padding: var(--unit-4);
+    border: var(--border-width) solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--border-radius);
+    background: rgba(255, 255, 255, 0.1);
+  }
+}

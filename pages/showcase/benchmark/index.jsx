@@ -1,6 +1,6 @@
-import { useState, useEffect } from "@vistta/vistta.js";
-import Template from "../_template";
-import Style from "./style.scss";
+import { useStyle, useState, useEffect } from "@vistta/vistta.js";
+import Template from "../../_template";
+import style from "./style.scss";
 import Test1 from "./_tests/1";
 import Test2 from "./_tests/2";
 import Test3 from "./_tests/3";
@@ -16,6 +16,7 @@ const TESTS = {
 const ENABLED_TESTS = Object.values(TESTS).filter((x) => x.active).length;
 
 export default function Benchmark() {
+  const scope = useStyle(style);
   const counter = useState(1);
   const tests = {};
   const benchRun = () => {
@@ -44,22 +45,20 @@ export default function Benchmark() {
   };
   return (
     <Template>
-      <Style>
-        <div className="container">
-          <Bench id="1" run={counter} Test={Test1} onRender={runComplete} />
-          <Bench id="2" run={counter} Test={Test2} onRender={runComplete} />
-          <Bench id="3" run={counter} Test={Test3} onRender={runComplete} />
-          <Bench id="4" run={counter} Test={Test4} onRender={runComplete} />
-          <div className="controls">
-            <button className="runner" onClick={() => counter.set((v) => v + 1)}>
-              Single Run
-            </button>
-            <button className="runner" onClick={benchRun}>
-              Bench Run
-            </button>
-          </div>
+      <div className="container" {...scope}>
+        <Bench id="1" run={counter} Test={Test1} onRender={runComplete} />
+        <Bench id="2" run={counter} Test={Test2} onRender={runComplete} />
+        <Bench id="3" run={counter} Test={Test3} onRender={runComplete} />
+        <Bench id="4" run={counter} Test={Test4} onRender={runComplete} />
+        <div className="controls">
+          <button className="runner" onClick={() => counter.set((v) => v + 1)}>
+            Single Run
+          </button>
+          <button className="runner" onClick={benchRun}>
+            Bench Run
+          </button>
         </div>
-      </Style>
+      </div>
     </Template>
   );
 }

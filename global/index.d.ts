@@ -2,18 +2,18 @@
 
 // CSS
 declare module "*.css" {
-  function StyleComponent(props: { children?: JSX.Node }): JSX.Node;
-  export default StyleComponent;
+  const style: JSX.Style;
+  export default style;
 }
 
 declare module "*.sass" {
-  function StyleComponent(props: { children?: JSX.Node }): JSX.Node;
-  export default StyleComponent;
+  const style: JSX.Style;
+  export default style;
 }
 
 declare module "*.scss" {
-  function StyleComponent(props: { children?: JSX.Node }): JSX.Node;
-  export default StyleComponent;
+  const style: JSX.Style;
+  export default style;
 }
 
 // Template

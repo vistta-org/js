@@ -1,13 +1,33 @@
-import { useState, Suspense, Profiler } from "@vistta/vistta.js";
+import { Suspense, async } from "@vistta/vistta.js";
 import Template from "../_template";
-
-const AMOUNT = 10;
+import { sleep } from "../../utils";
 
 const ShowcaseSuspense = () => {
-  const perf = useState(0);
   return (
     <Template>
       <Suspense fallback={"...loading"}>
+        <div>
+          <AsyncComponent />
+        </div>
+        <div>
+          <div>
+            <AsyncComponent time={5000} />
+          </div>
+        </div>
+      </Suspense>
+    </Template>
+  );
+};
+
+const AsyncComponent = async(async ({ time = 1000 }) => {
+  await sleep(time);
+  return <p>{"Loaded"}</p>;
+});
+
+/*
+
+const AMOUNT = 10;
+  const perf = useState(0);
         <Profiler callback={({ duration }) => perf.set(duration)}>
           <RecursiveComponent>
             <p>
@@ -16,11 +36,6 @@ const ShowcaseSuspense = () => {
           </RecursiveComponent>
         </Profiler>
         <p>{perf}ms</p>
-      </Suspense>
-    </Template>
-  );
-};
-
 const RecursiveComponent = ({ children, count = 0 }) => {
   if (count === AMOUNT) return children;
   return (
@@ -31,5 +46,7 @@ const RecursiveComponent = ({ children, count = 0 }) => {
     </RecursiveComponent>
   );
 };
+
+*/
 
 export default ShowcaseSuspense;

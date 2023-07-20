@@ -7,7 +7,6 @@ import css from "./extensions/css.js";
 import html from "./extensions/html.js";
 import json from "./extensions/json.js";
 import file from "./extensions/file.js";
-import cache from "./cache.js";
 
 const EXTENSIONS = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"];
 const CONTEXT = {};
@@ -33,7 +32,6 @@ export function resolve(specifier, context, next, options) {
   }
   //
   const useCache = !options.has("noCache") && CONTEXT[fileURLToPath(parentURL)]?.useCache !== false;
-  if (!useCache) cache.clear(specifier);
   CONTEXT[specifier] = { useCache };
   specifier = pathToFileURL(specifier).href;
   if (!useCache) return next(`${specifier}?${Date.now()}`, context);
@@ -47,7 +45,6 @@ export function load(url, ctx, next) {
   const path = fileURLToPath(url);
   const extension = fs.extname(url).slice(1);
   if (["js", "mjs", "cjs"].includes(extension)) return next(url, ctx);
-  let isCached = false;
   const {
     code,
     warnings,
@@ -55,11 +52,10 @@ export function load(url, ctx, next) {
     resources,
     files = [],
   } = (() => {
-    if (cache.exists(path)) return (isCached = true), cache.get(path);
     if (["jsx", "tsx", "ts", "mts", "cts"].includes(extension))
       return script(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
     else if (["css", "sass", "scss"].includes(extension))
-      return (isCached = true), css(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
+      return css(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
     else if (["json"].includes(extension)) return json(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
     else if (["html"].includes(extension)) return html(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
     return file(path, { path, extension, bundler });
@@ -67,7 +63,6 @@ export function load(url, ctx, next) {
   errors?.forEach((error) => console.error(error));
   if (errors?.length) throw new Error("Error could not load code");
   warnings?.forEach((warning) => console.warn(`Loader Warning: ${warning}\n`));
-  if (!isCached) cache.set(path, { code, warnings, errors, resources });
   return {
     format: "module",
     shortCircuit: true,
