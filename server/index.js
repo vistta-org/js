@@ -6,6 +6,7 @@ import express from "express";
 import http from "http";
 import http2 from "http2";
 import http2express from "http2-express-bridge";
+import proxy from "http-proxy";
 import { Server as SocketServer } from "socket.io";
 import compression, { filter } from "./compression";
 import { Router } from "./router";
@@ -18,6 +19,7 @@ class Server {
   #socket;
   #events = new EventEmitter();
   #router = new Router();
+  #proxy = proxy.createProxyServer({});
 
   get ports() {
     return this.#ports;
@@ -26,7 +28,7 @@ class Server {
   get certs() {
     return this.#certs;
   }
-  // ports, certs, startOrCallback = true
+
   constructor({ http, https, cert, key, autoStart, callback }) {
     if (http === true) http = 80;
     if (https === true) https = 443;
@@ -83,57 +85,84 @@ class Server {
   }
 
   copy(...args) {
-    const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
-    if (!validateHTTPArgs("copy", subdomain, pathname)) return;
+    const [subdomain, pathname, ...callback] = getMethodArgs(args);
+    if (!validateArgs("copy", subdomain, pathname)) return;
     this.#router.set(subdomain, "copy", pathname, callback);
   }
 
   delete(...args) {
-    const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
-    if (!validateHTTPArgs("delete", subdomain, pathname)) return;
+    const [subdomain, pathname, ...callback] = getMethodArgs(args);
+    if (!validateArgs("delete", subdomain, pathname)) return;
     this.#router.set(subdomain, "delete", pathname, callback);
   }
 
   get(...args) {
-    const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
-    if (!validateHTTPArgs("get", subdomain, pathname)) return;
+    const [subdomain, pathname, ...callback] = getMethodArgs(args);
+    if (!validateArgs("get", subdomain, pathname)) return;
     this.#router.set(subdomain, "get", pathname, callback);
   }
 
   move(...args) {
-    const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
-    if (!validateHTTPArgs("move", subdomain, pathname)) return;
+    const [subdomain, pathname, ...callback] = getMethodArgs(args);
+    if (!validateArgs("move", subdomain, pathname)) return;
     this.#router.set(subdomain, "move", pathname, callback);
   }
 
   patch(...args) {
-    const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
-    if (!validateHTTPArgs("patch", subdomain, pathname)) return;
+    const [subdomain, pathname, ...callback] = getMethodArgs(args);
+    if (!validateArgs("patch", subdomain, pathname)) return;
     this.#router.set(subdomain, "patch", pathname, callback);
   }
 
   post(...args) {
-    const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
-    if (!validateHTTPArgs("post", subdomain, pathname)) return;
+    const [subdomain, pathname, ...callback] = getMethodArgs(args);
+    if (!validateArgs("post", subdomain, pathname)) return;
     this.#router.set(subdomain, "post", pathname, callback);
   }
 
   put(...args) {
-    const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
-    if (!validateHTTPArgs("put", subdomain, pathname)) return;
+    const [subdomain, pathname, ...callback] = getMethodArgs(args);
+    if (!validateArgs("put", subdomain, pathname)) return;
     this.#router.set(subdomain, "put", pathname, callback);
   }
 
   error(...args) {
-    const [subdomain, pathname, ...callback] = getHTTPMethodArgs(args);
-    if (!validateHTTPArgs("error", subdomain, pathname)) return;
+    const [subdomain, pathname, ...callback] = getMethodArgs(args);
+    if (!validateArgs("error", subdomain, pathname)) return;
     this.#router.set(subdomain, "error", pathname, callback);
+  }
+
+  proxy(...args) {
+    const [subdomain, pathname, options] = getMethodArgs(args, "object");
+    if (!validateArgs("proxy", subdomain, pathname)) return;
+    this.#router.set(subdomain, "any", pathname, (req, res, rej) =>
+      this.#proxy.web(
+        req,
+        res,
+        Object.assign(
+          {
+            ws: true,
+            xfwd: true,
+            secure: false,
+          },
+          options,
+        ),
+        rej,
+      ),
+    );
+  }
+
+  redirect(...args) {
+    const [subdomain, pathname, options] = getMethodArgs(args, "object");
+    if (!validateArgs("redirect", subdomain, pathname)) return;
+    const { target } = options;
+    this.#router.set(subdomain, "any", pathname, (req, res) => res.redirect(target));
   }
 
   async use(folder, ...args) {
     if (args.length == 2) args.unshift("");
     const [subdomain, pathname, options] = args;
-    if (!validateHTTPArgs("use", subdomain, pathname)) return;
+    if (!validateArgs("use", subdomain, pathname)) return;
     const { callback, ignore, useApiRoute } = options || {};
     const files = Router.readFolder(folder, ignore);
     for (let i = 0, len = files.length; i < len; i++) {
@@ -152,14 +181,14 @@ class Server {
 
   disable(...args) {
     if (args.length < 2) args.unshift("");
-    if (!validateHTTPArgs("disable", subdomain, pathname)) return;
+    if (!validateArgs("disable", subdomain, pathname)) return;
     const [subdomain, pathname] = args;
     this.#router.disable(subdomain, pathname);
   }
 
   enable(...args) {
     if (args.length < 2) args.unshift("");
-    if (!validateHTTPArgs("enable", subdomain, pathname)) return;
+    if (!validateArgs("enable", subdomain, pathname)) return;
     const [subdomain, pathname] = args;
     this.#router.enable(subdomain, pathname);
   }
@@ -241,7 +270,7 @@ export * from "./process";
 
 //
 
-function validateHTTPArgs(method, subdomain, pathname) {
+function validateArgs(method, subdomain, pathname) {
   if (subdomain !== "" && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain))
     return console.warn(`Invalid subdomain for "${subdomain}"`), false;
   if (!pathname) return console.warn(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`), false;
@@ -249,10 +278,10 @@ function validateHTTPArgs(method, subdomain, pathname) {
   return true;
 }
 
-function getHTTPMethodArgs(args) {
+function getMethodArgs(args, type = "function") {
   if (typeof args[0] !== "string") return [];
-  if (typeof args[1] !== "string" || typeof args[2] !== "function") return [];
-  if (typeof args[1] === "function") args.unshift("");
+  if (typeof args[1] === type) args.unshift("");
+  if (typeof args[1] !== "string" || typeof args[2] !== type) return [];
   return args;
 }
 

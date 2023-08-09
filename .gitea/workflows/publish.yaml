@@ -35,10 +35,7 @@ jobs:
     -
       name: Install
       if: ${{ steps.release.outputs.version != 'skip' }}
-      run: |
-        npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
-        npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.GIT_TOKEN }}"
-        npm ci
+      run: npm ci
     -
       name: Node Version
       if: ${{ steps.release.outputs.version != 'skip' }}
@@ -57,4 +54,7 @@ jobs:
     - 
       name: Node Publish
       if: ${{ steps.release.outputs.version != 'skip' }}
-      run: npm publish
+      run: |
+        npm config set @vistta:registry https://git.vistta.me/api/packages/vistta/npm/
+        npm config set -- '//git.vistta.me/api/packages/vistta/npm/:_authToken' "${{ secrets.GIT_TOKEN }}"
+        npm publish

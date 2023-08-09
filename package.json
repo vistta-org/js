@@ -34,25 +34,26 @@
     "accepts": "^1.3.8",
     "autoprefixer": "^10.4.14",
     "compressible": "^2.0.18",
-    "esbuild": "^0.18.15",
+    "esbuild": "^0.19.0",
     "express": "^4.18.2",
     "follow-redirects": "^1.15.2",
+    "http-proxy": "^1.18.1",
     "http2-express-bridge": "^1.0.7",
-    "http2-proxy": "^5.0.53",
     "on-headers": "^1.0.2",
-    "postcss": "^8.4.26",
-    "sass": "^1.64.0",
-    "socket.io": "^4.7.1",
+    "postcss": "^8.4.27",
+    "sass": "^1.64.2",
+    "socket.io": "^4.7.2",
     "typescript": "^5.1.6"
   },
   "devDependencies": {
-    "@types/node": "^20.4.2",
-    "eslint": "^8.45.0",
-    "eslint-config-prettier": "^8.8.0",
+    "@types/http-proxy": "^1.17.11",
+    "@types/node": "^20.4.9",
+    "eslint": "^8.46.0",
+    "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-better-styled-components": "^1.1.2",
     "eslint-plugin-jsx": "^0.1.0",
-    "eslint-plugin-sonarjs": "^0.19.0",
-    "prettier": "^3.0.0"
+    "eslint-plugin-sonarjs": "^0.20.0",
+    "prettier": "^3.0.1"
   },
   "engines": {
     "node": ">=19.0.0"
