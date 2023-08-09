@@ -40,11 +40,12 @@ class Router {
     if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
     if (!pathname.startsWith("/")) pathname = "/" + pathname;
     const path = pathname === "/" ? [""] : pathname.split("/");
-    let wildcardMatch;
+
     const valid = (curr) => {
       const { method, enabled } = curr?.["@route"] || {};
       return (disabled || enabled !== false) && (method === "any" || method === _method);
     };
+    let wildcardMatch = !strict && valid(router?.["*"]) ? router["*"] : undefined;
     for (let i = 1, len = path.length; i < len; i++) {
       if (!router) break;
       if (!strict && valid(router?.["*"])) wildcardMatch = router["*"];
