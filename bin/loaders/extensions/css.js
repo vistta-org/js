@@ -38,21 +38,28 @@ function transform(code, dirname, node_modules, params = {}) {
     },
     importer: {
       canonicalize(url) {
-        const files = getSassFiles(fs.resolve(dirname, url.startsWith("file:") ? fileURLToPath(new URL(url)) : url));
+        const isURL = url.startsWith("file:");
+        let files = getSassFiles(fs.resolve(dirname, isURL ? fileURLToPath(new URL(url)) : url));
+        for (let i = 0, len = files.length; i < len; i++) {
+          if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
+        }
+        if (isURL) return null;
+        files = getSassFiles(fs.resolve(node_modules, url), true);
         for (let i = 0, len = files.length; i < len; i++) {
           if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
         }
         return null;
       },
       load(canonicalUrl) {
+        console.log(canonicalUrl);
         const path = fileURLToPath(canonicalUrl);
         const dirname = fs.dirname(path);
         let contents = "" + fs.readFileSync(path);
         const urls = contents.match(/(?<=url\(("|')?)[^)"']*(?=("|')?\))/g);
         for (let i = 0, len = urls?.length || 0; i < len; i++) {
-          const resourcePath = fs.resolve(dirname, urls[i]);
-          const hash = fs.fileId(resourcePath) + fs.extname(resourcePath);
-          resources.push({ path: resourcePath, hash });
+          const resourcepath = fs.resolve(dirname, urls[i]);
+          const hash = fs.fileId(resourcepath) + fs.extname(resourcepath);
+          resources.push({ path: resourcepath, hash });
           contents = contents.replace(urls[i], `/resources/${hash}`);
         }
         return {
@@ -109,13 +116,40 @@ function convertToSass(input, fallback) {
   }
 }
 
-function getSassFiles(filepath) {
-  const dirname = fs.dirname(filepath);
-  const basename = fs.basename(filepath);
-  return [
-    fs.resolve(dirname, basename + ".sass"),
-    fs.resolve(dirname, basename + ".scss"),
-    fs.resolve(dirname, "_" + basename + ".sass"),
-    fs.resolve(dirname, "_" + basename + ".scss"),
+function getSassFiles(filepath, isModule) {
+  const result = [
+    fs.resolve(filepath, "index.sass"),
+    fs.resolve(filepath, "index.scss"),
+    fs.resolve(filepath, "index.css"),
+    fs.resolve(filepath, "_index.sass"),
+    fs.resolve(filepath, "_index.scss"),
+    fs.resolve(filepath, "_index.css"),
   ];
+  if (isModule) {
+    const { main, style } = (() => {
+      try {
+        return JSON.parse(fs.readFileSync(fs.resolve(filepath, "package.json"), "utf8"));
+      } catch {
+        return {};
+      }
+    })();
+    if (isStylesheet(style)) result.unshift(fs.resolve(filepath, style));
+    if (isStylesheet(main)) result.unshift(fs.resolve(filepath, main));
+  } else {
+    const dirname = fs.dirname(filepath);
+    const basename = fs.basename(filepath);
+    result.unshift(
+      fs.resolve(dirname, basename + ".sass"),
+      fs.resolve(dirname, basename + ".scss"),
+      fs.resolve(dirname, basename + ".css"),
+      fs.resolve(dirname, "_" + basename + ".sass"),
+      fs.resolve(dirname, "_" + basename + ".scss"),
+      fs.resolve(dirname, "_" + basename + ".css"),
+    );
+  }
+  return result;
+}
+
+function isStylesheet(file) {
+  return [".sass", ".scss", ".css"].includes(fs.extname(file || ""));
 }
