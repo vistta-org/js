@@ -1,6 +1,6 @@
 import { fs } from "../../../server/filesystem/index.js";
-import { hash } from "../../../server/crypto/index.js";
 import { stringify } from "../../../utils/index.js";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import * as sass from "sass";
 import postcss from "postcss";
 import autoprefixer from "autoprefixer";
@@ -10,13 +10,14 @@ export default function (source, { path }) {
     const dirname = fs.dirname(path);
     const node_modules = fs.resolve(process.cwd(), "node_modules");
     const { code, resources, files } = transform(source, dirname, node_modules);
-    const urlHash = hash(path, "md5", "hex");
+    const id = fs.fileId(path);
+    const hash = id + fs.extname(path);
     resources.push({
       compiler: (params = {}) => transform(source, dirname, node_modules, params).code,
-      hash: urlHash,
+      hash,
     });
     return {
-      code: `export default (${stringify({ id: convertToUniqueId(path), raw: code, hash: urlHash, path })});`,
+      code: `export default (${stringify({ id, raw: code, hash, path })});`,
       resources,
       files,
     };
@@ -35,16 +36,37 @@ function transform(code, dirname, node_modules, params = {}) {
     functions: {
       "prop($name, $default)": (args) => convertToSass(params[args[0].assertString("name").text], args[1]),
     },
+    importer: {
+      canonicalize(url) {
+        const files = getSassFiles(fs.resolve(dirname, url.startsWith("file:") ? fileURLToPath(new URL(url)) : url));
+        for (let i = 0, len = files.length; i < len; i++) {
+          if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
+        }
+        return null;
+      },
+      load(canonicalUrl) {
+        const path = fileURLToPath(canonicalUrl);
+        const dirname = fs.dirname(path);
+        let contents = "" + fs.readFileSync(path);
+        const urls = contents.match(/(?<=url\(("|')?)[^)"']*(?=("|')?\))/g);
+        for (let i = 0, len = urls?.length || 0; i < len; i++) {
+          const resourcePath = fs.resolve(dirname, urls[i]);
+          const hash = fs.fileId(resourcePath) + fs.extname(resourcePath);
+          resources.push({ path: resourcePath, hash });
+          contents = contents.replace(urls[i], `/resources/${hash}`);
+        }
+        return {
+          contents,
+          syntax: fs.extname(path).slice(1),
+        };
+      },
+    },
   });
-  code = postcss([autoprefixer()]).process(compiled?.css || "", { from: undefined })?.css || "";
-  if (code.length == 0) return "";
-  const urls = code.match(/(?<=url\(("|')?)[^)"']*(?=("|')?\))/g);
-  for (let i = 0, len = urls?.length || 0; i < len; i++) {
-    const urlHash = hash(urls[i], "md5", "hex") + fs.extname(urls[i]);
-    resources.push({ path: fs.resolve(dirname, urls[i]), hash: urlHash });
-    code = code.replace(urls[i], `/resources/${urlHash}`);
-  }
-  return { code: code, resources, files: compiled?.loadedUrls };
+  return {
+    code: postcss([autoprefixer()]).process(compiled?.css || "", { from: undefined })?.css || "",
+    resources,
+    files: compiled?.loadedUrls,
+  };
 }
 
 function convertToSass(input, fallback) {
@@ -87,7 +109,13 @@ function convertToSass(input, fallback) {
   }
 }
 
-function convertToUniqueId(path) {
-  const encoded = Buffer.from(hash(path, "sha256", "hex"), "hex").toString("base64");
-  return encoded.replace(/[+/=]/g, "").slice(0, 8);
+function getSassFiles(filepath) {
+  const dirname = fs.dirname(filepath);
+  const basename = fs.basename(filepath);
+  return [
+    fs.resolve(dirname, basename + ".sass"),
+    fs.resolve(dirname, basename + ".scss"),
+    fs.resolve(dirname, "_" + basename + ".sass"),
+    fs.resolve(dirname, "_" + basename + ".scss"),
+  ];
 }
