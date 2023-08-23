@@ -51,15 +51,14 @@ function transform(code, dirname, node_modules, params = {}) {
         return null;
       },
       load(canonicalUrl) {
-        console.log(canonicalUrl);
         const path = fileURLToPath(canonicalUrl);
         const dirname = fs.dirname(path);
         let contents = "" + fs.readFileSync(path);
         const urls = contents.match(/(?<=url\(("|')?)[^)"']*(?=("|')?\))/g);
         for (let i = 0, len = urls?.length || 0; i < len; i++) {
-          const resourcepath = fs.resolve(dirname, urls[i]);
-          const hash = fs.fileId(resourcepath) + fs.extname(resourcepath);
-          resources.push({ path: resourcepath, hash });
+          const resourcePath = fs.resolve(dirname, urls[i]);
+          const hash = fs.fileId(resourcePath) + fs.extname(resourcePath);
+          resources.push({ path: resourcePath, hash });
           contents = contents.replace(urls[i], `/resources/${hash}`);
         }
         return {
