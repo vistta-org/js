@@ -57,8 +57,8 @@ console = {
   info: (...data) => apply({ type: "info", data, color: code.cyan, date: date().toString(true) }),
   log: (...data) => apply({ type: "log", data, date: date().toString(true) }),
   onChange: (callback) => emitter.on("change", callback),
-  sucess: (...data) => apply({ type: "sucess", data, color: code.green, date: date().toString(true) }),
-  table: (tabularData, properties) => {},
+  success: (...data) => apply({ type: "success", data, color: code.green, date: date().toString(true) }),
+  table: (data, properties) => {},
   time: (key, force = false) => {
     if (!force && timers[key]) return console.warn(`${key} already exists.`);
     timers[key] = date();
