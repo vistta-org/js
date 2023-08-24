@@ -60,8 +60,7 @@ export function load(url, ctx, next) {
     else if (["html"].includes(extension)) return html(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
     return file(path, { path, extension, bundler });
   })();
-  errors?.forEach((error) => console.error(error));
-  if (errors?.length) throw new Error("Error could not load code");
+  if (errors?.length) throw new Error(errors.join("\n"));
   warnings?.forEach((warning) => console.warn(`Loader Warning: ${warning}\n`));
   return {
     format: "module",

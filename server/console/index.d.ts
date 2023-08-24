@@ -37,7 +37,7 @@ interface Console {
   info(...data: any[]): ConsoleResult;
   log(...data: any[]): ConsoleResult;
   onChange(callback: (logs: { type: string; message: string }[]) => void): void;
-  sucess(...data: any[]): ConsoleResult;
+  success(...data: any[]): ConsoleResult;
   table(tabularData?: any, properties?: string[]): void;
   time(key: string): void;
   timeLog(key: string, ...data: any[]): void;

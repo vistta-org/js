@@ -1,5 +1,6 @@
 /// <reference types="node"/>
 /// <reference types="./console" />
+import { ServerOptions as ProxyOptions } from "http-proxy";
 
 type ServerOptions = {
   http?: number | boolean;
@@ -11,6 +12,9 @@ type ServerOptions = {
 };
 type ListenCallback = (info: { protocol: "http" | "https"; port: number }) => void;
 type RequestCallback = (request: Request, response: Response) => void;
+type RedirectOptions = {
+  target: ProxyOptions["target"];
+};
 type UseOptions = {
   callback?: (options: { pathname: string; event: string; type: string }) => void;
   ignore?: RegExp;
@@ -39,6 +43,11 @@ export default class Server {
   put(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
   error(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
   error(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
+
+  proxy(pathname: string, options: ProxyOptions): void;
+  proxy(subdomain: string, pathname: string, options: ProxyOptions): void;
+  redirect(pathname: string, options: RedirectOptions): void;
+  redirect(subdomain: string, pathname: string, options: RedirectOptions): void;
 
   use(folder: string, pathname: string, options?: UseOptions): void;
   use(folder: string, subdomain: string, pathname: string, options?: UseOptions): void;

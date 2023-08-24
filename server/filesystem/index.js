@@ -1,6 +1,7 @@
 import fs from "node:fs";
-import url from "node:url";
-import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve, extname, basename, isAbsolute } from "node:path";
+import { hash } from "../crypto/index.js";
 
 const filesystem = (() => {
   const result = {};
@@ -11,21 +12,27 @@ const filesystem = (() => {
   return result;
 })();
 
-filesystem.resolve = path.resolve;
+filesystem.resolve = resolve;
 
-filesystem.extname = path.extname;
+filesystem.extname = extname;
 
-filesystem.basename = path.basename;
+filesystem.basename = basename;
 
-filesystem.isAbsolute = path.isAbsolute;
+filesystem.isAbsolute = isAbsolute;
 
-filesystem.filename = (input) => url.fileURLToPath(input);
+filesystem.filename = (input) => fileURLToPath(input);
 
-filesystem.dirname = (input) => path.dirname(new RegExp("[^:]*://").test(input) ? url.fileURLToPath(input) : input);
+filesystem.dirname = (input) => dirname(new RegExp("[^:]*://").test(input) ? fileURLToPath(input) : input);
 
 filesystem.isDirectory = (path) => fs.existsSync(path) && fs.lstatSync(path).isDirectory();
 
 filesystem.isFile = (path) => fs.existsSync(path) && fs.lstatSync(path).isFile();
+
+filesystem.fileId = (path) => {
+  if (!fs.existsSync(path)) return null;
+  const stats = fs.statSync(path);
+  return hash(`${basename(path)}-${stats.size}-${stats.mtimeMs}`, "md5", "hex");
+};
 
 filesystem.watch = (path, options = {}) => {
   let { ignore, throttle = 0 } = options;
@@ -43,8 +50,8 @@ filesystem.watch = (path, options = {}) => {
           new Promise((resolve) =>
             setTimeout(
               () => watch(filesystem.resolve(path), (filepath) => resolve({ value: filepath, done: false })),
-              throttle
-            )
+              throttle,
+            ),
           ),
       };
     },
