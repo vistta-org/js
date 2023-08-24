@@ -13,10 +13,17 @@ export const stringify = (object, formatted = false) =>
         return value;
       };
     })(),
-    !formatted ? null : formatted === true ? 4 : formatted
+    !formatted ? null : formatted === true ? 4 : formatted,
   );
 
-export const parse = (object) => JSON.parse(object);
+export const parse = (object, secure = false) => {
+  if (!secure) return JSON.parse(object);
+  try {
+    return JSON.parse(object);
+  } catch {
+    return {};
+  }
+};
 
 export const clone = (object, json) => (json ? parse(stringify(object)) : structuredClone(object));
 

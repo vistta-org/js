@@ -1,5 +1,5 @@
 import { fs } from "../../../server/filesystem/index.js";
-import { stringify } from "../../../utils/index.js";
+import { stringify, parse } from "../../../utils/index.js";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import * as sass from "sass";
 import postcss from "postcss";
@@ -82,36 +82,28 @@ function convertToSass(input, fallback) {
       return new sass.SassBoolean(input);
     case "number":
       return new sass.SassNumber(input);
-    default:
-      input = "" + input;
-      if (input?.startsWith("#")) {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(input);
-        return (
-          new sass.SassColor({
-            red: parseInt(result[1], 16),
-            green: parseInt(result[2], 16),
-            blue: parseInt(result[3], 16),
-          }) || fallback
-        );
-      }
-      if (input?.startsWith("rgb(") && input.endsWith(")")) {
-        const result = input.slice(input.indexOf("(") + 1, input.indexOf(")")).split(",");
+    case "string":
+      if (/^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(input)) {
+        const color = [...input.matchAll(/([0-9A-Fa-f]{2})/g)].map((match) => match[1]);
         return new sass.SassColor({
-          red: parseInt(result[0] || 255),
-          green: parseInt(result[1] || 255),
-          blue: parseInt(result[2] || 255),
+          red: parseInt(color[0], 16),
+          green: parseInt(color[1], 16),
+          blue: parseInt(color[2], 16),
+          alpha: parseInt(color[3], 16),
         });
       }
-      if (input?.startsWith("rgba(") && input.endsWith(")")) {
-        const result = input.slice(input.indexOf("(") + 1, input.indexOf(")")).split(",");
+      if (/^rgba?\((\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*,?\s*(\d*\.?\d+)?\s*)\)$/.test(input)) {
+        const color = input.match(/rgba?\((\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*,?\s*(\d*\.?\d+)?\s*)\)/)[1].split(",");
         return new sass.SassColor({
-          red: parseInt(result[0] || 255),
-          green: parseInt(result[1] || 255),
-          blue: parseInt(result[2] || 255),
-          alpha: parseInt(result[3] || 255),
+          red: parseInt(color[0] || 255),
+          green: parseInt(color[1] || 255),
+          blue: parseInt(color[2] || 255),
+          alpha: parseInt(color[3] || 255),
         });
       }
       return new sass.SassString(input);
+    default:
+      return fallback;
   }
 }
 
@@ -125,13 +117,7 @@ function getSassFiles(filepath, isModule) {
     fs.resolve(filepath, "_index.css"),
   ];
   if (isModule) {
-    const { main, style } = (() => {
-      try {
-        return JSON.parse(fs.readFileSync(fs.resolve(filepath, "package.json"), "utf8"));
-      } catch {
-        return {};
-      }
-    })();
+    const { main, style } = parse(fs.readFileSync(fs.resolve(filepath, "package.json"), "utf8"), true);
     if (isStylesheet(style)) result.unshift(fs.resolve(filepath, style));
     if (isStylesheet(main)) result.unshift(fs.resolve(filepath, main));
   } else {
