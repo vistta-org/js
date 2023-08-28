@@ -1,5 +1,4 @@
 import { useState, State, CONTEXT, CONTEXT_KEY } from "./hooks";
-import { isBrowser } from "../utils";
 
 export const Profiler = ({ id, children, callback }) => {
   const intial = performance.now();
@@ -37,19 +36,17 @@ export const TryCatch = ({ children, fallback }) => {
 
 // Wrappers
 
-class Async extends State {}
-export const async = (Component) => (props) => {
-  const _async = new Async();
-  const listeners = [];
-  let value;
-  Component(props).then((finishedComponent) => {
-    value = finishedComponent;
-    for (let i = 0, len = listeners.length; i < len; i++) listeners[i]();
-  });
-  _async.valueOf = () => value;
-  _async.subscribe = (callback) => isBrowser() && listeners.push(callback);
-  return _async;
-};
+class Async extends State {
+  constructor(promise) {
+    super(undefined, false);
+    promise.then((Component) => super.set(Component));
+  }
+
+  set() {
+    /* Do Nothing */
+  }
+}
+export const async = (Component) => (props) => new Async(Component(props));
 
 export const context = (Component, _context) => (props) => {
   const keys = Object.keys(_context);

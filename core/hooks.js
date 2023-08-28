@@ -2,6 +2,7 @@ import { indexOf, isBrowser } from "../utils";
 
 export const CONTEXT_KEY = "#app_";
 export const CONTEXT = {};
+export const INTERNAL = {};
 
 // Context
 
@@ -38,63 +39,64 @@ export function useRef(initialValue) {
 }
 
 // State
-let addDependency;
 
-export class State {}
-export function useState(value) {
-  const listeners = [];
-  const state = new State();
-  state.set = (x) => {
-    if (value === x) return;
-    if (typeof x === "function") value = x(value);
-    else value = x;
+export class State {
+  #listeners = [];
+  #value;
+  #detect;
+
+  constructor(value, detect) {
+    this.#value = value;
+    this.#detect = detect !== false;
+  }
+
+  set(value) {
+    if (this.#value === value) return;
+    if (typeof value === "function") this.#value = value(this.#value);
+    else this.#value = value;
     setTimeout(() => {
-      for (let i = 0, len = listeners.length; i < len; i++) listeners[i]();
+      for (let i = 0, len = this.#listeners.length; i < len; i++) this.#listeners[i]();
     }, 0);
-  };
-  state.valueOf = () => {
-    if (typeof addDependency === "function") addDependency(state);
-    return value;
-  };
-  state.toString = () => {
-    if (typeof addDependency === "function") addDependency(state);
-    if (value == null || typeof value === "object") return "";
-    return `${value}`;
-  };
-  state.subscribe = (callback) => isBrowser() && listeners.push(callback);
-  return state;
+  }
+
+  valueOf() {
+    if (this.#detect && typeof INTERNAL["dependency"] === "function") INTERNAL["dependency"](this);
+    return this.#value;
+  }
+
+  toString() {
+    if (this.#detect && typeof INTERNAL["dependency"] === "function") INTERNAL["dependency"](this);
+    if (this.#value == null || typeof this.#value === "object") return "";
+    return `${this.#value}`;
+  }
+
+  subscribe(callback) {
+    if (isBrowser()) this.#listeners.push(callback);
+  }
 }
+export const useState = (value) => new State(value);
 
 // Effect
 
-class Effect extends State {}
-export function useEffect(callback, dependencies) {
-  const effect = new Effect();
-  const autoDetect = !Array.isArray(dependencies);
-  const listeners = [];
-  let value;
-  if (autoDetect) {
-    dependencies = [];
-    addDependency = (dependency) => dependencies.push(dependency);
-    value = callback();
-    addDependency = null;
-  } else value = callback();
-  for (let i = 0, len = dependencies.length; i < len; i++) {
-    const dependency = unique(dependencies, i);
-    if (dependency)
-      dependency.subscribe(() => {
-        value = callback();
-        for (let n = 0, nlen = listeners.length; n < nlen; n++) listeners[n]();
-      });
+class Effect extends State {
+  constructor(callback, dependencies) {
+    if (!Array.isArray(dependencies)) {
+      dependencies = [];
+      INTERNAL["dependency"] = (dependency) => dependencies.push(dependency);
+      super(callback(), false);
+      INTERNAL["dependency"] = null;
+    } else super(callback(), false);
+    for (let i = 0, len = dependencies.length; i < len; i++) {
+      const dependency = unique(dependencies, i);
+      if (dependency) dependency.subscribe(() => super.set(callback()));
+    }
   }
-  effect.valueOf = () => value;
-  effect.toString = () => {
-    if (value == null || typeof value === "object") return "";
-    return `${value}`;
-  };
-  effect.subscribe = (callback) => isBrowser() && listeners.push(callback);
-  return effect;
+
+  set() {
+    /* Do Nothing */
+  }
 }
+export const useEffect = (callback, dependencies) => new Effect(callback, dependencies);
 
 //
 
