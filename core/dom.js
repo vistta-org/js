@@ -91,7 +91,7 @@ export default class VirtualDom {
   }
 
   #apply(append, element) {
-    if (!element) return append();
+    if (element == null || element === false) return append();
     if (!(element instanceof Element)) {
       if (element instanceof State) {
         element = new Element(Fragment, element);
