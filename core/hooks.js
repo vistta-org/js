@@ -49,7 +49,7 @@ export class State extends ExtensibleFunction {
 
   constructor(value, detect) {
     super((mutator) => {
-      if (typeof mutator !== "function") return this.#value;
+      if (typeof mutator !== "function") return this.valueOf();
       const mutation = new State(mutator(this.#value));
       const set = mutation.set.bind(mutation);
       this.subscribe(() => set(mutator(this.#value)));

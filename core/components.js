@@ -1,6 +1,27 @@
 import { useState, State, INTERNAL, HOOK_CONTEXT, PROFILER_CONTEXT } from "./hooks";
 import { isServer } from "../utils";
 
+class ProfileRecorder extends State {
+  #callback;
+
+  constructor(callback) {
+    super(undefined, false);
+    this.#callback = callback;
+  }
+
+  set() {
+    /* Do Nothing */
+  }
+
+  valueOf() {
+    return this.#callback(), null;
+  }
+
+  subscribe() {
+    /* Do Nothing */
+  }
+}
+
 export const Profiler = ({ id, children, callback }) => {
   // eslint-disable-next-line no-undef
   if (!callback || isServer() || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
@@ -26,7 +47,7 @@ export const Profiler = ({ id, children, callback }) => {
     return null;
   };
   // eslint-disable-next-line no-undef
-  return createElement(Fragment, { profiler: true }, createElement(start), ...children, createElement(end));
+  return createElement(Fragment, null, new ProfileRecorder(start), ...children, new ProfileRecorder(end));
 };
 
 // eslint-disable-next-line no-unused-vars
@@ -69,6 +90,7 @@ class Async extends State {
     /* Do Nothing */
   }
 }
+
 export const async = (Component) => (props) => new Async(Component(props));
 
 export const context = (Component, _context) => (props) => {

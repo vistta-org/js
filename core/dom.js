@@ -6,18 +6,18 @@ const TextNode = Symbol("TextNode");
 
 class Element {
   constructor(type, props, children) {
-    if (!type) return null;
     this.type = type;
-    if (props?.key) (this.key = props.key), delete props.key;
-    if (props?.ref) (this.ref = props.ref), delete props.ref;
     this.props = props || {};
     this.children = children;
   }
+}
 
-  transform() {
-    if (!this.isFunctionElement) return null;
-    if (this.children?.length > 0) this.props.children = this.children;
-    const node = this.type(this.props);
+const createElement = (type, props, ...children) => {
+  if (!type) return null;
+  if (typeof type === "function") {
+    if (!props) props = {};
+    if (children?.length > 0) props.children = children;
+    const node = type(props);
     if (node instanceof Element) return node;
     if (typeof node !== "object" || (node && node instanceof State)) return node;
     if (Array.isArray(node)) return new Element(Fragment, null, node);
@@ -25,13 +25,11 @@ class Element {
       console.warn("Async Components need to be wrapped in async function");
     return null;
   }
-
-  get isFunctionElement() {
-    return typeof this.type === "function";
-  }
-}
-
-const createElement = (type, props, ...children) => new Element(type, props, children);
+  const element = new Element(type, props, children);
+  if (element.props?.key) (element.key = element.props.key), delete element.props.key;
+  if (element.props?.ref) (element.ref = element.props.ref), delete element.props.ref;
+  return element;
+};
 
 system.set("Fragment", Fragment);
 system.set("createElement", createElement);
@@ -103,7 +101,7 @@ export default class VirtualDom {
         if ("production" !== process.env.NODE_ENV) console.warn("Tried to render an invalid Element"), console.log(element);
         return append();
       } else element = new Element(TextNode, null, "" + element);
-    } else if (element.isFunctionElement) return this.#apply(append, element.transform());
+    }
     //
     const { type, key, ref, props, children } = element;
     if (props.scope) addScope(this.#css, props.scope);
