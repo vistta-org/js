@@ -4,8 +4,8 @@ const Test = ({ run, iterations }) => {
   for (let i = 0; i < 10; i++) {
     children.push(
       <RecursiveChild key={"Test4." + i} index={0} iterations={iterations}>
-        <div>{run}</div>
-      </RecursiveChild>
+        <div>{run((v) => "" + v)}</div>
+      </RecursiveChild>,
     );
   }
   return children;
