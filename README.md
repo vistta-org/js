@@ -34,7 +34,14 @@ npm i @vistta/vistta.js
 
 ## Benchmarks Latest Results
 
-Benchmark #1: 0.019799999937415123ms (-0.008ms)
-Benchmark #2: 0.005400000005960464ms (-0.002ms)
-Benchmark #3: 7.8141999999433756ms (-1.54ms)
-Benchmark #4: 0.010799999982118606ms (-0.009ms)
+Benchmark #1: 7.112399999842047ms
+Benchmark #2: 7.11479999987781ms
+Benchmark #3: 20.440399999931454ms
+Benchmark #4: 7.115999999895692ms
+
+#React Equivalent
+
+Benchmark #1: 4.660399999976158ms
+Benchmark #2: 4.793999999672175ms
+Benchmark #3: 14.330000000268221ms
+Benchmark #4: 21.61960000024736ms

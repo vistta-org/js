@@ -42,7 +42,7 @@ export function useRef(initialValue) {
 // State
 
 export class State extends ExtensibleFunction {
-  #listeners = []; // Change to SET
+  #listeners = new Set();
   #profilers = new Set();
   #value;
   #detect = () => null;
@@ -52,14 +52,14 @@ export class State extends ExtensibleFunction {
       if (typeof mutator !== "function") return this.#value;
       const mutation = new State(mutator(this.#value));
       const set = mutation.set.bind(mutation);
-      if (isBrowser()) this.#listeners.push(() => set(mutator(this.#value)));
+      this.subscribe(() => set(mutator(this.#value)));
       delete mutation.set;
       return mutation;
     });
     this.#value = value;
     if (detect !== false)
       this.#detect = () => {
-        if ("production" !== process.env.NODE_ENV && typeof INTERNAL[PROFILER_CONTEXT] === "function" && isBrowser())
+        if ("production" !== process.env.NODE_ENV && typeof INTERNAL[PROFILER_CONTEXT] === "function")
           this.#profilers.add(INTERNAL[PROFILER_CONTEXT]);
         if (typeof INTERNAL[EFFECT_CONTEXT] === "function") INTERNAL[EFFECT_CONTEXT](this);
       };
@@ -71,7 +71,7 @@ export class State extends ExtensibleFunction {
     if (typeof value === "function") this.#value = value(this.#value);
     else this.#value = value;
     setImmediate(() => {
-      for (let i = 0, len = this.#listeners.length; i < len; i++) this.#listeners[i]();
+      this.#listeners.forEach((callback) => callback());
       if ("production" !== process.env.NODE_ENV) this.#profilers.forEach((callback) => callback(false));
     });
   }
@@ -88,7 +88,7 @@ export class State extends ExtensibleFunction {
   }
 
   subscribe(callback) {
-    if (isBrowser()) this.#listeners.push(callback);
+    if (isBrowser()) this.#listeners.add(callback);
   }
 }
 

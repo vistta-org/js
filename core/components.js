@@ -1,8 +1,9 @@
 import { useState, State, INTERNAL, HOOK_CONTEXT, PROFILER_CONTEXT } from "./hooks";
+import { isServer } from "../utils";
 
 export const Profiler = ({ id, children, callback }) => {
   // eslint-disable-next-line no-undef
-  if (!callback || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
+  if (!callback || isServer() || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
   const context = { count: 0 };
   const start = (initial) => {
     if (initial !== false) {
