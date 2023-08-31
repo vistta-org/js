@@ -34,6 +34,7 @@ export default function Benchmark() {
       tests.completed = 0;
       requestIdleCallback(() => {
         if (counter < BENCHMARK_RUNS) return counter.set((v) => v + 1);
+        tests.running = false;
         tests.active = false;
         console.group("Benchmark Run");
         Object.entries(tests.results).forEach(([key, value]) => {

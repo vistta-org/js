@@ -1,4 +1,4 @@
-import { isServer, isProd, system, INVALID_EVENT_NAME } from "../utils";
+import { isServer, system, INVALID_EVENT_NAME } from "../utils";
 
 class Socket {
   active = false;
@@ -22,14 +22,14 @@ class Socket {
 
   emit(event, ...args) {
     event = validateEvent(event);
-    if (!isProd() && !event) console.warn(INVALID_EVENT_NAME);
+    if ("production" !== process.env.NODE_ENV && !event) console.warn(INVALID_EVENT_NAME);
     if (this.active === false || !event) return;
     this.instance.emit(event, ...args);
   }
 
   on(event, callback) {
     event = validateEvent(event);
-    if (!isProd() && !event) console.warn(INVALID_EVENT_NAME);
+    if ("production" !== process.env.NODE_ENV && !event) console.warn(INVALID_EVENT_NAME);
     if (this.active === false || !event) return;
     this.instance.on(event, callback);
   }

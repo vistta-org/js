@@ -36,13 +36,13 @@ export const isPromise = (f) => f instanceof Promise;
 
 export const isAsync = (f) => f.constructor.name === "AsyncFunction";
 
+export const setImmediate = (callback) => Promise.resolve().then(callback);
+
 export const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export const isServer = () => typeof global !== "undefined";
 
 export const isBrowser = () => typeof window !== "undefined";
-
-export const isProd = () => "production" === process.env.NODE_ENV;
 
 export const system = {
   register(tagname, element) {
@@ -82,6 +82,12 @@ export const system = {
     return import(moduleName);
   },
 };
+
+export class ExtensibleFunction extends Function {
+  constructor(f) {
+    return Object.setPrototypeOf(f, new.target.prototype);
+  }
+}
 
 export * from "./consts.js";
 export * from "./date.js";

@@ -1,9 +1,31 @@
-import { useState, State, CONTEXT, CONTEXT_KEY } from "./hooks";
+import { useState, State, INTERNAL, HOOK_CONTEXT, PROFILER_CONTEXT } from "./hooks";
 
 export const Profiler = ({ id, children, callback }) => {
-  const intial = performance.now();
   // eslint-disable-next-line no-undef
-  return createElement(Fragment, null, children, () => callback({ id, duration: performance.now() - intial }));
+  if (!callback || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
+  const context = { count: 0 };
+  const start = (initial) => {
+    if (initial !== false) {
+      INTERNAL[PROFILER_CONTEXT] = (_initial) => (_initial ? start(false) : end(false));
+      context.performance = performance.now();
+      return null;
+    }
+    if (context.count == 0) context.performance = performance.now();
+    context.count++;
+    return null;
+  };
+  const end = (initial) => {
+    if (initial !== false) {
+      INTERNAL[PROFILER_CONTEXT] = null;
+      callback({ id, performance: performance.now() - (context.performance || 0) });
+      return null;
+    }
+    context.count--;
+    if (context.count === 0) callback({ id, performance: performance.now() - (context.performance || 0) });
+    return null;
+  };
+  // eslint-disable-next-line no-undef
+  return createElement(Fragment, { profiler: true }, createElement(start), ...children, createElement(end));
 };
 
 // eslint-disable-next-line no-unused-vars
@@ -50,9 +72,9 @@ export const async = (Component) => (props) => new Async(Component(props));
 
 export const context = (Component, _context) => (props) => {
   const keys = Object.keys(_context);
-  for (let i = 0, len = keys.length; i < len; i++) CONTEXT[CONTEXT_KEY + keys[i]] = _context[keys[i]];
+  for (let i = 0, len = keys.length; i < len; i++) INTERNAL[HOOK_CONTEXT + keys[i]] = _context[keys[i]];
   const result = Component(props);
-  for (let i = 0, len = keys.length; i < len; i++) delete CONTEXT[CONTEXT_KEY + keys[i]];
+  for (let i = 0, len = keys.length; i < len; i++) delete INTERNAL[HOOK_CONTEXT + keys[i]];
   return result;
 };
 

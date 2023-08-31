@@ -1,13 +1,14 @@
-import { indexOf, isBrowser } from "../utils";
+import { indexOf, isBrowser, setImmediate, ExtensibleFunction } from "../utils";
 
-export const CONTEXT_KEY = "#app_";
-export const CONTEXT = {};
 export const INTERNAL = {};
+export const EFFECT_CONTEXT = "#effect";
+export const PROFILER_CONTEXT = "#profiler";
+export const HOOK_CONTEXT = "#app_";
 
 // Context
 
 export function useContext(key) {
-  return CONTEXT[CONTEXT_KEY + key];
+  return INTERNAL[HOOK_CONTEXT + key];
 }
 
 // Style
@@ -40,32 +41,48 @@ export function useRef(initialValue) {
 
 // State
 
-export class State {
-  #listeners = [];
+export class State extends ExtensibleFunction {
+  #listeners = []; // Change to SET
+  #profilers = new Set();
   #value;
-  #detect;
+  #detect = () => null;
 
   constructor(value, detect) {
+    super((mutator) => {
+      if (typeof mutator !== "function") return this.#value;
+      const mutation = new State(mutator(this.#value));
+      const set = mutation.set.bind(mutation);
+      if (isBrowser()) this.#listeners.push(() => set(mutator(this.#value)));
+      delete mutation.set;
+      return mutation;
+    });
     this.#value = value;
-    this.#detect = detect !== false;
+    if (detect !== false)
+      this.#detect = () => {
+        if ("production" !== process.env.NODE_ENV && typeof INTERNAL[PROFILER_CONTEXT] === "function" && isBrowser())
+          this.#profilers.add(INTERNAL[PROFILER_CONTEXT]);
+        if (typeof INTERNAL[EFFECT_CONTEXT] === "function") INTERNAL[EFFECT_CONTEXT](this);
+      };
   }
 
   set(value) {
+    if ("production" !== process.env.NODE_ENV) this.#profilers.forEach((callback) => callback(true));
     if (this.#value === value) return;
     if (typeof value === "function") this.#value = value(this.#value);
     else this.#value = value;
-    setTimeout(() => {
+    setImmediate(() => {
       for (let i = 0, len = this.#listeners.length; i < len; i++) this.#listeners[i]();
-    }, 0);
+      if ("production" !== process.env.NODE_ENV) this.#profilers.forEach((callback) => callback(false));
+    });
   }
 
   valueOf() {
-    if (this.#detect && typeof INTERNAL["dependency"] === "function") INTERNAL["dependency"](this);
+    this.#detect();
     return this.#value;
   }
 
   toString() {
-    if (this.#detect && typeof INTERNAL["dependency"] === "function") INTERNAL["dependency"](this);
+    this.#detect();
     if (this.#value == null || typeof this.#value === "object") return "";
     return `${this.#value}`;
   }
@@ -74,29 +91,23 @@ export class State {
     if (isBrowser()) this.#listeners.push(callback);
   }
 }
+
 export const useState = (value) => new State(value);
 
 // Effect
 
-class Effect extends State {
-  constructor(callback, dependencies) {
-    if (!Array.isArray(dependencies)) {
-      dependencies = [];
-      INTERNAL["dependency"] = (dependency) => dependencies.push(dependency);
-      super(callback(), false);
-      INTERNAL["dependency"] = null;
-    } else super(callback(), false);
-    for (let i = 0, len = dependencies.length; i < len; i++) {
-      const dependency = unique(dependencies, i);
-      if (dependency) dependency.subscribe(() => super.set(callback()));
-    }
+export const useEffect = (callback, dependencies) => {
+  if (!Array.isArray(dependencies)) {
+    dependencies = [];
+    INTERNAL[EFFECT_CONTEXT] = (dependency) => dependencies.push(dependency);
+    callback();
+    INTERNAL[EFFECT_CONTEXT] = null;
+  } else callback();
+  for (let i = 0, len = dependencies.length; i < len; i++) {
+    const dependency = unique(dependencies, i);
+    if (dependency) dependency.subscribe(() => callback());
   }
-
-  set() {
-    /* Do Nothing */
-  }
-}
-export const useEffect = (callback, dependencies) => new Effect(callback, dependencies);
+};
 
 //
 
