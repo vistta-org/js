@@ -1,6 +1,6 @@
 const betterFetch = (url, options) => {
   if (typeof url === "object") (options = url), (url = options.url);
-  let { controller, headers, method, params, timeout, type } = options;
+  let { controller, headers, method, params, timeout, type } = options || {};
   if (!controller) controller = new AbortController();
   const { body, contentType } = transformBody(options?.body);
   // eslint-disable-next-line no-async-promise-executor

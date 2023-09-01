@@ -81,13 +81,12 @@ class Route {
 
   watch(files) {
     files.forEach((file) => {
-      if (!this.watchedFiles.includes(file)) {
-        this.watchedFiles.push(file);
-        fs.watchFile(file, () => {
-          this.app = null;
-          this.emit("modified");
-        });
-      }
+      if (this.watchedFiles.includes(file)) return;
+      this.watchedFiles.push(file);
+      fs.watchFile(file, () => {
+        this.app = null;
+        this.emit("modified");
+      });
     });
   }
 

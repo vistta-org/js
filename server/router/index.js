@@ -1,4 +1,5 @@
 import { Route } from "./route";
+import { useApi } from "./api";
 import { isValidUrlPathname } from "../../utils";
 import { fs } from "../filesystem";
 
@@ -73,27 +74,18 @@ class Router {
   }
 
   async setApi(filepath, subdomain, pathname, callback) {
-    const handler = (await importApi(filepath))?.default;
-    if (handler) this.set(subdomain, "any", pathname, handler);
-    callback({ pathname: pathname || "/", event: "ready", type: "api" });
+    const api = await useApi(filepath, { pathname: pathname || "/", callback });
+    if (api) this.set(subdomain, "any", pathname, api);
   }
 }
 
 Router.readFolder = getValidRoutesFromFolder;
 Router.isErrorRoute = isErrorRoute;
-Router.importApi = importApi;
+Router.useApi = useApi;
 
 export { Router };
 
 //
-
-async function importApi(filepath) {
-  try {
-    return await import(filepath);
-  } catch {
-    return {};
-  }
-}
 
 function transformCallback(callback) {
   callback = callback.filter((f) => typeof f === "function");
