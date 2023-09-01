@@ -5,7 +5,7 @@ const Test = ({ run, iterations }) => {
     children.push(
       <RecursiveChild key={"Test4." + i} index={0} iterations={iterations}>
         <div>{run}</div>
-      </RecursiveChild>
+      </RecursiveChild>,
     );
   }
   return children;

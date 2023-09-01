@@ -32,34 +32,33 @@ class Partition extends State {
   #key;
 
   constructor(store, key, { initialState, cache = "none", actions }) {
-    const cacheValue = cache !== "none" ? getCacheValue(key) : undefined;
-    super(cacheValue || initialState);
+    super((cache !== "none" ? getCacheValue(key) : undefined) || initialState);
     this.store = store;
     this.#key = key;
     for (let i = 0, len = actions.length; i < len; i++) {
       const action = actions[i];
       this[action.fnName] = ((...args) => {
-        action.on.call(this, "pending", super.value);
+        action.on?.call(this, "pending", super.valueOf());
         const controller = new AbortController();
         // eslint-disable-next-line no-async-promise-executor
         const promise = new Promise(async (resolve) => {
           controller.signal.onabort = () => {
-            action.on.call(this, "rejected", controller.signal.reason);
+            action.on?.call(this, "rejected", controller.signal.reason);
             resolve(null);
           };
           try {
-            let value = action(super.value, ...args);
+            let value = action(super.valueOf(), ...args);
             if (isPromise(value)) value = await value;
             if (!controller.signal?.aborted) {
-              action.on.call(this, "completed", super.value);
-              if (value !== undefined && super.value !== value) {
-                super.value = value;
-                if (cache !== "none") updateCache(key, super.value, cache);
-                resolve(super.value);
+              action.on?.call(this, "completed", super.valueOf());
+              if (value !== undefined && super.valueOf() !== value) {
+                super.set(value);
+                if (cache !== "none") updateCache(key, super.valueOf(), cache);
+                resolve(super.valueOf());
               }
             }
           } catch (e) {
-            action.on.call(this, "rejected", e);
+            action.on?.call(this, "rejected", e);
             resolve(null);
           }
         });
@@ -73,12 +72,8 @@ class Partition extends State {
     return this.#key;
   }
 
-  get value() {
-    return super.value;
-  }
-
-  set value(x) {
-    // Do Nothing
+  set() {
+    /* Do Nothing */
   }
 }
 

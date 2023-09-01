@@ -1,10 +1,53 @@
-import { useState, State, CONTEXT, CONTEXT_KEY } from "./hooks";
-import { isBrowser } from "../utils";
+import { useState, State, INTERNAL, HOOK_CONTEXT, PROFILER_CONTEXT } from "./hooks";
+import { isServer, setImmediate } from "../utils";
+
+class ProfileRecorder extends State {
+  #callback;
+
+  constructor(callback) {
+    super(undefined, false);
+    this.#callback = callback;
+  }
+
+  set() {
+    /* Do Nothing */
+  }
+
+  valueOf() {
+    return this.#callback(), null;
+  }
+
+  subscribe() {
+    /* Do Nothing */
+  }
+}
 
 export const Profiler = ({ id, children, callback }) => {
-  const intial = performance.now();
   // eslint-disable-next-line no-undef
-  return createElement(Fragment, null, children, () => callback({ id, duration: performance.now() - intial }));
+  if (!callback || isServer() || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
+  const context = { count: 0 };
+  const start = (initial) => {
+    if (initial !== false) {
+      INTERNAL[PROFILER_CONTEXT] = (_initial) => (_initial ? start(false) : end(false));
+      context.performance = performance.now();
+      return null;
+    }
+    if (context.count == 0) context.performance = performance.now();
+    context.count++;
+    return null;
+  };
+  const end = (initial) => {
+    if (initial !== false) {
+      INTERNAL[PROFILER_CONTEXT] = null;
+      callback({ id, performance: performance.now() - (context.performance || 0) });
+      return null;
+    }
+    context.count--;
+    if (context.count === 0) callback({ id, performance: performance.now() - (context.performance || 0) });
+    return null;
+  };
+  // eslint-disable-next-line no-undef
+  return createElement(Fragment, null, new ProfileRecorder(start), ...children, new ProfileRecorder(end));
 };
 
 // eslint-disable-next-line no-unused-vars
@@ -15,10 +58,10 @@ export const Suspense = ({ children, fallback }) => {
     let readyCount = 0;
     const onReady = () => {
       readyCount++;
-      if (asyncs.length === readyCount) setTimeout(() => loaded.set(children), 1);
+      if (asyncs.length === readyCount) setImmediate(() => loaded.set(children));
     };
     for (let i = 0, len = asyncs.length; i < len; i++) asyncs[i].subscribe(onReady);
-  } else setTimeout(() => loaded.set(children), 1);
+  } else setImmediate(() => loaded.set(children));
   return loaded;
 };
 
@@ -37,25 +80,24 @@ export const TryCatch = ({ children, fallback }) => {
 
 // Wrappers
 
-class Async extends State {}
-export const async = (Component) => (props) => {
-  const _async = new Async();
-  const listeners = [];
-  let value;
-  Component(props).then((finishedComponent) => {
-    value = finishedComponent;
-    for (let i = 0, len = listeners.length; i < len; i++) listeners[i]();
-  });
-  _async.valueOf = () => value;
-  _async.subscribe = (callback) => isBrowser() && listeners.push(callback);
-  return _async;
-};
+class Async extends State {
+  constructor(promise) {
+    super(undefined, false);
+    promise.then((Component) => super.set(Component));
+  }
+
+  set() {
+    /* Do Nothing */
+  }
+}
+
+export const async = (Component) => (props) => new Async(Component(props));
 
 export const context = (Component, _context) => (props) => {
   const keys = Object.keys(_context);
-  for (let i = 0, len = keys.length; i < len; i++) CONTEXT[CONTEXT_KEY + keys[i]] = _context[keys[i]];
+  for (let i = 0, len = keys.length; i < len; i++) INTERNAL[HOOK_CONTEXT + keys[i]] = _context[keys[i]];
   const result = Component(props);
-  for (let i = 0, len = keys.length; i < len; i++) delete CONTEXT[CONTEXT_KEY + keys[i]];
+  for (let i = 0, len = keys.length; i < len; i++) delete INTERNAL[HOOK_CONTEXT + keys[i]];
   return result;
 };
 

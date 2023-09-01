@@ -3,46 +3,56 @@
   inset: 0 0 0 0;
   display: flex;
   flex-flow: row wrap;
-}
 
-.container > .bench {
-  position: relative;
-  flex: 1;
-  padding: var(--unit-8);
-  text-align: center;
-  color: white;
+  & > .bench {
+    position: relative;
+    flex: 1;
+    padding: var(--unit-8);
+    text-align: center;
+    color: white;
 
-  [data-content]::after {
-    content: attr(data-content);
+    [data-content]::after {
+      content: attr(data-content);
+    }
+
+    & > .container {
+      position: absolute;
+      inset: 0;
+      display: block;
+      overflow: hidden;
+      background: none;
+    }
+
+    & > .container > * {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
   }
-}
 
-.container > .controls {
-  position: absolute;
-  display: flex;
-  bottom: 5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  gap: var(--unit-4);
-}
+  & > .controls {
+    position: absolute;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: center;
+    align-items: center;
+    bottom: 5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    gap: var(--unit-4);
 
-.container > .controls > button {
-  flex: none;
-  padding: var(--unit-4) var(--unit-15);
-  text-align: center;
-}
+    & > .warning {
+      flex: none;
+      width: 100%;
+      text-align: center;
+      color: orange;
+    }
 
-.container > .bench > .container {
-  position: absolute;
-  inset: 0;
-  display: block;
-  overflow: hidden;
-  background: none;
-}
-
-.container > .bench > .container > * {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+    & > button {
+      flex: none;
+      padding: var(--unit-4) var(--unit-15);
+      text-align: center;
+    }
+  }
 }

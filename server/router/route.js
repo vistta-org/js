@@ -32,7 +32,7 @@ class Route {
 
   async handler(request, response, reject) {
     if (!isDev && !this.app) return reject();
-    this.location = getLocation(request, this.pathname);
+    this.location = getLocation(request);
     //
     let { resource /*, wildcard*/ } = request;
     if (this.resources[resource]) {
@@ -81,13 +81,12 @@ class Route {
 
   watch(files) {
     files.forEach((file) => {
-      if (!this.watchedFiles.includes(file)) {
-        this.watchedFiles.push(file);
-        fs.watchFile(file, () => {
-          this.app = null;
-          this.emit("modified");
-        });
-      }
+      if (this.watchedFiles.includes(file)) return;
+      this.watchedFiles.push(file);
+      fs.watchFile(file, () => {
+        this.app = null;
+        this.emit("modified");
+      });
     });
   }
 
@@ -163,10 +162,6 @@ function renderToHtml({
   );
 }
 
-function getLocation(request, pathname) {
-  const {
-    protocol,
-    headers: { host, referer },
-  } = request;
-  return new URL(pathname, referer || `${protocol}://${host}`);
+function getLocation({ path, protocol, headers: { host, referer } }) {
+  return new URL(path, referer || `${protocol}://${host}`);
 }

@@ -1,6 +1,5 @@
-import { isProd, system } from "../utils";
+import { system } from "../utils";
 import { State } from "./hooks";
-// import context from "./context";
 
 const Fragment = Symbol("Fragment");
 const TextNode = Symbol("TextNode");
@@ -22,7 +21,8 @@ const createElement = (type, props, ...children) => {
     if (node instanceof Element) return node;
     if (typeof node !== "object" || (node && node instanceof State)) return node;
     if (Array.isArray(node)) return new Element(Fragment, null, node);
-    if (!isProd() && node instanceof Promise) console.warn("Async Components need to be wrapped in async function");
+    if ("production" !== process.env.NODE_ENV && node instanceof Promise)
+      console.warn("Async Components need to be wrapped in async function");
     return null;
   }
   const element = new Element(type, props, children);
@@ -40,7 +40,6 @@ export { Fragment, TextNode, Element, createElement };
 
 export default class VirtualDom {
   #content;
-  #style;
   #store;
   #keys = {};
   #children = [];
@@ -91,7 +90,7 @@ export default class VirtualDom {
   }
 
   #apply(append, element) {
-    if (element == null) return append();
+    if (element == null || element === false) return append();
     if (!(element instanceof Element)) {
       if (element instanceof State) {
         element = new Element(Fragment, element);
@@ -99,7 +98,7 @@ export default class VirtualDom {
         element.props.subscribe(() => this.#update(element));
       } else if (Array.isArray(element)) element = new Element(Fragment, null, element);
       else if (!element?.toString || typeof element === "function") {
-        if (!isProd()) console.warn("Tried to render an invalid Element");
+        if ("production" !== process.env.NODE_ENV) console.warn("Tried to render an invalid Element"), console.log(element);
         return append();
       } else element = new Element(TextNode, null, "" + element);
     }
@@ -147,7 +146,7 @@ export default class VirtualDom {
     return element;
   }
 
-  #update(element) {
+  async #update(element) {
     const fragment = this.createDocumentFragment();
     const previous = element?.nodes || [];
     const parent = element.parent;

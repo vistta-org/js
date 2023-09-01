@@ -174,7 +174,7 @@ class Server {
           if (type === "page" && name === "modified") this.#socket.to(subdomain).emit("@app/refresh", href);
           if (callback) callback(event);
         });
-      } else if (pathname === "/api") this.#socketUse(subdomain, await Router.importApi(filepath));
+      } else if (pathname === "/api") this.#socketUse(subdomain, await Router.useApi(filepath, { isSocket: true }));
       else await this.#router.setApi(filepath, subdomain, pathname, callback);
     }
   }
@@ -212,15 +212,15 @@ class Server {
     });
   }
 
-  #socketUse(subdomain, handlers) {
-    const events = Object.keys(handlers);
-    for (let i = 0, len = events.length; i < len; i++) {
-      const event = validateEvent(events[i]);
-      const handler = handlers[events[i]];
+  #socketUse(subdomain, api) {
+    for (let i = 0, len = api.handlers.length; i < len; i++) {
+      const handler = api.handlers[i];
+      const event = validateEvent(handler);
       if (event)
         this.#events.on(event, (_subdomain, socket, args) => {
           if (subdomain !== _subdomain) return;
-          handler(
+          api(
+            handler,
             {
               emit: (_event, ..._args) => {
                 _event = validateEvent(_event);
@@ -257,7 +257,7 @@ class Server {
       const [pathname, resource] = path.split(/\/resources\/(.*)/);
       if (resource?.length) request.resource = resource;
       const route = this.#router.get(subdomain, method.toLowerCase(), pathname) || {};
-      if (route?.handler) return route?.handler.call(route, request, response, reject.bind(this, request, response));
+      if (route?.handler) return route?.handler(request, response, reject.bind(this, request, response));
       return reject(request, response);
     };
   }
