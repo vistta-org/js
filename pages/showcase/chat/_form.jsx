@@ -1,17 +1,15 @@
+import { fetch } from "@vistta/vistta.js";
+
 export default function Form({ onLogin }) {
   const onSubmit = async (e) => {
     e.preventDefault();
     const { username } = buildForm(e);
     if (!(username?.length > 3)) return alert("Invalid username.");
-    const response = await (
-      await fetch("/api/join-chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username }),
-      })
-    ).json();
+    const { data: response } = await fetch({
+      url: "/api/join-chat",
+      method: "POST",
+      body: { username },
+    });
     if (response.error) return alert(response.error);
     if (response.success) onLogin({ username, messages: response.messages });
     else alert("Unknown Error.");

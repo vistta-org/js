@@ -7,14 +7,13 @@ export default function ChatPage() {
   const user = useState("");
   let messages;
   const onLogin = ({ username, messages: _messages }) => {
-    user.value = username;
+    user.set(username);
     messages = _messages;
   };
-  const content = user((value) => (value ? <Chat username={user.value} messages={messages} /> : <Form onLogin={onLogin} />));
   return (
     <Template>
       <h1>Chat</h1>
-      {content}
+      {user((value) => (value ? <Chat username={user.toString()} messages={messages} /> : <Form onLogin={onLogin} />))}
     </Template>
   );
 }

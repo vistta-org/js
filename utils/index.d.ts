@@ -23,5 +23,6 @@ export type system = {
 
 export * from "./consts";
 export * from "./date";
+export * from "./fetch";
 export * from "./object";
 export * from "./string";
