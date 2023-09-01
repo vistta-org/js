@@ -1,21 +1,20 @@
 import { Suspense, async } from "@vistta/vistta.js";
-import Template from "../_template";
 import { sleep } from "../../utils";
 
 const ShowcaseSuspense = () => {
   return (
-    <Template>
+    <>
       <Suspense fallback={"...loading"}>
-        <div>
-          <AsyncComponent />
-        </div>
-        <div>
+        <AsyncComponent />
+      </Suspense>
+      <div>
+        <Suspense fallback={"...loading"}>
           <div>
             <AsyncComponent time={5000} />
           </div>
-        </div>
-      </Suspense>
-    </Template>
+        </Suspense>
+      </div>
+    </>
   );
 };
 

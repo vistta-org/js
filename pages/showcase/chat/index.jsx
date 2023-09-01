@@ -13,7 +13,9 @@ export default function ChatPage() {
   return (
     <Template>
       <h1>Chat</h1>
-      {user((value) => (value ? <Chat username={user.toString()} messages={messages} /> : <Form onLogin={onLogin} />))}
+      {user((username) =>
+        username?.length ? <Chat username={username} messages={messages} /> : <Form onLogin={onLogin} />,
+      )}
     </Template>
   );
 }

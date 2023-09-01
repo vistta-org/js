@@ -1,5 +1,5 @@
 import { useState, State, INTERNAL, HOOK_CONTEXT, PROFILER_CONTEXT } from "./hooks";
-import { isServer } from "../utils";
+import { isServer, setImmediate } from "../utils";
 
 class ProfileRecorder extends State {
   #callback;
@@ -58,10 +58,10 @@ export const Suspense = ({ children, fallback }) => {
     let readyCount = 0;
     const onReady = () => {
       readyCount++;
-      if (asyncs.length === readyCount) setTimeout(() => loaded.set(children), 1);
+      if (asyncs.length === readyCount) setImmediate(() => loaded.set(children));
     };
     for (let i = 0, len = asyncs.length; i < len; i++) asyncs[i].subscribe(onReady);
-  } else setTimeout(() => loaded.set(children), 1);
+  } else setImmediate(() => loaded.set(children));
   return loaded;
 };
 
