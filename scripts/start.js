@@ -3,7 +3,7 @@ import { trim, capitalize } from "../utils/index.js";
 console.announce(`VisttaJS v${process.env.APP_VERSION}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const options = await (async (args) => {
-  const config = (await import(fs.resolve("./package.json"))).default?.["vistta-config"] || {};
+  const config = (await import(fs.resolve("./package.json"))).default || {};
   const folder = args.shift() || config.folder;
   if (!folder) return abort(`Missing main folder. Either define it as an argument or on the package.`);
   args.forEach((arg) => {
