@@ -30,7 +30,7 @@ export default function (source, { path }) {
 
 function transform(code, dirname, node_modules, params = {}) {
   const resources = [];
-  const compiled = sass.compileString(code, {
+  const compiled = sass.compileString(loadResources(dirname, code, resources), {
     style: "compressed",
     loadPaths: [dirname, node_modules],
     functions: {
@@ -39,30 +39,27 @@ function transform(code, dirname, node_modules, params = {}) {
     importer: {
       canonicalize(url) {
         const isURL = url.startsWith("file:");
-        let files = getSassFiles(fs.resolve(dirname, isURL ? fileURLToPath(new URL(url)) : url));
-        for (let i = 0, len = files.length; i < len; i++) {
-          if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
+        const isModule = url.startsWith("module:");
+        if (isURL) url = fileURLToPath(new URL(url));
+        if (isModule) url = url.slice("module:".length);
+        if (!isModule) {
+          const files = getSassFiles(fs.resolve(dirname, url));
+          for (let i = 0, len = files.length; i < len; i++) {
+            if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
+          }
         }
-        if (isURL) return null;
-        files = getSassFiles(fs.resolve(node_modules, url), true);
-        for (let i = 0, len = files.length; i < len; i++) {
-          if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
+        if (!isURL) {
+          const files = getSassFiles(fs.resolve(node_modules, url), true);
+          for (let i = 0, len = files.length; i < len; i++) {
+            if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
+          }
         }
         return null;
       },
       load(canonicalUrl) {
         const path = fileURLToPath(canonicalUrl);
-        const dirname = fs.dirname(path);
-        let contents = "" + fs.readFileSync(path);
-        const urls = contents.match(/(?<=url\(("|')?)[^)"']*(?=("|')?\))/g);
-        for (let i = 0, len = urls?.length || 0; i < len; i++) {
-          const resourcePath = fs.resolve(dirname, urls[i]);
-          const hash = fs.fileId(resourcePath) + fs.extname(resourcePath);
-          resources.push({ path: resourcePath, hash });
-          contents = contents.replace(urls[i], `/resources/${hash}`);
-        }
         return {
-          contents,
+          contents: loadResources(fs.dirname(path), "" + fs.readFileSync(path), resources),
           syntax: fs.extname(path).slice(1),
         };
       },
@@ -73,6 +70,17 @@ function transform(code, dirname, node_modules, params = {}) {
     resources,
     files: compiled?.loadedUrls,
   };
+}
+
+function loadResources(dirname, code, resources) {
+  const urls = code.match(/(?<=url\(("|')?)[^)"']*(?=("|')?\))/g);
+  for (let i = 0, len = urls?.length || 0; i < len; i++) {
+    const resourcePath = fs.resolve(dirname, urls[i]);
+    const hash = fs.fileId(resourcePath) + fs.extname(resourcePath);
+    resources.push({ path: resourcePath, hash });
+    code = code.replace(urls[i], `/resources/${hash}`);
+  }
+  return code;
 }
 
 function convertToSass(input, fallback) {
