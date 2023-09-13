@@ -10,7 +10,6 @@ class Bundler {
     legalComments: "none",
     keepNames: true,
     treeShaking: true,
-    format: "esm",
     define: (() => {
       const define = { "process.argv": JSON.stringify(process.argv) };
       const keys = Object.keys(process.env);
@@ -25,7 +24,7 @@ class Bundler {
 
   constructor() {}
 
-  async run(filename, { mode = process.env.NODE_ENV, exports, sideEffects } = {}) {
+  async run(filename, { mode = process.env.NODE_ENV, exports, globalName, sideEffects } = {}) {
     const instance = {
       filename,
       base: basename(filename),
@@ -40,6 +39,8 @@ class Bundler {
     const config = Object.assign({}, this.config, {
       entryPoints: [exports ? "@exports" : filename],
       minify: mode === "production",
+      format: globalName ? "iife" : "esm",
+      globalName: globalName,
       plugins: [
         {
           name: "vistta",
@@ -56,8 +57,9 @@ class Bundler {
   }
 
   resolve({ path, resolveDir }) {
-    if (path === name) return { path: "vistta", namespace: "window" };
     switch (path) {
+      case name:
+        return { path: "vistta", namespace: "window" };
       case "@content":
         return { path: "content", external: true };
       case "@socket":

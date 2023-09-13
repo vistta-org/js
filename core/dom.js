@@ -14,7 +14,8 @@ class Element {
 
 const createElement = (type, props, ...children) => {
   if (!type) return null;
-  if (typeof type === "function") {
+  const typeOf = typeof type;
+  if (typeOf === "function") {
     if (!props) props = {};
     if (children?.length > 0) props.children = children;
     const node = type(props);
@@ -24,7 +25,7 @@ const createElement = (type, props, ...children) => {
     if ("production" !== process.env.NODE_ENV && node instanceof Promise)
       console.warn("Async Components need to be wrapped in async function");
     return null;
-  }
+  } else if (typeOf !== "string" && typeOf !== "symbol") return null;
   const element = new Element(type, props, children);
   if (element.props?.key) (element.key = element.props.key), delete element.props.key;
   if (element.props?.ref) (element.ref = element.props.ref), delete element.props.ref;
@@ -53,7 +54,7 @@ export default class VirtualDom {
   createTextNode = (text) => document.createTextNode(text);
   createElement = (tag) => document.createElement(tag);
 
-  constructor(node, styles, store) {
+  constructor(node, styles = [], store = {}) {
     if (node === false) return this;
     else if (node) this.body = node;
     this.style = this.head.querySelector("style#route");

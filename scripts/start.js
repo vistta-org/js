@@ -5,7 +5,7 @@ const abort = (error) => (console.error(error), process.exit(0));
 const options = await (async (args) => {
   const config = (await import(fs.resolve("./package.json"))).default || {};
   const folder = args.shift() || config.folder;
-  if (!folder) return abort(`Missing main folder. Either define it as an argument or on the package.`);
+  if (!folder) return abort(`Missing main folder. Either define it as an argument or on the package json.`);
   args.forEach((arg) => {
     let [key, value] = arg.split(/=(.*)/s, 2);
     if (key.startsWith("--")) key = key.slice(2);

@@ -18,6 +18,7 @@
     "validation": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js validation",
     "dev": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages --dev",
     "prod": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages",
+    "build": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js build ./pages ./.build",
     "lint": "eslint --fix .",
     "tsc": "tsc ."
   },
@@ -47,8 +48,8 @@
   },
   "devDependencies": {
     "@types/http-proxy": "^1.17.11",
-    "@types/node": "^20.5.7",
-    "eslint": "^8.48.0",
+    "@types/node": "^20.6.0",
+    "eslint": "^8.49.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-better-styled-components": "^1.1.2",
     "eslint-plugin-jsx": "^0.1.0",

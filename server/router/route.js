@@ -11,9 +11,9 @@ system.set("HTMLElement", class {});
 system.set("localStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
 system.set("sessionStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
 const dirname = fs.dirname(import.meta.url);
-const { VALIDATION, NODE_ENV } = process.env;
+const { VALIDATION, NODE_ENV, BUILD } = process.env;
 const isDev = NODE_ENV === "development";
-const client = await (async (path) => (await bundle(path))?.code)(fs.resolve(dirname, "../../core/client"));
+const client = (await bundle(fs.resolve(dirname, BUILD ? "../../core/static/client" : "../../core/client")))?.code;
 
 class Route {
   watchedFiles = [];
@@ -27,7 +27,7 @@ class Route {
     this.method = method;
     this.type = method === "get" ? "page" : "error page";
     this.config = config;
-    this.emit = (event) => callback && callback({ filepath, pathname, event, type: this.type });
+    this.emit = (event) => callback && callback({ filepath, pathname, event, type: this.type, method });
   }
 
   async handler(request, response, reject) {
@@ -61,14 +61,25 @@ class Route {
       const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
       const { default: app, config } = await system.import(this.filepath, { cache: !isRefresh });
-      const { code, resources, files } = await bundle(this.filepath, { encode: true, exports: "default" });
+      const { code, resources, files } = await bundle(this.filepath, {
+        encode: true,
+        exports: "default",
+        globalName: BUILD ? "_app" : undefined,
+      });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       this.app = app;
       this.code = code;
       this.resources = resources;
       if (config) {
         this.config = ((config.origin = this.pathname), config);
-        this.config.export = (await bundle(this.filepath, { encode: true, exports: "config", sideEffects: false })).code;
+        this.config.export = (
+          await bundle(this.filepath, {
+            encode: true,
+            exports: "config",
+            globalName: BUILD ? "_config" : undefined,
+            sideEffects: false,
+          })
+        ).code;
       }
       if (isDev) this.watch(files);
       this.emit("ready");
@@ -96,9 +107,15 @@ class Route {
     this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
     if (this.config?.store) this.store = this.config.store;
     const body = renderToString(createElement("v-route", {}, createElement(this.app)));
-    if (this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
+    if (!BUILD && this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
-    return renderToHtml({ ...(this.config || {}), imports, body, client, style: this.style });
+    return renderToHtml({
+      ...(this.config || {}),
+      imports,
+      body,
+      client: buildClient(this.code, this.config.export),
+      style: this.style,
+    });
   }
 }
 
@@ -145,13 +162,13 @@ function renderToHtml({
           createElement("meta", { name: "theme-color", content: theme || "#ffffff" }),
           createElement("meta", {
             httpEquiv: "Content-Security-Policy",
-            content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'unsafe-inline' data:;`,
+            content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
           }),
           icon ? createElement("link", { rel: "shortcut icon", href: icon }) : null,
           icon ? createElement("link", { rel: "apple-touch-icon", href: icon }) : null,
           ...(links?.map((props) => createElement("link", props)) || []),
-          createElement("style", {}, routeStyle.raw),
-          createElement("style", { id: "route" }, style),
+          createElement("style", { nonce }, routeStyle.raw),
+          createElement("style", { id: "route", nonce }, style),
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || []),
         ),
@@ -160,6 +177,11 @@ function renderToHtml({
       ),
     )
   );
+}
+
+function buildClient(code, config) {
+  if (!BUILD) return client;
+  return `const _importApp = ()=>{ const _e = {}; ${code} _e.app = _app?.default; ${config} _e.config = _config?.config; return _e; }; ${client}`;
 }
 
 function getLocation({ path, protocol, headers: { host, referer } }) {
