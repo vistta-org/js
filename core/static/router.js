@@ -11,6 +11,7 @@ const route = system.register(
     constructor() {
       super();
       if (isServer()) return;
+      window.addEventListener("click", this.#handleClick.bind(this));
       setImmediate(() => this.#build());
     }
 
@@ -51,6 +52,13 @@ const route = system.register(
 
     on(event, callback) {
       this?.addEventListener(event, callback, false);
+    }
+
+    #handleClick(event) {
+      const { tagName, href, target } = event.target;
+      if (tagName !== "A" || (target && target !== "_self")) return;
+      event.preventDefault();
+      this.navigate(href);
     }
 
     async #build() {
