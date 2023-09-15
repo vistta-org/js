@@ -44,7 +44,7 @@ async function parse([main, ...args]) {
   env.APP_NAME = pkg.name;
   env.VALIDATION = "modules";
   env.DYNAMIC_LOG_ENABLED = !!process.stdout.isTTY;
-  env.BUILD = main === "build";
+  if (main === "build") env.BUILD = true;
   let skipNext = false;
   args = args.filter((arg, index, arr) => {
     if (skipNext) return (skipNext = false), false;
@@ -64,8 +64,8 @@ async function parse([main, ...args]) {
     return true;
   });
   switch (main) {
-    case "start":
     case "build":
+    case "start":
       main = fs.resolve(dirname, `../scripts/${main}.js`);
       break;
     case "validation":

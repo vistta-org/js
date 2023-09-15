@@ -1,7 +1,7 @@
 type NavigateOptions = {
   href?: string;
   pushState?: boolean;
-  force?: boolean;
+  refresh?: boolean;
   callback?: () => void;
 };
 

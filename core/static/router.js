@@ -63,7 +63,6 @@ const route = system.register(
 
     async #build() {
       if (typeof _importApp === "undefined") return console.error("Internal App Error");
-      console.log("here");
       const {
         app,
         config: { styles, store },

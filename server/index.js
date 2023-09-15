@@ -297,10 +297,10 @@ function validateArgs(method, subdomain, pathname) {
 }
 
 function getMethodArgs(args, type = "function") {
+  if (!Array.isArray(type)) type = [type];
   if (typeof args[0] !== "string") return [];
-  if (typeof args[1] === type) args.unshift("");
-  if (typeof args[1] !== "string" || Array.isArray(type) ? !type.includes(typeof args[2]) : typeof args[2] !== type)
-    return [];
+  if (type.includes(typeof args[1])) args.unshift("");
+  if (typeof args[1] !== "string" || !type.includes(typeof args[2])) return [];
   return args;
 }
 

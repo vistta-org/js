@@ -28,6 +28,7 @@ export default PageTemplate;
 export const config = {
   icon: icon,
   styles: [global],
+  animation: "custom", // "fade", "slide", "custom"
   /*store: new Store([
     Store.createPartition("counter", {
       initialState: 0,
