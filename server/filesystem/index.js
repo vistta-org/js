@@ -36,7 +36,7 @@ filesystem.fileId = (path) => {
 
 filesystem.watch = (path, options = {}) => {
   let { ignore, throttle = 0 } = options;
-  if (ignore) ignore = new RegExp(ignore);
+  if (!(ignore instanceof RegExp)) (ignore = null), console.warn("Watch ignore needs to be a valid Regex");
   const watch = async (p, cb) => {
     if (ignore?.test(p)) return;
     if (filesystem.isFile(p)) return fs.watchFile(p, (n, o) => cb(p, n, o));
