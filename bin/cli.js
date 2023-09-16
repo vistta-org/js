@@ -37,17 +37,21 @@ function abort(error) {
 async function parse([main, ...args]) {
   if (!main?.length) return abort(`Missing first argument`);
   let env = flatten((await import(fs.resolve(process.cwd(), "package.json")))?.default?.env || {}, "_", (s) =>
-    s.toUpperCase()
+    s.toUpperCase(),
   );
   env.NODE_ENV = "production";
   env.APP_VERSION = pkg.version;
   env.APP_NAME = pkg.name;
   env.VALIDATION = "modules";
   env.DYNAMIC_LOG_ENABLED = !!process.stdout.isTTY;
+  if (main === "build") env.BUILD = true;
   let skipNext = false;
   args = args.filter((arg, index, arr) => {
     if (skipNext) return (skipNext = false), false;
-    if (["-d", "--dev"].includes(arg.toLowerCase())) return (env.NODE_ENV = "development"), false;
+    if (["-d", "--dev"].includes(arg.toLowerCase())) {
+      if (!env.BUILD) env.NODE_ENV = "development";
+      return false;
+    }
     if (arg.startsWith("--")) {
       const value = arr?.[index + 1];
       const key = transformFlag(arg);
@@ -60,6 +64,7 @@ async function parse([main, ...args]) {
     return true;
   });
   switch (main) {
+    case "build":
     case "start":
       main = fs.resolve(dirname, `../scripts/${main}.js`);
       break;

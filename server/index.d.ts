@@ -19,6 +19,7 @@ type UseOptions = {
   callback?: (options: { pathname: string; event: string; type: string }) => void;
   ignore?: RegExp;
   useApiRoute?: boolean;
+  ignoreApiRoute?: boolean;
 };
 
 export default class Server {

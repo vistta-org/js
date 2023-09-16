@@ -29,7 +29,9 @@ class Server {
     return this.#certs;
   }
 
-  constructor({ http, https, cert, key, autoStart, callback }) {
+  constructor({ http, https, cert, key, autoStart, callback, build }) {
+    if (build === true) return { build: (folder, callback) => this.#build(folder, callback) };
+    //
     if (http === true) http = 80;
     if (https === true) https = 443;
     if (!(http || https)) throw "Missing ports for either HTTP or HTTPS";
@@ -160,18 +162,18 @@ class Server {
   }
 
   async use(folder, ...args) {
-    if (args.length == 2) args.unshift("");
-    const [subdomain, pathname, options] = args;
+    const [subdomain, pathname, options] = getMethodArgs(args, ["object", "undefined"]);
     if (!validateArgs("use", subdomain, pathname)) return;
-    const { callback, ignore, useApiRoute } = options || {};
+    const { callback, ignore, useApiRoute, ignoreApiRoute } = options || {};
     const files = Router.readFolder(folder, ignore);
     for (let i = 0, len = files.length; i < len; i++) {
       const { filepath, pathname } = files[i];
+      if ((this.build || ignoreApiRoute) && pathname.startsWith("/api")) continue;
       if (useApiRoute === false || !pathname.startsWith("/api")) {
         const method = Router.isErrorRoute(pathname.split("/")?.pop()) ? "error" : "get";
         await this.#router.setComponent(filepath, subdomain, pathname || "/", method, (event) => {
           const { type, event: name, pathname: href } = event;
-          if (type === "page" && name === "modified") this.#socket.to(subdomain).emit("@app/refresh", href);
+          if (type === "page" && name === "modified" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
           if (callback) callback(event);
         });
       } else if (pathname === "/api") this.#socketUse(subdomain, await Router.useApi(filepath, { isSocket: true }));
@@ -261,6 +263,22 @@ class Server {
       return reject(request, response);
     };
   }
+
+  async #build(folder) {
+    this.build = true;
+    const routes = [];
+    const pages = {};
+    await this.use(folder, "build", "/", {
+      callback: (page) => {
+        if (Router.getWildcardPath(page.pathname)?.valid)
+          console.warn(`${page.pathname}: Wildcards will be ignored in build.`);
+        else routes.push(page);
+      },
+    });
+    for (let i = 0, len = routes.length; i < len; i++)
+      pages[routes[i].pathname + "/index.html"] = this.#router.get("build", routes[i].method, routes[i].pathname) || {};
+    return pages;
+  }
 }
 
 export default Server;
@@ -279,9 +297,10 @@ function validateArgs(method, subdomain, pathname) {
 }
 
 function getMethodArgs(args, type = "function") {
+  if (!Array.isArray(type)) type = [type];
   if (typeof args[0] !== "string") return [];
-  if (typeof args[1] === type) args.unshift("");
-  if (typeof args[1] !== "string" || typeof args[2] !== type) return [];
+  if (type.includes(typeof args[1])) args.unshift("");
+  if (typeof args[1] !== "string" || !type.includes(typeof args[2])) return [];
   return args;
 }
 

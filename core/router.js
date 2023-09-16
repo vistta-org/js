@@ -8,44 +8,50 @@ const route = system.register(
     #active;
     #dom;
     #routes = {};
+    #animation;
 
     constructor() {
       super();
       if (isServer()) return;
-      this.navigate();
+      this.navigate({ refresh: true });
       handleSocket(this);
       window.addEventListener("popstate", () => this.navigate({ pushState: false }));
       window.addEventListener("click", this.#handleClick.bind(this));
     }
 
     async navigate(arg) {
-      let { href, pushState, callback, force } = typeof arg === "object" ? arg : { href: arg };
-      if (!force) force = href === true;
+      let { href, pushState, callback, refresh } = typeof arg === "object" ? arg : { href: arg };
+      if (!refresh) refresh = href === true;
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
       href = new URL(href).pathname;
-      if (!force && this.#active === href) return;
+      if (!refresh && this.#active === href) return;
       this.#active = href;
       const cached = this.#routes?.[href];
       if (pushState !== false) history.pushState({}, "", href);
-      if (force || !cached) {
+      if (refresh || !cached) {
         let app = href + (href.endsWith("/") ? "" : "/") + "resources/app";
-        const { store, styles } = await loadConfig(app);
+        const { store, styles, animation } = await loadConfig(app);
+        this.#animation = animation;
         this.#dom = new VirtualDom(this, styles, store);
-        return this.#dom.render(createElement((await system.import(app, { cache: false })).default), () => {
-          this.#routes[href] = this.#dom;
-          callback && callback();
+        return this.#dom.render(createElement((await system.import(app, { cache: false })).default), {
+          refresh,
+          animation: this.#animation,
+          callback: () => {
+            this.#routes[href] = this.#dom;
+            callback && callback();
+          },
         });
       }
       this.#dom = cached;
-      this.#dom.replace(() => callback && callback());
+      this.#dom.replace({ animation: this.#animation, callback: () => callback && callback() });
     }
 
     refresh(href) {
       if (this.#routes?.[href]) delete this.#routes[href];
       if (href !== this.#active) return;
       this.classList.toggle("loading", true);
-      this.navigate({ force: true, callback: () => this.classList.toggle("loading", false) });
+      this.navigate({ refresh: true, callback: () => this.classList.toggle("loading", false) });
     }
 
     get active() {

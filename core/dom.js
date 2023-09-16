@@ -1,6 +1,7 @@
 import { system } from "../utils";
 import { State } from "./hooks";
 
+const ANIMATIONS = ["fade", "slide", "custom"];
 const Fragment = Symbol("Fragment");
 const TextNode = Symbol("TextNode");
 
@@ -14,7 +15,8 @@ class Element {
 
 const createElement = (type, props, ...children) => {
   if (!type) return null;
-  if (typeof type === "function") {
+  const typeOf = typeof type;
+  if (typeOf === "function") {
     if (!props) props = {};
     if (children?.length > 0) props.children = children;
     const node = type(props);
@@ -24,7 +26,7 @@ const createElement = (type, props, ...children) => {
     if ("production" !== process.env.NODE_ENV && node instanceof Promise)
       console.warn("Async Components need to be wrapped in async function");
     return null;
-  }
+  } else if (typeOf !== "string" && typeOf !== "symbol") return null;
   const element = new Element(type, props, children);
   if (element.props?.key) (element.key = element.props.key), delete element.props.key;
   if (element.props?.ref) (element.ref = element.props.ref), delete element.props.ref;
@@ -53,7 +55,7 @@ export default class VirtualDom {
   createTextNode = (text) => document.createTextNode(text);
   createElement = (tag) => document.createElement(tag);
 
-  constructor(node, styles, store) {
+  constructor(node, styles = [], store = {}) {
     if (node === false) return this;
     else if (node) this.body = node;
     this.style = this.head.querySelector("style#route");
@@ -69,24 +71,33 @@ export default class VirtualDom {
     return this.#store;
   }
 
-  render(content, callback) {
+  render(content, { animation, callback, refresh } = {}) {
     const fragment = this.createDocumentFragment();
     this.#content = this.#apply((child) => {
       if (child?.node) fragment.append(child.node);
       return this.body;
     }, content);
-    this.body.replaceChildren(fragment);
-    if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
-    else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
-    this.#children = [...this.body.children];
-    callback && callback();
+    animate(
+      this.body,
+      animation,
+      () => {
+        this.body.replaceChildren(fragment);
+        if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
+        else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
+        this.#children = [...this.body.children];
+        callback && callback();
+      },
+      refresh,
+    );
   }
 
-  replace(callback) {
-    this.body.replaceChildren(...this.#children);
-    if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
-    else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
-    callback && callback();
+  replace({ animation, callback } = {}) {
+    animate(this.body, animation, () => {
+      this.body.replaceChildren(...this.#children);
+      if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
+      else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
+      callback && callback();
+    });
   }
 
   #apply(append, element) {
@@ -165,6 +176,26 @@ export default class VirtualDom {
 }
 
 //
+
+let animationCount = -1;
+function animate(body, animation, callback, refresh) {
+  if (refresh || !ANIMATIONS.includes(animation)) return callback();
+  animationCount++;
+  const id = animationCount;
+  const animationend = () => {
+    if (id !== animationCount) return body.removeEventListener("animationend", animationend);
+    if (body.classList.contains(animation + "-out")) {
+      callback();
+      body.classList.add(animation + "-in");
+      body.classList.remove(animation + "-out");
+    } else if (body.classList.contains(animation + "-in")) {
+      body.classList.remove(animation + "-in");
+      body.removeEventListener("animationend", animationend);
+    }
+  };
+  body.addEventListener("animationend", animationend);
+  body.classList.add(animation + "-out");
+}
 
 function convertToArray(element) {
   const value = element.props?.valueOf();

@@ -3,6 +3,9 @@ import { useApi } from "./api";
 import { isValidUrlPathname } from "../../utils";
 import { fs } from "../filesystem";
 
+const ROUTE = "@route";
+const WILDCARD = "*";
+
 class Router {
   subdomains = { "": {} };
 
@@ -16,7 +19,7 @@ class Router {
   }
 
   set(subdomain, method, pathname, callback) {
-    const wildcard = pathname?.match(/\/\[(\w*)\]$/)?.[1];
+    const { wildcard } = getWildcardPath(pathname);
     if (wildcard) pathname = pathname.replace(`/[${wildcard}]`, "/*");
     if (!isValidUrlPathname(pathname)) return console.warn(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`);
     //
@@ -29,10 +32,9 @@ class Router {
       if (router[path[i]] == null) router[path[i]] = {};
       router = router[path[i]];
     }
-    if (callback instanceof Route) router["@route"] = ((callback.wildcard = wildcard), callback);
-    else if (typeof callback === "function") router["@route"] = { pathname, method, wildcard, handler: callback };
-    else if (Array.isArray(callback))
-      router["@route"] = { pathname, method, wildcard, handler: transformCallback(callback) };
+    if (callback instanceof Route) router[ROUTE] = ((callback.wildcard = wildcard), callback);
+    else if (typeof callback === "function") router[ROUTE] = { pathname, method, wildcard, handler: callback };
+    else if (Array.isArray(callback)) router[ROUTE] = { pathname, method, wildcard, handler: transformCallback(callback) };
   }
 
   get(subdomain, _method, pathname, { strict, disabled } = {}) {
@@ -43,18 +45,18 @@ class Router {
     const path = pathname === "/" ? [""] : pathname.split("/");
 
     const valid = (curr) => {
-      const { method, enabled } = curr?.["@route"] || {};
+      const { method, enabled } = curr?.[ROUTE] || {};
       return (disabled || enabled !== false) && (method === "any" || method === _method);
     };
-    let wildcardMatch = !strict && valid(router?.["*"]) ? router["*"] : undefined;
+    let wildcardMatch = !strict && valid(router?.[WILDCARD]) ? router[WILDCARD] : undefined;
     for (let i = 1, len = path.length; i < len; i++) {
       if (!router) break;
-      if (!strict && valid(router?.["*"])) wildcardMatch = router["*"];
+      if (!strict && valid(router?.[WILDCARD])) wildcardMatch = router[WILDCARD];
       if (typeof strict === "string" && valid(router?.[strict])) wildcardMatch = router[strict];
       router = router?.[path[i]];
     }
-    if (valid(router)) return router?.["@route"];
-    return wildcardMatch?.["@route"];
+    if (valid(router)) return router?.[ROUTE];
+    return wildcardMatch?.[ROUTE];
   }
 
   disable(subdomain, pathname) {
@@ -79,6 +81,7 @@ class Router {
   }
 }
 
+Router.getWildcardPath = getWildcardPath;
 Router.readFolder = getValidRoutesFromFolder;
 Router.isErrorRoute = isErrorRoute;
 Router.useApi = useApi;
@@ -86,6 +89,11 @@ Router.useApi = useApi;
 export { Router };
 
 //
+
+function getWildcardPath(pathname) {
+  const wildcard = pathname?.match(/\/\[(\w*)\]$/)?.[1];
+  return wildcard ? { wildcard, valid: true } : {};
+}
 
 function transformCallback(callback) {
   callback = callback.filter((f) => typeof f === "function");
@@ -122,13 +130,13 @@ function getValidRoutesFromFolder(folder, pattern = new RegExp("^[A-Za-z0-9]")) 
 }
 
 function getConfig(router, path) {
-  let config = router?.["@route"]?.config;
+  let config = router?.[ROUTE]?.config;
   if (path.startsWith("/")) path = path.slice(1);
   path = path === "" ? [] : path?.split("/");
   for (let i = 0, len = path.length; i < len; i++) {
     if (!router?.[path[i]]) break;
     router = router[path[i]];
-    config ??= router?.["@route"]?.config;
+    config ??= router?.[ROUTE]?.config;
   }
   return config;
 }
