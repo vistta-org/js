@@ -1,5 +1,5 @@
-import { system } from "../utils";
-import { State } from "./hooks";
+import { system, camelCaseToKebabCase, isObjectEmpty } from "../utils";
+import { State, INTERNAL, HOOK_CONTEXT, SCOPE_CONTEXT } from "./hooks";
 
 const ANIMATIONS = ["fade", "slide", "custom"];
 const Fragment = Symbol("Fragment");
@@ -19,10 +19,20 @@ const createElement = (type, props, ...children) => {
   if (typeOf === "function") {
     if (!props) props = {};
     if (children?.length > 0) props.children = children;
+    const context = structuredClone(INTERNAL[HOOK_CONTEXT]);
+    const scope = {};
+    INTERNAL[SCOPE_CONTEXT] = scope;
     const node = type(props);
-    if (node instanceof Element) return node;
-    if (typeof node !== "object" || (node && node instanceof State)) return node;
-    if (Array.isArray(node)) return new Element(Fragment, null, node);
+    INTERNAL[HOOK_CONTEXT] = context;
+    const name = "c-" + camelCaseToKebabCase(type.name);
+    if (type.ignore && !isObjectEmpty(scope)) {
+      if ("production" !== process.env.NODE_ENV) console.warn("Components with scope cannot be ignored");
+      type.ignore = false;
+    }
+    if (node instanceof Element || typeof node !== "object" || (node && node instanceof State))
+      return type.ignore ? node : Object.assign(new Element(name, {}, [node]), { scope });
+    if (Array.isArray(node))
+      return type.ignore ? new Element(Fragment, {}, node) : Object.assign(new Element(name, {}, node), { scope });
     if ("production" !== process.env.NODE_ENV && node instanceof Promise)
       console.warn("Async Components need to be wrapped in async function");
     return null;
@@ -114,8 +124,7 @@ export default class VirtualDom {
       } else element = new Element(TextNode, null, "" + element);
     }
     //
-    const { type, key, ref, props, children } = element;
-    if (props.scope) addScope(this.#css, props.scope);
+    const { type, key, ref, scope, props, children } = element;
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = this.createTextNode(children);
       else if (type !== Fragment) element.node = this.createElement(type);
@@ -125,13 +134,16 @@ export default class VirtualDom {
         if (typeof ref === "function") ref(element.node);
         else if (typeof ref === "object") ref.current = element.node;
       }
-      if (type !== Fragment && props) {
-        const keys = Object.keys(props);
-        for (let i = 0, len = keys?.length || 0; i < len; i++) {
-          const name = keys[i];
-          const value = props[name];
-          if (value && value instanceof State) value.subscribe(() => setAttribute(element.node, name, value));
-          setAttribute(element.node, name, value);
+      if (type !== Fragment) {
+        if (scope?.styles) addScope(this.#css, element.node, scope.styles);
+        if (props) {
+          const keys = Object.keys(props);
+          for (let i = 0, len = keys?.length || 0; i < len; i++) {
+            const name = keys[i];
+            const value = props[name];
+            if (value && value instanceof State) value.subscribe(() => setAttribute(element.node, name, value));
+            setAttribute(element.node, name, value);
+          }
         }
       }
       if (type !== TextNode && children) {
@@ -140,7 +152,7 @@ export default class VirtualDom {
             ? (child) => {
                 if (child?.node) {
                   element.nodes.push(child.node);
-                  if (props.scope && child.type !== TextNode) setAttribute(child.node, "scope", props.scope);
+                  if (scope?.styles) addScope(this.#css, child.node, scope.styles);
                 }
                 element.parent = append(child);
                 return element.parent;
@@ -208,13 +220,13 @@ function setAttribute(node, name, value) {
     return;
   }
   if (name === "className") name = "class";
-  if (name === "scope") value = Object.keys(value).join(" ");
   if (!value) node.removeAttribute(name);
   else if (name === "style") Object.assign(node.style, value);
   else node.setAttribute(name, value);
 }
 
-function addScope(css, scope) {
+function addScope(css, node, scope) {
+  node.setAttribute("scope", Object.keys(scope).join(" "));
   const keys = Object.keys(scope);
   for (let i = 0, len = keys.length; i < len; i++) {
     if (!css[keys[i]]) css[keys[i]] = scope[keys[i]];

@@ -1,13 +1,14 @@
-import { useStyle, useRoute } from "@vistta/vistta.js";
+import { useStyle, useRoute, useEvent } from "@vistta/vistta.js";
 import Template from "./_template";
 import style from "./style.scss";
 
 export default function Home() {
-  const scope = useStyle(style);
+  useStyle(style);
   const { navigate } = useRoute();
+  useEvent("click", console.log);
   return (
     <Template>
-      <div className="container" {...scope}>
+      <div className="container">
         <h1>Vistta.JS</h1>
         <h2>Vistta.js Javascript Framework</h2>
         <button onClick={() => navigate("/docs")}>Get Started</button>

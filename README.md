@@ -32,16 +32,16 @@ npm i @vistta/vistta.js
 
 - Tiago Almeida ([@TiagoShadow](https://git.vistta.me/Tiago))
 
-## Benchmarks Latest Results
+## Benchmarks Latest Results (Incognito)
 
-Benchmark #1: 6.777ms
-Benchmark #2: 6.783200000077486ms
-Benchmark #3: 14.629800000041723ms
-Benchmark #4: 6.78440000000596ms
+Benchmark #1: 4.980200000016019ms
+Benchmark #2: 4.9866000000163915ms
+Benchmark #3: 11.354400000018998ms
+Benchmark #4: 4.987600000007078ms
 
-#React Equivalent
+#React Equivalent (Incognito)
 
-Benchmark #1: 4.660399999976158ms
+Benchmark #1: 4.896000000007451ms
 Benchmark #2: 4.793999999672175ms
 Benchmark #3: 14.330000000268221ms
-Benchmark #4: 21.61960000024736ms
+Benchmark #4: 21.95400000009127ms

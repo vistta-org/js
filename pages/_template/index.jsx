@@ -23,6 +23,8 @@ const PageTemplate = ({ title, children }) => {
   );
 };
 
+PageTemplate.ignore = true;
+
 export default PageTemplate;
 
 export const config = {

@@ -4,4 +4,6 @@ const Test = ({ run, iterations }) => {
   return children;
 };
 
+Test.ignore = true;
+
 export default Test;

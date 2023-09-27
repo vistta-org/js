@@ -11,6 +11,8 @@ const Test = ({ run, iterations }) => {
   return children;
 };
 
+Test.ignore = true;
+
 function RecursiveChild({ index, iterations, children }) {
   if (index === iterations) return children;
   return (
@@ -19,5 +21,7 @@ function RecursiveChild({ index, iterations, children }) {
     </RecursiveChild>
   );
 }
+
+RecursiveChild.ignore = true;
 
 export default Test;

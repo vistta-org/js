@@ -106,7 +106,7 @@ class Route {
     system.set("route", this);
     this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
     if (this.config?.store) this.store = this.config.store;
-    const body = renderToString(createElement("v-route", {}, createElement(this.app)));
+    const body = renderToString(createElement("app-route", {}, createElement(this.app)));
     if (!BUILD && this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
     return renderToHtml({

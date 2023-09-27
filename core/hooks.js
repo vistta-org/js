@@ -1,28 +1,30 @@
-import { indexOf, isBrowser, setImmediate, ExtensibleFunction } from "../utils";
+import { isBrowser, setImmediate, ExtensibleFunction } from "../utils";
 
 export const INTERNAL = {};
 export const EFFECT_CONTEXT = "#effect";
 export const PROFILER_CONTEXT = "#profiler";
-export const HOOK_CONTEXT = "#app_";
+export const HOOK_CONTEXT = "#context";
+export const SCOPE_CONTEXT = "#scope";
 
 // Context
 
 export function useContext(key) {
-  return INTERNAL[HOOK_CONTEXT + key];
+  if (!INTERNAL[HOOK_CONTEXT]) INTERNAL[HOOK_CONTEXT] = {};
+  if (!key?.length) return INTERNAL[HOOK_CONTEXT];
+  if (!INTERNAL[HOOK_CONTEXT][key]) INTERNAL[HOOK_CONTEXT][key] = {};
+  return INTERNAL[HOOK_CONTEXT][key];
 }
 
 // Style
 
 export function useStyle(...styles) {
-  const scope = {};
+  const scopedStyles = {};
   for (let i = 0, len = styles.length; i < len; i++) {
     const { id, raw } = styles[i];
-    scope[id] = createScope(id, raw);
+    scopedStyles[id] = createScope(id, raw);
   }
-  // eslint-disable-next-line no-undef
-  const Scope = ({ children }) => createElement(Fragment, { scope }, children);
-  Scope.scope = scope;
-  return Scope;
+  if (!INTERNAL[SCOPE_CONTEXT].styles) INTERNAL[SCOPE_CONTEXT].styles = scopedStyles;
+  else Object.assign(INTERNAL[SCOPE_CONTEXT].styles, scopedStyles);
 }
 
 // Ref
@@ -109,6 +111,11 @@ export const useEffect = (callback, dependencies) => {
   }
 };
 
+export function useEvent(event, callback) {
+  if (!isBrowser()) return;
+  window.addEventListener(event, callback);
+}
+
 //
 
 function unique(dependencies, index) {
@@ -122,19 +129,19 @@ function unique(dependencies, index) {
 
 function createScope(id, code) {
   const regex = /([^{}\s][^{}]*)\s*(?=\{)/g;
-  const add = (value) => {
-    const index = indexOf(value, " ", ">", ":");
-    if (index === -1) return value + `[scope~="${id}"]`;
-    return value.slice(0, index) + `[scope~="${id}"]` + value.slice(index);
+  const scope = (value) => {
+    if (value.startsWith(":scope")) return `[scope~="${id}"]${value.slice(":scope".length)}`;
+    return `[scope~="${id}"] > ${value}`;
   };
-  const replacer = (value) => {
-    if (value.includes("@") || value.includes("%")) return value;
-    if (value.includes(","))
-      return value
-        .split(",")
-        .reduce((acc, c) => `${acc}${add(c)},`, "")
-        .slice(0, -1);
-    return add(value);
-  };
-  return code.match(regex) ? code.replace(regex, (v) => replacer(v.trim())) : code;
+  return code.match(regex)
+    ? code.replace(regex, (value) => {
+        if (value.includes("@") || value.includes("%")) return value;
+        if (value.includes(","))
+          return value
+            .split(",")
+            .reduce((acc, c) => `${acc}${scope(c)},`, "")
+            .slice(0, -1);
+        return scope(value);
+      })
+    : code;
 }

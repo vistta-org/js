@@ -10,4 +10,6 @@ const Test = ({ run, iterations }) => {
   });
 };
 
+Test.ignore = true;
+
 export default Test;

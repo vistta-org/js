@@ -3,7 +3,7 @@ import socket from "./socket";
 import { isServer, isValidUrl, system } from "../utils";
 
 const route = system.register(
-  "v-route",
+  "app-route",
   class extends HTMLElement {
     #active;
     #dom;

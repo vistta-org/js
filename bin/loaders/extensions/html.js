@@ -23,7 +23,9 @@ export default function (source, { path }) {
     .match(/(?<=[^{])\{(?=[^{}]*\})(?=[^"]*(?:"[^"]*"[^"]*)*$)[^}\s]*(?=[^{}]*\})\}/g)
     .forEach((match) => props.add(match.slice(1, -1)));
   return script(
-    `const Template = ({ ${Array.from(props).join(", ")} }) => (<>${source.trim()}</>);\nexport default Template;`,
-    { extension: "jsx" }
+    `const Template = ({ ${Array.from(props).join(
+      ", ",
+    )} }) => (<>${source.trim()}</>); Template.ignore = true; export default Template;`,
+    { extension: "jsx" },
   );
 }

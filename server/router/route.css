@@ -1,8 +1,8 @@
-v-route {
+app-route {
   display: contents;
 }
 
-v-route:after {
+app-route:after {
   position: fixed;
   width: 48px;
   height: 48px;
@@ -13,7 +13,7 @@ v-route:after {
   transform: translate(-50%, -50%) scale(0);
   animation: route-animation 1s ease-in-out infinite;
 }
-v-route.loading:after {
+app-route.loading:after {
   content: "";
 }
 
@@ -28,7 +28,7 @@ v-route.loading:after {
   }
 }
 
-v-route.fade-in > * {
+app-route.fade-in > * {
   animation: fade-in 0.5s ease-in-out;
 }
 
@@ -41,7 +41,7 @@ v-route.fade-in > * {
   }
 }
 
-v-route.fade-out > * {
+app-route.fade-out > * {
   animation: fade-out 0.5s ease-in-out;
 }
 
@@ -54,7 +54,7 @@ v-route.fade-out > * {
   }
 }
 
-v-route.slide-in > * {
+app-route.slide-in > * {
   animation: slide-in 0.5s ease-in-out;
 }
 
@@ -67,7 +67,7 @@ v-route.slide-in > * {
   }
 }
 
-v-route.slide-out > * {
+app-route.slide-out > * {
   animation: slide-out 0.5s ease-in-out;
 }
 
@@ -78,4 +78,8 @@ v-route.slide-out > * {
   100% {
     transform: translateX(-100%);
   }
+}
+
+:where(:not(:defined)) {
+  display: contents;
 }

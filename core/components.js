@@ -1,4 +1,4 @@
-import { useState, State, INTERNAL, HOOK_CONTEXT, PROFILER_CONTEXT } from "./hooks";
+import { useState, State, INTERNAL, PROFILER_CONTEXT } from "./hooks";
 import { isServer, setImmediate } from "../utils";
 
 class ProfileRecorder extends State {
@@ -92,14 +92,6 @@ class Async extends State {
 }
 
 export const async = (Component) => (props) => new Async(Component(props));
-
-export const context = (Component, _context) => (props) => {
-  const keys = Object.keys(_context);
-  for (let i = 0, len = keys.length; i < len; i++) INTERNAL[HOOK_CONTEXT + keys[i]] = _context[keys[i]];
-  const result = Component(props);
-  for (let i = 0, len = keys.length; i < len; i++) delete INTERNAL[HOOK_CONTEXT + keys[i]];
-  return result;
-};
 
 //
 

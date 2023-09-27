@@ -1,5 +1,7 @@
 export function isObject(object: object): boolean;
 
+export function isObjectEmpty(object: object): boolean;
+
 export function stringify(object: object, formatted?: boolean): string;
 
 export function parse(object: string, secure?: boolean): object;

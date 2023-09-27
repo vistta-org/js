@@ -36,34 +36,32 @@ function transform(code, dirname, node_modules, params = {}) {
     functions: {
       "prop($name, $default)": (args) => convertToSass(params[args[0].assertString("name").text], args[1]),
     },
-    importer: {
-      canonicalize(url) {
-        const isURL = url.startsWith("file:");
-        const isModule = url.startsWith("module:");
-        if (isURL) url = fileURLToPath(new URL(url));
-        if (isModule) url = url.slice("module:".length);
-        if (!isModule) {
+    importers: [
+      {
+        canonicalize(url) {
+          const isURL = url.startsWith("file:");
+          if (isURL) url = fileURLToPath(new URL(url));
           const files = getSassFiles(fs.resolve(dirname, url));
           for (let i = 0, len = files.length; i < len; i++) {
             if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
           }
-        }
-        if (!isURL) {
-          const files = getSassFiles(fs.resolve(node_modules, url), true);
-          for (let i = 0, len = files.length; i < len; i++) {
-            if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
+          if (!isURL) {
+            const files = getSassFiles(fs.resolve(node_modules, url), true);
+            for (let i = 0, len = files.length; i < len; i++) {
+              if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
+            }
           }
-        }
-        return null;
+          return null;
+        },
+        load(canonicalUrl) {
+          const path = fileURLToPath(canonicalUrl);
+          return {
+            contents: loadResources(fs.dirname(path), "" + fs.readFileSync(path), resources),
+            syntax: fs.extname(path).slice(1),
+          };
+        },
       },
-      load(canonicalUrl) {
-        const path = fileURLToPath(canonicalUrl);
-        return {
-          contents: loadResources(fs.dirname(path), "" + fs.readFileSync(path), resources),
-          syntax: fs.extname(path).slice(1),
-        };
-      },
-    },
+    ],
   });
   return {
     code: postcss([autoprefixer()]).process(compiled?.css || "", { from: undefined })?.css || "",

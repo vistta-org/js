@@ -2,7 +2,7 @@ import VirtualDom, { createElement } from "../dom";
 import { isServer, isValidUrl, system, setImmediate } from "../../utils";
 
 const route = system.register(
-  "v-route",
+  "app-route",
   class extends HTMLElement {
     #active;
     #dom;
