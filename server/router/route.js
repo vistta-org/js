@@ -16,7 +16,8 @@ const isDev = NODE_ENV === "development";
 const client = (await bundle(fs.resolve(dirname, BUILD ? "../../core/static/client" : "../../core/client")))?.code;
 
 class Route {
-  watchedFiles = [];
+  #config = {};
+  #watchedFiles = [];
   resources = {};
   socket = isDev;
 
@@ -26,7 +27,7 @@ class Route {
     this.pathname = pathname;
     this.method = method;
     this.type = method === "get" ? "page" : "error page";
-    this.config = config;
+    this.#config = config;
     this.emit = (event) => callback && callback({ filepath, pathname, event, type: this.type, method });
   }
 
@@ -47,12 +48,13 @@ class Route {
     if (!resource) return response.status(200).send(this.template).end();
     if (resource === "app") return response.type(".js").status(200).send(this.code).end();
     if (resource === "app/config") {
-      if (this.config?.origin === this.pathname) return response.type(".js").status(200).send(this.config.export).end();
-      else if (this?.config?.origin) {
-        const url = new URL(`${this.config.origin}/resources/app/config`.replace(/\/\//g, "/"), this.location);
+      if (this.#config?.origin === this.pathname) return response.type(".js").status(200).send(this.#config.export).end();
+      else if (this.#config?.origin) {
+        const url = new URL(`${this.#config.origin}/resources/app/config`.replace(/\/\//g, "/"), this.location);
         return response.redirect(url.toString());
       }
     }
+    if (resource === "app/manifest") return response.type(".json").status(200).send(this.manifest).end();
     return reject();
   }
 
@@ -71,8 +73,8 @@ class Route {
       this.code = code;
       this.resources = resources;
       if (config) {
-        this.config = ((config.origin = this.pathname), config);
-        this.config.export = (
+        this.#config = ((config.origin = this.pathname), config);
+        this.#config.export = (
           await bundle(this.filepath, {
             encode: true,
             exports: "config",
@@ -92,13 +94,28 @@ class Route {
 
   watch(files) {
     files.forEach((file) => {
-      if (this.watchedFiles.includes(file)) return;
-      this.watchedFiles.push(file);
+      if (this.#watchedFiles.includes(file)) return;
+      this.#watchedFiles.push(file);
       fs.watchFile(file, () => {
         this.app = null;
         this.emit("modified");
       });
     });
+  }
+
+  get config() {
+    return Object.assign(
+      {
+        title: "Vistta JS",
+        href: "/",
+        referrer: "origin",
+        viewport: "width=device-width,initial-scale=1,minimum-scale=1.0",
+        description: "Page generated using VisttaJS",
+        keywords: "visttajs",
+        theme: "#ffffff",
+      },
+      this.#config,
+    );
   }
 
   get template() {
@@ -110,11 +127,43 @@ class Route {
     if (!BUILD && this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
     return renderToHtml({
-      ...(this.config || {}),
+      ...this.config,
       imports,
       body,
       client: buildClient(this.code, this.config.export),
       style: this.style,
+    });
+  }
+
+  get manifest() {
+    let config = this.config;
+    if (typeof config.pwa === "object") Object.assign(config, config.pwa);
+    return JSON.stringify({
+      theme_color: config.theme,
+      background_color: config.background || "#ffffff",
+      display: config.display || "fullscreen",
+      scope: config.scope || config.href,
+      start_url: config.start_url || config.href,
+      name: config.name || config.title,
+      short_name: config.short_name || config.title,
+      description: config.description,
+      shortcuts: config.shortcuts,
+      icons: ((icon) => {
+        if (!icon) return [];
+        const type = fs.extname(icon).slice(1);
+        return [
+          {
+            src: icon,
+            type: "image/" + type,
+            sizes: "192x192",
+          },
+          {
+            src: icon,
+            type: "image/" + type,
+            sizes: "512x512",
+          },
+        ];
+      })(config.icon),
     });
   }
 }
@@ -139,6 +188,7 @@ function renderToHtml({
   links,
   style,
   scripts,
+  pwa,
 } = {}) {
   const nonce = "v" + randomID();
   return (
@@ -164,8 +214,9 @@ function renderToHtml({
             httpEquiv: "Content-Security-Policy",
             content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
           }),
-          icon ? createElement("link", { rel: "shortcut icon", href: icon }) : null,
-          icon ? createElement("link", { rel: "apple-touch-icon", href: icon }) : null,
+          pwa && createElement("link", { rel: "manifest", href: "resources/app/manifest" }),
+          icon && createElement("link", { rel: "shortcut icon", href: icon }),
+          icon && createElement("link", { rel: "apple-touch-icon", href: icon }),
           ...(links?.map((props) => createElement("link", props)) || []),
           createElement("style", { nonce }, routeStyle.raw),
           createElement("style", { id: "route", nonce }, style),

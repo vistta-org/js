@@ -29,8 +29,10 @@ export default PageTemplate;
 
 export const config = {
   icon: icon,
+  theme: "#b87333",
   styles: [global],
   animation: "custom", // "fade", "slide", "custom"
+  pwa: true,
   /*store: new Store([
     Store.createPartition("counter", {
       initialState: 0,
