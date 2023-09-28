@@ -13,6 +13,7 @@ const route = system.register(
       if (isServer()) return;
       window.addEventListener("click", this.#handleClick.bind(this));
       setImmediate(() => this.#build());
+      new MutationObserver((list) => this.#dom.onMutation(list)).observe(this, { childList: true, subtree: true });
     }
 
     async navigate(arg) {

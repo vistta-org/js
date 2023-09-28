@@ -1,5 +1,5 @@
 import { system, camelCaseToKebabCase, isObjectEmpty } from "../utils";
-import { State, INTERNAL, HOOK_CONTEXT, SCOPE_CONTEXT } from "./hooks";
+import { State, INTERNAL, HOOK_CONTEXT, SCOPE_CONTEXT, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
 
 const ANIMATIONS = ["fade", "slide", "custom"];
 const Fragment = Symbol("Fragment");
@@ -56,6 +56,7 @@ export default class VirtualDom {
   #keys = {};
   #children = [];
   #css = {};
+  #effects = {};
 
   body = document.body;
   head = document.head;
@@ -110,6 +111,28 @@ export default class VirtualDom {
     });
   }
 
+  onMutation(mutationsList) {
+    for (let i = 0, len = mutationsList.length; i < len; i++) {
+      const { type, addedNodes, removedNodes } = mutationsList[i];
+      const addedLength = addedNodes?.length || 0;
+      const removedLength = removedNodes?.length || 0;
+      if (type !== "childList" || (!addedLength && !removedLength)) continue;
+      const nodesLength = this.#effects?.nodes?.length || 0;
+      for (let n = 0; n < nodesLength; n++) {
+        const node = this.#effects.nodes[n];
+        const effects = this.#effects.effects[n];
+        for (let i2 = 0; i2 < addedLength; i2++) {
+          if (node !== addedNodes[i2] && !addedNodes[i2].contains(node)) continue;
+          effects?.forEach((callback) => callback(ADDED_EFFECT_EVENT));
+        }
+        for (let i2 = 0; i2 < removedLength; i2++) {
+          if (node !== removedNodes[i2] && !removedNodes[i2].contains(node)) continue;
+          effects?.forEach((callback) => callback(REMOVED_EFFECT_EVENT));
+        }
+      }
+    }
+  }
+
   #apply(append, element) {
     if (element == null || element === false) return append();
     if (!(element instanceof Element)) {
@@ -145,15 +168,14 @@ export default class VirtualDom {
             setAttribute(element.node, name, value);
           }
         }
+        if (scope?.effects) this.#observe(element.node, scope?.effects);
+        element.parent = append(element);
       }
       if (type !== TextNode && children) {
         const appendChild =
           type === Fragment
             ? (child) => {
-                if (child?.node) {
-                  element.nodes.push(child.node);
-                  if (scope?.styles) addScope(this.#css, child.node, scope.styles);
-                }
+                if (child?.node) element.nodes.push(child.node);
                 element.parent = append(child);
                 return element.parent;
               }
@@ -165,7 +187,6 @@ export default class VirtualDom {
           element.children[i] = this.#apply(appendChild, children[i]);
       }
     } else element.node = this.#keys[key];
-    if (type !== Fragment) element.parent = append(element);
     return element;
   }
 
@@ -184,6 +205,15 @@ export default class VirtualDom {
     if (nextSibling) parent.insertBefore(fragment, nextSibling);
     else parent.appendChild(fragment);
     if (parent === this.body) this.#children = [...this.body.children];
+  }
+
+  #observe(node, effects) {
+    if (!this.#effects?.nodes) this.#effects = { nodes: [], effects: [] };
+    const index = this.#effects.nodes.indexOf(node);
+    if (index === -1) {
+      this.#effects.nodes.push(node);
+      this.#effects.effects.push(effects);
+    } else this.#effects.effects[index] = effects;
   }
 }
 

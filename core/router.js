@@ -17,6 +17,7 @@ const route = system.register(
       handleSocket(this);
       window.addEventListener("popstate", () => this.navigate({ pushState: false }));
       window.addEventListener("click", this.#handleClick.bind(this));
+      new MutationObserver((list) => this.#dom?.onMutation(list)).observe(this, { childList: true, subtree: true });
     }
 
     async navigate(arg) {

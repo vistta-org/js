@@ -1,11 +1,10 @@
-import { useStyle, useRoute, useEvent } from "@vistta/vistta.js";
+import { useStyle, useRoute } from "@vistta/vistta.js";
 import Template from "./_template";
 import style from "./style.scss";
 
 export default function Home() {
   useStyle(style);
   const { navigate } = useRoute();
-  useEvent("click", console.log);
   return (
     <Template>
       <div className="container">

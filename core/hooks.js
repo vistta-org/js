@@ -1,15 +1,19 @@
 import { isBrowser, setImmediate, ExtensibleFunction } from "../utils";
 
-export const INTERNAL = {};
 export const EFFECT_CONTEXT = "#effect";
 export const PROFILER_CONTEXT = "#profiler";
 export const HOOK_CONTEXT = "#context";
 export const SCOPE_CONTEXT = "#scope";
+export const ADDED_EFFECT_EVENT = "node_added";
+export const REMOVED_EFFECT_EVENT = "node_removed";
+export const INTERNAL = {
+  [HOOK_CONTEXT]: {},
+  [EFFECT_CONTEXT]: {},
+};
 
 // Context
 
 export function useContext(key) {
-  if (!INTERNAL[HOOK_CONTEXT]) INTERNAL[HOOK_CONTEXT] = {};
   if (!key?.length) return INTERNAL[HOOK_CONTEXT];
   if (!INTERNAL[HOOK_CONTEXT][key]) INTERNAL[HOOK_CONTEXT][key] = {};
   return INTERNAL[HOOK_CONTEXT][key];
@@ -99,22 +103,24 @@ export const useState = (value) => new State(value);
 // Effect
 
 export const useEffect = (callback, dependencies) => {
-  if (!Array.isArray(dependencies)) {
-    dependencies = [];
-    INTERNAL[EFFECT_CONTEXT] = (dependency) => dependencies.push(dependency);
-    callback();
-    INTERNAL[EFFECT_CONTEXT] = null;
-  } else callback();
+  let removeCallback;
+  const lifecycle = (status) => {
+    if (status === ADDED_EFFECT_EVENT) {
+      if (!Array.isArray(dependencies)) {
+        dependencies = [];
+        INTERNAL[EFFECT_CONTEXT] = (dependency) => dependencies.push(dependency);
+        removeCallback = callback(true);
+        INTERNAL[EFFECT_CONTEXT] = null;
+      } else removeCallback = callback(true);
+    } else if (status === REMOVED_EFFECT_EVENT && removeCallback) removeCallback();
+  };
+  if (!INTERNAL[SCOPE_CONTEXT].effects) INTERNAL[SCOPE_CONTEXT].effects = [lifecycle];
+  else if (!INTERNAL[SCOPE_CONTEXT].effects.includes(callback)) INTERNAL[SCOPE_CONTEXT].effects.push(lifecycle);
   for (let i = 0, len = dependencies.length; i < len; i++) {
     const dependency = unique(dependencies, i);
     if (dependency) dependency.subscribe(() => callback());
   }
 };
-
-export function useEvent(event, callback) {
-  if (!isBrowser()) return;
-  window.addEventListener(event, callback);
-}
 
 //
 
