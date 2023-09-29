@@ -200,9 +200,9 @@ export default class VirtualDom {
       return parent;
     }, element);
     // FUTURE: Improvement would be to remove multiple Nodes with one node commit
-    const nextSibling = previous?.[previous.length - 1]?.nextSibling;
+    element.nextSibling = previous?.[previous.length - 1]?.nextSibling || element.nextSibling;
     for (let i = 0, len = previous.length; i < len; i++) previous[i].remove();
-    if (nextSibling) parent.insertBefore(fragment, nextSibling);
+    if (element.nextSibling) parent.insertBefore(fragment, element.nextSibling);
     else parent.appendChild(fragment);
     if (parent === this.body) this.#children = [...this.body.children];
   }
