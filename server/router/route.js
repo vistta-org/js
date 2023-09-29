@@ -14,6 +14,7 @@ const dirname = fs.dirname(import.meta.url);
 const { VALIDATION, NODE_ENV, BUILD } = process.env;
 const isDev = NODE_ENV === "development";
 const client = (await bundle(fs.resolve(dirname, BUILD ? "../../core/static/client" : "../../core/client")))?.code;
+// const serviceWorker = (await bundle(fs.resolve(dirname, "../../core/sw")))?.code;
 
 class Route {
   #config = {};
@@ -55,6 +56,7 @@ class Route {
       }
     }
     if (resource === "app/manifest") return response.type(".json").status(200).send(this.manifest).end();
+    // if (resource === "app/sw") return response.type(".js").status(200).send(serviceWorker).end();
     return reject();
   }
 
@@ -123,7 +125,7 @@ class Route {
     system.set("route", this);
     this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
     if (this.config?.store) this.store = this.config.store;
-    const body = renderToString(createElement("app-route", {}, createElement(this.app)));
+    const body = renderToString(BUILD ? createElement(this.app) : createElement("app-route", {}, createElement(this.app)));
     if (!BUILD && this.socket) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
     return renderToHtml({
@@ -137,7 +139,7 @@ class Route {
 
   get manifest() {
     let config = this.config;
-    if (typeof config.pwa === "object") Object.assign(config, config.pwa);
+    if (typeof config.manifest === "object") Object.assign(config, config.manifest);
     return JSON.stringify({
       theme_color: config.theme,
       background_color: config.background || "#ffffff",
@@ -188,7 +190,7 @@ function renderToHtml({
   links,
   style,
   scripts,
-  pwa,
+  manifest,
 } = {}) {
   const nonce = "v" + randomID();
   return (
@@ -214,11 +216,15 @@ function renderToHtml({
             httpEquiv: "Content-Security-Policy",
             content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
           }),
-          pwa && createElement("link", { rel: "manifest", href: "resources/app/manifest" }),
+          manifest &&
+            createElement("link", {
+              rel: "manifest",
+              href: typeof manifest === "string" ? manifest : "/resources/app/manifest",
+            }),
           icon && createElement("link", { rel: "shortcut icon", href: icon }),
           icon && createElement("link", { rel: "apple-touch-icon", href: icon }),
           ...(links?.map((props) => createElement("link", props)) || []),
-          createElement("style", { nonce }, routeStyle.raw),
+          BUILD && createElement("style", { nonce }, routeStyle.raw),
           createElement("style", { id: "route", nonce }, style),
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || []),

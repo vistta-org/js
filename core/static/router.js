@@ -1,78 +1,50 @@
 import VirtualDom, { createElement } from "../dom";
-import { isServer, isValidUrl, system, setImmediate } from "../../utils";
+import { isValidUrl, setImmediate } from "../../utils";
 
-const route = system.register(
-  "app-route",
-  class extends HTMLElement {
-    #active;
-    #dom;
-    #routes = {};
+const route = document.body;
+const self = { routes: {} };
 
-    constructor() {
-      super();
-      if (isServer()) return;
-      window.addEventListener("click", this.#handleClick.bind(this));
-      setImmediate(() => this.#build());
-      new MutationObserver((list) => this.#dom.onMutation(list)).observe(this, { childList: true, subtree: true });
-    }
+window.addEventListener("load", () => {
+  window.addEventListener("click", handleClick.bind(route));
+  setImmediate(() => build());
+  new MutationObserver((list) => self.dom.onMutation(list)).observe(route, { childList: true, subtree: true });
+});
 
-    async navigate(arg) {
+Object.defineProperties(route, {
+  navigate: {
+    value: async (arg) => {
       let { href } = typeof arg === "object" ? arg : { href: arg };
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       window.location.href = href;
-      this.#active = href;
-    }
-
-    refresh() {
-      location.reload();
-    }
-
-    get active() {
-      return this.#active;
-    }
-
-    get location() {
-      if (isServer()) return system.get("route.location");
-      return window.location;
-    }
-
-    get store() {
-      if (isServer()) return system.get("route.store");
-      return this.#dom?.store;
-    }
-
-    emit(event, details) {
-      this?.dispatchEvent(
-        new CustomEvent(event.toLowerCase(), {
-          bubbles: true,
-          composed: true,
-          detail: details,
-        }),
-      );
-    }
-
-    on(event, callback) {
-      this?.addEventListener(event, callback, false);
-    }
-
-    #handleClick(event) {
-      const { tagName, href, target } = event.target;
-      if (tagName !== "A" || (target && target !== "_self")) return;
-      event.preventDefault();
-      this.navigate(href);
-    }
-
-    async #build() {
-      if (typeof _importApp === "undefined") return console.error("Internal App Error");
-      const {
-        app,
-        config: { styles, store },
-      } = _importApp(); // eslint-disable-line no-undef
-      this.#dom = new VirtualDom(this, styles, store);
-      this.#dom.render(createElement(app));
-    }
+      self.active = href;
+    },
+    refresh: {
+      value: () => location.reload(),
+    },
+    active: {
+      get: () => self.active,
+    },
+    location: {
+      get: () => window.location,
+    },
+    store: {
+      get: () => self?.dom?.store,
+    },
+    emit: {
+      value: (event, details) =>
+        route?.dispatchEvent(
+          new CustomEvent(event.toLowerCase(), {
+            bubbles: true,
+            composed: true,
+            detail: details,
+          }),
+        ),
+    },
+    on: {
+      value: (event, callback) => route?.addEventListener(event, callback, false),
+    },
   },
-);
+});
 
 export default route;
 
@@ -86,6 +58,23 @@ export const useRoute = () => ({
 });
 
 //
+
+function handleClick(event) {
+  const { tagName, href, target } = event.target;
+  if (tagName !== "A" || (target && target !== "_self")) return;
+  event.preventDefault();
+  route.navigate(href);
+}
+
+async function build() {
+  if (typeof _importApp === "undefined") return console.error("Internal App Error");
+  const {
+    app,
+    config: { styles, store },
+  } = _importApp(); // eslint-disable-line no-undef
+  self.dom = new VirtualDom(route, styles, store);
+  self.dom.render(createElement(app));
+}
 
 function buildUrl(href) {
   const url = new URL(window.location.href);
