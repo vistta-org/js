@@ -266,9 +266,10 @@ class Server {
 
   async #build(folder) {
     this.build = true;
+    const subdomain = "build";
     const routes = [];
     const pages = {};
-    await this.use(folder, "build", "/", {
+    await this.use(folder, subdomain, "/", {
       callback: (page) => {
         if (Router.getWildcardPath(page.pathname)?.valid)
           console.warn(`${page.pathname}: Wildcards will be ignored in build.`);
@@ -276,8 +277,8 @@ class Server {
       },
     });
     for (let i = 0, len = routes.length; i < len; i++)
-      pages[routes[i].pathname + "/index.html"] = this.#router.get("build", routes[i].method, routes[i].pathname) || {};
-    return pages;
+      pages[routes[i].pathname + "/index.html"] = this.#router.get(subdomain, routes[i].method, routes[i].pathname) || {};
+    return { pages, resources: this.#router.resources[subdomain] };
   }
 }
 

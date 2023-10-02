@@ -8,10 +8,12 @@ const WILDCARD = "*";
 
 class Router {
   subdomains = { "": {} };
+  resources = { "": {} };
 
   register(subdomain) {
     if (this.subdomains[subdomain]) return;
     this.subdomains[subdomain] = {};
+    this.resources[subdomain] = {};
   }
 
   has(subdomain) {
@@ -71,7 +73,7 @@ class Router {
 
   async setComponent(filepath, subdomain, pathname, method, callback) {
     const config = getConfig(this.subdomains[subdomain], pathname);
-    const route = new Route(filepath, pathname, method, config, callback);
+    const route = new Route(filepath, pathname, method, this.resources[subdomain], config, callback);
     this.set(subdomain, method, pathname, await route.import());
   }
 

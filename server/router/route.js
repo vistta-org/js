@@ -19,15 +19,15 @@ const client = (await bundle(fs.resolve(dirname, BUILD ? "../../core/static/clie
 class Route {
   #config = {};
   #watchedFiles = [];
-  resources = {};
   socket = isDev;
 
-  constructor(filepath, pathname, method, config, callback) {
+  constructor(filepath, pathname, method, resources, config, callback) {
     this.id = hash(filepath);
     this.filepath = fs.resolve(filepath);
     this.pathname = pathname;
     this.method = method;
     this.type = method === "get" ? "page" : "error page";
+    this.resources = resources;
     this.#config = config;
     this.emit = (event) => callback && callback({ filepath, pathname, event, type: this.type, method });
   }
@@ -73,7 +73,7 @@ class Route {
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       this.app = app;
       this.code = code;
-      this.resources = resources;
+      Object.assign(this.resources, resources);
       if (config) {
         this.#config = ((config.origin = this.pathname), config);
         this.#config.export = (
