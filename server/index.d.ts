@@ -17,9 +17,8 @@ type RedirectOptions = {
 };
 type UseOptions = {
   callback?: (options: { pathname: string; event: string; type: string }) => void;
-  ignore?: RegExp;
   useApiRoute?: boolean;
-  ignoreApiRoute?: boolean;
+  useWildcards?: boolean;
 };
 
 export default class Server {

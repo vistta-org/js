@@ -66,7 +66,7 @@ export default class VirtualDom {
   createTextNode = (text) => document.createTextNode(text);
   createElement = (tag) => document.createElement(tag);
 
-  constructor(node, styles = [], store = {}) {
+  constructor(node, styles = []) {
     if (node === false) return this;
     else if (node) this.body = node;
     this.style = this.head.querySelector("style#route");
@@ -74,12 +74,7 @@ export default class VirtualDom {
       this.style = this.createElement("style");
       this.head.appendChild(this.style);
     }
-    this.#store = store;
     this.#css = styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {});
-  }
-
-  get store() {
-    return this.#store;
   }
 
   render(content, { animation, callback, refresh } = {}) {

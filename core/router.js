@@ -9,6 +9,7 @@ const route = system.register(
     #dom;
     #routes = {};
     #animation;
+    #store;
 
     constructor() {
       super();
@@ -18,6 +19,7 @@ const route = system.register(
       window.addEventListener("popstate", () => this.navigate({ pushState: false }));
       window.addEventListener("click", this.#handleClick.bind(this));
       new MutationObserver((list) => this.#dom?.onMutation(list)).observe(this, { childList: true, subtree: true });
+      // if ("serviceWorker" in navigator) navigator.serviceWorker.register("/resources/app/sw");
     }
 
     async navigate(arg) {
@@ -31,11 +33,13 @@ const route = system.register(
       const cached = this.#routes?.[href];
       if (pushState !== false) history.pushState({}, "", href);
       if (refresh || !cached) {
-        let app = href + (href.endsWith("/") ? "" : "/") + "resources/app";
-        const { store, styles, animation } = await loadConfig(app);
+        let resource = href + (href.endsWith("/") ? "" : "/") + "resources/app";
+        const { default: app, config, store } = await system.import(resource, { cache: false });
+        const { styles = [], animation } = config || {};
         this.#animation = animation;
-        this.#dom = new VirtualDom(this, styles, store);
-        return this.#dom.render(createElement((await system.import(app, { cache: false })).default), {
+        if (!this.#store) this.#store = store;
+        this.#dom = new VirtualDom(this, styles);
+        return this.#dom.render(createElement(app), {
           refresh,
           animation: this.#animation,
           callback: () => {
@@ -66,7 +70,7 @@ const route = system.register(
 
     get store() {
       if (isServer()) return system.get("route.store");
-      return this.#dom?.store;
+      return this.#store;
     }
 
     emit(event, details) {
@@ -121,12 +125,4 @@ function buildUrl(href) {
 
 function isAppUrl(href) {
   return new URL(window.location.href).host === new URL(href).host;
-}
-
-async function loadConfig(href) {
-  try {
-    return (await system.import(`${href}/config`, { cache: false }))?.config || {};
-  } catch {
-    return {};
-  }
 }

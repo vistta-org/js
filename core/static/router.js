@@ -67,11 +67,11 @@ function handleClick(event) {
 }
 
 async function build() {
-  if (typeof _importApp === "undefined") return console.error("Internal App Error");
+  if (typeof __import_app === "undefined") return console.error("Internal App Error");
   const {
-    app,
+    default: app,
     config: { styles, store },
-  } = _importApp(); // eslint-disable-line no-undef
+  } = __import_app(); // eslint-disable-line no-undef
   self.dom = new VirtualDom(route, styles, store);
   self.dom.render(createElement(app));
 }

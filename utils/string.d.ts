@@ -17,3 +17,5 @@ export function isValidUrlPathname(string: string): boolean;
 export function indexOf(string: string, ...searchStrings: string[]): number;
 
 export function camelCaseToKebabCase(string: string): string;
+
+export function convertToEventName(string: string): string;

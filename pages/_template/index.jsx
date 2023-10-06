@@ -32,7 +32,6 @@ export const config = {
   theme: "#b87333",
   styles: [global],
   animation: "custom", // "fade", "slide", "custom"
-  manifest: true,
   /*store: new Store([
     Store.createPartition("counter", {
       initialState: 0,

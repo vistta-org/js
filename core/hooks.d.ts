@@ -14,7 +14,4 @@ interface State<T> {
 }
 export function useState<T = any>(initialValue: T): State<T>;
 
-interface Effect<T> extends State<T> {
-  readonly value: T;
-}
-export function useEffect<T>(callback: () => void | T, dependencies?: any[], runOnRender?: boolean): Effect<T>;
+export function useEffect(callback: () => void, dependencies?: any[], runOnRender?: boolean): void;

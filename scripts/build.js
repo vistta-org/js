@@ -25,16 +25,8 @@ if (resourceFiles.length) {
   for (let i = 0, len = resourceFiles.length; i < len; i++) {
     const filename = resourceFiles[i];
     const content = resources[filename];
-    switch (typeof content) {
-      case "string":
-        await fs.copyFile(content, fs.resolve(dirname, filename));
-        break;
-      case "function":
-        await fs.writeFile(fs.resolve(dirname, filename), content());
-        break;
-      default:
-        break;
-    }
+    if (fs.existsSync(content)) await fs.copyFile(content, fs.resolve(dirname, filename));
+    else await fs.writeFile(fs.resolve(dirname, filename), typeof content === "function" ? content() : content?.toString());
   }
 }
 console.log(`Project compiled.`);

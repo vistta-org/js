@@ -9,6 +9,7 @@ export default function Home() {
     <Template>
       <div className="container">
         <h1>Vistta.JS</h1>
+        <h1>Vistta.JS</h1>
         <h2>Vistta.js Javascript Framework</h2>
         <button onClick={() => navigate("/docs")}>Get Started</button>
       </div>

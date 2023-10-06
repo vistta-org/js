@@ -1,6 +1,8 @@
-import { resolve, load } from "../../bin/loaders";
+import { fs } from "../../filesystem";
+import { resolve, load } from "../../../bin/loaders";
 import { build } from "esbuild";
 import { dirname, basename } from "path";
+
 const name = process.env.APP_NAME;
 class Bundler {
   config = {
@@ -92,7 +94,21 @@ class Bundler {
   }
 }
 
+const resolveImports = async (filepath, _imports = new Set()) => {
+  const imports = (await fs.readFile(filepath, "utf-8"))?.match(/import\s+[^'"]+\s+from\s+['"]([^'"]+)['"]/g);
+  for (let i = 0, len = imports?.length; i < len; i++) {
+    const matches = imports[i].match(/import\s+[^'"]+\s+from\s+['"]([^'"]+)['"]/);
+    if (!matches?.[1]) continue;
+    const dirname = fs.dirname(filepath);
+    const path = resolve(fs.resolve(dirname, matches[1]), { parentURL: dirname, bundler: true }, (final) => final);
+    if (!fs.existsSync(path)) continue;
+    _imports.add(path);
+    await resolveImports(path, _imports);
+  }
+  return Array.from(_imports);
+};
+
 const bundle = ((b) => b.run.bind(b))(new Bundler());
 
-export { bundle };
+export { bundle, resolveImports };
 export default Bundler;

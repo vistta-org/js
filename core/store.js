@@ -7,8 +7,8 @@ const STORAGE_KEY = "Vistta_Store_";
 class Store {
   #partitions = {};
 
-  static createPartition(key, config) {
-    return new Partition(this, key, config);
+  static createPartition(config) {
+    return new Partition(this, config);
   }
 
   static createAction(name, action, on) {
@@ -31,7 +31,8 @@ class Store {
 class Partition extends State {
   #key;
 
-  constructor(store, key, { initialState, cache = "none", actions }) {
+  constructor(store, { key, initialState, cache = "session", actions }) {
+    if (!key) return null;
     super((cache !== "none" ? getCacheValue(key) : undefined) || initialState);
     this.store = store;
     this.#key = key;
@@ -78,7 +79,8 @@ class Partition extends State {
 }
 
 function useStore(partition) {
-  return route?.store?.use(partition);
+  if (typeof route?.store?.use === "function") return route?.store?.use(partition);
+  return null;
 }
 
 export { Store, useStore };
