@@ -1,77 +1,47 @@
 import VirtualDom, { createElement } from "../dom";
-import { isServer, isValidUrl, system, setImmediate } from "../../utils";
+import { isValidUrl } from "../../utils";
 
-const route = system.register(
-  "v-route",
-  class extends HTMLElement {
-    #active;
-    #dom;
-    #routes = {};
+const route = document.body;
+const __private = { routes: {} };
 
-    constructor() {
-      super();
-      if (isServer()) return;
-      window.addEventListener("click", this.#handleClick.bind(this));
-      setImmediate(() => this.#build());
-    }
+window.addEventListener("click", handleClick.bind(route));
+window.addEventListener("load", build);
 
-    async navigate(arg) {
+Object.defineProperties(route, {
+  navigate: {
+    value: async (arg) => {
       let { href } = typeof arg === "object" ? arg : { href: arg };
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       window.location.href = href;
-      this.#active = href;
-    }
-
-    refresh() {
-      location.reload();
-    }
-
-    get active() {
-      return this.#active;
-    }
-
-    get location() {
-      if (isServer()) return system.get("route.location");
-      return window.location;
-    }
-
-    get store() {
-      if (isServer()) return system.get("route.store");
-      return this.#dom?.store;
-    }
-
-    emit(event, details) {
-      this?.dispatchEvent(
-        new CustomEvent(event.toLowerCase(), {
-          bubbles: true,
-          composed: true,
-          detail: details,
-        }),
-      );
-    }
-
-    on(event, callback) {
-      this?.addEventListener(event, callback, false);
-    }
-
-    #handleClick(event) {
-      const { tagName, href, target } = event.target;
-      if (tagName !== "A" || (target && target !== "_self")) return;
-      event.preventDefault();
-      this.navigate(href);
-    }
-
-    async #build() {
-      if (typeof _importApp === "undefined") return console.error("Internal App Error");
-      const {
-        app,
-        config: { styles, store },
-      } = _importApp(); // eslint-disable-line no-undef
-      this.#dom = new VirtualDom(this, styles, store);
-      this.#dom.render(createElement(app));
-    }
+      __private.active = href;
+    },
+    refresh: {
+      value: () => location.reload(),
+    },
+    active: {
+      get: () => __private.active,
+    },
+    location: {
+      get: () => window.location,
+    },
+    store: {
+      get: () => __private?.store,
+    },
+    emit: {
+      value: (event, details) =>
+        route?.dispatchEvent(
+          new CustomEvent(event.toLowerCase(), {
+            bubbles: true,
+            composed: true,
+            detail: details,
+          }),
+        ),
+    },
+    on: {
+      value: (event, callback) => route?.addEventListener(event, callback, false),
+    },
   },
-);
+});
 
 export default route;
 
@@ -85,6 +55,21 @@ export const useRoute = () => ({
 });
 
 //
+
+function handleClick(event) {
+  const { tagName, href, target } = event.target;
+  if (tagName !== "A" || (target && target !== "___private")) return;
+  event.preventDefault();
+  route.navigate(href);
+}
+
+async function build() {
+  if (typeof __import_app === "undefined") return console.error("Internal App Error");
+  const { default: app, config, store } = __import_app(); // eslint-disable-line no-undef
+  __private.store = store;
+  __private.dom = new VirtualDom(route, config);
+  __private.dom.render(createElement(app));
+}
 
 function buildUrl(href) {
   const url = new URL(window.location.href);

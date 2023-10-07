@@ -7,8 +7,7 @@ const output = process.argv?.slice(3)?.shift() || config.output;
 if (!main || !fs.existsSync(main)) abort(`Missing main folder. Either define it as an argument or on the package json.`);
 if (!output) abort(`Missing output folder. Either define it as an argument or on the package json.`);
 if (!fs.existsSync(output)) fs.mkdir(output);
-const pages = await new Server({ build: true }).build(main);
-const resources = {};
+const { pages, resources } = await new Server({ build: true }).build(main);
 const files = Object.keys(pages);
 for (let i = 0, len = files.length; i < len; i++) {
   const filepath = fs.resolve(output + files[i]);
@@ -17,7 +16,6 @@ for (let i = 0, len = files.length; i < len; i++) {
   if (!fs.existsSync(dirname)) fs.mkdir(dirname);
   await fs.writeFile(filepath, page.template);
   console.log(`"${page.pathname}" ${console.code.green}ready.`);
-  Object.assign(resources, page.resources);
 }
 // Page Resources
 const resourceFiles = Object.keys(resources);
@@ -27,16 +25,8 @@ if (resourceFiles.length) {
   for (let i = 0, len = resourceFiles.length; i < len; i++) {
     const filename = resourceFiles[i];
     const content = resources[filename];
-    switch (typeof content) {
-      case "string":
-        await fs.copyFile(content, fs.resolve(dirname, filename));
-        break;
-      case "function":
-        await fs.writeFile(fs.resolve(dirname, filename), content());
-        break;
-      default:
-        break;
-    }
+    if (fs.existsSync(content)) await fs.copyFile(content, fs.resolve(dirname, filename));
+    else await fs.writeFile(fs.resolve(dirname, filename), typeof content === "function" ? content() : content?.toString());
   }
 }
 console.log(`Project compiled.`);

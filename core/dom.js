@@ -1,6 +1,7 @@
 import { system } from "../utils";
-import { State } from "./hooks";
+import { State, INTERNAL, HOOK_CONTEXT, SCOPE_CONTEXT, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
 
+const BUILD = process.env.BUILD;
 const ANIMATIONS = ["fade", "slide", "custom"];
 const Fragment = Symbol("Fragment");
 const TextNode = Symbol("TextNode");
@@ -19,10 +20,16 @@ const createElement = (type, props, ...children) => {
   if (typeOf === "function") {
     if (!props) props = {};
     if (children?.length > 0) props.children = children;
+    const context = structuredClone(INTERNAL[HOOK_CONTEXT]);
+    const scope = {};
+    INTERNAL[SCOPE_CONTEXT] = scope;
     const node = type(props);
-    if (node instanceof Element) return node;
-    if (typeof node !== "object" || (node && node instanceof State)) return node;
-    if (Array.isArray(node)) return new Element(Fragment, null, node);
+    INTERNAL[HOOK_CONTEXT] = context;
+    const { effects } = scope;
+    if (node instanceof Element || typeof node !== "object" || (node && node instanceof State))
+      return effects ? Object.assign(new Element(Fragment, {}, [node]), { effects }) : node;
+    if (Array.isArray(node))
+      return effects ? Object.assign(new Element(Fragment, {}, node), { effects }) : new Element(Fragment, {}, node);
     if ("production" !== process.env.NODE_ENV && node instanceof Promise)
       console.warn("Async Components need to be wrapped in async function");
     return null;
@@ -42,10 +49,12 @@ export { Fragment, TextNode, Element, createElement };
 
 export default class VirtualDom {
   #content;
+  #config;
   #store;
   #keys = {};
   #children = [];
   #css = {};
+  #effects = [];
 
   body = document.body;
   head = document.head;
@@ -55,7 +64,7 @@ export default class VirtualDom {
   createTextNode = (text) => document.createTextNode(text);
   createElement = (tag) => document.createElement(tag);
 
-  constructor(node, styles = [], store = {}) {
+  constructor(node, config = {}) {
     if (node === false) return this;
     else if (node) this.body = node;
     this.style = this.head.querySelector("style#route");
@@ -63,15 +72,12 @@ export default class VirtualDom {
       this.style = this.createElement("style");
       this.head.appendChild(this.style);
     }
-    this.#store = store;
-    this.#css = styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {});
+    this.#css = config?.styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {});
+    this.#config = config;
   }
 
-  get store() {
-    return this.#store;
-  }
-
-  render(content, { animation, callback, refresh } = {}) {
+  render(content, refresh, callback) {
+    this.#effects = [];
     const fragment = this.createDocumentFragment();
     this.#content = this.#apply((child) => {
       if (child?.node) fragment.append(child.node);
@@ -79,24 +85,32 @@ export default class VirtualDom {
     }, content);
     animate(
       this.body,
-      animation,
+      this.#config?.animation,
       () => {
         this.body.replaceChildren(fragment);
         if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
         else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
         this.#children = [...this.body.children];
-        callback && callback();
+        this.#effects.forEach((effect) => effect());
+        callback && callback(this.#config);
       },
       refresh,
     );
   }
 
-  replace({ animation, callback } = {}) {
-    animate(this.body, animation, () => {
+  remove() {
+    this.#effects = [];
+    findEffects(this.#content, (effects) => effects.forEach((callback) => callback(REMOVED_EFFECT_EVENT)));
+  }
+
+  refresh(callback) {
+    this.#effects = [];
+    animate(this.body, this.#config?.animation, () => {
       this.body.replaceChildren(...this.#children);
       if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
       else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
-      callback && callback();
+      findEffects(this.#content, (effects) => effects.forEach((callback) => callback(ADDED_EFFECT_EVENT)));
+      callback && callback(this.#config);
     });
   }
 
@@ -105,7 +119,7 @@ export default class VirtualDom {
     if (!(element instanceof Element)) {
       if (element instanceof State) {
         element = new Element(Fragment, element);
-        element.children = convertToArray(element);
+        element.children = [element.props?.valueOf()];
         element.props.subscribe(() => this.#update(element));
       } else if (Array.isArray(element)) element = new Element(Fragment, null, element);
       else if (!element?.toString || typeof element === "function") {
@@ -114,7 +128,7 @@ export default class VirtualDom {
       } else element = new Element(TextNode, null, "" + element);
     }
     //
-    const { type, key, ref, props, children } = element;
+    const { type, key, ref, props, children, effects } = element;
     if (props.scope) addScope(this.#css, props.scope);
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = this.createTextNode(children);
@@ -125,15 +139,17 @@ export default class VirtualDom {
         if (typeof ref === "function") ref(element.node);
         else if (typeof ref === "object") ref.current = element.node;
       }
-      if (type !== Fragment && props) {
-        const keys = Object.keys(props);
-        for (let i = 0, len = keys?.length || 0; i < len; i++) {
-          const name = keys[i];
-          const value = props[name];
-          if (value && value instanceof State) value.subscribe(() => setAttribute(element.node, name, value));
-          setAttribute(element.node, name, value);
+      if (type !== Fragment) {
+        if (props) {
+          const keys = Object.keys(props);
+          for (let i = 0, len = keys?.length || 0; i < len; i++) {
+            const name = keys[i];
+            const value = props[name];
+            if (value && value instanceof State) value.subscribe(() => setAttribute(element.node, name, value));
+            setAttribute(element.node, name, value);
+          }
         }
-      }
+      } else if (effects) this.#effects.push(() => effects.forEach((callback) => callback(ADDED_EFFECT_EVENT)));
       if (type !== TextNode && children) {
         const appendChild =
           type === Fragment
@@ -158,20 +174,25 @@ export default class VirtualDom {
   }
 
   async #update(element) {
+    this.#effects = [];
     const fragment = this.createDocumentFragment();
     const previous = element?.nodes || [];
     const parent = element.parent;
-    element.children = convertToArray(element);
+    findEffects(element, (effects) =>
+      this.#effects.push(() => effects.forEach((callback) => callback(REMOVED_EFFECT_EVENT))),
+    );
+    element.children = [element.props?.valueOf()];
     this.#apply((child) => {
       if (child?.node) fragment.append(child.node);
       return parent;
     }, element);
     // FUTURE: Improvement would be to remove multiple Nodes with one node commit
-    const nextSibling = previous?.[previous.length - 1]?.nextSibling;
+    element.nextSibling = previous?.[previous.length - 1]?.nextSibling || element.nextSibling;
     for (let i = 0, len = previous.length; i < len; i++) previous[i].remove();
-    if (nextSibling) parent.insertBefore(fragment, nextSibling);
+    if (element.nextSibling) parent.insertBefore(fragment, element.nextSibling);
     else parent.appendChild(fragment);
     if (parent === this.body) this.#children = [...this.body.children];
+    this.#effects.forEach((effect) => effect());
   }
 }
 
@@ -179,7 +200,7 @@ export default class VirtualDom {
 
 let animationCount = -1;
 function animate(body, animation, callback, refresh) {
-  if (refresh || !ANIMATIONS.includes(animation)) return callback();
+  if (refresh || !ANIMATIONS.includes(animation) || BUILD) return callback();
   animationCount++;
   const id = animationCount;
   const animationend = () => {
@@ -197,11 +218,6 @@ function animate(body, animation, callback, refresh) {
   body.classList.add(animation + "-out");
 }
 
-function convertToArray(element) {
-  const value = element.props?.valueOf();
-  return value instanceof Element && value.type === Fragment ? value.children : [value];
-}
-
 function setAttribute(node, name, value) {
   if (/^on\w.*/.test(name) && typeof value === "function") {
     node.addEventListener(name.charAt(2).toLowerCase() + name.slice(3), value);
@@ -212,6 +228,12 @@ function setAttribute(node, name, value) {
   if (!value) node.removeAttribute(name);
   else if (name === "style") Object.assign(node.style, value);
   else node.setAttribute(name, value);
+}
+
+function findEffects(element, callback) {
+  if (!element || !(element instanceof Element)) return null;
+  if (element?.effects) callback(element?.effects);
+  for (let i = 0, len = element?.children?.length || 0; i < len; i++) findEffects(element.children[i], callback);
 }
 
 function addScope(css, scope) {

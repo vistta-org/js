@@ -1,5 +1,7 @@
 export const isObject = (object) => object != null && typeof object === "object";
 
+export const isObjectEmpty = (object) => Object.keys(object).length === 0;
+
 export const stringify = (object, formatted = false) =>
   JSON.stringify(
     object,

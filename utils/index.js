@@ -77,6 +77,14 @@ export const system = {
     }
     ref[key.shift()] = value;
   },
+  addEventListener: (...args) => {
+    if (isServer()) return;
+    window.addEventListener(...args);
+  },
+  removeEventListener: (...args) => {
+    if (isServer()) return;
+    window.removeEventListener(...args);
+  },
   import(moduleName, { cache } = {}) {
     if (cache === false) moduleName += `?noCache=${Date.now()}`;
     return import(moduleName);

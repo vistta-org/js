@@ -1,7 +1,6 @@
 import "./console";
 import { fs } from "./filesystem";
-import { isIPAddress, randomID, INVALID_EVENT_NAME } from "../utils";
-import { EventEmitter } from "node:events";
+import { isIPAddress, randomID, INVALID_EVENT_NAME, convertToEventName } from "../utils";
 import express from "express";
 import http from "http";
 import http2 from "http2";
@@ -17,8 +16,7 @@ class Server {
   #certs;
   #app;
   #socket;
-  #events = new EventEmitter();
-  #router = new Router();
+  #router = {};
   #proxy = proxy.createProxyServer({});
 
   get ports() {
@@ -81,7 +79,29 @@ class Server {
     this.#socket.on("connection", (socket) => {
       const subdomain = getSubdomain(socket.handshake.headers.host) || "";
       socket.join(subdomain);
-      socket.onAny((event, ...args) => this.#events.emit(event, subdomain, socket, args));
+      socket.onAny((event, ...args) => {
+        this.#router?.[subdomain].emit(
+          event,
+          {
+            emit: (_event, ..._args) => {
+              _event = convertToEventName(_event);
+              if (!event) return console.warn(INVALID_EVENT_NAME), null;
+              socket.emit(_event, ..._args);
+            },
+            broadcast: (_event, ..._args) => {
+              _event = convertToEventName(_event);
+              if (!event) return console.warn(INVALID_EVENT_NAME), null;
+              socket.to(subdomain).emit(_event, ..._args);
+            },
+            announce: (_event, ..._args) => {
+              _event = convertToEventName(_event);
+              if (!event) return console.warn(INVALID_EVENT_NAME), null;
+              this.#socket.to(subdomain).emit(_event, ..._args);
+            },
+          },
+          args,
+        );
+      });
     });
     this.running = true;
   }
@@ -89,55 +109,64 @@ class Server {
   copy(...args) {
     const [subdomain, pathname, ...callback] = getMethodArgs(args);
     if (!validateArgs("copy", subdomain, pathname)) return;
-    this.#router.set(subdomain, "copy", pathname, callback);
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("copy", pathname, callback);
   }
 
   delete(...args) {
     const [subdomain, pathname, ...callback] = getMethodArgs(args);
     if (!validateArgs("delete", subdomain, pathname)) return;
-    this.#router.set(subdomain, "delete", pathname, callback);
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("delete", pathname, callback);
   }
 
   get(...args) {
     const [subdomain, pathname, ...callback] = getMethodArgs(args);
     if (!validateArgs("get", subdomain, pathname)) return;
-    this.#router.set(subdomain, "get", pathname, callback);
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("get", pathname, callback);
   }
 
   move(...args) {
     const [subdomain, pathname, ...callback] = getMethodArgs(args);
     if (!validateArgs("move", subdomain, pathname)) return;
-    this.#router.set(subdomain, "move", pathname, callback);
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("move", pathname, callback);
   }
 
   patch(...args) {
     const [subdomain, pathname, ...callback] = getMethodArgs(args);
     if (!validateArgs("patch", subdomain, pathname)) return;
-    this.#router.set(subdomain, "patch", pathname, callback);
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("patch", pathname, callback);
   }
 
   post(...args) {
     const [subdomain, pathname, ...callback] = getMethodArgs(args);
     if (!validateArgs("post", subdomain, pathname)) return;
-    this.#router.set(subdomain, "post", pathname, callback);
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("post", pathname, callback);
   }
 
   put(...args) {
     const [subdomain, pathname, ...callback] = getMethodArgs(args);
     if (!validateArgs("put", subdomain, pathname)) return;
-    this.#router.set(subdomain, "put", pathname, callback);
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("put", pathname, callback);
   }
 
   error(...args) {
     const [subdomain, pathname, ...callback] = getMethodArgs(args);
     if (!validateArgs("error", subdomain, pathname)) return;
-    this.#router.set(subdomain, "error", pathname, callback);
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("error", pathname, callback);
   }
 
   proxy(...args) {
     const [subdomain, pathname, options] = getMethodArgs(args, "object");
     if (!validateArgs("proxy", subdomain, pathname)) return;
-    this.#router.set(subdomain, "any", pathname, (req, res, rej) =>
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("any", pathname, (req, res, rej) =>
       this.#proxy.web(
         req,
         res,
@@ -157,42 +186,39 @@ class Server {
   redirect(...args) {
     const [subdomain, pathname, options] = getMethodArgs(args, "object");
     if (!validateArgs("redirect", subdomain, pathname)) return;
-    const { target } = options;
-    this.#router.set(subdomain, "any", pathname, (req, res) => res.redirect(target));
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    this.#router[subdomain].set("any", pathname, (req, res) => res.redirect(options?.target));
   }
 
   async use(folder, ...args) {
     const [subdomain, pathname, options] = getMethodArgs(args, ["object", "undefined"]);
     if (!validateArgs("use", subdomain, pathname)) return;
-    const { callback, ignore, useApiRoute, ignoreApiRoute } = options || {};
-    const files = Router.readFolder(folder, ignore);
+    const { callback, useApiRoute, useWildcards } = options || {};
+    if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
+    const files = Router.readFolder(folder, useApiRoute !== false, useWildcards !== false);
     for (let i = 0, len = files.length; i < len; i++) {
-      const { filepath, pathname } = files[i];
-      if ((this.build || ignoreApiRoute) && pathname.startsWith("/api")) continue;
-      if (useApiRoute === false || !pathname.startsWith("/api")) {
-        const method = Router.isErrorRoute(pathname.split("/")?.pop()) ? "error" : "get";
-        await this.#router.setComponent(filepath, subdomain, pathname || "/", method, (event) => {
-          const { type, event: name, pathname: href } = event;
-          if (type === "page" && name === "modified" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
-          if (callback) callback(event);
-        });
-      } else if (pathname === "/api") this.#socketUse(subdomain, await Router.useApi(filepath, { isSocket: true }));
-      else await this.#router.setApi(filepath, subdomain, pathname, callback);
+      const { filepath, pathname, type } = files[i];
+      if (this.build && (type === "socket" || type === "api")) continue;
+      await this.#router[subdomain].setComponent(filepath, pathname || "/", type, (event) => {
+        const { event: name, pathname: href } = event;
+        if (name === "modified" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
+        if (callback) callback(event);
+      });
     }
   }
 
   disable(...args) {
     if (args.length < 2) args.unshift("");
-    if (!validateArgs("disable", subdomain, pathname)) return;
     const [subdomain, pathname] = args;
-    this.#router.disable(subdomain, pathname);
+    if (!validateArgs("disable", subdomain, pathname) || !this.#router[subdomain]) return;
+    this.#router[subdomain].disable(pathname);
   }
 
   enable(...args) {
     if (args.length < 2) args.unshift("");
-    if (!validateArgs("enable", subdomain, pathname)) return;
     const [subdomain, pathname] = args;
-    this.#router.enable(subdomain, pathname);
+    if (!validateArgs("enable", subdomain, pathname) || !this.#router[subdomain]) return;
+    this.#router[subdomain].enable(pathname);
   }
 
   emit(subdomain, event, ...args) {
@@ -206,78 +232,45 @@ class Server {
   }
 
   on(subdomain, event, callback) {
-    event = validateEvent(event);
+    event = convertToEventName(event);
     if (!event) return console.warn(INVALID_EVENT_NAME), null;
-    this.#events.on(event, (_subdomain, socket, args) => {
-      if (subdomain && subdomain !== "*" && subdomain !== _subdomain) return;
-      callback(...args);
-    });
-  }
-
-  #socketUse(subdomain, api) {
-    for (let i = 0, len = api.handlers.length; i < len; i++) {
-      const handler = api.handlers[i];
-      const event = validateEvent(handler);
-      if (event)
-        this.#events.on(event, (_subdomain, socket, args) => {
-          if (subdomain !== _subdomain) return;
-          api(
-            handler,
-            {
-              emit: (_event, ..._args) => {
-                _event = validateEvent(_event);
-                if (!event) return console.warn(INVALID_EVENT_NAME), null;
-                socket.emit(_event, ..._args);
-              },
-              broadcast: (_event, ..._args) => {
-                _event = validateEvent(_event);
-                if (!event) return console.warn(INVALID_EVENT_NAME), null;
-                socket.to(subdomain).emit(_event, ..._args);
-              },
-              announce: (_event, ..._args) => {
-                _event = validateEvent(_event);
-                if (!event) return console.warn(INVALID_EVENT_NAME), null;
-                this.#socket.to(subdomain).emit(_event, ..._args);
-              },
-            },
-            ...args,
-          );
-        });
-    }
+    if (subdomain && subdomain !== "*") return this.#router?.[subdomain]?.on(event, (socket, args) => callback(...args));
+    const subdomains = Object.keys(this.#router);
+    for (let i = 0, len = subdomains?.length; i < len; i++)
+      this.#router?.[subdomains[i]]?.on(event, (socket, args) => callback(...args));
   }
 
   #routeHandler() {
     return (request, response) => {
       const { method, path, hostname } = request;
       const subdomain = getSubdomain(hostname) || "";
-      const error = this.#router.get(subdomain, "error", path, { strict: "404" }) || {};
+      const error = this.#router?.[subdomain]?.get("error", path);
       const reject = (request, response) => (
         response.status(404),
-        error?.handler?.call(error, request, response, () => response.end("Page not Found")) ||
-          response.end("Page not Found")
+        error?.call(error, request, response, () => response.end("Page not Found")) || response.end("Page not Found")
       );
       const [pathname, resource] = path.split(/\/resources\/(.*)/);
       if (resource?.length) request.resource = resource;
-      const route = this.#router.get(subdomain, method.toLowerCase(), pathname) || {};
-      if (route?.handler) return route?.handler(request, response, reject.bind(this, request, response));
+      const handler = this.#router?.[subdomain]?.get(method.toLowerCase(), pathname);
+      if (handler) return handler(request, response, reject.bind(this, request, response));
       return reject(request, response);
     };
   }
 
   async #build(folder) {
     this.build = true;
+    const subdomain = "build";
     const routes = [];
     const pages = {};
-    await this.use(folder, "build", "/", {
-      callback: (page) => {
-        if (Router.getWildcardPath(page.pathname)?.valid)
-          console.warn(`${page.pathname}: Wildcards will be ignored in build.`);
-        else routes.push(page);
-      },
-    });
-    for (let i = 0, len = routes.length; i < len; i++)
-      pages[routes[i].pathname + "/index.html"] = this.#router.get("build", routes[i].method, routes[i].pathname) || {};
-    return pages;
+    await this.use(folder, subdomain, "/", { callback: (page) => routes.push(page) });
+    for (let i = 0, len = routes.length; i < len; i++) {
+      const { pathname, type } = routes[i];
+      const wildcard = Router.isWildcard(pathname);
+      let route = pathname + (pathname.endsWith("/") ? "" : "/") + (type === "error" ? "error.html" : "index.html");
+      if (wildcard) route = route.replace(`/[${wildcard}]`, "");
+      pages[route] = this.#router[subdomain].get(type === "error" ? "error" : "get", pathname) || {};
+    }
+    return { pages, resources: this.#router[subdomain].resources.get() };
   }
 }
 
@@ -329,14 +322,4 @@ function useSecure({ http, https }) {
 
 function shouldCompress(request, response) {
   return !request.headers["x-no-compression"] && filter(request, response);
-}
-
-function validateEvent(event) {
-  if (typeof event !== "string") return null;
-  event = event
-    .replace(/([A-Z])/g, "_$1")
-    .toLowerCase()
-    .replace(/-/g, "_");
-  if (!/^[a-z][\w]*$/.test(event)) return null;
-  return event;
 }

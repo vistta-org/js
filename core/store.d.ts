@@ -6,6 +6,7 @@ interface Partition<T> extends State<T> {
 }
 
 type PartitionConfig<T> = {
+  name: string;
   initialState?: T;
   cache?: "none" | "session" | "storage";
   actions: PartitionAction[];
@@ -19,11 +20,11 @@ type PartitionAction = {
 
 export class Store {
   constructor(partitions: Partition<any>[]);
-  static createPartition<T>(key: string, config: PartitionConfig<T>): Partition<T>;
+  static createPartition<T>(config: PartitionConfig<T>): Partition<T>;
   static createAction(
     name: PartitionAction["name"],
     action: PartitionAction["action"],
-    on?: PartitionAction["on"]
+    on?: PartitionAction["on"],
   ): PartitionAction;
   use<T>(partition: string): Partition<T>;
 }

@@ -1,99 +1,162 @@
-import { Route } from "./route";
-import { useApi } from "./api";
-import { isValidUrlPathname } from "../../utils";
+// import { Route } from "./route";
+import { EventEmitter } from "node:events";
+import { useHandler } from "./handler";
 import { fs } from "../filesystem";
 
-const ROUTE = "@route";
-const WILDCARD = "*";
+const WILDCARD = "/*";
+const ERROR = "/✖";
 
 class Router {
-  subdomains = { "": {} };
+  static isWildcard = (pathname) => pathname?.match(/\/\[(\w*)\]$/)?.[1];
 
-  register(subdomain) {
-    if (this.subdomains[subdomain]) return;
-    this.subdomains[subdomain] = {};
+  #pwa = false;
+  #store;
+  #routes = [];
+  #handlers = {};
+  #resources = {};
+  #events = new EventEmitter();
+
+  resources = {
+    get: (key) => {
+      if (key) return this.#resources[key];
+      return this.#resources;
+    },
+    add: (key, value) => {
+      switch (typeof key) {
+        case "object":
+          return Object.assign(this.#resources, key);
+        case "string":
+          return (this.#resources[key] = value);
+        default:
+          return null;
+      }
+    },
+  };
+
+  set(method, pathname, callback) {
+    const { wildcard, route } = (() => {
+      let wildcard = Router.isWildcard(pathname);
+      if (!wildcard) {
+        if (method === "error") return { route: (pathname.endsWith("/") ? pathname.slice(0, -1) : pathname) + ERROR };
+        else return { route: pathname.endsWith("/") ? pathname : pathname + "/" };
+      }
+      return { wildcard, route: pathname.replace(`/[${wildcard}]`, method === "error" ? ERROR : WILDCARD) };
+    })();
+    if (this.#handlers[route]) return console.warn(`Route for "${pathname}" already defined.`);
+    this.#handlers[route] = Object.assign(Array.isArray(callback) ? transformCallback(callback) : callback, {
+      pathname,
+      method,
+      wildcard,
+    });
+    this.#routes = Object.keys(this.#handlers);
+    this.#routes.sort((a, b) => (a.match(/\//g) || []).length - (b.match(/\//g) || []).length);
   }
 
-  has(subdomain) {
-    return this.subdomains[subdomain] != null;
-  }
-
-  set(subdomain, method, pathname, callback) {
-    const { wildcard } = getWildcardPath(pathname);
-    if (wildcard) pathname = pathname.replace(`/[${wildcard}]`, "/*");
-    if (!isValidUrlPathname(pathname)) return console.warn(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`);
-    //
-    this.register(subdomain);
-    let router = this.subdomains[subdomain];
-    if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
-    if (!pathname.startsWith("/")) pathname = "/" + pathname;
-    const path = pathname === "/" ? [""] : pathname.split("/");
-    for (let i = 1, len = path.length; i < len; i++) {
-      if (router[path[i]] == null) router[path[i]] = {};
-      router = router[path[i]];
+  get(method, pathname, filter) {
+    pathname = pathname.endsWith("/") ? pathname : pathname + "/";
+    let handler;
+    for (let i = 0, len = this.#routes.length; i < len; i++) {
+      let route = this.#routes[i];
+      if (
+        (() => {
+          switch (method) {
+            case "error":
+              return route.endsWith(ERROR) && !pathname.startsWith(route.slice(0, -1));
+            case "tree":
+              return !pathname.startsWith(route.endsWith(WILDCARD) ? route.slice(0, -1) : route);
+            default:
+              return route.endsWith(WILDCARD) ? !pathname.startsWith(route.slice(0, -1)) : route !== pathname;
+          }
+        })()
+      )
+        continue;
+      route = this.#handlers[route];
+      if (method === "tree") method = "any";
+      if (
+        (filter === false || filter ? filter(route) : route?.enabled !== false) &&
+        (method === route.method ||
+          (method === "any" && route.method !== "error") ||
+          (route.method === "any" && method !== "error"))
+      )
+        handler = route;
     }
-    if (callback instanceof Route) router[ROUTE] = ((callback.wildcard = wildcard), callback);
-    else if (typeof callback === "function") router[ROUTE] = { pathname, method, wildcard, handler: callback };
-    else if (Array.isArray(callback)) router[ROUTE] = { pathname, method, wildcard, handler: transformCallback(callback) };
+    return handler;
   }
 
-  get(subdomain, _method, pathname, { strict, disabled } = {}) {
-    let router = this.subdomains[subdomain];
-    if (/\?/.test(pathname)) pathname = pathname.split(/\?(.*)/)[0];
-    if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
-    if (!pathname.startsWith("/")) pathname = "/" + pathname;
-    const path = pathname === "/" ? [""] : pathname.split("/");
+  emit(event, socket, args) {
+    this.#events.emit(event, socket, args);
+  }
 
-    const valid = (curr) => {
-      const { method, enabled } = curr?.[ROUTE] || {};
-      return (disabled || enabled !== false) && (method === "any" || method === _method);
-    };
-    let wildcardMatch = !strict && valid(router?.[WILDCARD]) ? router[WILDCARD] : undefined;
-    for (let i = 1, len = path.length; i < len; i++) {
-      if (!router) break;
-      if (!strict && valid(router?.[WILDCARD])) wildcardMatch = router[WILDCARD];
-      if (typeof strict === "string" && valid(router?.[strict])) wildcardMatch = router[strict];
-      router = router?.[path[i]];
+  on(event, callback) {
+    this.#events.on(event, callback);
+  }
+
+  disable(pathname) {
+    this.get("any", pathname, false).enabled = false;
+  }
+
+  enable(pathname) {
+    this.get("any", pathname, false).enabled = true;
+  }
+
+  async setComponent(filepath, pathname, type, callback) {
+    const args = { filepath, pathname, type, callback };
+    if (type === "store") return (this.#store = (await useHandler(args))());
+    if (type === "socket") return (await useHandler(args))((...args) => this.#events.on(...args));
+    if (type === "app" || type === "page" || type === "error") {
+      if (type === "app") this.#pwa = true;
+      args.pwa = type === "app" || this.#pwa;
+      args.resources = this.resources;
+      args.config = this.get("tree", pathname, (route) => ["app", "page"].includes(route.type))?.config || {};
+      args.store = this.#store;
     }
-    if (valid(router)) return router?.[ROUTE];
-    return wildcardMatch?.[ROUTE];
-  }
-
-  disable(subdomain, pathname) {
-    const route = this.get(subdomain, "any", pathname, { strict: true, disabled: true });
-    route.enabled = false;
-  }
-
-  enable(subdomain, pathname) {
-    const route = this.get(subdomain, "any", pathname, { strict: true, disabled: true });
-    route.enabled = true;
-  }
-
-  async setComponent(filepath, subdomain, pathname, method, callback) {
-    const config = getConfig(this.subdomains[subdomain], pathname);
-    const route = new Route(filepath, pathname, method, config, callback);
-    this.set(subdomain, method, pathname, await route.import());
-  }
-
-  async setApi(filepath, subdomain, pathname, callback) {
-    const api = await useApi(filepath, { pathname: pathname || "/", callback });
-    if (api) this.set(subdomain, "any", pathname, api);
+    return this.set(type === "api" ? "any" : type === "error" ? "error" : "get", pathname, await useHandler(args));
   }
 }
 
-Router.getWildcardPath = getWildcardPath;
-Router.readFolder = getValidRoutesFromFolder;
-Router.isErrorRoute = isErrorRoute;
-Router.useApi = useApi;
+Router.readFolder = (folder, api) => {
+  const routes = [];
+  const recursive = (pathname = "") => {
+    const filepath = folder + pathname;
+    if (fs.isDirectory(filepath))
+      return fs.readdirSync(filepath).forEach((entry) => recursive(pathname + "/" + entry)), routes;
+    //
+    const extname = fs.extname(filepath);
+    const dirname = fs.dirname(pathname);
+    const basename = fs.basename(filepath, extname);
+    if (api && (dirname === "/api" || dirname.startsWith("/api/")) && [".js", ".ts"].includes(extname))
+      routes.push({
+        filepath,
+        pathname: dirname + "/" + basename,
+        type: "api",
+      });
+    else if (dirname === "/" && ["socket", "store"].includes(basename) && [".js", ".ts"].includes(extname))
+      routes.push({
+        filepath,
+        pathname: "",
+        type: basename,
+      });
+    else if (
+      (["page", "error"].includes(basename) || dirname + basename === "/app") &&
+      [".js", ".jsx", ".ts", ".tsx"].includes(extname)
+    )
+      routes.push({
+        filepath,
+        pathname: dirname,
+        type: basename,
+      });
+    return routes;
+  };
+  return recursive().sort((a, b) => {
+    [a, b] = [a.pathname.split("/"), b.pathname.split("/")];
+    if (a.length == b.length) return a[a.length - 1].length > b[b.length - 1].length ? 1 : -1;
+    return a.length > b.length ? 1 : -1;
+  });
+};
 
 export { Router };
 
 //
-
-function getWildcardPath(pathname) {
-  const wildcard = pathname?.match(/\/\[(\w*)\]$/)?.[1];
-  return wildcard ? { wildcard, valid: true } : {};
-}
 
 function transformCallback(callback) {
   callback = callback.filter((f) => typeof f === "function");
@@ -103,46 +166,4 @@ function transformCallback(callback) {
     return (request, response) => _callback(request, response, transform(callbacklist));
   };
   return transform(callback);
-}
-
-function getValidRoutesFromFolder(folder, pattern = new RegExp("^[A-Za-z0-9]")) {
-  const routes = [];
-  const recursive = (path = "") => {
-    const fullpath = folder + path;
-    if (fs.isDirectory(fullpath))
-      return fs.readdirSync(fullpath).forEach((entry) => {
-        if (!pattern.test(entry) && !/\[\w*\]\.(jsx|tsx)$/.test(entry)) return;
-        if (entry === "resources") return console.warn("Resources is a reserved path");
-        recursive(path + "/" + entry);
-      });
-    const ext = fs.extname(path);
-    if (![".js", ".jsx", ".ts", ".tsx"].includes(fs.extname(path))) return;
-    else path = path.slice(0, ext.length * -1);
-    if (path.endsWith("index")) path = path.slice(0, ("index".length + 1) * -1);
-    routes.push({ filepath: fullpath, pathname: path });
-  };
-  recursive();
-  return routes.sort((a, b) => {
-    [a, b] = [a.pathname.split("/"), b.pathname.split("/")];
-    if (a.length == b.length) return a[a.length - 1].length > b[b.length - 1].length ? 1 : -1;
-    return a.length > b.length ? 1 : -1;
-  });
-}
-
-function getConfig(router, path) {
-  let config = router?.[ROUTE]?.config;
-  if (path.startsWith("/")) path = path.slice(1);
-  path = path === "" ? [] : path?.split("/");
-  for (let i = 0, len = path.length; i < len; i++) {
-    if (!router?.[path[i]]) break;
-    router = router[path[i]];
-    config ??= router?.[ROUTE]?.config;
-  }
-  return config;
-}
-
-function isErrorRoute(pathname) {
-  if (pathname.length !== 3) return false;
-  const n = +pathname;
-  return 400 <= n && n < 600;
 }

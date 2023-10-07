@@ -73,9 +73,9 @@ function Bench({ id, run, Test, onRender }) {
     onRender(id, performance);
   };
   return (
-    <div className="bench">
+    <div class="bench">
       <p>Benchmark #{id}</p>
-      <div className="container">
+      <div className="display">
         <Profiler id={id} callback={callback}>
           <Test run={run} iterations={ITERATIONS} />
         </Profiler>

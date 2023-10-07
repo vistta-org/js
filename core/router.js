@@ -2,94 +2,81 @@ import VirtualDom, { createElement } from "./dom";
 import socket from "./socket";
 import { isServer, isValidUrl, system } from "../utils";
 
-const route = system.register(
-  "v-route",
-  class extends HTMLElement {
-    #active;
-    #dom;
-    #routes = {};
-    #animation;
+const route = document.body || {};
+const __private = { routes: {} };
 
-    constructor() {
-      super();
-      if (isServer()) return;
-      this.navigate({ refresh: true });
-      handleSocket(this);
-      window.addEventListener("popstate", () => this.navigate({ pushState: false }));
-      window.addEventListener("click", this.#handleClick.bind(this));
-    }
-
-    async navigate(arg) {
+Object.defineProperties(route, {
+  navigate: {
+    value: async (arg) => {
       let { href, pushState, callback, refresh } = typeof arg === "object" ? arg : { href: arg };
       if (!refresh) refresh = href === true;
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
       href = new URL(href).pathname;
-      if (!refresh && this.#active === href) return;
-      this.#active = href;
-      const cached = this.#routes?.[href];
+      if (!refresh && __private.active === href) return;
+      __private.active = href;
+      const cached = __private.routes?.[href];
       if (pushState !== false) history.pushState({}, "", href);
+      if (__private?.dom?.remove) __private.dom.remove();
       if (refresh || !cached) {
-        let app = href + (href.endsWith("/") ? "" : "/") + "resources/app";
-        const { store, styles, animation } = await loadConfig(app);
-        this.#animation = animation;
-        this.#dom = new VirtualDom(this, styles, store);
-        return this.#dom.render(createElement((await system.import(app, { cache: false })).default), {
-          refresh,
-          animation: this.#animation,
-          callback: () => {
-            this.#routes[href] = this.#dom;
-            callback && callback();
-          },
+        let resource = href + (href.endsWith("/") ? "" : "/") + "resources/app";
+        const { default: app, config, store } = await system.import(resource, { cache: false });
+        if (!__private.store) __private.store = store;
+        __private.dom = new VirtualDom(route, config);
+        return __private.dom.render(createElement(app), refresh, (config) => {
+          updateConfig(config);
+          __private.routes[href] = __private.dom;
+          callback && callback();
         });
       }
-      this.#dom = cached;
-      this.#dom.replace({ animation: this.#animation, callback: () => callback && callback() });
-    }
-
-    refresh(href) {
-      if (this.#routes?.[href]) delete this.#routes[href];
-      if (href !== this.#active) return;
-      this.classList.toggle("loading", true);
-      this.navigate({ refresh: true, callback: () => this.classList.toggle("loading", false) });
-    }
-
-    get active() {
-      return this.#active;
-    }
-
-    get location() {
+      __private.dom = cached;
+      __private.dom.refresh((config) => {
+        updateConfig(config);
+        callback && callback(config);
+      });
+    },
+  },
+  refresh: {
+    value: (href) => {
+      if (__private.routes?.[href]) delete __private.routes[href];
+      if (href !== __private.active) return;
+      route.classList.toggle("loading", true);
+      route.navigate({ refresh: true, callback: () => route.classList.toggle("loading", false) });
+    },
+  },
+  active: {
+    get: () => __private.active,
+  },
+  location: {
+    get: () => {
       if (isServer()) return system.get("route.location");
       return window.location;
-    }
-
-    get store() {
+    },
+  },
+  store: {
+    get: () => {
       if (isServer()) return system.get("route.store");
-      return this.#dom?.store;
-    }
-
-    emit(event, details) {
-      this?.dispatchEvent(
+      return __private.store;
+    },
+  },
+  emit: {
+    value: (event, details) =>
+      route?.dispatchEvent(
         new CustomEvent(event.toLowerCase(), {
           bubbles: true,
           composed: true,
           detail: details,
         }),
-      );
-    }
-
-    on(event, callback) {
-      this?.addEventListener(event, callback, false);
-    }
-
-    #handleClick(event) {
-      const { tagName, href, target } = event.target;
-      if (tagName !== "A" || (target && target !== "_self")) return;
-      event.preventDefault();
-      this.navigate(href);
-    }
+      ),
   },
-);
+  on: {
+    value: (event, callback) => route?.addEventListener(event, callback, false),
+  },
+});
+
+system.addEventListener("click", handleClick);
+system.addEventListener("popstate", () => route.navigate({ pushState: false }));
+system.addEventListener("load", () => (handlerServiceWorker(), handleSocket(), route.navigate({ refresh: true })));
 
 export default route;
 
@@ -104,10 +91,34 @@ export const useRoute = () => ({
 
 //
 
-function handleSocket(router) {
-  if (socket.active === false) return setTimeout(() => handleSocket(router), 250);
-  socket.router = router;
-  socket.instance.on(`@app/refresh`, (href) => router.refresh(href));
+function updateConfig(config) {
+  Object.keys(config).forEach((key) => {
+    if (key === "title") return (document.title = config.title);
+    if (key === "href") return document.querySelector(`head > base`)?.setAttribute("href", config.href);
+    if (key === "icon")
+      return document.querySelectorAll(`head > link[rel$="icon"]`)?.forEach((e) => e.setAttribute("href", config.icon));
+    document.querySelector(`head > meta[name="${key}"]`)?.setAttribute("content", config[key]);
+  });
+}
+
+function handleClick(event) {
+  const { tagName, href, target } = event.target;
+  if (tagName !== "A" || (target && target !== "___private")) return;
+  event.preventDefault();
+  route.navigate(href);
+}
+
+function handleSocket() {
+  if (socket.active === false) return setTimeout(handleSocket, 250);
+  socket.router = route;
+  socket.instance.on(`@app/refresh`, (href) => route.refresh(href));
+}
+
+function handlerServiceWorker() {
+  if (!("serviceWorker" in navigator) || !document.querySelector(`head > link[rel="manifest"]`)) return;
+  navigator.serviceWorker
+    .register("/resources/sw.js")
+    .then(undefined, (error) => console.log(`Service worker registration failed: ${error}`));
 }
 
 function buildUrl(href) {
@@ -120,12 +131,4 @@ function buildUrl(href) {
 
 function isAppUrl(href) {
   return new URL(window.location.href).host === new URL(href).host;
-}
-
-async function loadConfig(href) {
-  try {
-    return (await system.import(`${href}/config`, { cache: false }))?.config || {};
-  } catch {
-    return {};
-  }
 }

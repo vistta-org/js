@@ -4,4 +4,4 @@ export { useContext, useStyle, useRef, useState, useEffect } from "./core/hooks.
 export { useRoute } from "./core/router.js";
 export { useSocket } from "./core/socket.js";
 export { Store, useStore } from "./core/store.js";
-export { Profiler, Suspense, TryCatch, async, context } from "./core/components.js";
+export { Profiler, Suspense, TryCatch, async } from "./core/components.js";

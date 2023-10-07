@@ -1,4 +1,4 @@
-export function useContext<T = any>(key: string): T;
+export function useContext<T = any>(key?: string): T;
 
 export function useStyle(...styles: JSX.Style[]): JSX.Component | { scope: string };
 
@@ -14,7 +14,5 @@ interface State<T> {
 }
 export function useState<T = any>(initialValue: T): State<T>;
 
-interface Effect<T> extends State<T> {
-  readonly value: T;
-}
-export function useEffect<T>(callback: () => void | T, dependencies?: any[], runOnRender?: boolean): Effect<T>;
+type Callback = () => void;
+export function useEffect(callback: () => void | Callback, dependencies?: any[], runOnRender?: boolean): void;
