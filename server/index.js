@@ -262,15 +262,14 @@ class Server {
     const subdomain = "build";
     const routes = [];
     const pages = {};
-    await this.use(folder, subdomain, "/", {
-      callback: (page) => {
-        if (Router.isWildcard(page.pathname)) console.warn(`${page.pathname}: Wildcards will be ignored in build.`);
-        else routes.push(page);
-      },
-    });
-    for (let i = 0, len = routes.length; i < len; i++)
-      pages[routes[i].pathname + (routes[i].type === "error" ? "/error.html" : "/index.html")] =
-        this.#router[subdomain].get(routes[i].type === "error" ? "error" : "get", routes[i].pathname) || {};
+    await this.use(folder, subdomain, "/", { callback: (page) => routes.push(page) });
+    for (let i = 0, len = routes.length; i < len; i++) {
+      const { pathname, type } = routes[i];
+      const wildcard = Router.isWildcard(pathname);
+      let route = pathname + (pathname.endsWith("/") ? "" : "/") + (type === "error" ? "error.html" : "index.html");
+      if (wildcard) route = route.replace(`/[${wildcard}]`, "");
+      pages[route] = this.#router[subdomain].get(type === "error" ? "error" : "get", pathname) || {};
+    }
     return { pages, resources: this.#router[subdomain].resources.get() };
   }
 }

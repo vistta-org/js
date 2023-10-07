@@ -99,7 +99,6 @@ function updateConfig(config) {
       return document.querySelectorAll(`head > link[rel$="icon"]`)?.forEach((e) => e.setAttribute("href", config.icon));
     document.querySelector(`head > meta[name="${key}"]`)?.setAttribute("content", config[key]);
   });
-  //xif (title) document.title = title;
 }
 
 function handleClick(event) {

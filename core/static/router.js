@@ -1,13 +1,11 @@
 import VirtualDom, { createElement } from "../dom";
-import { isValidUrl, setImmediate } from "../../utils";
+import { isValidUrl } from "../../utils";
 
 const route = document.body;
 const __private = { routes: {} };
 
-window.addEventListener("load", () => {
-  window.addEventListener("click", handleClick.bind(route));
-  setImmediate(() => build());
-});
+window.addEventListener("click", handleClick.bind(route));
+window.addEventListener("load", build);
 
 Object.defineProperties(route, {
   navigate: {
@@ -27,7 +25,7 @@ Object.defineProperties(route, {
       get: () => window.location,
     },
     store: {
-      get: () => __private?.dom?.store,
+      get: () => __private?.store,
     },
     emit: {
       value: (event, details) =>
@@ -67,11 +65,9 @@ function handleClick(event) {
 
 async function build() {
   if (typeof __import_app === "undefined") return console.error("Internal App Error");
-  const {
-    default: app,
-    config: { styles, store },
-  } = __import_app(); // eslint-disable-line no-undef
-  __private.dom = new VirtualDom(route, styles, store);
+  const { default: app, config, store } = __import_app(); // eslint-disable-line no-undef
+  __private.store = store;
+  __private.dom = new VirtualDom(route, config);
   __private.dom.render(createElement(app));
 }
 

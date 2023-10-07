@@ -1,6 +1,7 @@
 import { system } from "../utils";
 import { State, INTERNAL, HOOK_CONTEXT, SCOPE_CONTEXT, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
 
+const BUILD = process.env.BUILD;
 const ANIMATIONS = ["fade", "slide", "custom"];
 const Fragment = Symbol("Fragment");
 const TextNode = Symbol("TextNode");
@@ -199,7 +200,7 @@ export default class VirtualDom {
 
 let animationCount = -1;
 function animate(body, animation, callback, refresh) {
-  if (refresh || !ANIMATIONS.includes(animation)) return callback();
+  if (refresh || !ANIMATIONS.includes(animation) || BUILD) return callback();
   animationCount++;
   const id = animationCount;
   const animationend = () => {
