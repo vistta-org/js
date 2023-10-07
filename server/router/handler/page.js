@@ -192,6 +192,7 @@ function html({
 function manifest(config) {
   if (typeof config.manifest === "object") Object.assign(config, config.manifest);
   return JSON.stringify({
+    id: config.id,
     theme_color: config.theme,
     background_color: config.background,
     display: config.display || "fullscreen",
