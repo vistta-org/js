@@ -9,7 +9,7 @@ const ERROR = "/✖";
 class Router {
   static isWildcard = (pathname) => pathname?.match(/\/\[(\w*)\]$/)?.[1];
 
-  #main;
+  #pwa = false;
   #store;
   #routes = [];
   #handlers = {};
@@ -104,7 +104,8 @@ class Router {
     if (type === "store") return (this.#store = (await useHandler(args))());
     if (type === "socket") return (await useHandler(args))((...args) => this.#events.on(...args));
     if (type === "app" || type === "page" || type === "error") {
-      args.pwa = type === "app" || !!this.#main;
+      if (type === "app") this.#pwa = true;
+      args.pwa = type === "app" || this.#pwa;
       args.resources = this.resources;
       args.config = this.get("tree", pathname, (route) => ["app", "page"].includes(route.type))?.config || {};
       args.store = this.#store;

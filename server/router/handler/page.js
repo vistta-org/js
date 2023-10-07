@@ -23,7 +23,7 @@ const CONFIG_DEFAULT = {
   keywords: "visttajs",
 };
 const CLIENT = (await bundle(fs.resolve(dirname, BUILD ? "../../../core/static/client" : "../../../core/client")))?.code;
-// const serviceWorker = (await bundle(fs.resolve(dirname, "../../core/sw")))?.code;
+const SERVICE_WORKER = (await bundle(fs.resolve(dirname, "../../../core/sw")))?.code;
 
 class PageHandler extends ExtensibleFunction {
   #watchedFiles = [];
@@ -81,7 +81,10 @@ class PageHandler extends ExtensibleFunction {
         return script.join(IS_DEV ? "\n" : " ");
       })([code]);
       this.resources.add(resources);
-      if (this.type === "app") this.resources.add("manifest.json", manifest(this.config));
+      if (this.type === "app") {
+        this.resources.add("manifest.json", manifest(this.config));
+        this.resources.add("sw.js", SERVICE_WORKER);
+      }
       if (IS_DEV) this.watch(files);
       this.emit("ready");
       return this;

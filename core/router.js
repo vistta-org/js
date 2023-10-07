@@ -76,7 +76,7 @@ Object.defineProperties(route, {
 
 system.addEventListener("click", handleClick);
 system.addEventListener("popstate", () => route.navigate({ pushState: false }));
-system.addEventListener("load", () => (route.navigate({ refresh: true }), handleSocket()));
+system.addEventListener("load", () => (handlerServiceWorker(), handleSocket(), route.navigate({ refresh: true })));
 
 export default route;
 
@@ -112,6 +112,13 @@ function handleSocket() {
   if (socket.active === false) return setTimeout(handleSocket, 250);
   socket.router = route;
   socket.instance.on(`@app/refresh`, (href) => route.refresh(href));
+}
+
+function handlerServiceWorker() {
+  if (!("serviceWorker" in navigator) || !document.querySelector(`head > link[rel="manifest"]`)) return;
+  navigator.serviceWorker
+    .register("/resources/sw.js")
+    .then(undefined, (error) => console.log(`Service worker registration failed: ${error}`));
 }
 
 function buildUrl(href) {

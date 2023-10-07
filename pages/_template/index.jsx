@@ -5,11 +5,10 @@ import icon from "../../logo.png";
 
 const nav = ["docs", "showcase"];
 
-const PageTemplate = ({ title, children }) => {
+const PageTemplate = ({ children }) => {
   const { navigate } = useRoute();
   return (
     <Template
-      title={title}
       logo={icon}
       home={() => navigate("/")}
       nav={nav.map((cur) => (
