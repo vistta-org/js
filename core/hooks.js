@@ -1,4 +1,4 @@
-import { isBrowser, setImmediate, ExtensibleFunction } from "../utils";
+import { isBrowser, setImmediate, ExtensibleFunction, indexOf } from "../utils";
 
 export const EFFECT_CONTEXT = "#effect";
 export const PROFILER_CONTEXT = "#profiler";
@@ -22,13 +22,15 @@ export function useContext(key) {
 // Style
 
 export function useStyle(...styles) {
-  const scopedStyles = {};
+  const scope = {};
   for (let i = 0, len = styles.length; i < len; i++) {
     const { id, raw } = styles[i];
-    scopedStyles[id] = createScope(id, raw);
+    scope[id] = createScope(id, raw);
   }
-  if (!INTERNAL[SCOPE_CONTEXT].styles) INTERNAL[SCOPE_CONTEXT].styles = scopedStyles;
-  else Object.assign(INTERNAL[SCOPE_CONTEXT].styles, scopedStyles);
+  // eslint-disable-next-line no-undef
+  const Scope = ({ children }) => createElement(Fragment, { scope }, children);
+  Scope.scope = scope;
+  return Scope;
 }
 
 // Ref
@@ -135,19 +137,19 @@ function unique(dependencies, index) {
 
 function createScope(id, code) {
   const regex = /([^{}\s][^{}]*)\s*(?=\{)/g;
-  const scope = (value) => {
-    if (value.startsWith(":scope")) return `[scope~="${id}"]${value.slice(":scope".length)}`;
-    return `[scope~="${id}"] > ${value}`;
+  const add = (value) => {
+    const index = indexOf(value, " ", ">", ":");
+    if (index === -1) return value + `[scope~="${id}"]`;
+    return value.slice(0, index) + `[scope~="${id}"]` + value.slice(index);
   };
-  return code.match(regex)
-    ? code.replace(regex, (value) => {
-        if (value.includes("@") || value.includes("%")) return value;
-        if (value.includes(","))
-          return value
-            .split(",")
-            .reduce((acc, c) => `${acc}${scope(c)},`, "")
-            .slice(0, -1);
-        return scope(value);
-      })
-    : code;
+  const replacer = (value) => {
+    if (value.includes("@") || value.includes("%")) return value;
+    if (value.includes(","))
+      return value
+        .split(",")
+        .reduce((acc, c) => `${acc}${add(c)},`, "")
+        .slice(0, -1);
+    return add(value);
+  };
+  return code.match(regex) ? code.replace(regex, (v) => replacer(v.trim())) : code;
 }

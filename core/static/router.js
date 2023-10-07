@@ -2,12 +2,11 @@ import VirtualDom, { createElement } from "../dom";
 import { isValidUrl, setImmediate } from "../../utils";
 
 const route = document.body;
-const self = { routes: {} };
+const __private = { routes: {} };
 
 window.addEventListener("load", () => {
   window.addEventListener("click", handleClick.bind(route));
   setImmediate(() => build());
-  new MutationObserver((list) => self.dom.onMutation(list)).observe(route, { childList: true, subtree: true });
 });
 
 Object.defineProperties(route, {
@@ -16,19 +15,19 @@ Object.defineProperties(route, {
       let { href } = typeof arg === "object" ? arg : { href: arg };
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       window.location.href = href;
-      self.active = href;
+      __private.active = href;
     },
     refresh: {
       value: () => location.reload(),
     },
     active: {
-      get: () => self.active,
+      get: () => __private.active,
     },
     location: {
       get: () => window.location,
     },
     store: {
-      get: () => self?.dom?.store,
+      get: () => __private?.dom?.store,
     },
     emit: {
       value: (event, details) =>
@@ -61,7 +60,7 @@ export const useRoute = () => ({
 
 function handleClick(event) {
   const { tagName, href, target } = event.target;
-  if (tagName !== "A" || (target && target !== "_self")) return;
+  if (tagName !== "A" || (target && target !== "___private")) return;
   event.preventDefault();
   route.navigate(href);
 }
@@ -72,8 +71,8 @@ async function build() {
     default: app,
     config: { styles, store },
   } = __import_app(); // eslint-disable-line no-undef
-  self.dom = new VirtualDom(route, styles, store);
-  self.dom.render(createElement(app));
+  __private.dom = new VirtualDom(route, styles, store);
+  __private.dom.render(createElement(app));
 }
 
 function buildUrl(href) {

@@ -101,7 +101,7 @@ class PageHandler extends ExtensibleFunction {
     const imports = {};
     system.set("route", this);
     this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
-    const body = renderToString(BUILD ? createElement(this.app) : createElement("app-route", {}, createElement(this.app)));
+    const body = renderToString(createElement(this.app));
     if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
     system.set("route", null);
     return html({
@@ -174,7 +174,7 @@ function html({
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || []),
         ),
-        createElement("body", { unescaped: true }, body),
+        createElement("body", {}, body),
         createElement("script", { nonce }, client),
       ),
     )

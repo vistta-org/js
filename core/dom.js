@@ -1,4 +1,4 @@
-import { system, camelCaseToKebabCase, isObjectEmpty } from "../utils";
+import { system } from "../utils";
 import { State, INTERNAL, HOOK_CONTEXT, SCOPE_CONTEXT, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
 
 const ANIMATIONS = ["fade", "slide", "custom"];
@@ -24,15 +24,11 @@ const createElement = (type, props, ...children) => {
     INTERNAL[SCOPE_CONTEXT] = scope;
     const node = type(props);
     INTERNAL[HOOK_CONTEXT] = context;
-    const name = "c-" + camelCaseToKebabCase(type.name);
-    if (type.ignore && !isObjectEmpty(scope)) {
-      if ("production" !== process.env.NODE_ENV) console.warn("Components with scope cannot be ignored");
-      type.ignore = false;
-    }
+    const { effects } = scope;
     if (node instanceof Element || typeof node !== "object" || (node && node instanceof State))
-      return type.ignore ? node : Object.assign(new Element(name, {}, [node]), { scope });
+      return effects ? Object.assign(new Element(Fragment, {}, [node]), { effects }) : node;
     if (Array.isArray(node))
-      return type.ignore ? new Element(Fragment, {}, node) : Object.assign(new Element(name, {}, node), { scope });
+      return effects ? Object.assign(new Element(Fragment, {}, node), { effects }) : new Element(Fragment, {}, node);
     if ("production" !== process.env.NODE_ENV && node instanceof Promise)
       console.warn("Async Components need to be wrapped in async function");
     return null;
@@ -56,7 +52,7 @@ export default class VirtualDom {
   #keys = {};
   #children = [];
   #css = {};
-  #effects = {};
+  #effects = [];
 
   body = document.body;
   head = document.head;
@@ -78,6 +74,7 @@ export default class VirtualDom {
   }
 
   render(content, { animation, callback, refresh } = {}) {
+    this.#effects = [];
     const fragment = this.createDocumentFragment();
     this.#content = this.#apply((child) => {
       if (child?.node) fragment.append(child.node);
@@ -91,41 +88,27 @@ export default class VirtualDom {
         if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
         else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
         this.#children = [...this.body.children];
+        this.#effects.forEach((effect) => effect());
         callback && callback();
       },
       refresh,
     );
   }
 
-  replace({ animation, callback } = {}) {
+  remove() {
+    this.#effects = [];
+    findEffects(this.#content, (effects) => effects.forEach((callback) => callback(REMOVED_EFFECT_EVENT)));
+  }
+
+  refresh({ animation, callback } = {}) {
+    this.#effects = [];
     animate(this.body, animation, () => {
       this.body.replaceChildren(...this.#children);
       if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
       else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
+      findEffects(this.#content, (effects) => effects.forEach((callback) => callback(ADDED_EFFECT_EVENT)));
       callback && callback();
     });
-  }
-
-  onMutation(mutationsList) {
-    for (let i = 0, len = mutationsList.length; i < len; i++) {
-      const { type, addedNodes, removedNodes } = mutationsList[i];
-      const addedLength = addedNodes?.length || 0;
-      const removedLength = removedNodes?.length || 0;
-      if (type !== "childList" || (!addedLength && !removedLength)) continue;
-      const nodesLength = this.#effects?.nodes?.length || 0;
-      for (let n = 0; n < nodesLength; n++) {
-        const node = this.#effects.nodes[n];
-        const effects = this.#effects.effects[n];
-        for (let i2 = 0; i2 < addedLength; i2++) {
-          if (node !== addedNodes[i2] && !addedNodes[i2].contains(node)) continue;
-          effects?.forEach((callback) => callback(ADDED_EFFECT_EVENT));
-        }
-        for (let i2 = 0; i2 < removedLength; i2++) {
-          if (node !== removedNodes[i2] && !removedNodes[i2].contains(node)) continue;
-          effects?.forEach((callback) => callback(REMOVED_EFFECT_EVENT));
-        }
-      }
-    }
   }
 
   #apply(append, element) {
@@ -133,7 +116,7 @@ export default class VirtualDom {
     if (!(element instanceof Element)) {
       if (element instanceof State) {
         element = new Element(Fragment, element);
-        element.children = convertToArray(element);
+        element.children = [element.props?.valueOf()];
         element.props.subscribe(() => this.#update(element));
       } else if (Array.isArray(element)) element = new Element(Fragment, null, element);
       else if (!element?.toString || typeof element === "function") {
@@ -142,7 +125,8 @@ export default class VirtualDom {
       } else element = new Element(TextNode, null, "" + element);
     }
     //
-    const { type, key, ref, scope, props, children } = element;
+    const { type, key, ref, props, children, effects } = element;
+    if (props.scope) addScope(this.#css, props.scope);
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = this.createTextNode(children);
       else if (type !== Fragment) element.node = this.createElement(type);
@@ -153,7 +137,6 @@ export default class VirtualDom {
         else if (typeof ref === "object") ref.current = element.node;
       }
       if (type !== Fragment) {
-        if (scope?.styles) addScope(this.#css, element.node, scope.styles);
         if (props) {
           const keys = Object.keys(props);
           for (let i = 0, len = keys?.length || 0; i < len; i++) {
@@ -163,14 +146,16 @@ export default class VirtualDom {
             setAttribute(element.node, name, value);
           }
         }
-        if (scope?.effects) this.#observe(element.node, scope?.effects);
         element.parent = append(element);
-      }
+      } else if (effects) this.#effects.push(() => effects.forEach((callback) => callback(ADDED_EFFECT_EVENT)));
       if (type !== TextNode && children) {
         const appendChild =
           type === Fragment
             ? (child) => {
-                if (child?.node) element.nodes.push(child.node);
+                if (child?.node) {
+                  element.nodes.push(child.node);
+                  if (props.scope && child.type !== TextNode) setAttribute(child.node, "scope", props.scope);
+                }
                 element.parent = append(child);
                 return element.parent;
               }
@@ -186,10 +171,14 @@ export default class VirtualDom {
   }
 
   async #update(element) {
+    this.#effects = [];
     const fragment = this.createDocumentFragment();
     const previous = element?.nodes || [];
     const parent = element.parent;
-    element.children = convertToArray(element);
+    findEffects(element, (effects) =>
+      this.#effects.push(() => effects.forEach((callback) => callback(REMOVED_EFFECT_EVENT))),
+    );
+    element.children = [element.props?.valueOf()];
     this.#apply((child) => {
       if (child?.node) fragment.append(child.node);
       return parent;
@@ -200,15 +189,7 @@ export default class VirtualDom {
     if (element.nextSibling) parent.insertBefore(fragment, element.nextSibling);
     else parent.appendChild(fragment);
     if (parent === this.body) this.#children = [...this.body.children];
-  }
-
-  #observe(node, effects) {
-    if (!this.#effects?.nodes) this.#effects = { nodes: [], effects: [] };
-    const index = this.#effects.nodes.indexOf(node);
-    if (index === -1) {
-      this.#effects.nodes.push(node);
-      this.#effects.effects.push(effects);
-    } else this.#effects.effects[index] = effects;
+    this.#effects.forEach((effect) => effect());
   }
 }
 
@@ -234,24 +215,25 @@ function animate(body, animation, callback, refresh) {
   body.classList.add(animation + "-out");
 }
 
-function convertToArray(element) {
-  const value = element.props?.valueOf();
-  return value instanceof Element && value.type === Fragment ? value.children : [value];
-}
-
 function setAttribute(node, name, value) {
   if (/^on\w.*/.test(name) && typeof value === "function") {
     node.addEventListener(name.charAt(2).toLowerCase() + name.slice(3), value);
     return;
   }
   if (name === "className") name = "class";
+  if (name === "scope") value = Object.keys(value).join(" ");
   if (!value) node.removeAttribute(name);
   else if (name === "style") Object.assign(node.style, value);
   else node.setAttribute(name, value);
 }
 
-function addScope(css, node, scope) {
-  node.setAttribute("scope", Object.keys(scope).join(" "));
+function findEffects(element, callback) {
+  if (!element || !(element instanceof Element)) return null;
+  if (element?.effects) callback(element?.effects);
+  for (let i = 0, len = element?.children?.length || 0; i < len; i++) findEffects(element.children[i], callback);
+}
+
+function addScope(css, scope) {
   const keys = Object.keys(scope);
   for (let i = 0, len = keys.length; i < len; i++) {
     if (!css[keys[i]]) css[keys[i]] = scope[keys[i]];

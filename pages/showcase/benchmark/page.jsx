@@ -16,7 +16,7 @@ const TESTS = {
 const ENABLED_TESTS = Object.values(TESTS).filter((x) => x.active).length;
 
 export default function Benchmark() {
-  useStyle(style);
+  const scope = useStyle(style);
   const counter = useState(1);
   const tests = {};
   const benchRun = () => {
@@ -46,7 +46,7 @@ export default function Benchmark() {
   };
   return (
     <Template>
-      <div className="container">
+      <div className="container" {...scope}>
         <Bench id="1" run={counter} Test={Test1} onRender={runComplete} />
         <Bench id="2" run={counter} Test={Test2} onRender={runComplete} />
         <Bench id="3" run={counter} Test={Test3} onRender={runComplete} />
@@ -73,7 +73,7 @@ function Bench({ id, run, Test, onRender }) {
     onRender(id, performance);
   };
   return (
-    <>
+    <div class="bench">
       <p>Benchmark #{id}</p>
       <div className="display">
         <Profiler id={id} callback={callback}>
@@ -82,6 +82,6 @@ function Bench({ id, run, Test, onRender }) {
       </div>
       <p>Run: {run}</p>
       <p>Time: {time}ms</p>
-    </>
+    </div>
   );
 }

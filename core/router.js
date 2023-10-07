@@ -2,99 +2,83 @@ import VirtualDom, { createElement } from "./dom";
 import socket from "./socket";
 import { isServer, isValidUrl, system } from "../utils";
 
-const route = system.register(
-  "app-route",
-  class extends HTMLElement {
-    #active;
-    #dom;
-    #routes = {};
-    #animation;
-    #store;
+const route = document.body || {};
+const __private = { routes: {} };
 
-    constructor() {
-      super();
-      if (isServer()) return;
-      this.navigate({ refresh: true });
-      handleSocket(this);
-      window.addEventListener("popstate", () => this.navigate({ pushState: false }));
-      window.addEventListener("click", this.#handleClick.bind(this));
-      new MutationObserver((list) => this.#dom?.onMutation(list)).observe(this, { childList: true, subtree: true });
-      // if ("serviceWorker" in navigator) navigator.serviceWorker.register("/resources/app/sw");
-    }
-
-    async navigate(arg) {
+Object.defineProperties(route, {
+  navigate: {
+    value: async (arg) => {
       let { href, pushState, callback, refresh } = typeof arg === "object" ? arg : { href: arg };
       if (!refresh) refresh = href === true;
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
       href = new URL(href).pathname;
-      if (!refresh && this.#active === href) return;
-      this.#active = href;
-      const cached = this.#routes?.[href];
+      if (!refresh && __private.active === href) return;
+      __private.active = href;
+      const cached = __private.routes?.[href];
       if (pushState !== false) history.pushState({}, "", href);
+      if (__private?.dom?.remove) __private.dom.remove();
       if (refresh || !cached) {
         let resource = href + (href.endsWith("/") ? "" : "/") + "resources/app";
         const { default: app, config, store } = await system.import(resource, { cache: false });
         const { styles = [], animation } = config || {};
-        this.#animation = animation;
-        if (!this.#store) this.#store = store;
-        this.#dom = new VirtualDom(this, styles);
-        return this.#dom.render(createElement(app), {
+        __private.animation = animation;
+        if (!__private.store) __private.store = store;
+        __private.dom = new VirtualDom(this, styles);
+        return __private.dom.render(createElement(app), {
           refresh,
-          animation: this.#animation,
+          animation: __private.animation,
           callback: () => {
-            this.#routes[href] = this.#dom;
+            __private.routes[href] = __private.dom;
             callback && callback();
           },
         });
       }
-      this.#dom = cached;
-      this.#dom.replace({ animation: this.#animation, callback: () => callback && callback() });
-    }
-
-    refresh(href) {
-      if (this.#routes?.[href]) delete this.#routes[href];
-      if (href !== this.#active) return;
+      __private.dom = cached;
+      __private.dom.refresh({ animation: __private.animation, callback: () => callback && callback() });
+    },
+  },
+  refresh: {
+    value: (href) => {
+      if (__private.routes?.[href]) delete __private.routes[href];
+      if (href !== __private.active) return;
       this.classList.toggle("loading", true);
       this.navigate({ refresh: true, callback: () => this.classList.toggle("loading", false) });
-    }
-
-    get active() {
-      return this.#active;
-    }
-
-    get location() {
+    },
+  },
+  active: {
+    get: () => __private.active,
+  },
+  location: {
+    get: () => {
       if (isServer()) return system.get("route.location");
       return window.location;
-    }
-
-    get store() {
+    },
+  },
+  store: {
+    get: () => {
       if (isServer()) return system.get("route.store");
-      return this.#store;
-    }
-
-    emit(event, details) {
-      this?.dispatchEvent(
+      return __private.store;
+    },
+  },
+  emit: {
+    value: (event, details) =>
+      route?.dispatchEvent(
         new CustomEvent(event.toLowerCase(), {
           bubbles: true,
           composed: true,
           detail: details,
         }),
-      );
-    }
-
-    on(event, callback) {
-      this?.addEventListener(event, callback, false);
-    }
-
-    #handleClick(event) {
-      const { tagName, href, target } = event.target;
-      if (tagName !== "A" || (target && target !== "_self")) return;
-      event.preventDefault();
-      this.navigate(href);
-    }
+      ),
   },
-);
+  on: {
+    value: (event, callback) => route?.addEventListener(event, callback, false),
+  },
+});
+
+system.addEventListener("click", handleClick);
+system.addEventListener("popstate", () => route.navigate({ pushState: false }));
+system.addEventListener("load", () => (route.navigate({ refresh: true }), handleSocket()));
 
 export default route;
 
@@ -109,10 +93,17 @@ export const useRoute = () => ({
 
 //
 
-function handleSocket(router) {
-  if (socket.active === false) return setTimeout(() => handleSocket(router), 250);
-  socket.router = router;
-  socket.instance.on(`@app/refresh`, (href) => router.refresh(href));
+function handleClick(event) {
+  const { tagName, href, target } = event.target;
+  if (tagName !== "A" || (target && target !== "___private")) return;
+  event.preventDefault();
+  route.navigate(href);
+}
+
+function handleSocket() {
+  if (socket.active === false) return setTimeout(handleSocket, 250);
+  socket.router = route;
+  socket.instance.on(`@app/refresh`, (href) => route.refresh(href));
 }
 
 function buildUrl(href) {

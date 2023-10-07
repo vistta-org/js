@@ -3,11 +3,11 @@ import Template from "./_template";
 import style from "./style.scss";
 
 export default function Home() {
-  useStyle(style);
+  const scope = useStyle(style);
   const { navigate } = useRoute();
   return (
     <Template>
-      <div className="container">
+      <div className="container" {...scope}>
         <h1>Vistta.JS</h1>
         <h1>Vistta.JS</h1>
         <h2>Vistta.js Javascript Framework</h2>
