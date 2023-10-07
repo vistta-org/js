@@ -80,7 +80,6 @@ class Server {
       const subdomain = getSubdomain(socket.handshake.headers.host) || "";
       socket.join(subdomain);
       socket.onAny((event, ...args) => {
-        console.log(event, args);
         this.#router?.[subdomain].emit(
           event,
           {

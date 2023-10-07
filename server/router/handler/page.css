@@ -1,8 +1,4 @@
-app-route {
-  display: contents;
-}
-
-app-route:after {
+body:after {
   position: fixed;
   width: 48px;
   height: 48px;
@@ -13,7 +9,7 @@ app-route:after {
   transform: translate(-50%, -50%) scale(0);
   animation: route-animation 1s ease-in-out infinite;
 }
-app-route.loading:after {
+body.loading:after {
   content: "";
 }
 
@@ -28,7 +24,7 @@ app-route.loading:after {
   }
 }
 
-app-route.fade-in > * {
+body.fade-in > * {
   animation: fade-in 0.5s ease-in-out;
 }
 
@@ -41,7 +37,7 @@ app-route.fade-in > * {
   }
 }
 
-app-route.fade-out > * {
+body.fade-out > * {
   animation: fade-out 0.5s ease-in-out;
 }
 
@@ -54,7 +50,7 @@ app-route.fade-out > * {
   }
 }
 
-app-route.slide-in > * {
+body.slide-in > * {
   animation: slide-in 0.5s ease-in-out;
 }
 
@@ -67,7 +63,7 @@ app-route.slide-in > * {
   }
 }
 
-app-route.slide-out > * {
+body.slide-out > * {
   animation: slide-out 0.5s ease-in-out;
 }
 

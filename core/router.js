@@ -21,29 +21,27 @@ Object.defineProperties(route, {
       if (refresh || !cached) {
         let resource = href + (href.endsWith("/") ? "" : "/") + "resources/app";
         const { default: app, config, store } = await system.import(resource, { cache: false });
-        const { styles = [], animation } = config || {};
-        __private.animation = animation;
         if (!__private.store) __private.store = store;
-        __private.dom = new VirtualDom(this, styles);
-        return __private.dom.render(createElement(app), {
-          refresh,
-          animation: __private.animation,
-          callback: () => {
-            __private.routes[href] = __private.dom;
-            callback && callback();
-          },
+        __private.dom = new VirtualDom(route, config);
+        return __private.dom.render(createElement(app), refresh, (config) => {
+          updateConfig(config);
+          __private.routes[href] = __private.dom;
+          callback && callback();
         });
       }
       __private.dom = cached;
-      __private.dom.refresh({ animation: __private.animation, callback: () => callback && callback() });
+      __private.dom.refresh((config) => {
+        updateConfig(config);
+        callback && callback(config);
+      });
     },
   },
   refresh: {
     value: (href) => {
       if (__private.routes?.[href]) delete __private.routes[href];
       if (href !== __private.active) return;
-      this.classList.toggle("loading", true);
-      this.navigate({ refresh: true, callback: () => this.classList.toggle("loading", false) });
+      route.classList.toggle("loading", true);
+      route.navigate({ refresh: true, callback: () => route.classList.toggle("loading", false) });
     },
   },
   active: {
@@ -92,6 +90,17 @@ export const useRoute = () => ({
 });
 
 //
+
+function updateConfig(config) {
+  Object.keys(config).forEach((key) => {
+    if (key === "title") return (document.title = config.title);
+    if (key === "href") return document.querySelector(`head > base`)?.setAttribute("href", config.href);
+    if (key === "icon")
+      return document.querySelectorAll(`head > link[rel$="icon"]`)?.forEach((e) => e.setAttribute("href", config.icon));
+    document.querySelector(`head > meta[name="${key}"]`)?.setAttribute("content", config[key]);
+  });
+  //xif (title) document.title = title;
+}
 
 function handleClick(event) {
   const { tagName, href, target } = event.target;

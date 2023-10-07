@@ -13,10 +13,15 @@ system.set("sessionStorage", { setItem: () => null, getItem: () => undefined, re
 const dirname = fs.dirname(import.meta.url);
 const { VALIDATION, NODE_ENV, BUILD } = process.env;
 const IS_DEV = NODE_ENV === "development";
-const DEFAULT_TITLE = "Vistta JS";
-const DEFAULT_DESCRIPTION = "Page generated using VisttaJS";
-const DEFAULT_THEME = "#ffffff";
-const DEFAULT_HREF = "/";
+const CONFIG_DEFAULT = {
+  title: "Vistta JS",
+  description: "Page generated using VisttaJS",
+  theme: "#ffffff",
+  href: "/",
+  referrer: "origin",
+  viewport: "width=device-width,initial-scale=1,minimum-scale=1.0",
+  keywords: "visttajs",
+};
 const CLIENT = (await bundle(fs.resolve(dirname, BUILD ? "../../../core/static/client" : "../../../core/client")))?.code;
 // const serviceWorker = (await bundle(fs.resolve(dirname, "../../core/sw")))?.code;
 
@@ -32,7 +37,7 @@ class PageHandler extends ExtensibleFunction {
     this.pathname = pathname;
     this.type = type;
     this.store = store;
-    this.config = Object.assign({}, config);
+    this.config = Object.assign({}, CONFIG_DEFAULT, config);
     this.emit = (event) => callback && callback({ filepath, pathname, event, type });
   }
 
@@ -147,16 +152,16 @@ function html({
         createElement(
           "head",
           null,
-          createElement("title", null, title || DEFAULT_TITLE),
-          createElement("base", { href: href || DEFAULT_HREF }),
+          createElement("title", null, title),
+          createElement("base", { href: href }),
           createElement("meta", { name: "referrer", content: referrer || "origin" }),
           createElement("meta", {
             name: "viewport",
             content: viewport || "width=device-width,initial-scale=1,minimum-scale=1.0",
           }),
-          createElement("meta", { name: "description", content: description || DEFAULT_DESCRIPTION }),
+          createElement("meta", { name: "description", content: description }),
           createElement("meta", { name: "keywords", content: keywords || "visttajs" }),
-          createElement("meta", { name: "theme-color", content: theme || DEFAULT_THEME }),
+          createElement("meta", { name: "theme-color", content: theme }),
           createElement("meta", {
             httpEquiv: "Content-Security-Policy",
             content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
@@ -169,7 +174,7 @@ function html({
           icon && createElement("link", { rel: "shortcut icon", href: icon }),
           icon && createElement("link", { rel: "apple-touch-icon", href: icon }),
           ...(links?.map((props) => createElement("link", props)) || []),
-          BUILD && createElement("style", { nonce }, pageStyle.raw),
+          createElement("style", { nonce }, pageStyle.raw),
           createElement("style", { id: "route", nonce }, style),
           createElement("script", { type: "importmap", nonce }, stringify({ imports })),
           ...(scripts?.map((props) => createElement("script", props)) || []),
@@ -184,14 +189,14 @@ function html({
 function manifest(config) {
   if (typeof config.manifest === "object") Object.assign(config, config.manifest);
   return JSON.stringify({
-    theme_color: config.theme || DEFAULT_THEME,
-    background_color: config.background || DEFAULT_THEME,
+    theme_color: config.theme,
+    background_color: config.background,
     display: config.display || "fullscreen",
-    scope: config.scope || config.href || DEFAULT_HREF,
-    start_url: config.start_url || config.href || DEFAULT_HREF,
-    name: config.name || config.title || DEFAULT_TITLE,
-    short_name: config.short_name || config.title?.toLowercase() || "vistta.js",
-    description: config.description || DEFAULT_DESCRIPTION,
+    scope: config.scope || config.href,
+    start_url: config.start_url || config.href,
+    name: config.name || config.title,
+    short_name: config.short_name || config.title,
+    description: config.description,
     shortcuts: config.shortcuts,
     icons: ((icon) => {
       if (!icon) return [];

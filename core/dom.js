@@ -48,6 +48,7 @@ export { Fragment, TextNode, Element, createElement };
 
 export default class VirtualDom {
   #content;
+  #config;
   #store;
   #keys = {};
   #children = [];
@@ -62,7 +63,7 @@ export default class VirtualDom {
   createTextNode = (text) => document.createTextNode(text);
   createElement = (tag) => document.createElement(tag);
 
-  constructor(node, styles = []) {
+  constructor(node, config = {}) {
     if (node === false) return this;
     else if (node) this.body = node;
     this.style = this.head.querySelector("style#route");
@@ -70,10 +71,11 @@ export default class VirtualDom {
       this.style = this.createElement("style");
       this.head.appendChild(this.style);
     }
-    this.#css = styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {});
+    this.#css = config?.styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {});
+    this.#config = config;
   }
 
-  render(content, { animation, callback, refresh } = {}) {
+  render(content, refresh, callback) {
     this.#effects = [];
     const fragment = this.createDocumentFragment();
     this.#content = this.#apply((child) => {
@@ -82,14 +84,14 @@ export default class VirtualDom {
     }, content);
     animate(
       this.body,
-      animation,
+      this.#config?.animation,
       () => {
         this.body.replaceChildren(fragment);
         if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
         else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
         this.#children = [...this.body.children];
         this.#effects.forEach((effect) => effect());
-        callback && callback();
+        callback && callback(this.#config);
       },
       refresh,
     );
@@ -100,14 +102,14 @@ export default class VirtualDom {
     findEffects(this.#content, (effects) => effects.forEach((callback) => callback(REMOVED_EFFECT_EVENT)));
   }
 
-  refresh({ animation, callback } = {}) {
+  refresh(callback) {
     this.#effects = [];
-    animate(this.body, animation, () => {
+    animate(this.body, this.#config?.animation, () => {
       this.body.replaceChildren(...this.#children);
       if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
       else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
       findEffects(this.#content, (effects) => effects.forEach((callback) => callback(ADDED_EFFECT_EVENT)));
-      callback && callback();
+      callback && callback(this.#config);
     });
   }
 
@@ -146,7 +148,6 @@ export default class VirtualDom {
             setAttribute(element.node, name, value);
           }
         }
-        element.parent = append(element);
       } else if (effects) this.#effects.push(() => effects.forEach((callback) => callback(ADDED_EFFECT_EVENT)));
       if (type !== TextNode && children) {
         const appendChild =
@@ -167,6 +168,7 @@ export default class VirtualDom {
           element.children[i] = this.#apply(appendChild, children[i]);
       }
     } else element.node = this.#keys[key];
+    if (type !== Fragment) element.parent = append(element);
     return element;
   }
 
