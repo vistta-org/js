@@ -226,8 +226,10 @@ function setAttribute(node, name, value) {
   if (name === "className") name = "class";
   if (name === "scope") value = Object.keys(value).join(" ");
   if (!value) node.removeAttribute(name);
-  else if (name === "style") Object.assign(node.style, value);
-  else node.setAttribute(name, value);
+  else if (name === "style") {
+    const keys = Object.keys(value);
+    for (let i = 0, len = keys.length || 0; i < len; i++) node.style.setProperty(keys[i], value[keys[i]]);
+  } else node.setAttribute(name, value);
 }
 
 function findEffects(element, callback) {

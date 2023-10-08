@@ -30,7 +30,13 @@ export { renderToString, createElement };
 //
 
 function createServerElement(type) {
-  const props = { style: {} };
+  const props = {
+    style: {
+      setProperty(key, value) {
+        this[key] = value;
+      },
+    },
+  };
   const children = [];
   return {
     type: type,
@@ -73,8 +79,8 @@ function styleToString(style) {
   if (!keys.length) return null;
   let result = "";
   for (let i = 0, len = keys.length; i < len; i++) {
-    const name = keys[i];
-    result += ` ${camelCaseToKebabCase(name)}: ${style[name]};`;
+    const value = style[keys[i]];
+    if (typeof value === "string") result += ` ${camelCaseToKebabCase(keys[i])}: ${value};`;
   }
   return result.trim();
 }
