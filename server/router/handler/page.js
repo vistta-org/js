@@ -45,14 +45,18 @@ class PageHandler extends ExtensibleFunction {
     if (!IS_DEV && !this.app) return reject();
     this.location = new URL(request?.path, request?.headers?.referer || `${request?.protocol}://${request?.headers?.host}`);
     if (!this.app) await this.import(true);
-    if (!request?.resource) return response.status(200).send(this.template).end();
-    if (request.resource === "app") return response.type(".js").status(200).send(this.code).end();
-    const resource = this.resources.get(request.resource);
-    const extension = fs.extname(request.resource);
-    if (resource) {
-      if (fs.isFile(resource)) return response.sendFile(resource);
-      if (extension) response.type(extension);
-      return response.send(resource);
+    if (!request?.resource) {
+      const template = this.template;
+      if (template) response.status(200).send(this.template).end();
+    } else {
+      if (request.resource === "app") return response.type(".js").status(200).send(this.code).end();
+      const resource = this.resources.get(request.resource);
+      const extension = fs.extname(request.resource);
+      if (resource) {
+        if (fs.isFile(resource)) return response.sendFile(resource);
+        if (extension) response.type(extension);
+        return response.send(resource);
+      }
     }
     return reject();
   }
@@ -106,20 +110,25 @@ class PageHandler extends ExtensibleFunction {
   }
 
   get template() {
-    const imports = {};
-    system.set("route", this);
-    this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
-    const body = renderToString(createElement(this.app));
-    if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
-    system.set("route", null);
-    return html({
-      ...this.config,
-      manifest: this.pwa,
-      imports,
-      body,
-      client: !BUILD ? CLIENT : `const __import_app = ()=>{ ${this.code} return __app; }; ${CLIENT}`,
-      style: this.style,
-    });
+    try {
+      const imports = {};
+      system.set("route", this);
+      this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
+      const body = renderToString(createElement(this.app));
+      if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
+      system.set("route", null);
+      return html({
+        ...this.config,
+        manifest: this.pwa,
+        imports,
+        body,
+        client: !BUILD ? CLIENT : `const __import_app = ()=>{ ${this.code} return __app; }; ${CLIENT}`,
+        style: this.style,
+      });
+    } catch (e) {
+      console.error(e.stack);
+      return null;
+    }
   }
 }
 
