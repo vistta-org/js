@@ -1,5 +1,6 @@
 import { Fragment, TextNode, Element } from "./element"
 import { State, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
+import { isEqual } from "../utils";
 
 const BUILD = process.env.BUILD;
 const ANIMATIONS = ["fade", "slide", "custom"];
@@ -14,6 +15,7 @@ export default class VirtualDom {
   #children = [];
   #css = {};
   #effects = [];
+  #appliedScopes = [];
 
   body = document.body;
   head = document.head;
@@ -47,8 +49,7 @@ export default class VirtualDom {
       this.#config?.animation,
       () => {
         this.body.replaceChildren(fragment);
-        if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
-        else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
+        this.#updateStyles();
         this.#children = [...this.body.children];
         this.#effects.forEach((effect) => effect());
         callback && callback(this.#config);
@@ -66,8 +67,7 @@ export default class VirtualDom {
     this.#effects = [];
     animate(this.body, this.#config?.animation, () => {
       this.body.replaceChildren(...this.#children);
-      if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
-      else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
+      this.#updateStyles();
       findEffects(this.#content, (effects) => effects.forEach((callback) => callback(ADDED_EFFECT_EVENT)));
       callback && callback(this.#config);
     });
@@ -151,7 +151,16 @@ export default class VirtualDom {
     if (element.nextSibling) parent.insertBefore(fragment, element.nextSibling);
     else parent.appendChild(fragment);
     if (parent === this.body) this.#children = [...this.body.children];
+    this.#updateStyles();
     this.#effects.forEach((effect) => effect());
+  }
+
+  #updateStyles() {
+    const keys = Object.keys(this.#css);
+    if (isEqual(this.#appliedScopes, keys)) return;
+    if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
+    else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
+    this.#appliedScopes = keys;
   }
 }
 
