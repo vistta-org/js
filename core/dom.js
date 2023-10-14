@@ -1,49 +1,8 @@
-import { system } from "../utils";
-import { State, INTERNAL, HOOK_CONTEXT, SCOPE_CONTEXT, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
+import { Fragment, TextNode, Element } from "./element"
+import { State, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
 
 const BUILD = process.env.BUILD;
 const ANIMATIONS = ["fade", "slide", "custom"];
-const Fragment = Symbol("Fragment");
-const TextNode = Symbol("TextNode");
-
-class Element {
-  constructor(type, props, children) {
-    this.type = type;
-    this.props = props || {};
-    this.children = children;
-  }
-}
-
-const createElement = (type, props, ...children) => {
-  if (!type) return null;
-  const typeOf = typeof type;
-  if (typeOf === "function") {
-    if (!props) props = {};
-    if (children?.length > 0) props.children = children;
-    const context = structuredClone(INTERNAL[HOOK_CONTEXT]);
-    const scope = {};
-    INTERNAL[SCOPE_CONTEXT] = scope;
-    const node = type(props);
-    INTERNAL[HOOK_CONTEXT] = context;
-    const { effects } = scope;
-    if (node instanceof Element || typeof node !== "object" || (node && node instanceof State))
-      return effects ? Object.assign(new Element(Fragment, {}, [node]), { effects }) : node;
-    if (Array.isArray(node))
-      return effects ? Object.assign(new Element(Fragment, {}, node), { effects }) : new Element(Fragment, {}, node);
-    if ("production" !== process.env.NODE_ENV && node instanceof Promise)
-      console.warn("Async Components need to be wrapped in async function");
-    return null;
-  } else if (typeOf !== "string" && typeOf !== "symbol") return null;
-  const element = new Element(type, props, children);
-  if (element.props?.key) (element.key = element.props.key), delete element.props.key;
-  if (element.props?.ref) (element.ref = element.props.ref), delete element.props.ref;
-  return element;
-};
-
-system.set("Fragment", Fragment);
-system.set("createElement", createElement);
-
-export { Fragment, TextNode, Element, createElement };
 
 //
 
@@ -154,17 +113,17 @@ export default class VirtualDom {
         const appendChild =
           type === Fragment
             ? (child) => {
-                if (child?.node) {
-                  element.nodes.push(child.node);
-                  if (props.scope && child.type !== TextNode) setAttribute(child.node, "scope", props.scope);
-                }
-                element.parent = append(child);
-                return element.parent;
+              if (child?.node) {
+                element.nodes.push(child.node);
+                if (props.scope && child.type !== TextNode) setAttribute(child.node, "scope", props.scope);
               }
+              element.parent = append(child);
+              return element.parent;
+            }
             : (child) => {
-                if (child?.node) element.node.append(child.node);
-                return element.node;
-              };
+              if (child?.node) element.node.append(child.node);
+              return element.node;
+            };
         for (let i = 0, len = children?.length || 0; i < len; i++)
           element.children[i] = this.#apply(appendChild, children[i]);
       }

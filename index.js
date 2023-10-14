@@ -1,5 +1,6 @@
 export * from "./utils/index.js";
 //
+export { createElement, cloneElement } from "./core/element.js";
 export { useContext, useStyle, useRef, useState, useEffect } from "./core/hooks.js";
 export { useRoute } from "./core/router.js";
 export { useSocket } from "./core/socket.js";

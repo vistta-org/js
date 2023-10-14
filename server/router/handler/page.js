@@ -7,7 +7,7 @@ import { system, stringify, ExtensibleFunction } from "../../../utils";
 import pageStyle from "./page.css";
 
 system.set("document", {});
-system.set("HTMLElement", class {});
+system.set("HTMLElement", class { });
 system.set("localStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
 system.set("sessionStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
 const dirname = fs.dirname(import.meta.url);
@@ -47,7 +47,7 @@ class PageHandler extends ExtensibleFunction {
     if (!this.app) await this.import(true);
     if (!request?.resource) {
       const template = this.template;
-      if (template) response.status(200).send(this.template).end();
+      if (template) return response.status(200).send(this.template).end();
     } else {
       if (request.resource === "app") return response.type(".js").status(200).send(this.code).end();
       const resource = this.resources.get(request.resource);
@@ -179,10 +179,10 @@ function html({
             content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
           }),
           manifest &&
-            createElement("link", {
-              rel: "manifest",
-              href: "/resources/manifest.json",
-            }),
+          createElement("link", {
+            rel: "manifest",
+            href: "/resources/manifest.json",
+          }),
           icon && createElement("link", { rel: "shortcut icon", href: icon }),
           icon && createElement("link", { rel: "apple-touch-icon", href: icon }),
           ...(links?.map((props) => createElement("link", props)) || []),

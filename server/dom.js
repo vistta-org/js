@@ -1,9 +1,10 @@
-import Dom, { createElement } from "../core/dom";
-import { camelCaseToKebabCase, system } from "../utils";
+import Dom from "../core/dom";
+import { createElement, createElementString } from "../core/element";
+import { system } from "../utils";
 
-system.set("MutationObserver", class {});
-system.set("IntersectionObserver", class {});
-system.set("ResizeObserver", class {});
+system.set("MutationObserver", class { });
+system.set("IntersectionObserver", class { });
+system.set("ResizeObserver", class { });
 
 class ServerDom extends Dom {
   body = createServerElement("dom");
@@ -44,7 +45,7 @@ function createServerElement(type) {
     children: children,
     toString: () => {
       const _children = children?.reduce((acc, cur) => acc + cur, "");
-      return type === "dom" ? _children : `<${type}${propsToString(props)}>${_children}</${type}>`;
+      return type === "dom" ? _children : createElementString(type, props, _children);
     },
     append: (child) => children.push(child),
     setAttribute: (name, value) => (props[name] = value),
@@ -59,28 +60,4 @@ function createServerElement(type) {
       }
     },
   };
-}
-
-function propsToString(props) {
-  let result = "";
-  const attr = Object.keys(props || {});
-  for (let i = 0, len = attr.length; i < len; i++) {
-    const name = attr[i];
-    const value = name === "style" ? styleToString(props[name]) : props[name];
-    if (["function", "object"].includes(typeof value) || value == null) continue;
-    if (value === true) result += ` ${name}`;
-    else result += ` ${name}="${value}"`;
-  }
-  return result;
-}
-
-function styleToString(style) {
-  const keys = Object.keys(style || {});
-  if (!keys.length) return null;
-  let result = "";
-  for (let i = 0, len = keys.length; i < len; i++) {
-    const value = style[keys[i]];
-    if (typeof value === "string") result += ` ${camelCaseToKebabCase(keys[i])}: ${value};`;
-  }
-  return result.trim();
 }
