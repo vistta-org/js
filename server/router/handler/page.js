@@ -21,6 +21,7 @@ const CONFIG_DEFAULT = {
   referrer: "origin",
   viewport: "width=device-width,initial-scale=1,minimum-scale=1.0",
   keywords: "visttajs",
+  robots: "index, follow",
 };
 const CLIENT = (await bundle(fs.resolve(dirname, BUILD ? "../../../core/static/client" : "../../../core/client")))?.code;
 const SERVICE_WORKER = (await bundle(fs.resolve(dirname, "../../../core/sw")))?.code;
@@ -137,6 +138,8 @@ export default PageHandler;
 //
 
 function html({
+  author,
+  contentType,
   lang,
   title,
   href,
@@ -145,12 +148,16 @@ function html({
   description,
   keywords,
   theme,
+  language,
   manifest,
   icon,
   imports,
   body,
   client,
   links,
+  refresh,
+  revisitAfter,
+  robots,
   style,
   scripts,
 } = {}) {
@@ -171,13 +178,23 @@ function html({
             name: "viewport",
             content: viewport || "width=device-width,initial-scale=1,minimum-scale=1.0",
           }),
+          createElement("meta", {
+            "http-equiv": "Content-Type",
+            content: contentType || "text/html; charset=utf-8",
+          }),
           createElement("meta", { name: "description", content: description }),
-          createElement("meta", { name: "keywords", content: keywords || "visttajs" }),
+          createElement("meta", { name: "keywords", content: keywords }),
           createElement("meta", { name: "theme-color", content: theme }),
           createElement("meta", {
             httpEquiv: "Content-Security-Policy",
             content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
           }),
+          createElement("meta", { name: "robots", content: robots }),
+          createElement("meta", { name: "generator", content: "VisttaJS" }),
+          author && createElement("meta", { name: "author", content: author }),
+          language && createElement("meta", { name: "language", content: language }),
+          refresh && createElement("meta", { "http-equiv": "refresh", content: refresh }),
+          revisitAfter && createElement("meta", { name: "revisit-after", content: revisitAfter }),
           manifest &&
           createElement("link", {
             rel: "manifest",
