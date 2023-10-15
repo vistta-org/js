@@ -60,13 +60,13 @@ class Server {
         protocol === "http"
           ? http.createServer(this.#app)
           : http2.createSecureServer(
-              {
-                cert: fs.readFileSync(this.#certs.cert),
-                key: fs.readFileSync(this.#certs.key),
-                allowHTTP1: true,
-              },
-              this.#app,
-            );
+            {
+              cert: fs.readFileSync(this.#certs.cert),
+              key: fs.readFileSync(this.#certs.key),
+              allowHTTP1: true,
+            },
+            this.#app,
+          );
       server.listen(port, () => {
         this.#socket.attach(server);
         callback && callback({ protocol, port });
@@ -199,10 +199,9 @@ class Server {
     for (let i = 0, len = files.length; i < len; i++) {
       const { filepath, pathname, type } = files[i];
       if (this.build && (type === "socket" || type === "api")) continue;
-      await this.#router[subdomain].setComponent(filepath, pathname || "/", type, (event) => {
-        const { event: name, pathname: href } = event;
-        if (name === "modified" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
-        if (callback) callback(event);
+      await this.#router[subdomain].setComponent(filepath, pathname || "/", type, (event, href, ...args) => {
+        if (event === "modified" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
+        if (callback) callback(event, href, ...args);
       });
     }
   }
@@ -262,7 +261,7 @@ class Server {
     const subdomain = "build";
     const routes = [];
     const pages = {};
-    await this.use(folder, subdomain, "/", { callback: (page) => routes.push(page) });
+    await this.use(folder, subdomain, "/", { callback: (event, pathname, type) => event === "ready" && routes.push({ pathname, type }) });
     for (let i = 0, len = routes.length; i < len; i++) {
       const { pathname, type } = routes[i];
       const wildcard = Router.isWildcard(pathname);

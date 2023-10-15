@@ -29,14 +29,10 @@ const app = new Server({
 
 const logs = {};
 app.use(options.folder, "/", {
-  callback: ({ pathname, event, type }) => {
+  callback: (event, pathname, type, ...args) => {
     if (!logs[pathname]) logs[pathname] = new Console(pathname);
-    else logs[pathname].clear();
-    if (event === "modified") {
-      return logs[pathname].log(`${capitalize(type)} "${pathname}" ${Console.magenta}modified.`);
-    }
-    if (event === "ready") {
-      logs[pathname].log(`${capitalize(type)} "${pathname}" ${Console.green}ready.`);
-    }
+    if (event === "error") return logs[pathname].error(...args);
+    logs[pathname].clear();
+    logs[pathname].log(`${capitalize(type)} "${pathname}" ${event === "ready" ? Console.green : Console.magenta}${event}.`);
   },
 });

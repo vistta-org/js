@@ -17,7 +17,7 @@ class Handler extends ExtensibleFunction {
     this.filepath = fs.resolve(filepath);
     this.pathname = pathname;
     this.type = type;
-    this.emit = (event) => callback && callback({ filepath, pathname, event, type });
+    this.emit = (event, ...args) => callback && callback(event, pathname, type, ...args);
   }
 
   async import(isRefresh) {
@@ -53,7 +53,7 @@ class Handler extends ExtensibleFunction {
       if (IS_DEV) this.#watch([this.filepath, ...(await resolveImports(this.filepath))]);
       this.emit("ready");
     } catch (e) {
-      console.error(e.stack);
+      this.emit("error", e.stack);
     }
     return this;
   }

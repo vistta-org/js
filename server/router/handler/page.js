@@ -39,7 +39,7 @@ class PageHandler extends ExtensibleFunction {
     this.type = type;
     this.store = store;
     this.config = Object.assign({}, CONFIG_DEFAULT, config);
-    this.emit = (event) => callback && callback({ filepath, pathname, event, type });
+    this.emit = (event, ...args) => callback && callback(event, pathname, type, ...args);
   }
 
   async handler(request, response, reject) {
@@ -94,7 +94,7 @@ class PageHandler extends ExtensibleFunction {
       this.emit("ready");
       return this;
     } catch (e) {
-      console.error(e.stack);
+      this.emit("error", e.stack);
       return this;
     }
   }
@@ -127,7 +127,7 @@ class PageHandler extends ExtensibleFunction {
         style: this.style,
       });
     } catch (e) {
-      console.error(e.stack);
+      this.emit("error", e.stack);
       return null;
     }
   }
