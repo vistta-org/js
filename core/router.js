@@ -1,4 +1,5 @@
-import VirtualDom, { createElement } from "./dom";
+import VirtualDom from "./dom";
+import { createElement } from "./element";
 import socket from "./socket";
 import { isServer, isValidUrl, system } from "../utils";
 

@@ -7,7 +7,7 @@ import { system, stringify, ExtensibleFunction } from "../../../utils";
 import pageStyle from "./page.css";
 
 system.set("document", {});
-system.set("HTMLElement", class {});
+system.set("HTMLElement", class { });
 system.set("localStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
 system.set("sessionStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
 const dirname = fs.dirname(import.meta.url);
@@ -21,6 +21,7 @@ const CONFIG_DEFAULT = {
   referrer: "origin",
   viewport: "width=device-width,initial-scale=1,minimum-scale=1.0",
   keywords: "visttajs",
+  robots: "index, follow",
 };
 const CLIENT = (await bundle(fs.resolve(dirname, BUILD ? "../../../core/static/client" : "../../../core/client")))?.code;
 const SERVICE_WORKER = (await bundle(fs.resolve(dirname, "../../../core/sw")))?.code;
@@ -38,21 +39,25 @@ class PageHandler extends ExtensibleFunction {
     this.type = type;
     this.store = store;
     this.config = Object.assign({}, CONFIG_DEFAULT, config);
-    this.emit = (event) => callback && callback({ filepath, pathname, event, type });
+    this.emit = (event, ...args) => callback && callback(event, pathname, type, ...args);
   }
 
   async handler(request, response, reject) {
     if (!IS_DEV && !this.app) return reject();
     this.location = new URL(request?.path, request?.headers?.referer || `${request?.protocol}://${request?.headers?.host}`);
     if (!this.app) await this.import(true);
-    if (!request?.resource) return response.status(200).send(this.template).end();
-    if (request.resource === "app") return response.type(".js").status(200).send(this.code).end();
-    const resource = this.resources.get(request.resource);
-    const extension = fs.extname(request.resource);
-    if (resource) {
-      if (fs.isFile(resource)) return response.sendFile(resource);
-      if (extension) response.type(extension);
-      return response.send(resource);
+    if (!request?.resource) {
+      const template = this.template;
+      if (template) return response.status(200).send(this.template).end();
+    } else {
+      if (request.resource === "app") return response.type(".js").status(200).send(this.code).end();
+      const resource = this.resources.get(request.resource);
+      const extension = fs.extname(request.resource);
+      if (resource) {
+        if (fs.isFile(resource)) return response.sendFile(resource);
+        if (extension) response.type(extension);
+        return response.send(resource);
+      }
     }
     return reject();
   }
@@ -89,7 +94,7 @@ class PageHandler extends ExtensibleFunction {
       this.emit("ready");
       return this;
     } catch (e) {
-      console.error(e.stack);
+      this.emit("error", e.stack);
       return this;
     }
   }
@@ -106,20 +111,25 @@ class PageHandler extends ExtensibleFunction {
   }
 
   get template() {
-    const imports = {};
-    system.set("route", this);
-    this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
-    const body = renderToString(createElement(this.app));
-    if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
-    system.set("route", null);
-    return html({
-      ...this.config,
-      manifest: this.pwa,
-      imports,
-      body,
-      client: !BUILD ? CLIENT : `const __import_app = ()=>{ ${this.code} return __app; }; ${CLIENT}`,
-      style: this.style,
-    });
+    try {
+      const imports = {};
+      system.set("route", this);
+      this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
+      const body = renderToString(createElement(this.app));
+      if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
+      system.set("route", null);
+      return html({
+        ...this.config,
+        manifest: this.pwa,
+        imports,
+        body,
+        client: !BUILD ? CLIENT : `const __import_app = ()=>{ ${this.code} return __app; }; ${CLIENT}`,
+        style: this.style,
+      });
+    } catch (e) {
+      this.emit("error", e.stack);
+      return null;
+    }
   }
 }
 
@@ -128,6 +138,8 @@ export default PageHandler;
 //
 
 function html({
+  author,
+  contentType,
   lang,
   title,
   href,
@@ -136,12 +148,16 @@ function html({
   description,
   keywords,
   theme,
+  language,
   manifest,
   icon,
   imports,
   body,
   client,
   links,
+  refresh,
+  revisitAfter,
+  robots,
   style,
   scripts,
 } = {}) {
@@ -162,18 +178,28 @@ function html({
             name: "viewport",
             content: viewport || "width=device-width,initial-scale=1,minimum-scale=1.0",
           }),
+          createElement("meta", {
+            "http-equiv": "Content-Type",
+            content: contentType || "text/html; charset=utf-8",
+          }),
           createElement("meta", { name: "description", content: description }),
-          createElement("meta", { name: "keywords", content: keywords || "visttajs" }),
+          createElement("meta", { name: "keywords", content: keywords }),
           createElement("meta", { name: "theme-color", content: theme }),
           createElement("meta", {
             httpEquiv: "Content-Security-Policy",
             content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
           }),
+          createElement("meta", { name: "robots", content: robots }),
+          createElement("meta", { name: "generator", content: "VisttaJS" }),
+          author && createElement("meta", { name: "author", content: author }),
+          language && createElement("meta", { name: "language", content: language }),
+          refresh && createElement("meta", { "http-equiv": "refresh", content: refresh }),
+          revisitAfter && createElement("meta", { name: "revisit-after", content: revisitAfter }),
           manifest &&
-            createElement("link", {
-              rel: "manifest",
-              href: "/resources/manifest.json",
-            }),
+          createElement("link", {
+            rel: "manifest",
+            href: "/resources/manifest.json",
+          }),
           icon && createElement("link", { rel: "shortcut icon", href: icon }),
           icon && createElement("link", { rel: "apple-touch-icon", href: icon }),
           ...(links?.map((props) => createElement("link", props)) || []),

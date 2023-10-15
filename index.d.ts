@@ -1,6 +1,7 @@
 /// <reference types="./global" />
 /// <reference types="node"/>
 
+export { createElement, cloneElement } from "./core/element";
 export { useContext, useStyle, useRef, useState, useEffect } from "./core/hooks";
 export { Store, useStore } from "./core/store";
 export { useRoute } from "./core/router";
