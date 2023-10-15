@@ -17,7 +17,7 @@ On you project folder create a `.npmrc` file with the following content:
 
 ```
 @vistta:registry=https://git.vistta.me/api/packages/Vistta/npm/
-//git.vistta.me/api/packages/Vistta/npm/:_authToken=9a62c99f1da9d4417fd2c396e5fba566a868bfbe
+//git.vistta.me/api/packages/Vistta/npm/:_authToken=<<token>>
 ```
 
 After that you can install the module
