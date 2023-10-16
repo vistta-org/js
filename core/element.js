@@ -63,7 +63,7 @@ const createElementString = (type, props, children) => {
     if (value === true) propsString += ` ${name}`;
     else propsString += ` ${name}="${value}"`;
   }
-  return `<${type}${propsString}>${children}</${type}>`
+  return `<${type}${propsString}>${children}</${type}>`;
 }
 
 system.set("Fragment", Fragment);
