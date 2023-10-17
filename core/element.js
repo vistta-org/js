@@ -47,10 +47,14 @@ const createElement = (type, props, ...children) => {
 
 const cloneElement = (element, props, children) => {
   if (!(element instanceof Element)) return null;
-  const { style, ...rest } = props || {};
-  props = Object.assign(clone(element.props), rest);
-  props.style = Object.assign(props.style || {}, style || {});
-  return createElement(element.type, props, children === true ? clone(element.children) : children);
+  if (props) {
+    const { style, ...rest } = props || {};
+    props = Object.assign(clone(element.props), rest);
+    props.style = Object.assign(props.style || {}, style || {});
+  }
+  else props = clone(element.props);
+  if (children === true) children = element?.children?.map((child) => child instanceof Element ? cloneElement(child, undefined, true) : child);
+  return createElement(element.type, props, children);
 }
 
 const createElementString = (type, props, children) => {
