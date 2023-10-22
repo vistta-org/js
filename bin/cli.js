@@ -97,9 +97,9 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
       for (let i = 0, len = modules.length; i < len; i++) {
         const module = modules[i];
         const { current, wanted, latest } = outdated[module];
-        if (current === wanted) console.print(`${console.code.cyan}Module "${module}" has a new version (${latest})`);
+        if (current === wanted) console.print(`${Console.cyan}Module "${module}" has a new version (${latest})`);
         else {
-          console.print(`${console.code.yellow}Module "${module}" is outdated (${latest})`);
+          console.print(`${Console.yellow}Module "${module}" is outdated (${latest})`);
           valid = false;
         }
       }
@@ -114,7 +114,7 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
     if (!["typescript", "type", "all", "only"].includes(VALIDATION)) return true;
     const { errors } = _validate(VALIDATION === "only" ? "." : main);
     if (!errors?.length) return true;
-    errors.forEach((error) => console.print(console.code.red + error));
+    errors.forEach((error) => console.print(Console.red + error));
     return false;
   }
 }
