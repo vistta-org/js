@@ -45,9 +45,16 @@ const createElement = (type, props, ...children) => {
   return element;
 };
 
-const cloneElement = (element, children) => {
+const cloneElement = (element, props, children) => {
   if (!(element instanceof Element)) return null;
-  return createElement(element.type, clone(element.props), children === true ? clone(element.children) : children);
+  if (props) {
+    const { style, ...rest } = props || {};
+    props = Object.assign(clone(element.props), rest);
+    props.style = Object.assign(props.style || {}, style || {});
+  }
+  else props = clone(element.props);
+  if (children === true) children = element?.children?.map((child) => child instanceof Element ? cloneElement(child, undefined, true) : child);
+  return createElement(element.type, props, children);
 }
 
 const createElementString = (type, props, children) => {
@@ -60,7 +67,7 @@ const createElementString = (type, props, children) => {
     if (value === true) propsString += ` ${name}`;
     else propsString += ` ${name}="${value}"`;
   }
-  return `<${type}${propsString}>${children}</${type}>`
+  return `<${type}${propsString}>${children}</${type}>`;
 }
 
 system.set("Fragment", Fragment);

@@ -15,7 +15,7 @@ for (let i = 0, len = files.length; i < len; i++) {
   const dirname = fs.dirname(filepath);
   if (!fs.existsSync(dirname)) fs.mkdir(dirname);
   await fs.writeFile(filepath, page.template);
-  console.log(`"${page.pathname}" ${console.code.green}ready.`);
+  console.log(`"${page.pathname}" ${Console.green}ready.`);
 }
 // Page Resources
 const resourceFiles = Object.keys(resources);

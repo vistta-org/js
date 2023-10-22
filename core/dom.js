@@ -1,6 +1,6 @@
 import { Fragment, TextNode, Element } from "./element"
 import { State, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
-import { isEqual } from "../utils";
+import { isEqual, isBrowser } from "../utils";
 
 const BUILD = process.env.BUILD;
 const ANIMATIONS = ["fade", "slide", "custom"];
@@ -51,7 +51,7 @@ export default class VirtualDom {
         this.body.replaceChildren(fragment);
         this.#updateStyles();
         this.#children = [...this.body.children];
-        this.#effects.forEach((effect) => effect());
+        if (isBrowser()) this.#effects.forEach((effect) => effect());
         callback && callback(this.#config);
       },
       refresh,

@@ -10,29 +10,32 @@ Object.defineProperties(route, {
   navigate: {
     value: async (arg) => {
       let { href, pushState, callback, refresh } = typeof arg === "object" ? arg : { href: arg };
+      if (href?.startsWith("#")) return updateHash(href);
       if (!refresh) refresh = href === true;
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
-      href = new URL(href).pathname;
-      if (!refresh && __private.active === href) return;
-      __private.active = href;
-      const cached = __private.routes?.[href];
-      if (pushState !== false) history.pushState({}, "", href);
+      const { pathname, hash } = new URL(href);
+      if (!refresh && __private.active === pathname) return updateHash(hash);
+      __private.active = pathname;
+      const cached = __private.routes?.[pathname];
+      if (pushState !== false) history.pushState({}, "", pathname);
       if (__private?.dom?.remove) __private.dom.remove();
       if (refresh || !cached) {
-        let resource = href + (href.endsWith("/") ? "" : "/") + "resources/app";
+        let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
         const { default: app, config, store } = await system.import(resource, { cache: false });
         if (!__private.store) __private.store = store;
         __private.dom = new VirtualDom(route, config);
         return __private.dom.render(createElement(app), refresh, (config) => {
           updateConfig(config);
-          __private.routes[href] = __private.dom;
+          __private.routes[pathname] = __private.dom;
+          updateHash(hash);
           callback && callback();
         });
       }
       __private.dom = cached;
       __private.dom.refresh((config) => {
         updateConfig(config);
+        updateHash(hash);
         callback && callback(config);
       });
     },
@@ -104,9 +107,11 @@ function updateConfig(config) {
 
 function handleClick(event) {
   const { tagName, href, target } = event.target;
-  if (tagName !== "A" || (target && target !== "___private")) return;
+  if (tagName !== "A" || (target && target !== "___private") || !href) return;
   event.preventDefault();
-  route.navigate(href);
+  const hash = href.replace(location.origin + "/", "");
+  if (hash?.startsWith("#")) updateHash(hash);
+  else route.navigate(href);
 }
 
 function handleSocket() {
@@ -120,6 +125,10 @@ function handlerServiceWorker() {
   navigator.serviceWorker
     .register("/resources/sw.js")
     .then(undefined, (error) => console.log(`Service worker registration failed: ${error}`));
+}
+
+function updateHash(hash) {
+  if (hash !== location.hash) window.location.hash = hash;
 }
 
 function buildUrl(href) {
