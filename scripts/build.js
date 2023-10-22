@@ -14,7 +14,7 @@ for (let i = 0, len = files.length; i < len; i++) {
   const page = pages[files[i]];
   const dirname = fs.dirname(filepath);
   if (!fs.existsSync(dirname)) fs.mkdir(dirname);
-  await fs.writeFile(filepath, page.template);
+  await fs.writeFile(filepath, page.html);
   console.log(`"${page.pathname}" ${Console.green}ready.`);
 }
 // Page Resources

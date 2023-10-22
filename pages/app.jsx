@@ -1,19 +1,21 @@
-import { useStyle, useRoute } from "@vistta/vistta.js";
-import Template from "./_template";
+import { useRoute } from "@vistta/vistta.js";
 import style from "./style.scss";
+import icon from "../logo.png";
 
 export default function Home() {
-  const scope = useStyle(style);
   const { navigate } = useRoute();
   return (
-    <Template>
-      <div className="container" {...scope}>
-        <h1>Vistta.JS</h1>
-        <h2>Vistta.js Javascript Framework</h2>
-        <button onClick={() => navigate("/docs")}>Get Started</button>
-      </div>
-    </Template>
+    <>
+      <h1>Vistta.JS</h1>
+      <h2>Vistta.js Javascript Framework</h2>
+      <button onClick={() => navigate("/docs")}>Get Started</button>
+    </>
   );
 }
 
-export { config } from "./_template";
+export const config = {
+  icon: icon,
+  theme: "#b87333",
+  styles: [style],
+  animation: "custom", // "fade", "slide", "custom"
+};

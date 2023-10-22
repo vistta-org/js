@@ -29,7 +29,7 @@ const SERVICE_WORKER = (await bundle(fs.resolve(dirname, "../../../core/sw")))?.
 class PageHandler extends ExtensibleFunction {
   #watchedFiles = [];
 
-  constructor({ filepath, pathname, type, callback, resources, pwa, store, config }) {
+  constructor({ filepath, pathname, type, callback, resources, pwa, store, template, config }) {
     super((...args) => this.handler && this.handler(...args));
     this.id = hash(filepath);
     this.pwa = pwa;
@@ -38,6 +38,7 @@ class PageHandler extends ExtensibleFunction {
     this.pathname = pathname;
     this.type = type;
     this.store = store;
+    this.template = template;
     this.config = Object.assign({}, CONFIG_DEFAULT, config);
     this.emit = (event, ...args) => callback && callback(event, pathname, type, ...args);
   }
@@ -47,8 +48,8 @@ class PageHandler extends ExtensibleFunction {
     this.location = new URL(request?.path, request?.headers?.referer || `${request?.protocol}://${request?.headers?.host}`);
     if (!this.app) await this.import(true);
     if (!request?.resource) {
-      const template = this.template;
-      if (template) return response.status(200).send(this.template).end();
+      const html = this.html;
+      if (html) return response.status(200).send(this.html).end();
     } else {
       if (request.resource === "app") return response.type(".js").status(200).send(this.code).end();
       const resource = this.resources.get(request.resource);
@@ -81,6 +82,12 @@ class PageHandler extends ExtensibleFunction {
             "__app_store = __app_store?.default;",
             BUILD ? "__app.store = __app_store;" : "export { __app_store as store };",
           );
+        if (this.template?.__code)
+          script.push(
+            this.template.__code,
+            "__app_template = __app_template?.default;",
+            BUILD ? "__app.template = __app_template;" : "export { __app_template as template };",
+          );
         if (BUILD) script.push(`__app.config = ${stringify(this.config, IS_DEV)};`);
         else script.push(`const __app_config = ${stringify(this.config, IS_DEV)};`, "export { __app_config as config };");
         return script.join(IS_DEV ? "\n" : " ");
@@ -110,12 +117,12 @@ class PageHandler extends ExtensibleFunction {
     });
   }
 
-  get template() {
+  get html() {
     try {
       const imports = {};
       system.set("route", this);
       this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
-      const body = renderToString(createElement(this.app));
+      const body = renderToString(this.template ? createElement(this.template, {}, createElement(this.app)) : createElement(this.app));
       if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
       system.set("route", null);
       return html({

@@ -11,6 +11,7 @@ class Router {
 
   #pwa = false;
   #store;
+  #template;
   #routes = [];
   #handlers = {};
   #resources = {};
@@ -102,6 +103,7 @@ class Router {
   async setComponent(filepath, pathname, type, callback) {
     const args = { filepath, pathname, type, callback };
     if (type === "store") return (this.#store = (await useHandler(args))());
+    if (type === "template") return (this.#template = (await useHandler(args))());
     if (type === "socket") return (await useHandler(args))((...args) => this.#events.on(...args));
     if (type === "app" || type === "page" || type === "error") {
       if (type === "app") this.#pwa = true;
@@ -109,6 +111,7 @@ class Router {
       args.resources = this.resources;
       args.config = this.get("tree", pathname, (route) => ["app", "page"].includes(route.type))?.config || {};
       args.store = this.#store;
+      args.template = this.#template;
     }
     return this.set(type === "api" ? "any" : type === "error" ? "error" : "get", pathname, await useHandler(args));
   }
@@ -130,7 +133,7 @@ Router.readFolder = (folder, api) => {
         pathname: dirname + "/" + basename,
         type: "api",
       });
-    else if (dirname === "/" && ["socket", "store"].includes(basename) && [".js", ".ts"].includes(extname))
+    else if (dirname === "/" && ((["socket", "store"].includes(basename) && [".js", ".ts"].includes(extname)) || ("template" === basename && [".js", ".jsx", ".ts", ".tsx"].includes(extname))))
       routes.push({
         filepath,
         pathname: "",

@@ -39,11 +39,12 @@ class Handler extends ExtensibleFunction {
             }
           };
           break;
+        case "template":
         case "store":
           exports = exports?.default || {};
           exports.__code = (
             await bundle(this.filepath, {
-              globalName: "__app_store",
+              globalName: "__app_" + this.type,
               exports: "default",
             })
           )?.code;
