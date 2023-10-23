@@ -250,6 +250,7 @@ class Server {
       );
       const [pathname, resource] = path.split(/\/resources\/(.*)/);
       if (resource?.length) request.resource = resource;
+      response.proxy = (options) => this.#proxy.web(request, response, Object.assign({ ws: true, xfwd: true, secure: false, }, options), reject);
       const handler = this.#router?.[subdomain]?.get(method.toLowerCase(), pathname);
       if (handler) return handler(request, response, reject.bind(this, request, response));
       return reject(request, response);
