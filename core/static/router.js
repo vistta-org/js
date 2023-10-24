@@ -65,10 +65,10 @@ function handleClick(event) {
 
 async function build() {
   if (typeof __import_app === "undefined") return console.error("Internal App Error");
-  const { default: app, config, store } = __import_app(); // eslint-disable-line no-undef
+  const { default: app, config, store, template } = __import_app(); // eslint-disable-line no-undef
   __private.store = store;
   __private.dom = new VirtualDom(route, config);
-  __private.dom.render(createElement(app));
+  __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app));
 }
 
 function buildUrl(href) {

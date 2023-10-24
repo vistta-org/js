@@ -22,10 +22,10 @@ Object.defineProperties(route, {
       if (__private?.dom?.remove) __private.dom.remove();
       if (refresh || !cached) {
         let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
-        const { default: app, config, store } = await system.import(resource, { cache: false });
+        const { default: app, config, store, template } = await system.import(resource, { cache: false });
         if (!__private.store) __private.store = store;
         __private.dom = new VirtualDom(route, config);
-        return __private.dom.render(createElement(app), refresh, (config) => {
+        return __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app), refresh, (config) => {
           updateConfig(config);
           __private.routes[pathname] = __private.dom;
           updateHash(hash);
@@ -59,7 +59,7 @@ Object.defineProperties(route, {
   },
   store: {
     get: () => {
-      if (isServer()) return system.get("route.store");
+      if (isServer()) return system.get("route.store")();
       return __private.store;
     },
   },

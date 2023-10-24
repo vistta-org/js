@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { fs } from "../../filesystem";
 import { hash } from "../../crypto";
 import { bundle, resolveImports } from "./bundler.js";
@@ -7,6 +8,8 @@ import PageHandler from "./page";
 const IS_DEV = process.env.NODE_ENV === "development";
 
 class Handler extends ExtensibleFunction {
+  #events = new EventEmitter();
+  #emit;
   watchedFiles = [];
 
   constructor({ filepath, pathname, type, callback, ...config }) {
@@ -17,7 +20,10 @@ class Handler extends ExtensibleFunction {
     this.filepath = fs.resolve(filepath);
     this.pathname = pathname;
     this.type = type;
-    this.emit = (event, ...args) => callback && callback(event, pathname, type, ...args);
+    this.#emit = (event, ...args) => {
+      this.#events.emit(event, ...args);
+      callback && callback(event, pathname, type, ...args);
+    };
   }
 
   async import(isRefresh) {
@@ -39,23 +45,27 @@ class Handler extends ExtensibleFunction {
             }
           };
           break;
+        case "template":
         case "store":
-          exports = exports?.default || {};
-          exports.__code = (
+          this.code = (
             await bundle(this.filepath, {
-              globalName: "__app_store",
+              globalName: "__app_" + this.type,
               exports: "default",
             })
           )?.code;
-          this.handler = () => exports;
+          this.handler = () => exports?.default;
           break;
       }
       if (IS_DEV) this.#watch([this.filepath, ...(await resolveImports(this.filepath))]);
-      this.emit("ready");
+      this.#emit("ready");
     } catch (e) {
-      this.emit("error", e.stack);
+      this.#emit("error", e.stack);
     }
     return this;
+  }
+
+  on(event, callback) {
+    this.#events.on(event, callback);
   }
 
   #watch(files) {
@@ -63,7 +73,7 @@ class Handler extends ExtensibleFunction {
       if (this.watchedFiles.includes(file)) return;
       this.watchedFiles.push(file);
       fs.watchFile(file, () => {
-        this.emit("modified");
+        this.#emit("change");
         this.import(true);
       });
     });

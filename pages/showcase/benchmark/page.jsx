@@ -1,5 +1,4 @@
 import { useStyle, useState, Profiler } from "@vistta/vistta.js";
-import Template from "../../_template";
 import style from "./style.scss";
 import Test1 from "./_tests/1";
 import Test2 from "./_tests/2";
@@ -45,7 +44,7 @@ export default function Benchmark() {
     }
   };
   return (
-    <Template>
+    <>
       <div className="container" {...scope}>
         <Bench id="1" run={counter} Test={Test1} onRender={runComplete} />
         <Bench id="2" run={counter} Test={Test2} onRender={runComplete} />
@@ -61,7 +60,7 @@ export default function Benchmark() {
           {"production" === process.env.NODE_ENV && <h2 className="warning">*Benchmark only works no Development Mode*</h2>}
         </div>
       </div>
-    </Template>
+    </>
   );
 }
 

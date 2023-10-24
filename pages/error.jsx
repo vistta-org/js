@@ -1,5 +1,3 @@
-import Template from "./_template";
-
 const containerStyle = {
   height: "100%",
   display: "flex",
@@ -20,15 +18,13 @@ const textStyle = {
 
 const NotFound = () => {
   return (
-    <Template>
+    <>
       <div style={containerStyle}>
         <h1 style={titleStyle}>404</h1>
         <p style={textStyle}>Page Not Found</p>
       </div>
-    </Template>
+    </>
   );
 };
 
 export default NotFound;
-
-export { config } from "./_template";

@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { fs } from "../../filesystem";
 import { hash, randomID } from "../../crypto";
 import { createElement, renderToString } from "../../dom";
@@ -27,9 +28,11 @@ const CLIENT = (await bundle(fs.resolve(dirname, BUILD ? "../../../core/static/c
 const SERVICE_WORKER = (await bundle(fs.resolve(dirname, "../../../core/sw")))?.code;
 
 class PageHandler extends ExtensibleFunction {
+  #events = new EventEmitter();
+  #emit;
   #watchedFiles = [];
 
-  constructor({ filepath, pathname, type, callback, resources, pwa, store, config }) {
+  constructor({ filepath, pathname, type, callback, resources, pwa, store, template, config }) {
     super((...args) => this.handler && this.handler(...args));
     this.id = hash(filepath);
     this.pwa = pwa;
@@ -38,8 +41,12 @@ class PageHandler extends ExtensibleFunction {
     this.pathname = pathname;
     this.type = type;
     this.store = store;
+    this.template = template;
     this.config = Object.assign({}, CONFIG_DEFAULT, config);
-    this.emit = (event, ...args) => callback && callback(event, pathname, type, ...args);
+    this.#emit = (event, ...args) => {
+      this.#events.emit(event, ...args);
+      callback && callback(event, pathname, type, ...args);
+    };
   }
 
   async handler(request, response, reject) {
@@ -47,8 +54,8 @@ class PageHandler extends ExtensibleFunction {
     this.location = new URL(request?.path, request?.headers?.referer || `${request?.protocol}://${request?.headers?.host}`);
     if (!this.app) await this.import(true);
     if (!request?.resource) {
-      const template = this.template;
-      if (template) return response.status(200).send(this.template).end();
+      const html = this.html;
+      if (html) return response.status(200).send(this.html).end();
     } else {
       if (request.resource === "app") return response.type(".js").status(200).send(this.code).end();
       const resource = this.resources.get(request.resource);
@@ -75,11 +82,17 @@ class PageHandler extends ExtensibleFunction {
       Object.assign(this.config, config);
       this.app = app;
       this.code = ((script) => {
-        if (this.store?.__code)
+        if (this.store?.code)
           script.push(
-            this.store.__code,
+            this.store.code,
             "__app_store = __app_store?.default;",
             BUILD ? "__app.store = __app_store;" : "export { __app_store as store };",
+          );
+        if (this.template?.code)
+          script.push(
+            this.template.code,
+            "__app_template = __app_template?.default;",
+            BUILD ? "__app.template = __app_template;" : "export { __app_template as template };",
           );
         if (BUILD) script.push(`__app.config = ${stringify(this.config, IS_DEV)};`);
         else script.push(`const __app_config = ${stringify(this.config, IS_DEV)};`, "export { __app_config as config };");
@@ -91,31 +104,38 @@ class PageHandler extends ExtensibleFunction {
         this.resources.add("sw.js", SERVICE_WORKER);
       }
       if (IS_DEV) this.watch(files);
-      this.emit("ready");
+      this.#emit("ready");
       return this;
     } catch (e) {
-      this.emit("error", e.stack);
+      this.#emit("error", e.stack);
       return this;
     }
   }
 
   watch(files) {
+    const change = () => {
+      this.app = null;
+      this.#emit("change");
+    }
+    this.store?.on("change", change);
+    this.template?.on("change", change);
     files.forEach((file) => {
       if (this.#watchedFiles.includes(file)) return;
       this.#watchedFiles.push(file);
-      fs.watchFile(file, () => {
-        this.app = null;
-        this.emit("modified");
-      });
+      fs.watchFile(file, change);
     });
   }
 
-  get template() {
+  on(event, callback) {
+    this.#events.on(event, callback);
+  }
+
+  get html() {
     try {
       const imports = {};
       system.set("route", this);
       this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
-      const body = renderToString(createElement(this.app));
+      const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app)) : createElement(this.app));
       if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
       system.set("route", null);
       return html({
@@ -127,7 +147,7 @@ class PageHandler extends ExtensibleFunction {
         style: this.style,
       });
     } catch (e) {
-      this.emit("error", e.stack);
+      this.#emit("error", e.stack);
       return null;
     }
   }

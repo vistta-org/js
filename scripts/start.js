@@ -33,6 +33,6 @@ app.use(options.folder, "/", {
     if (!logs[pathname]) logs[pathname] = new Console(pathname);
     if (event === "error") return logs[pathname].error(...args);
     logs[pathname].clear();
-    logs[pathname].log(`${capitalize(type)} "${pathname}" ${event === "ready" ? Console.green : Console.magenta}${event}.`);
+    logs[pathname].log(`${capitalize(type)} "${pathname}" ${event === "ready" ? Console.green : Console.magenta}${event === "change" ? "modified" : event}.`);
   },
 });

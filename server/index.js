@@ -200,7 +200,7 @@ class Server {
       const { filepath, pathname, type } = files[i];
       if (this.build && (type === "socket" || type === "api")) continue;
       await this.#router[subdomain].setComponent(filepath, pathname || "/", type, (event, href, ...args) => {
-        if (event === "modified" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
+        if (event === "change" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
         if (callback) callback(event, href, ...args);
       });
     }
@@ -250,6 +250,7 @@ class Server {
       );
       const [pathname, resource] = path.split(/\/resources\/(.*)/);
       if (resource?.length) request.resource = resource;
+      response.proxy = (options) => this.#proxy.web(request, response, Object.assign({ ws: true, xfwd: true, secure: false, }, options), reject);
       const handler = this.#router?.[subdomain]?.get(method.toLowerCase(), pathname);
       if (handler) return handler(request, response, reject.bind(this, request, response));
       return reject(request, response);
