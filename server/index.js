@@ -200,7 +200,7 @@ class Server {
       const { filepath, pathname, type } = files[i];
       if (this.build && (type === "socket" || type === "api")) continue;
       await this.#router[subdomain].setComponent(filepath, pathname || "/", type, (event, href, ...args) => {
-        if (event === "modified" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
+        if (event === "change" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
         if (callback) callback(event, href, ...args);
       });
     }

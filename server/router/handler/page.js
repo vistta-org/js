@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { fs } from "../../filesystem";
 import { hash, randomID } from "../../crypto";
 import { createElement, renderToString } from "../../dom";
@@ -27,6 +28,8 @@ const CLIENT = (await bundle(fs.resolve(dirname, BUILD ? "../../../core/static/c
 const SERVICE_WORKER = (await bundle(fs.resolve(dirname, "../../../core/sw")))?.code;
 
 class PageHandler extends ExtensibleFunction {
+  #events = new EventEmitter();
+  #emit;
   #watchedFiles = [];
 
   constructor({ filepath, pathname, type, callback, resources, pwa, store, template, config }) {
@@ -40,7 +43,10 @@ class PageHandler extends ExtensibleFunction {
     this.store = store;
     this.template = template;
     this.config = Object.assign({}, CONFIG_DEFAULT, config);
-    this.emit = (event, ...args) => callback && callback(event, pathname, type, ...args);
+    this.#emit = (event, ...args) => {
+      this.#events.emit(event, ...args);
+      callback && callback(event, pathname, type, ...args);
+    };
   }
 
   async handler(request, response, reject) {
@@ -76,15 +82,15 @@ class PageHandler extends ExtensibleFunction {
       Object.assign(this.config, config);
       this.app = app;
       this.code = ((script) => {
-        if (this.store?.__code)
+        if (this.store?.code)
           script.push(
-            this.store.__code,
+            this.store.code,
             "__app_store = __app_store?.default;",
             BUILD ? "__app.store = __app_store;" : "export { __app_store as store };",
           );
-        if (this.template?.__code)
+        if (this.template?.code)
           script.push(
-            this.template.__code,
+            this.template.code,
             "__app_template = __app_template?.default;",
             BUILD ? "__app.template = __app_template;" : "export { __app_template as template };",
           );
@@ -98,23 +104,30 @@ class PageHandler extends ExtensibleFunction {
         this.resources.add("sw.js", SERVICE_WORKER);
       }
       if (IS_DEV) this.watch(files);
-      this.emit("ready");
+      this.#emit("ready");
       return this;
     } catch (e) {
-      this.emit("error", e.stack);
+      this.#emit("error", e.stack);
       return this;
     }
   }
 
   watch(files) {
+    const change = () => {
+      this.app = null;
+      this.#emit("change");
+    }
+    this.store?.on("change", change);
+    this.template?.on("change", change);
     files.forEach((file) => {
       if (this.#watchedFiles.includes(file)) return;
       this.#watchedFiles.push(file);
-      fs.watchFile(file, () => {
-        this.app = null;
-        this.emit("modified");
-      });
+      fs.watchFile(file, change);
     });
+  }
+
+  on(event, callback) {
+    this.#events.on(event, callback);
   }
 
   get html() {
@@ -122,7 +135,7 @@ class PageHandler extends ExtensibleFunction {
       const imports = {};
       system.set("route", this);
       this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
-      const body = renderToString(this.template ? createElement(this.template, {}, createElement(this.app)) : createElement(this.app));
+      const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app)) : createElement(this.app));
       if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
       system.set("route", null);
       return html({
@@ -134,7 +147,7 @@ class PageHandler extends ExtensibleFunction {
         style: this.style,
       });
     } catch (e) {
-      this.emit("error", e.stack);
+      this.#emit("error", e.stack);
       return null;
     }
   }

@@ -1,8 +1,34 @@
+import { useState, useEffect, useStore } from "@vistta/vistta.js";
+import icon from "../logo.png";
+
 export default function Template({ children }) {
+  const theme = useStore("theme");
+  const menu = useState(false);
+  if (!theme.valueOf()) {
+    if (document?.documentElement?.getAttribute("data-theme"))
+      theme.set(document.documentElement.getAttribute("data-theme"));
+    else if (typeof window !== "undefined" && window?.matchMedia("(prefers-color-scheme: dark)")?.matches) theme.set("dark");
+    else theme.set("light");
+  }
+  useEffect(() => {
+    document?.documentElement?.setAttribute("data-theme", theme);
+  }, [theme]);
+  //
   return (
     <>
-      <header></header>
-      <menu></menu>
+      <header>
+        <button className={menu((value) => "mobile-toggle" + (value ? " active" : ""))} onClick={() => menu.set((v) => !v)}>
+          <div></div>
+        </button>
+        <h1>
+          Vistta<span>.</span>JS
+        </h1>
+        <img src={icon} />
+        <button className="theme" onClick={() => theme.set((v) => (v === "light" ? "dark" : "light"))}>
+          {theme((v) => (v === "light" ? "dark" : "light"))}
+        </button>
+      </header>
+      <menu className={menu((value) => (value ? "active" : ""))}>menu 1</menu>
       <main>{children}</main>
     </>
   );

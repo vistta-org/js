@@ -17,11 +17,39 @@ $primary-color: #b87333 !default;
   --primary-color: #{$primary-color};
   --delay: 0.2s;
   --transition: var(--delay) ease-in-out;
+  @media (prefers-color-scheme: dark) {
+    --fore-color: #{$light-color};
+    --back-color: #{$dark-color};
+  }
+  &[data-theme="light"] {
+    --fore-color: #{$dark-color};
+    --back-color: #{$light-color};
+  }
+  &[data-theme="dark"] {
+    --fore-color: #{$light-color};
+    --back-color: #{$dark-color};
+  }
+  --border-size: 1px;
+  --border-color: color-mix(in srgb, #{$neutral-color}, transparent 40%);
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+*:focus:not(:focus-visible):not(:focus-within) {
+  outline: none;
 }
 
 body {
   padding: var(--unit-2);
   gap: var(--unit-2);
+  color: var(--fore-color);
+  background: var(--back-color);
   --menu-size: 15rem;
   --header-size: var(--unit-16);
   --content-size: 900px;
@@ -44,12 +72,17 @@ header {
     writing-mode: vertical-lr;
     pointer-events: none;
     line-height: 125%;
+    color: var(--primary-color);
+    > span {
+      color: var(--fore-color);
+    }
   }
 
   > img {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
+    padding: var(--unit-1);
   }
 
   > .theme {
@@ -109,8 +142,7 @@ main {
   }
 }
 
-header,
-.header {
+header {
   button {
     padding: var(--unit-1) var(--unit-2);
     color: var(--fore-color);
@@ -123,7 +155,7 @@ header,
   }
 }
 
-.menu {
+menu {
   position: absolute;
   inset: 0 auto 0 var(--header-size);
   padding: var(--unit-4) 0;
@@ -158,7 +190,7 @@ header,
 }
 
 @media (max-aspect-ratio: 1/1) {
-  .menu:not(.active) {
+  menu:not(.active) {
     width: 0;
     opacity: 0;
     pointer-events: none;
@@ -257,7 +289,7 @@ header,
     inset: var(--header-size) 0 0 0 !important;
   }
 
-  .menu {
+  menu {
     inset: var(--header-size) auto 0 0;
     background: inherit;
     z-index: var(--z-index-2);

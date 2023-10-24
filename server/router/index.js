@@ -102,8 +102,8 @@ class Router {
 
   async setComponent(filepath, pathname, type, callback) {
     const args = { filepath, pathname, type, callback };
-    if (type === "store") return (this.#store = (await useHandler(args))());
-    if (type === "template") return (this.#template = (await useHandler(args))());
+    if (type === "store") return (this.#store = (await useHandler(args)));
+    if (type === "template") return (this.#template = (await useHandler(args)));
     if (type === "socket") return (await useHandler(args))((...args) => this.#events.on(...args));
     if (type === "app" || type === "page" || type === "error") {
       if (type === "app") this.#pwa = true;

@@ -59,7 +59,7 @@ Object.defineProperties(route, {
   },
   store: {
     get: () => {
-      if (isServer()) return system.get("route.store");
+      if (isServer()) return system.get("route.store")();
       return __private.store;
     },
   },

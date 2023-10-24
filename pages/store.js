@@ -3,7 +3,7 @@ import { Store } from "@vistta/vistta.js";
 export default new Store([
   Store.createPartition({
     key: "counter",
-    initialState: 0,
+    initialState: 1,
     cache: "storage",
     actions: [
       Store.createAction("increment", (prev) => prev + 1, console.log),
@@ -15,5 +15,11 @@ export default new Store([
         console.log,
       ),
     ],
+  }),
+  Store.createPartition({
+    key: "theme",
+    initialState: null,
+    cache: "storage",
+    actions: [Store.createAction("set", (_, theme) => theme)],
   }),
 ]);
