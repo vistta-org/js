@@ -15,10 +15,11 @@
     "vistta": "./bin/cli.js"
   },
   "scripts": {
-    "validation": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js validation",
-    "dev": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages --dev",
-    "prod": "nodemon --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js start ./pages",
-    "build": "node --no-warnings --loader=./bin/loaders/index.js ./bin/cli.js build ./pages ./.build",
+    "validation": "node ./bin/cli.js validation",
+    "dev": "nodemon ./bin/cli.js start ./pages --dev",
+    "prod": "nodemon ./bin/cli.js start ./pages",
+    "build": "node ./bin/cli.js build ./pages ./.build",
+    "start": "vistta start ./pages",
     "lint": "eslint --fix .",
     "tsc": "tsc ."
   },
