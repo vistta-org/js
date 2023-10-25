@@ -33,7 +33,7 @@ export default class VirtualDom {
       this.style = this.createElement("style");
       this.head.appendChild(this.style);
     }
-    this.#css = config?.styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {});
+    this.#css = config?.styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {}) || {};
     this.#config = config;
   }
 

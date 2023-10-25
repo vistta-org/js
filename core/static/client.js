@@ -1,4 +1,5 @@
 "use strict";
+import { createElement, cloneElement } from "../element"
 import { useContext, useStyle, useRef, useState, useEffect } from "../hooks";
 import { useRoute } from "./router";
 import { Store, useStore } from "./store";
@@ -8,6 +9,8 @@ import * as utils from "../../utils";
 const { system } = utils;
 
 system.set("vistta", {
+  createElement,
+  cloneElement,
   useContext,
   useStyle,
   useRef,
