@@ -5,6 +5,7 @@ import { fs } from "../filesystem";
 
 const WILDCARD = "/*";
 const ERROR = "/✖";
+const TYPES = ["socket", "store", "api", "template", "app", "page", "error"];
 
 class Router {
   static isWildcard = (pathname) => pathname?.match(/\/\[(\w*)\]$/)?.[1];
@@ -151,9 +152,9 @@ Router.readFolder = (folder, api) => {
     return routes;
   };
   return recursive().sort((a, b) => {
-    [a, b] = [a.pathname.split("/"), b.pathname.split("/")];
-    if (a.length == b.length) return a[a.length - 1].length > b[b.length - 1].length ? 1 : -1;
-    return a.length > b.length ? 1 : -1;
+    const priorityA = TYPES.indexOf(a.type);
+    const priorityB = TYPES.indexOf(b.type);
+    return (priorityA == priorityB ? a.pathname.split("/").length - b.pathname.split("/").length : priorityA - priorityB);
   });
 };
 
