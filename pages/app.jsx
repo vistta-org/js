@@ -17,5 +17,5 @@ export const config = {
   icon: icon,
   theme: "#b87333",
   styles: [style],
-  animation: "custom", // "fade", "slide", "custom"
+  transition: { name: "slide", target: "main" }, // "fade", "slide", "rotate"
 };

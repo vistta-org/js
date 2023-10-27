@@ -210,7 +210,6 @@ function html({
             content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
           }),
           createElement("meta", { name: "robots", content: robots }),
-          createElement("meta", { name: "generator", content: "VisttaJS" }),
           author && createElement("meta", { name: "author", content: author }),
           language && createElement("meta", { name: "language", content: language }),
           refresh && createElement("meta", { "http-equiv": "refresh", content: refresh }),

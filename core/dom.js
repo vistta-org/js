@@ -1,11 +1,9 @@
 import { Fragment, TextNode, Element } from "./element"
 import { State, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
 import { isEqual, isBrowser } from "../utils";
+import { applyTransition } from "./transitions";
 
 const BUILD = process.env.BUILD;
-const ANIMATIONS = ["fade", "slide", "custom"];
-
-//
 
 export default class VirtualDom {
   #content;
@@ -44,18 +42,15 @@ export default class VirtualDom {
       if (child?.node) fragment.append(child.node);
       return this.body;
     }, content);
-    animate(
-      this.body,
-      this.#config?.animation,
-      () => {
-        this.body.replaceChildren(fragment);
-        this.#updateStyles();
-        this.#children = [...this.body.children];
-        if (isBrowser()) this.#effects.forEach((effect) => effect());
-        callback && callback(this.#config);
-      },
-      refresh,
-    );
+    const render = () => {
+      this.body.replaceChildren(fragment);
+      this.#updateStyles();
+      this.#children = [...this.body.children];
+      if (isBrowser()) this.#effects.forEach((effect) => effect());
+      callback && callback(this.#config);
+    };
+    if (BUILD || refresh) render();
+    else applyTransition.call(this, this.#config?.transition, render);
   }
 
   remove() {
@@ -65,12 +60,14 @@ export default class VirtualDom {
 
   refresh(callback) {
     this.#effects = [];
-    animate(this.body, this.#config?.animation, () => {
+    const render = () => {
       this.body.replaceChildren(...this.#children);
       this.#updateStyles();
       findEffects(this.#content, (effects) => effects.forEach((callback) => callback(ADDED_EFFECT_EVENT)));
       callback && callback(this.#config);
-    });
+    }
+    if (BUILD) return render();
+    else applyTransition.call(this, this.#config?.transition, render);
   }
 
   #apply(append, element) {
@@ -165,26 +162,6 @@ export default class VirtualDom {
 }
 
 //
-
-let animationCount = -1;
-function animate(body, animation, callback, refresh) {
-  if (refresh || !ANIMATIONS.includes(animation) || BUILD) return callback();
-  animationCount++;
-  const id = animationCount;
-  const animationend = () => {
-    if (id !== animationCount) return body.removeEventListener("animationend", animationend);
-    if (body.classList.contains(animation + "-out")) {
-      callback();
-      body.classList.add(animation + "-in");
-      body.classList.remove(animation + "-out");
-    } else if (body.classList.contains(animation + "-in")) {
-      body.classList.remove(animation + "-in");
-      body.removeEventListener("animationend", animationend);
-    }
-  };
-  body.addEventListener("animationend", animationend);
-  body.classList.add(animation + "-out");
-}
 
 function setAttribute(node, name, value) {
   if (/^on\w.*/.test(name) && typeof value === "function") {
