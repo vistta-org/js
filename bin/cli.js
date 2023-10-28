@@ -5,8 +5,8 @@ import { fs } from "../server/filesystem/index.js";
 import { spawn, exec } from "../server/process/index.js";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
-const pkg = await loadPackage("./");
 const dirname = fs.dirname(import.meta.url);
+const pkg = await loadPackage(fs.resolve(dirname, "../"));
 
 console.announce("Starting VisttaJS...");
 
@@ -17,7 +17,7 @@ const isUpToDate = await validate("modules", null, env);
 if (!(await validate("typescript", main, env))) abort();
 
 if (env.VALIDATION !== "only") {
-  const child = spawn("node", ["--no-warnings", "--loader", "./bin/loaders/index.js", main, ...args], {
+  const child = spawn("node", ["--no-warnings", "--loader", "@vistta/vistta.js/loader", main, ...args], {
     stdio: 'inherit'
   });
   if (env.CUSTOM_SCRIPT && env.NODE_ENV === "development")

@@ -17,4 +17,13 @@ export function useState<T = any>(initialValue: T): State<T>;
 type Callback = () => void;
 export function useEffect(callback: () => void | Callback, dependencies?: any[], runOnRender?: boolean): void;
 
-export function useForm(): void;
+export function useForm(
+  onSubmit: (event: any) => void,
+):
+  | JSX.Component
+  | {
+      watch: (name: string, listener: (event: any) => void) => void;
+      reset: (name: string) => void;
+      clear: (name: string) => void;
+      submit: () => void;
+    };
