@@ -47,6 +47,7 @@ class PageHandler extends ExtensibleFunction {
       this.#events.emit(event, ...args);
       callback && callback(event, pathname, type, ...args);
     };
+    this.#events.on('error', () => null);
   }
 
   async handler(request, response, reject) {
@@ -107,6 +108,7 @@ class PageHandler extends ExtensibleFunction {
       this.#emit("ready");
       return this;
     } catch (e) {
+      if (IS_DEV) this.watch([this.filepath]);
       this.#emit("error", e.stack);
       return this;
     }
