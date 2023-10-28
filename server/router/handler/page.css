@@ -24,58 +24,6 @@ body.loading:after {
   }
 }
 
-body.fade-in > * {
-  animation: fade-in 0.5s ease-in-out;
-}
-
-@keyframes fade-in {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-body.fade-out > * {
-  animation: fade-out 0.5s ease-in-out;
-}
-
-@keyframes fade-out {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-body.slide-in > * {
-  animation: slide-in 0.5s ease-in-out;
-}
-
-@keyframes slide-in {
-  0% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(0%);
-  }
-}
-
-body.slide-out > * {
-  animation: slide-out 0.5s ease-in-out;
-}
-
-@keyframes slide-out {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
-}
-
 :where(:not(:defined)) {
   display: contents;
 }

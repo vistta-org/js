@@ -47,6 +47,7 @@ class PageHandler extends ExtensibleFunction {
       this.#events.emit(event, ...args);
       callback && callback(event, pathname, type, ...args);
     };
+    this.#events.on('error', () => null);
   }
 
   async handler(request, response, reject) {
@@ -107,6 +108,7 @@ class PageHandler extends ExtensibleFunction {
       this.#emit("ready");
       return this;
     } catch (e) {
+      if (IS_DEV) this.watch([this.filepath]);
       this.#emit("error", e.stack);
       return this;
     }
@@ -210,7 +212,6 @@ function html({
             content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
           }),
           createElement("meta", { name: "robots", content: robots }),
-          createElement("meta", { name: "generator", content: "VisttaJS" }),
           author && createElement("meta", { name: "author", content: author }),
           language && createElement("meta", { name: "language", content: language }),
           refresh && createElement("meta", { "http-equiv": "refresh", content: refresh }),

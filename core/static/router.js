@@ -1,4 +1,5 @@
-import VirtualDom, { createElement } from "../dom";
+import VirtualDom from "../dom";
+import { createElement } from "../element";
 import { isValidUrl } from "../../utils";
 
 const route = document.body;
@@ -15,31 +16,31 @@ Object.defineProperties(route, {
       window.location.href = href;
       __private.active = href;
     },
-    refresh: {
-      value: () => location.reload(),
-    },
-    active: {
-      get: () => __private.active,
-    },
-    location: {
-      get: () => window.location,
-    },
-    store: {
-      get: () => __private?.store,
-    },
-    emit: {
-      value: (event, details) =>
-        route?.dispatchEvent(
-          new CustomEvent(event.toLowerCase(), {
-            bubbles: true,
-            composed: true,
-            detail: details,
-          }),
-        ),
-    },
-    on: {
-      value: (event, callback) => route?.addEventListener(event, callback, false),
-    },
+  },
+  refresh: {
+    value: () => location.reload(),
+  },
+  active: {
+    get: () => __private.active,
+  },
+  location: {
+    get: () => window.location,
+  },
+  store: {
+    get: () => __private?.store,
+  },
+  emit: {
+    value: (event, details) =>
+      route?.dispatchEvent(
+        new CustomEvent(event.toLowerCase(), {
+          bubbles: true,
+          composed: true,
+          detail: details,
+        }),
+      ),
+  },
+  on: {
+    value: (event, callback) => route?.addEventListener(event, callback, false),
   },
 });
 

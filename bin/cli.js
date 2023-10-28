@@ -1,9 +1,11 @@
-#!/usr/bin/env node --no-warnings --loader=@vistta/vistta.js/loader
+#!/usr/bin/env node
 "use strict";
-import { run, fs, exec } from "../server/index.js";
+import "../server/console/index.js";
+import { fs } from "../server/filesystem/index.js";
+import { spawn, exec } from "../server/process/index.js";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
-import pkg from "../package.json";
+const pkg = await loadPackage("./");
 const dirname = fs.dirname(import.meta.url);
 
 console.announce("Starting VisttaJS...");
@@ -15,15 +17,17 @@ const isUpToDate = await validate("modules", null, env);
 if (!(await validate("typescript", main, env))) abort();
 
 if (env.VALIDATION !== "only") {
-  const worker = await run(main, args);
+  const child = spawn("node", ["--no-warnings", "--loader", "./bin/loaders/index.js", main, ...args], {
+    stdio: 'inherit'
+  });
   if (env.CUSTOM_SCRIPT && env.NODE_ENV === "development")
     fs.watchFile(main, async () => {
       console.clear();
       console.announce("Restarting VisttaJS...");
-      await worker.stop();
+      await child.stop();
       console.clear();
       if (await validate("typescript", main, env)) abort("");
-      await worker.start();
+      await child.start();
     });
 } else if (!isUpToDate) abort();
 
@@ -36,7 +40,7 @@ function abort(error) {
 
 async function parse([main, ...args]) {
   if (!main?.length) return abort(`Missing first argument`);
-  let env = flatten((await import(fs.resolve(process.cwd(), "package.json")))?.default?.env || {}, "_", (s) =>
+  let env = flatten((await loadPackage(process.cwd()))?.default?.env || {}, "_", (s) =>
     s.toUpperCase(),
   );
   env.NODE_ENV = "production";
@@ -122,4 +126,13 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
 function transformFlag(flag) {
   if (flag === "--validate") flag = "--validation";
   return flag.slice(2).toUpperCase().replaceAll("-", "_");
+}
+
+async function loadPackage(dir) {
+  try {
+    return _parse(await fs.readFile(fs.resolve(dir, "package.json"), "utf-8"));
+  } catch (e) {
+    console.error(e);
+    return {};
+  }
 }

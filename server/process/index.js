@@ -21,7 +21,8 @@ class Process {
         switch (this.type) {
           case "spawn":
             this.#process = _spawn(this.main, this.args, { ...this.options, shell: USE_SHELL, detached: false });
-            this.#process.stderr.on("data", (data) => console.error("error", `${data || ""}`));
+            if (this.options.stdio !== "inherit")
+              this.#process.stderr.on("data", (data) => console.error("error", `${data || ""}`));
             this.#process.on("close", () => (this.#process = null));
             break;
           case "fork":
@@ -29,6 +30,7 @@ class Process {
             this.#process.on("close", () => (this.#process = null));
             break;
           case "worker":
+            console.log(Object.assign({ argv: this.args, env: SHARE_ENV }, this.options));
             this.#process = new Worker(this.main, Object.assign({ argv: this.args, env: SHARE_ENV }, this.options));
             this.#process.on("exit", () => (this.#process = null));
             break;

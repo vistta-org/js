@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import { useState, State, INTERNAL, PROFILER_CONTEXT } from "./hooks";
 import { isServer, setImmediate } from "../utils";
 
@@ -23,7 +24,6 @@ class ProfileRecorder extends State {
 }
 
 export const Profiler = ({ id, children, callback }) => {
-  // eslint-disable-next-line no-undef
   if (!callback || isServer() || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
   const context = { count: 0 };
   const start = (initial) => {
@@ -46,11 +46,9 @@ export const Profiler = ({ id, children, callback }) => {
     if (context.count === 0) callback({ id, performance: performance.now() - (context.performance || 0) });
     return null;
   };
-  // eslint-disable-next-line no-undef
   return createElement(Fragment, null, new ProfileRecorder(start), ...children, new ProfileRecorder(end));
 };
 
-// eslint-disable-next-line no-unused-vars
 export const Suspense = ({ children, fallback }) => {
   const loaded = useState(fallback);
   const asyncs = extractAsyncs(children);
@@ -64,11 +62,6 @@ export const Suspense = ({ children, fallback }) => {
   } else setImmediate(() => loaded.set(children));
   return loaded;
 };
-
-// eslint-disable-next-line no-unused-vars
-/*export const Render = ({ if: renderIf, each: renderEach, children }) => {
-  return null;
-};*/
 
 export const TryCatch = ({ children, fallback }) => {
   try {
