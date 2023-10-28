@@ -49,6 +49,7 @@ body {
   padding: var(--unit-2);
   gap: var(--unit-2);
   color: var(--fore-color);
+  font-family: "Trebuchet MS", sans-serif;
   background: var(--back-color);
   --menu-size: 15rem;
   --header-size: var(--unit-16);
@@ -70,6 +71,7 @@ header {
   }
 
   > h1 {
+    margin: var(--unit-2) 0 0;
     writing-mode: vertical-lr;
     pointer-events: none;
     line-height: 125%;
@@ -149,9 +151,10 @@ header {
     color: var(--fore-color);
     background: none;
     border: none;
-    transition: color var(--duration);
+    transition: color 0.3s;
+    cursor: pointer;
     &:hover {
-      color: var(--fore-2-color);
+      color: var(--primary-color);
     }
   }
 }
@@ -166,18 +169,23 @@ menu {
     width var(--duration),
     opacity var(--duration);
   overflow: hidden;
+  list-style: none;
 
   a {
     width: 100%;
-    padding: var(--unit-1) var(--unit-2);
+    display: block;
+    padding: var(--unit-2) var(--unit-4);
     color: var(--fore-color);
     background: none;
     border: none;
-    transition: color var(--duration);
+    transition: color 0.3s;
     text-align: left;
-    text-transform: capitalize;
+    text-transform: uppercase;
+    font-weight: bolder;
+    letter-spacing: var(--unit-1);
+    text-decoration: none;
     &:hover {
-      color: var(--fore-2-color);
+      color: var(--primary-color);
     }
   }
 
@@ -262,6 +270,7 @@ menu {
     inset: 0 0 auto 0;
     height: var(--header-size);
     width: unset;
+    margin: 0 0 0 var(--unit-2);
     border-bottom: var(--border-size) solid var(--border-color);
     border-right: unset;
     flex-flow: row wrap;

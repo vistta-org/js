@@ -2,7 +2,7 @@
 /// <reference types="node"/>
 
 export { createElement, cloneElement } from "./core/element";
-export { useContext, useStyle, useRef, useState, useEffect } from "./core/hooks";
+export { useContext, useStyle, useRef, useState, useEffect, useForm } from "./core/hooks";
 export { Store, useStore } from "./core/store";
 export { useRoute } from "./core/router";
 export { useSocket } from "./core/socket";

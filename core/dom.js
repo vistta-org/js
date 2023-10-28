@@ -1,5 +1,5 @@
-import { Fragment, TextNode, Element } from "./element"
-import { State, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT } from "./hooks";
+import { Fragment, TextNode, Element, convertToElement } from "./element"
+import { State, INTERNAL, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT, FORM_CONTEXT } from "./hooks";
 import { isEqual, isBrowser } from "../utils";
 import { applyTransition } from "./transitions";
 
@@ -72,16 +72,10 @@ export default class VirtualDom {
 
   #apply(append, element) {
     if (element == null || element === false) return append();
-    if (!(element instanceof Element)) {
-      if (element instanceof State) {
-        element = new Element(Fragment, element);
-        element.children = [element.props?.valueOf()];
-        element.props.subscribe(() => this.#update(element));
-      } else if (Array.isArray(element)) element = new Element(Fragment, null, element);
-      else if (!element?.toString || typeof element === "function") {
-        if ("production" !== process.env.NODE_ENV) console.warn("Tried to render an invalid Element"), console.log(element);
-        return append();
-      } else element = new Element(TextNode, null, "" + element);
+    if (!(element instanceof Element)) return this.#apply(append, convertToElement(element));
+    if (element.props instanceof State && !element.subscribed) {
+      element.props.subscribe(() => this.#update(element));
+      element.subscribed = true;
     }
     //
     const { type, key, ref, props, children, effects } = element;
@@ -96,6 +90,7 @@ export default class VirtualDom {
         else if (typeof ref === "object") ref.current = element.node;
       }
       if (type !== Fragment) {
+        if (type === "button") props.type = "button";
         if (props) {
           const keys = Object.keys(props);
           for (let i = 0, len = keys?.length || 0; i < len; i++) {
@@ -124,6 +119,7 @@ export default class VirtualDom {
         for (let i = 0, len = children?.length || 0; i < len; i++)
           element.children[i] = this.#apply(appendChild, children[i]);
       }
+      INTERNAL[FORM_CONTEXT]?.register(element);
     } else element.node = this.#keys[key];
     if (type !== Fragment) element.parent = append(element);
     return element;

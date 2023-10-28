@@ -43,13 +43,13 @@
     "http2-express-bridge": "^1.0.7",
     "on-headers": "^1.0.2",
     "postcss": "^8.4.31",
-    "sass": "^1.69.4",
+    "sass": "^1.69.5",
     "socket.io": "^4.7.2",
     "typescript": "^5.2.2"
   },
   "devDependencies": {
     "@types/http-proxy": "^1.17.13",
-    "@types/node": "^20.8.8",
+    "@types/node": "^20.8.9",
     "eslint": "^8.52.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-better-styled-components": "^1.1.2",

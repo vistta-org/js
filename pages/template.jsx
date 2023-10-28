@@ -28,7 +28,17 @@ export default function Template({ children }) {
           {theme((v) => (v === "light" ? "dark" : "light"))}
         </button>
       </header>
-      <menu className={menu((value) => (value ? "active" : ""))}>menu 1</menu>
+      <menu className={menu((value) => (value ? "active" : ""))}>
+        <li>
+          <a href="/">home</a>
+        </li>
+        <li>
+          <a href="/docs">docs</a>
+        </li>
+        <li>
+          <a href="/showcase">showcase</a>
+        </li>
+      </menu>
       <main>{children}</main>
     </>
   );

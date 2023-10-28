@@ -16,3 +16,5 @@ export function useState<T = any>(initialValue: T): State<T>;
 
 type Callback = () => void;
 export function useEffect(callback: () => void | Callback, dependencies?: any[], runOnRender?: boolean): void;
+
+export function useForm(): void;
