@@ -21,7 +21,8 @@
     "build": "node ./bin/cli.js build ./pages ./.build",
     "start": "vistta start ./pages",
     "lint": "eslint --fix .",
-    "tsc": "tsc ."
+    "tsc": "tsc .",
+    "fix": "npm link"
   },
   "repository": {
     "type": "git",
