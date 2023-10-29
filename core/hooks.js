@@ -139,12 +139,14 @@ export const useForm = (onSubmit) => {
       );
     }
   };
-  const Form = ({ children, name }) => {
+  const Form = ({ children, name, id, className, style }) => {
     if (INTERNAL[FORM_CONTEXT]) {
       if (!name) {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
         return null;
       }
+      if (id || className || style)
+        return createElement("div", { id, className, style }, formContext("push", name), ...children, formContext("pop"));
       return createElement(Fragment, {}, formContext("push", name), ...children, formContext("pop"));
     }
     return createElement("form", {
@@ -167,7 +169,7 @@ export const useForm = (onSubmit) => {
         }
         event.value = value;
         onSubmit(event);
-      }
+      }, id, className, style
     }, formContext("create", context), ...children, formContext("remove"));
   }
   Form.watch = (...args) => {
