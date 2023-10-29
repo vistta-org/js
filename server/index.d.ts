@@ -16,7 +16,7 @@ type RedirectOptions = {
   target: ProxyOptions["target"];
 };
 type UseOptions = {
-  callback?: (options: { pathname: string; event: string; type: string }) => void;
+  callback?: (event: string, pathname: string, type: string, ...args: any) => void;
   useApiRoute?: boolean;
   useWildcards?: boolean;
 };
