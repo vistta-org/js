@@ -21,8 +21,8 @@ export type system = {
   import: (moduleName: string, options: { cache: boolean }) => any;
 };
 
-export type * from "./consts.d.ts";
-export type * from "./date.d.ts";
-export type * from "./fetch.d.ts";
-export type * from "./object.d.ts";
-export type * from "./string.d.ts";
+export * from "./consts";
+export * from "./date";
+export * from "./fetch";
+export * from "./object";
+export * from "./string";

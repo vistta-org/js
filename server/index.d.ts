@@ -1,5 +1,5 @@
 /// <reference types="node"/>
-/// <reference types="./console" />
+/// <reference types="./console/index.d.ts" />
 import { ServerOptions as ProxyOptions } from "http-proxy";
 
 type ServerOptions = {

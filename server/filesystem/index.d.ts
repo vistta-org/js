@@ -1,7 +1,7 @@
 import path from "node:path";
 import nodeFs, { promises } from "node:fs";
 
-export type fs = typeof nodeFs &
+export const fs: typeof nodeFs &
   typeof promises & {
     resolve: typeof path.resolve;
     extname: typeof path.extname;
