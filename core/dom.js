@@ -90,14 +90,17 @@ export default class VirtualDom {
         else if (typeof ref === "object") ref.current = element.node;
       }
       if (type !== Fragment) {
-        if (type === "button") props.type = "button";
+        if (type === "button") props.type = props.type || "button";
         if (props) {
           const keys = Object.keys(props);
           for (let i = 0, len = keys?.length || 0; i < len; i++) {
             const name = keys[i];
             const value = props[name];
-            if (value && value instanceof State) value.subscribe(() => setAttribute(element.node, name, value));
-            setAttribute(element.node, name, value);
+            if (value && value instanceof State) {
+              value.subscribe(() => setAttribute(element.node, name, value));
+              setAttribute(element.node, name, value.valueOf());
+            }
+            else setAttribute(element.node, name, value);
           }
         }
       } else if (effects) this.#effects.push(() => effects.forEach((callback) => callback(ADDED_EFFECT_EVENT)));
