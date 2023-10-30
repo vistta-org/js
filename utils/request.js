@@ -1,6 +1,12 @@
-const betterFetch = (url, options) => {
-  if (typeof url === "object") (options = url), (url = options.url);
-  let { controller, headers, method, params, timeout, type } = options || {};
+const request = (...args) => {
+  let options = {}
+  if (args.length === 1 && typeof args[0] === "string") options.url = args[0];
+  else if (args.length === 1 && typeof args[0] === "object") options = args[0];
+  else if (args.length === 2 && typeof args[1] === "string") options.url = args[1], options.method = args[0];
+  else if (args.length === 2 && typeof args[1] === "object") options = args[1], options.method = args[0];
+  else if (args.length === 3) options.params = args[2], options.url = args[1], options.method = args[0];
+  else throw "Invalid Arguments";
+  let { url, controller, headers, method, params, timeout, content } = options || {};
   if (!controller) controller = new AbortController();
   const { body, contentType } = transformBody(options?.body);
   // eslint-disable-next-line no-async-promise-executor
@@ -13,13 +19,13 @@ const betterFetch = (url, options) => {
         ...options,
         headers: headers,
         body: body,
-        method: method,
+        method: method?.toUpperCase() || "GET",
         signal: controller.signal,
       });
       if (!response.ok)
         return resolve({ status: response.status, statusText: response.statusText, headers: response.headers });
       return resolve({
-        data: await response[type || convertResponse(response.headers.get("content-type"))](),
+        data: await response[content || convertResponse(response.headers.get("content-type"))](),
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
@@ -34,7 +40,17 @@ const betterFetch = (url, options) => {
   return response;
 };
 
-export { betterFetch as fetch };
+request.get = request.bind(null, "get");
+request.post = request.bind(null, "post");
+request.head = request.bind(null, "head");
+request.put = request.bind(null, "put");
+request.delete = request.bind(null, "delete");
+request.connect = request.bind(null, "connect");
+request.options = request.bind(null, "options");
+request.trace = request.bind(null, "trace");
+request.patch = request.bind(null, "patch");
+
+export { request };
 
 //
 

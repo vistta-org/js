@@ -99,6 +99,6 @@ export class ExtensibleFunction extends Function {
 
 export * from "./consts.js";
 export * from "./date.js";
-export * from "./fetch.js";
+export * from "./request.js";
 export * from "./object.js";
 export * from "./string.js";

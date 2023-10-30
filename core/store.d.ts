@@ -6,7 +6,7 @@ interface Partition<T> extends State<T> {
 }
 
 type PartitionConfig<T> = {
-  name: string;
+  key: string;
   initialState?: T;
   cache?: "none" | "session" | "storage";
   actions: PartitionAction[];
