@@ -1,8 +1,8 @@
 import { State } from "./hooks";
 
-interface Partition<T> extends State<T> {
-  readonly key: string;
-  readonly value: any;
+declare class Partition<T> extends State<T> {
+  private key: string;
+  private value: any;
 }
 
 type PartitionConfig<T> = {

@@ -21,6 +21,8 @@ export type system = {
   import: (moduleName: string, options: { cache: boolean }) => any;
 };
 
+export class ExtensibleFunction extends Function {}
+
 export * from "./consts";
 export * from "./date";
 export * from "./request";
