@@ -131,7 +131,11 @@ export const useEffect = (callback, dependencies) => {
 export const useForm = (onSubmit) => {
   const context = INTERNAL[FORM_CONTEXT] || {
     fields: {}, path: [], listeners: {}, register({ type, props: { role, name, type: inputType }, node }) {
-      if (type !== "input" && type !== "textarea" && type !== "select" && role !== "input" || !name) return;
+      if (type !== "input" && type !== "textarea" && type !== "select" && role !== "input") return;
+      if (!name) {
+        if ("production" !== process.env.NODE_ENV) console.warn(`Missing "name" attribute on ${type} inside of form.`);
+        return;
+      }
       const path = [...this.path, name].join(".");
       if (inputType === "radio") {
         if (!this.fields[path]) this.fields[path] = [];
