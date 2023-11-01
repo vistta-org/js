@@ -97,7 +97,7 @@ export default class VirtualDom {
             const name = keys[i];
             const value = props[name];
             if (value && value instanceof State) {
-              value.subscribe(() => setAttribute(element.node, name, value));
+              value.subscribe(() => setAttribute(element.node, name, value.valueOf()));
               setAttribute(element.node, name, value.valueOf());
             }
             else setAttribute(element.node, name, value);
