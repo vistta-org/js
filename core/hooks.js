@@ -130,13 +130,37 @@ export const useEffect = (callback, dependencies) => {
 
 export const useForm = (onSubmit) => {
   const context = INTERNAL[FORM_CONTEXT] || {
-    fields: {}, path: [], listeners: [], register({ type, props: { role, name }, node }) {
+    fields: {}, path: [], listeners: {}, register({ type, props: { role, name, type: inputType }, node }) {
       if (type !== "input" && type !== "textarea" && type !== "select" && role !== "input" || !name) return;
       const path = [...this.path, name].join(".");
-      this.fields[path] = node;
-      node.addEventListener("change", (e) =>
-        this.listeners.forEach(({ name, listener }) => (name === path || name === "*") && listener(e))
-      );
+      if (inputType === "radio") {
+        if (!this.fields[path]) this.fields[path] = [];
+        this.fields[path].push(node);
+      }
+      else this.fields[path] = node;
+      if (type === "select") node.defaultValue = node.value;
+      node.addEventListener("keydown", (e) => e.key === 'Enter' && this.node?.requestSubmit());
+      node.addEventListener(type === "select" ? "change" : "input", (e) => {
+        this.listeners[path]?.forEach((listener) => listener(e));
+        this.listeners["*"]?.forEach((listener) => listener(e));
+      });
+    }, values() {
+      const value = {};
+      const inputs = Object.keys(this.fields);
+      for (let i = 0, len = inputs.length; i < len; i++) {
+        const cur = inputs[i];
+        if (cur.includes(".")) {
+          let temp = value;
+          const paths = cur.split(".");
+          for (let n = 0, nlen = paths.length; n < nlen; n++) {
+            const key = paths[n];
+            if (n === nlen - 1) temp[key] = getFieldValue(this.fields[cur]);
+            else (temp[key] = temp[key] || {}, temp = temp[key])
+          }
+        }
+        else value[cur] = getFieldValue(this.fields[cur]);
+      }
+      return value;
     }
   };
   const Form = ({ children, name, id, className, style }) => {
@@ -152,22 +176,7 @@ export const useForm = (onSubmit) => {
     return createElement("form", {
       ref: (e) => context.node = e, onSubmit(event) {
         event.preventDefault();
-        const value = {};
-        const inputs = Object.keys(context.fields);
-        for (let i = 0, len = inputs.length; i < len; i++) {
-          const cur = inputs[i];
-          if (cur.includes(".")) {
-            let temp = value;
-            const paths = cur.split(".");
-            for (let n = 0, nlen = paths.length; n < nlen; n++) {
-              const key = paths[n];
-              if (n === nlen - 1) temp[key] = context.fields[cur]?.value;
-              else (temp[key] = temp[key] || {}, temp = temp[key])
-            }
-          }
-          else value[cur] = context.fields[cur]?.value;
-        }
-        event.value = value;
+        event.value = context.values();
         onSubmit(event);
       }, id, className, style
     }, formContext("create", context), ...children, formContext("remove"));
@@ -175,16 +184,18 @@ export const useForm = (onSubmit) => {
   Form.watch = (...args) => {
     if (args.length == 0) return;
     if (args.length == 1) args.unshift("*");
-    context.listeners.push({ name: args[0], listener: args[1] });
+    const [name, listener] = args;
+    if (!context.listeners[name]) context.listeners[name] = [listener];
+    else context.listeners[name].push(listener);
   };
   Form.reset = (name = "*") => {
     if (name === "*") {
       const inputs = Object.keys(context.fields);
       for (let i = 0, len = inputs.length; i < len; i++)
-        context.fields[inputs[i]].value = context.fields[inputs[i]].defaultValue;
+        context.fields[inputs[i]].value = getFieldDefaultValue(context.fields[inputs[i]]);
       return;
     }
-    context.form[name].value = context.form[name].defaultValue;
+    context.form[name].value = getFieldDefaultValue(context.form[name]);
   };
   Form.clear = (name = "*") => {
     if (name === "*") {
@@ -196,6 +207,7 @@ export const useForm = (onSubmit) => {
     context.form[name].value = "";
   };
   Form.submit = () => context.node.requestSubmit();
+  Form.values = () => context.values();
   return Form;
 }
 
@@ -237,4 +249,26 @@ function formContext(type, arg) {
     else if (type === "pop") INTERNAL[FORM_CONTEXT]?.path?.pop();
     return null;
   });
+}
+
+function getFieldValue(element) {
+  if (Array.isArray(element)) {
+    for (let i = 0, len = element.length; i < len; i++) {
+      if (element[i].checked) return element[i].value;
+    }
+    return null;
+  }
+  if (element.type === "checkbox") return element.checked;
+  return element.value;
+}
+
+function getFieldDefaultValue(element) {
+  if (Array.isArray(element)) {
+    for (let i = 0, len = element.length; i < len; i++) {
+      if (element[i].defaultChecked) return element[i].value;
+    }
+    return null;
+  }
+  if (element.type === "checkbox") return element.defaultChecked;
+  return element.defaultValue;
 }
