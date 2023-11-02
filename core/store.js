@@ -78,8 +78,11 @@ class Partition extends State {
   }
 }
 
-function useStore(partition) {
-  if (typeof route?.store?.use === "function") return route?.store?.use(partition);
+function useStore(...partitions) {
+  if (typeof route?.store?.use === "function" && partitions.length) {
+    if (partitions.length == 1) return route?.store?.use(partitions[0]);
+    else return partitions.map((partition) => route?.store?.use(partition))
+  }
   return null;
 }
 

@@ -29,4 +29,5 @@ export class Store {
   use<T>(partition: string): Partition<T>;
 }
 
-export function useStore<T>(partition: string): Partition<T>;
+export function useStore<T>(partitions: string): Partition<T>;
+export function useStore<T>(...partitions: string[]): Partition<T>[];
