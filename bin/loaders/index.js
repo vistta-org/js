@@ -2,15 +2,25 @@ import { isBuiltin } from "node:module";
 import { fileURLToPath, pathToFileURL, URLSearchParams } from "node:url";
 import { fs } from "../../server/filesystem/index.js";
 import { compilerResolver } from "./typescript.js";
-import script from "./extensions/script.js";
-import css from "./extensions/css.js";
-import html from "./extensions/html.js";
-import json from "./extensions/json.js";
-import file from "./extensions/file.js";
 
+export const TYPE_DEFAULT = "default";
+export const TYPE_SCRIPT = "script";
+export const TYPE_JSON = "json";
+export const TYPE_STYLE = "style";
+export const TYPE_TEMPLATE = "template";
+export const TYPE_FILE = "file";
+export const TYPE_TEXT = "text";
 const EXTENSIONS = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"];
 const CONTEXT = {};
 const CWD = process.cwd();
+const LOADER = {
+  [TYPE_SCRIPT]: (await import("./types/script.js")).default,
+  [TYPE_JSON]: (await import("./types/json.js")).default,
+  [TYPE_STYLE]: (await import("./types/style.js")).default,
+  [TYPE_TEMPLATE]: (await import("./types/template.js")).default,
+  [TYPE_FILE]: (await import("./types/file.js")).default,
+  [TYPE_TEXT]: (await import("./types/text.js")).default,
+}
 
 export function resolve(specifier, context, next, options) {
   [specifier, options] = specifier.split(/\?(.*)/);
@@ -40,26 +50,19 @@ export function resolve(specifier, context, next, options) {
 
 export function load(url, ctx, next) {
   if (isBuiltin(url)) return next(url, ctx);
-  const bundler = ctx.bundler;
+  let { bundler, importAssertions: { type } = {} } = ctx || {};
   url = bundler ? pathToFileURL(url.split("?")[0]).href : url.split("?")[0];
   const path = fileURLToPath(url);
   const extension = fs.extname(url).slice(1);
-  if (["js", "mjs", "cjs"].includes(extension)) return next(url, ctx);
+  type = type || resolveType(extension);
+  if (type === TYPE_DEFAULT) return next(url, ctx);
   const {
     code,
     warnings,
     errors,
     resources,
     files = [],
-  } = (() => {
-    if (["jsx", "tsx", "ts", "mts", "cts"].includes(extension))
-      return script(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
-    else if (["css", "sass", "scss"].includes(extension))
-      return css(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
-    else if (["json"].includes(extension)) return json(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
-    else if (["html"].includes(extension)) return html(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
-    return file(path, { path, extension, bundler });
-  })();
+  } = LOADER[type](fs.readFileSync(path, type !== TYPE_FILE ? "utf-8" : undefined), { path, extension, bundler });
   if (errors?.length) throw new Error(errors.join("\n"));
   warnings?.forEach((warning) => console.warn(`Loader Warning: ${warning}\n`));
   return {
@@ -88,4 +91,31 @@ function resolver(specifier, { cwd = process.cwd(), extensions = EXTENSIONS } = 
     if (fs.existsSync(cur)) return cur;
   }
   return fallback;
+}
+
+function resolveType(extension) {
+  switch (extension) {
+    case "js":
+    case "mjs":
+    case "cjs":
+      return TYPE_DEFAULT;
+    case "jsx":
+    case "tsx":
+    case "ts":
+    case "mts":
+    case "cts":
+      return TYPE_SCRIPT;
+    case "json":
+      return TYPE_JSON;
+    case "css":
+    case "sass":
+    case "scss":
+      return TYPE_STYLE;
+    case "xml":
+    case "html":
+    case "htm":
+      return TYPE_TEMPLATE;
+    default:
+      return TYPE_FILE;
+  }
 }

@@ -4,6 +4,7 @@ import { build } from "esbuild";
 import { dirname, basename } from "path";
 
 const name = process.env.APP_NAME;
+
 class Bundler {
   config = {
     bundle: true,
@@ -24,7 +25,7 @@ class Bundler {
     })(),
   };
 
-  constructor() {}
+  constructor() { }
 
   async run(filename, { mode = process.env.NODE_ENV, exports, globalName, sideEffects } = {}) {
     const instance = {
@@ -58,7 +59,7 @@ class Bundler {
     return instance;
   }
 
-  resolve({ path, resolveDir }) {
+  resolve({ path, importer, resolveDir, kind }) {
     switch (path) {
       case name:
         return { path: "vistta", namespace: "window" };
@@ -73,12 +74,12 @@ class Bundler {
     }
     return resolve(path, { parentURL: resolveDir, bundler: true }, (final, { builtin, file }) => {
       if (builtin) return { path: final, namespace: "ignore" };
-      if (file) return { path: final, sideEffects: this.sideEffects };
+      if (file) return { path: final, sideEffects: this.sideEffects, pluginData: { type: kind === "import-statement" ? importAssertion(importer, path) : undefined } };
       return {};
     });
   }
 
-  load({ path, namespace }) {
+  load({ path, namespace, pluginData }) {
     if (namespace === "ignore") return { contents: "" };
     if (namespace === "window") return { contents: `module.exports = window.${path};` };
     if (namespace === "exports")
@@ -86,7 +87,7 @@ class Bundler {
         contents: `export { ${this.exports} } from "./${this.base}";`,
         resolveDir: this.dir,
       };
-    const { source, resources, files = [] } = load(path, { bundler: true }, () => ({}));
+    const { source, resources, files = [] } = load(path, { bundler: true, importAssertions: pluginData }, () => ({}));
     this.files.push(...files);
     if (!source) return { loader: "js" };
     resources?.forEach(({ hash, path, code, compiler }) => (this.resources[hash] = path || code || compiler));
@@ -112,3 +113,10 @@ const bundle = ((b) => b.run.bind(b))(new Bundler());
 
 export { bundle, resolveImports };
 export default Bundler;
+
+//
+
+function importAssertion(importer, path) {
+  if (!fs.existsSync(importer)) return undefined;
+  return (new RegExp(`["'](${path})["']\\s+assert\\s+{\\s+type:\\s+["'](\\w+)["']\\s+}`)).exec(fs.readFileSync(importer, "utf-8"))?.[2];
+}
