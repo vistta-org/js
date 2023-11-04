@@ -1,6 +1,7 @@
 import VirtualDom from "./dom";
 import { createElement } from "./element";
 import socket from "./socket";
+import { INTERNAL, RENDER_CONTEXT } from "./hooks";
 import { isServer, isValidUrl, system } from "../utils";
 
 const route = document.body || {};
@@ -84,14 +85,20 @@ system.addEventListener("load", () => (handlerServiceWorker(), handleSocket(), r
 
 export default route;
 
-export const useRoute = () => ({
-  navigate: (...args) => route.navigate(...args),
-  emit: (...args) => route.emit(...args),
-  on: (...args) => route.on(...args),
-  get location() {
-    return route.location;
-  },
-});
+export const useRoute = () => {
+  if (!INTERNAL[RENDER_CONTEXT]) {
+    if ("production" !== process.env.NODE_ENV) console.warn("Cannot use hooks outside of components.");
+    return null;
+  }
+  return {
+    navigate: (...args) => route.navigate(...args),
+    emit: (...args) => route.emit(...args),
+    on: (...args) => route.on(...args),
+    get location() {
+      return route.location;
+    },
+  }
+};
 
 //
 

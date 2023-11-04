@@ -51,10 +51,14 @@ const convertToElement = (target) => {
   element.props = {};
   if (target instanceof State) element.props = target, element.children = [target?.valueOf()];
   else if (Array.isArray(target)) element.children = target;
-  else if (target instanceof Promise)
-    return elementException("Async Components need to be wrapped in async function");
-  else if (!target?.toString || typeof target === "function")
-    return elementException("Tried to render an invalid Element");
+  else if (target instanceof Promise) {
+    if ("production" !== process.env.NODE_ENV) console.warn("Async Components need to be wrapped in async function");
+    return false;
+  }
+  else if (!target?.toString || typeof target === "function") {
+    if ("production" !== process.env.NODE_ENV) console.warn(`${typeof target} are not valid Elements`);
+    return false;
+  }
   else element.type = TextNode, element.children = "" + target;
   return element;
 }
@@ -100,9 +104,4 @@ function styleToString(style) {
     if (typeof value === "string") result += ` ${camelCaseToKebabCase(keys[i])}: ${value};`;
   }
   return result.trim();
-}
-
-function elementException(exception) {
-  if ("production" !== process.env.NODE_ENV) console.warn(exception);
-  return false;
 }

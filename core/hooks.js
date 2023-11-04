@@ -6,6 +6,7 @@ export const PROFILER_CONTEXT = "#profiler";
 export const FORM_CONTEXT = "#form";
 export const HOOK_CONTEXT = "#context";
 export const SCOPE_CONTEXT = "#scope";
+export const RENDER_CONTEXT = "#render";
 export const ADDED_EFFECT_EVENT = "node_added";
 export const REMOVED_EFFECT_EVENT = "node_removed";
 export const INTERNAL = {
@@ -16,6 +17,7 @@ export const INTERNAL = {
 // Context
 
 export function useContext(key) {
+  if (invalidateRenderContext()) return null;
   if (!key?.length) return INTERNAL[HOOK_CONTEXT];
   if (!INTERNAL[HOOK_CONTEXT][key]) INTERNAL[HOOK_CONTEXT][key] = {};
   return INTERNAL[HOOK_CONTEXT][key];
@@ -24,6 +26,7 @@ export function useContext(key) {
 // Style
 
 export function useStyle(...styles) {
+  if (invalidateRenderContext()) return null;
   const scope = {};
   for (let i = 0, len = styles.length; i < len; i++) {
     const { id, raw } = styles[i];
@@ -46,6 +49,7 @@ export class Ref {
 }
 
 export function useRef(initialValue) {
+  if (invalidateRenderContext()) return null;
   return new Ref(initialValue);
 }
 
@@ -102,11 +106,15 @@ export class State extends ExtensibleFunction {
   }
 }
 
-export const useState = (value) => new State(value);
+export function useState(value) {
+  if (invalidateRenderContext()) return null;
+  return new State(value);
+}
 
 // Effect
 
 export const useEffect = (callback, dependencies) => {
+  if (invalidateRenderContext()) return null;
   let removeCallback;
   const lifecycle = (status) => {
     if (status === ADDED_EFFECT_EVENT) {
@@ -129,10 +137,11 @@ export const useEffect = (callback, dependencies) => {
 // Form
 
 export const useForm = (onSubmit) => {
+  if (invalidateRenderContext()) return null;
   const context = INTERNAL[FORM_CONTEXT] || {
     fields: {}, path: [], listeners: {}, register({ type, props: { role, name, type: inputType }, node }) {
       if (type !== "input" && type !== "textarea" && type !== "select" && role !== "input") return;
-      if (!name) {
+      if (!name && inputType !== "submit") {
         if ("production" !== process.env.NODE_ENV) console.warn(`Missing "name" attribute on ${type} inside of form.`);
         return;
       }
@@ -275,4 +284,12 @@ function getFieldDefaultValue(element) {
   }
   if (element.type === "checkbox") return element.defaultChecked;
   return element.defaultValue;
+}
+
+function invalidateRenderContext() {
+  if (!INTERNAL[RENDER_CONTEXT]) {
+    if ("production" !== process.env.NODE_ENV) console.warn("Cannot use hooks outside of components.");
+    return true;
+  }
+  return false;
 }

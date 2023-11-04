@@ -1,5 +1,5 @@
 import { Fragment, TextNode, Element, convertToElement } from "./element"
-import { State, INTERNAL, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT, FORM_CONTEXT } from "./hooks";
+import { State, INTERNAL, ADDED_EFFECT_EVENT, REMOVED_EFFECT_EVENT, FORM_CONTEXT, RENDER_CONTEXT } from "./hooks";
 import { isEqual, isBrowser } from "../utils";
 import { applyTransition } from "./transitions";
 
@@ -36,6 +36,7 @@ export default class VirtualDom {
   }
 
   render(content, refresh, callback) {
+    INTERNAL[RENDER_CONTEXT] = true;
     this.#effects = [];
     const fragment = this.createDocumentFragment();
     this.#content = this.#apply((child) => {
@@ -47,6 +48,7 @@ export default class VirtualDom {
       this.#updateStyles();
       this.#children = [...this.body.children];
       if (isBrowser()) this.#effects.forEach((effect) => effect());
+      INTERNAL[RENDER_CONTEXT] = false;
       callback && callback(this.#config);
     };
     if (BUILD || refresh) render();
@@ -129,6 +131,7 @@ export default class VirtualDom {
   }
 
   async #update(element) {
+    INTERNAL[RENDER_CONTEXT] = true;
     this.#effects = [];
     const fragment = this.createDocumentFragment();
     const previous = element?.nodes || [];
@@ -149,6 +152,7 @@ export default class VirtualDom {
     if (parent === this.body) this.#children = [...this.body.children];
     this.#updateStyles();
     this.#effects.forEach((effect) => effect());
+    INTERNAL[RENDER_CONTEXT] = false;
   }
 
   #updateStyles() {
