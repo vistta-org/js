@@ -4,7 +4,7 @@ import socket from "./socket";
 import { INTERNAL, RENDER_CONTEXT } from "./hooks";
 import { isServer, isValidUrl, system } from "../utils";
 
-const route = document.body || {};
+const route = !isServer() ? document.body : {};
 const __private = { routes: {} };
 
 Object.defineProperties(route, {
