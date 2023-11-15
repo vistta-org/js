@@ -1,21 +1,17 @@
-import { fs } from "../../server/filesystem/index.js";
+import { fs } from "@uttils/kit";
 import ts from "typescript";
 
 const Compiler = ts.createCompilerHost({});
 
-export const tsconfig = Object.assign(
-  (() => {
-    try {
-      const json = fs.readFileSync(fs.resolve(fs.dirname(import.meta.url), "../../tsconfig.json"), "utf-8");
-      return JSON.parse(json)?.compilerOptions || {};
-    } catch {
-      return {};
-    }
-  })(),
-  {
-    incremental: false,
-  }
-);
+export const tsconfig = (() => {
+  const rootOptions = loadTSConfig(fs.resolve(fs.dirname(import.meta.url), "../../"))?.compilerOptions || {};
+  const projectOptions = loadTSConfig(process.cwd())?.compilerOptions || {};
+  const options = Object.assign(rootOptions, projectOptions);
+  options.paths = Object.assign(projectOptions?.paths || {}, rootOptions?.paths || {});
+  options.typeRoots = [...(rootOptions?.typeRoots || []), ...(projectOptions?.typeRoots || [])];
+  options.incremental = false;
+  return options;
+})()
 
 export function validate(path, source) {
   const errors = [];
@@ -53,12 +49,24 @@ export function compilerResolver(path, cwd) {
   for (let i = 0, len = paths?.length || 0; i < len; i++) {
     if (!paths[i].endsWith("*")) continue;
     const regex = paths[i].slice(0, -1);
-    if (new RegExp(`^${regex}.*`).test(path)) return path.replace(new RegExp(`^${regex}`), cwd);
+    const cur = tsconfig?.paths[paths[i]][0];
+    if (new RegExp(`^${regex}.*`).test(path) && cur.endsWith("*"))
+      return path.replace(new RegExp(`^${regex}`), fs.resolve(cwd, cur.slice(0, -1)) + "\\");
   }
   return path;
 }
 
 //
+
+// 
+function loadTSConfig(folder) {
+  try {
+    const json = fs.readFileSync(fs.resolve(folder, "./tsconfig.json"), "utf-8");
+    return JSON.parse(json) || {};
+  } catch {
+    return {};
+  }
+}
 
 function convertPath(path) {
   if (fs.isFile(path)) return [path];

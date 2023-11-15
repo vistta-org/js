@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 "use strict";
-import "../server/console/index.js";
-import { fs } from "../server/filesystem/index.js";
-import { spawn, exec } from "../server/process/index.js";
+import { Console, fs, spawn, exec } from "@uttils/kit";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
+// eslint-disable-next-line no-global-assign
+console = new Console("");
 const dirname = fs.dirname(import.meta.url);
 const pkg = await loadPackage(fs.resolve(dirname, "../"));
-
 console.announce("Starting VisttaJS...");
 
 const { main, args, env } = await parse(process.argv.slice(2));

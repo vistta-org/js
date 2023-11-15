@@ -1,4 +1,7 @@
-import Server, { fs } from "../server/index.js";
+import Server from "../server/index.js";
+import { fs, Console } from "@uttils/kit";
+// eslint-disable-next-line no-global-assign
+console = new Console("");
 console.announce(`VisttaJS v${process.env.APP_VERSION}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const config = (await import(fs.resolve("./package.json"))).default || {};

@@ -1,4 +1,4 @@
-import { fs } from "../../filesystem";
+import { fs } from "@uttils/kit";
 import { resolve, load } from "../../../bin/loaders";
 import { build } from "esbuild";
 import { dirname, basename } from "path";

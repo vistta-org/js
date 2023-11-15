@@ -1,6 +1,6 @@
 import { isBuiltin } from "node:module";
 import { fileURLToPath, pathToFileURL, URLSearchParams } from "node:url";
-import { fs } from "../../server/filesystem/index.js";
+import { fs } from "@uttils/kit";
 import { compilerResolver } from "./typescript.js";
 
 export const TYPE_DEFAULT = "default";

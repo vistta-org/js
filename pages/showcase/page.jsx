@@ -1,4 +1,5 @@
-import { useStyle, useRoute, request } from "@vistta/vistta.js";
+import { useStyle, useRoute } from "@vistta/vistta.js";
+import { request } from "@uttils/kit/request";
 import style from "./style.scss";
 
 export default function Showcase() {

@@ -1,7 +1,7 @@
 // import { Route } from "./route";
 import { EventEmitter } from "node:events";
 import { useHandler } from "./handler";
-import { fs } from "../filesystem";
+import { fs } from "@uttils/kit";
 
 const WILDCARD = "/*";
 const ERROR = "/✖";

@@ -1,5 +1,3 @@
-export * from "./utils/index.js";
-//
 export { createElement, cloneElement } from "./core/element.js";
 export { useContext, useStyle, useRef, Ref, useState, State, useEffect, useForm } from "./core/hooks.js";
 export { useRoute } from "./core/router.js";

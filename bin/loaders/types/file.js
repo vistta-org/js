@@ -1,4 +1,4 @@
-import { fs } from "../../../server/filesystem/index.js";
+import { fs } from "@uttils/kit";
 
 export default function (source, { path }) {
   const urlHash = fs.fileId(path) + fs.extname(path);

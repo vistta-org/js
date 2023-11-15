@@ -1,5 +1,8 @@
-import Server, { fs } from "../server/index.js";
+import Server from "../server/index.js";
+import { Console, fs } from "@uttils/kit";
 import { trim, capitalize } from "../utils/index.js";
+// eslint-disable-next-line no-global-assign
+console = new Console("");
 console.announce(`VisttaJS v${process.env.APP_VERSION}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const options = await (async (args) => {

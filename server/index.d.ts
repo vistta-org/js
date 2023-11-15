@@ -1,5 +1,4 @@
 /// <reference types="node"/>
-/// <reference types="./console/index.d.ts" />
 import { ServerOptions as ProxyOptions } from "http-proxy";
 
 type ServerOptions = {
@@ -60,7 +59,3 @@ export default class Server {
   emit(subdomain: string, event: string, ...args: any): void;
   on(subdomain: string, event: string, callback: (...args: any) => void): void;
 }
-
-export * from "./crypto";
-export * from "./filesystem";
-export * from "./process";

@@ -34,6 +34,7 @@
     "@vistta:registry": "https://git.vistta.me/api/packages/vistta/npm/"
   },
   "dependencies": {
+    "@uttils/kit": "^0.2.0",
     "accepts": "^1.3.8",
     "autoprefixer": "^10.4.16",
     "compressible": "^2.0.18",
@@ -49,13 +50,13 @@
     "typescript": "^5.2.2"
   },
   "devDependencies": {
-    "@types/http-proxy": "^1.17.13",
-    "@types/node": "^20.8.10",
-    "eslint": "^8.52.0",
+    "@types/http-proxy": "^1.17.14",
+    "@types/node": "^20.9.0",
+    "eslint": "^8.53.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-better-styled-components": "^1.1.2",
     "eslint-plugin-jsx": "^0.1.0",
-    "eslint-plugin-sonarjs": "^0.21.0",
+    "eslint-plugin-sonarjs": "^0.23.0",
     "prettier": "^3.0.3"
   },
   "engines": {
