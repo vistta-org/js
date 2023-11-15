@@ -29,10 +29,15 @@ const SERVICE_WORKER = (await bundle(fs.resolve(dirname, "../../../core/sw")))?.
 class PageHandler extends ExtensibleFunction {
   #events = new EventEmitter();
   #emit;
+  #middleware;
   #watchedFiles = [];
 
   constructor({ filepath, pathname, type, callback, resources, pwa, store, template, config }) {
-    super((...args) => this.handler && this.handler(...args));
+    super((request, response, reject) => {
+      if (!this.handler) return;
+      if (this.#middleware) this.#middleware(request, this.handler.bind(this, request, response, reject), reject);
+      else this.handler(request, response, reject);
+    });
     this.id = hash(filepath);
     this.pwa = pwa;
     this.filepath = fs.resolve(filepath);
@@ -73,13 +78,14 @@ class PageHandler extends ExtensibleFunction {
     try {
       const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
-      const { default: app, config } = await system.import(this.filepath, { cache: !isRefresh });
+      const { default: app, config, middleware } = await system.import(this.filepath, { cache: !isRefresh });
       const { code, resources, files } = await bundle(this.filepath, {
         exports: "default",
         globalName: BUILD ? "__app" : undefined,
       });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       Object.assign(this.config, config);
+      this.#middleware = middleware;
       this.app = app;
       this.code = ((script) => {
         if (this.store?.code)
