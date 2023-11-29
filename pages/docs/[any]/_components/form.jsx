@@ -1,4 +1,4 @@
-import { useForm } from "@vistta/vistta.js";
+import { useForm } from "@vistta/js";
 
 export default function Doc() {
   const Form = useForm((event) => {

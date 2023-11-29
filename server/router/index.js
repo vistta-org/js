@@ -1,11 +1,11 @@
 // import { Route } from "./route";
 import { EventEmitter } from "node:events";
 import { useHandler } from "./handler";
-import { fs } from "@uttils/kit";
+import { fs } from "@vistta/utils/fs";
 
 const WILDCARD = "/*";
 const ERROR = "/✖";
-const TYPES = ["socket", "store", "api", "template", "app", "page", "error"];
+const TYPES = ["middleware", "socket", "store", "api", "template", "app", "page", "error"];
 
 class Router {
   static isWildcard = (pathname) => pathname?.match(/\/\[(\w*)\]$/)?.[1];
@@ -13,6 +13,7 @@ class Router {
   #pwa = false;
   #store;
   #template;
+  #middleware;
   #routes = [];
   #handlers = {};
   #resources = {};
@@ -36,6 +37,7 @@ class Router {
   };
 
   set(method, pathname, callback) {
+    if (method === "middleware") return this.#middleware = callback;
     const { wildcard, route } = (() => {
       let wildcard = Router.isWildcard(pathname);
       if (!wildcard) {
@@ -55,6 +57,7 @@ class Router {
   }
 
   get(method, pathname, filter) {
+    if (method === "middleware") return this.#middleware;
     pathname = pathname.endsWith("/") ? pathname : pathname + "/";
     let handler;
     for (let i = 0, len = this.#routes.length; i < len; i++) {
@@ -103,6 +106,7 @@ class Router {
 
   async setComponent(filepath, pathname, type, callback) {
     const args = { filepath, pathname, type, callback };
+    if (type === "middleware") return (this.#middleware = (await useHandler(args)));
     if (type === "store") return (this.#store = (await useHandler(args)));
     if (type === "template") return (this.#template = (await useHandler(args)));
     if (type === "socket") return (await useHandler(args))((...args) => this.#events.on(...args));
@@ -134,7 +138,7 @@ Router.readFolder = (folder, api) => {
         pathname: dirname + "/" + basename,
         type: "api",
       });
-    else if (dirname === "/" && ((["socket", "store"].includes(basename) && [".js", ".ts"].includes(extname)) || ("template" === basename && [".js", ".jsx", ".ts", ".tsx"].includes(extname))))
+    else if (dirname === "/" && ((["socket", "store", "middleware"].includes(basename) && [".js", ".ts"].includes(extname)) || ("template" === basename && [".js", ".jsx", ".ts", ".tsx"].includes(extname))))
       routes.push({
         filepath,
         pathname: "",

@@ -1,4 +1,4 @@
-import { useStore } from "@vistta/vistta.js";
+import { useStore } from "@vistta/js";
 
 export default function Store() {
   const counter = useStore("counter");

@@ -1,4 +1,4 @@
-import { useState, useSocket } from "@vistta/vistta.js";
+import { useState, useSocket } from "@vistta/js";
 import { buildForm } from "./_form";
 
 export default function Chat({ username, messages: _messages }) {

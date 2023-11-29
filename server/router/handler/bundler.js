@@ -1,4 +1,4 @@
-import { fs } from "@uttils/kit";
+import { fs } from "@vistta/utils/fs";
 import { resolve, load } from "../../../bin/loaders";
 import { build } from "esbuild";
 import { dirname, basename } from "path";
@@ -43,6 +43,7 @@ class Bundler {
       entryPoints: [exports ? "@exports" : filename],
       minify: mode === "production",
       format: globalName ? "iife" : "esm",
+      target: "esnext",
       globalName: globalName,
       plugins: [
         {
@@ -59,7 +60,7 @@ class Bundler {
     return instance;
   }
 
-  resolve({ path, importer, resolveDir, kind }) {
+  async resolve({ path, importer, resolveDir, kind }) {
     switch (path) {
       case name:
         return { path: "vistta", namespace: "window" };
@@ -72,14 +73,14 @@ class Bundler {
       default:
         break;
     }
-    return resolve(path, { parentURL: resolveDir, bundler: true }, (final, { builtin, file }) => {
-      if (builtin) return { path: final, namespace: "ignore" };
-      if (file) return { path: final, sideEffects: this.sideEffects, pluginData: { type: kind === "import-statement" ? importAssertion(importer, path) : undefined } };
-      return {};
-    });
+    const { final, builtin, file } = resolve(path, { parentURL: resolveDir, bundler: true }, (final, { builtin, file }) => ({ final, builtin, file }));
+    if (!builtin && file) return { path: final, sideEffects: this.sideEffects, pluginData: { type: kind === "import-statement" ? importAssertion(importer, path) : undefined } };
+    const exists = await importExists(final);
+    if (!builtin && exists) return {};
+    return { path: final, namespace: "ignore" };
   }
 
-  load({ path, namespace, pluginData }) {
+  async load({ path, namespace, pluginData }) {
     if (namespace === "ignore") return { contents: "" };
     if (namespace === "window") return { contents: `module.exports = window.${path};` };
     if (namespace === "exports")
@@ -119,4 +120,10 @@ export default Bundler;
 function importAssertion(importer, path) {
   if (!fs.existsSync(importer)) return undefined;
   return (new RegExp(`["'](${path})["']\\s+assert\\s+{\\s+type:\\s+["'](\\w+)["']\\s+}`)).exec(fs.readFileSync(importer, "utf-8"))?.[2];
+}
+
+function importExists(module) {
+  return new Promise((resolve) => {
+    import(module).then(() => resolve(true)).catch(() => resolve(false));
+  });
 }

@@ -1,4 +1,4 @@
-import { useState, Profiler } from "@vistta/vistta.js";
+import { useState, Profiler } from "@vistta/js";
 
 export default function Showcase() {
   const age = useState(0);

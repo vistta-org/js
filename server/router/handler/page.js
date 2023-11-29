@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { fs, hash, randomID } from "@uttils/kit";
+import { fs, hash, randomID } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
 import { bundle } from "./bundler.js";
 import { validate } from "../../../bin/loaders/typescript";
@@ -35,8 +35,8 @@ class PageHandler extends ExtensibleFunction {
   constructor({ filepath, pathname, type, callback, resources, pwa, store, template, config }) {
     super((request, response, reject) => {
       if (!this.handler) return;
-      if (this.#middleware) this.#middleware(request, this.handler.bind(this, request, response, reject), reject);
-      else this.handler(request, response, reject);
+      if (!this.#middleware) this.handler(request, response, reject);
+      else this.#middleware(request, response, this.handler.bind(this, request, response, reject), reject);
     });
     this.id = hash(filepath);
     this.pwa = pwa;
@@ -60,9 +60,9 @@ class PageHandler extends ExtensibleFunction {
     if (!this.app) await this.import(true);
     if (!request?.resource) {
       const html = this.html;
-      if (html) return response.status(200).send(this.html).end();
+      if (html) return response.status(200).send(html);
     } else {
-      if (request.resource === "app") return response.type(".js").status(200).send(this.code).end();
+      if (request.resource === "app") return response.type(".js").status(200).send(this.code);
       const resource = this.resources.get(request.resource);
       const extension = fs.extname(request.resource);
       if (resource) {
@@ -151,6 +151,7 @@ class PageHandler extends ExtensibleFunction {
         imports,
         body,
         client: !BUILD ? CLIENT : `const __import_app = ()=>{ ${this.code} return __app; }; ${CLIENT}`,
+        nonce: "v" + randomID(),
         style: this.style,
       });
     } catch (e) {
@@ -181,6 +182,7 @@ function html({
   imports,
   body,
   client,
+  nonce,
   links,
   refresh,
   revisitAfter,
@@ -188,7 +190,6 @@ function html({
   style,
   scripts,
 } = {}) {
-  const nonce = "v" + randomID();
   return (
     "<!doctype html>\n" +
     renderToString(

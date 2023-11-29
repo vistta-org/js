@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 "use strict";
-import { Console, fs, spawn, exec } from "@uttils/kit";
+import { Console, fs, spawn, exec } from "@vistta/utils";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
 // eslint-disable-next-line no-global-assign
@@ -16,7 +16,7 @@ const isUpToDate = await validate("modules", null, env);
 if (!(await validate("typescript", main, env))) abort();
 
 if (env.VALIDATION !== "only") {
-  const child = spawn("node", ["--no-warnings", "--loader", "@vistta/vistta.js/loader", main, ...args], {
+  const child = spawn("node", ["--no-warnings", "--loader", "@vistta/js/loader", main, ...args], {
     stdio: 'inherit'
   });
   if (env.CUSTOM_SCRIPT && env.NODE_ENV === "development")

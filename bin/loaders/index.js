@@ -1,6 +1,6 @@
 import { isBuiltin } from "node:module";
 import { fileURLToPath, pathToFileURL, URLSearchParams } from "node:url";
-import { fs } from "@uttils/kit";
+import { fs } from "@vistta/utils/fs";
 import { compilerResolver } from "./typescript.js";
 
 export const TYPE_DEFAULT = "default";
@@ -111,10 +111,6 @@ function resolveType(extension) {
     case "sass":
     case "scss":
       return TYPE_STYLE;
-    case "xml":
-    case "html":
-    case "htm":
-      return TYPE_TEMPLATE;
     default:
       return TYPE_FILE;
   }
