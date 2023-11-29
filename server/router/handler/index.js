@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { fs, hash } from "@uttils/kit";
+import { fs, hash } from "@vistta/utils";
 import { bundle, resolveImports } from "./bundler.js";
 import { system, convertToEventName, ExtensibleFunction } from "../../../utils";
 import PageHandler from "./page";
@@ -29,6 +29,7 @@ class Handler extends ExtensibleFunction {
     try {
       let exports = await system.import(this.filepath, { cache: !isRefresh });
       switch (this.type) {
+        case "middleware":
         case "api":
           this.handler = exports?.default;
           break;

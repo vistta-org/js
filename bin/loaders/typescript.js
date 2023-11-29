@@ -1,4 +1,4 @@
-import { fs } from "@uttils/kit";
+import { fs } from "@vistta/utils/fs";
 import ts from "typescript";
 
 const Compiler = ts.createCompilerHost({});

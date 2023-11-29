@@ -1,5 +1,5 @@
 import Server from "../server/index.js";
-import { fs, Console } from "@uttils/kit";
+import { fs, Console } from "@vistta/utils";
 // eslint-disable-next-line no-global-assign
 console = new Console("");
 console.announce(`VisttaJS v${process.env.APP_VERSION}`);

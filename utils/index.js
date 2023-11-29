@@ -1,15 +1,5 @@
 export const INVALID_EVENT_NAME = "Invalid socket event";
 
-export const randomID = () => {
-  if (typeof crypto !== "undefined") crypto.randomUUID();
-  let dt = new Date().getTime();
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (dt + Math.random() * 16) % 16 | 0;
-    dt = Math.floor(dt / 16);
-    return (c == "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
-};
-
 export const isServer = () => typeof global !== "undefined";
 
 export const isBrowser = () => typeof window !== "undefined";
@@ -68,4 +58,4 @@ export class ExtensibleFunction extends Function {
 }
 
 export * from "./string.js";
-export * from "@uttils/kit/core";
+export * from "@vistta/utils/core";

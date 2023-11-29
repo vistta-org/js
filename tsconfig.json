@@ -13,7 +13,7 @@
     "jsxFragmentFactory": "Fragment",
     "typeRoots": ["./index.d.ts"],
     "paths": {
-      "@vistta/vistta.js": ["./index"]
+      "@vistta/js": ["./index"]
     }
   }
 }

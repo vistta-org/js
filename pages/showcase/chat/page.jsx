@@ -1,4 +1,4 @@
-import { useState } from "@vistta/vistta.js";
+import { useState } from "@vistta/js";
 import Form from "./_form";
 import Chat from "./_chat";
 

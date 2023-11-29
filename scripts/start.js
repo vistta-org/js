@@ -1,5 +1,5 @@
 import Server from "../server/index.js";
-import { Console, fs } from "@uttils/kit";
+import { Console, fs } from "@vistta/utils";
 import { trim, capitalize } from "../utils/index.js";
 // eslint-disable-next-line no-global-assign
 console = new Console("");
@@ -31,11 +31,10 @@ const app = new Server({
 });
 
 const logs = {};
-app.use(options.folder, "/", {
-  callback: (event, pathname, type, ...args) => {
-    if (!logs[pathname]) logs[pathname] = new Console(pathname);
-    if (event === "error") return logs[pathname].error(...args);
-    logs[pathname].clear();
-    logs[pathname].log(`${capitalize(type)} "${pathname}" ${event === "ready" ? Console.green : Console.magenta}${event === "change" ? "modified" : event}.`);
-  },
+app.use(options.folder, "/", (event, pathname, type, ...args) => {
+  const cur = type + "/" + pathname;
+  if (!logs[cur]) logs[cur] = new Console(cur);
+  if (event === "error") return logs[cur].error(...args);
+  logs[cur].clear();
+  logs[cur].log(`${capitalize(type)} "${pathname}" ${event === "ready" ? Console.green : Console.magenta}${event === "change" ? "modified" : event}.`);
 });

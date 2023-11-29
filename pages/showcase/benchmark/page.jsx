@@ -1,4 +1,4 @@
-import { useStyle, useState, Profiler } from "@vistta/vistta.js";
+import { useStyle, useState, Profiler } from "@vistta/js";
 import style from "./style.scss";
 import Test1 from "./_tests/1";
 import Test2 from "./_tests/2";

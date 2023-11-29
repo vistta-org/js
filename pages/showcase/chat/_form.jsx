@@ -1,4 +1,4 @@
-import { request } from "@uttils/kit/request";
+import { request } from "@vistta/utils/request";
 
 export default function Form({ onLogin }) {
   const onSubmit = async (e) => {

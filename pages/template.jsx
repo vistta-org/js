@@ -1,5 +1,6 @@
-import { useState, useEffect, useStore } from "@vistta/vistta.js";
+import { useState, useEffect, useStore } from "@vistta/js";
 import icon from "../logo.png";
+// import template from "./_template/template.html" assert { type: "template" };
 
 export default function Template({ children }) {
   const theme = useStore("theme");

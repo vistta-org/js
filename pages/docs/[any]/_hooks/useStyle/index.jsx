@@ -1,4 +1,4 @@
-import { useStyle, useState } from "@vistta/vistta.js";
+import { useStyle, useState } from "@vistta/js";
 import style from "./style.scss";
 
 export default function Context() {

@@ -1,4 +1,4 @@
-import { Store } from "@vistta/vistta.js";
+import { Store } from "@vistta/js";
 
 export default new Store([
   Store.createPartition({
