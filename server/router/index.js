@@ -4,7 +4,6 @@ import { useHandler } from "./handler";
 import { fs } from "@vistta/utils/fs";
 
 const WILDCARD = "/*";
-const ERROR = "/✖";
 const TYPES = ["middleware", "socket", "store", "api", "template", "app", "page", "error"];
 
 class Router {
@@ -13,9 +12,10 @@ class Router {
   #pwa = false;
   #store;
   #template;
-  #middleware;
-  #routes = [];
+  #routes = {};
   #handlers = {};
+  #errors = {};
+  #middlewares = {};
   #resources = {};
   #events = new EventEmitter();
 
@@ -37,51 +37,37 @@ class Router {
   };
 
   set(method, pathname, callback) {
-    if (method === "middleware") return this.#middleware = callback;
-    const { wildcard, route } = (() => {
-      let wildcard = Router.isWildcard(pathname);
-      if (!wildcard) {
-        if (method === "error") return { route: (pathname.endsWith("/") ? pathname.slice(0, -1) : pathname) + ERROR };
-        else return { route: pathname.endsWith("/") ? pathname : pathname + "/" };
-      }
-      return { wildcard, route: pathname.replace(`/[${wildcard}]`, method === "error" ? ERROR : WILDCARD) };
-    })();
-    if (this.#handlers[route]) return console.warn(`Route for "${pathname}" already defined.`);
-    this.#handlers[route] = Object.assign(Array.isArray(callback) ? transformCallback(callback) : callback, {
+    const wildcard = Router.isWildcard(pathname);
+    const target = method !== "error" && method !== "middleware" ? "default" : method;
+    const route = wildcard ? pathname.replace(`/[${wildcard}]`, target === "default" ? WILDCARD : "") : pathname.endsWith("/") ? pathname : pathname + "/";
+    const handlers = method === "error" ? this.#errors : method === "middleware" ? this.#middlewares : this.#handlers;
+    if (handlers[route]) return console.warn(`Route for ${method === "error" || method === "middleware" ? method + " on " : ""}"${pathname}" already defined.`);
+    handlers[route] = Object.assign(Array.isArray(callback) ? transformCallback(callback) : callback, {
       pathname,
       method,
       wildcard,
     });
-    this.#routes = Object.keys(this.#handlers);
-    this.#routes.sort((a, b) => (a.match(/\//g) || []).length - (b.match(/\//g) || []).length);
+    this.#routes[target] = Object.keys(handlers);
+    this.#routes[target].sort((a, b) => (a.match(/\//g) || []).length - (b.match(/\//g) || []).length);
   }
 
   get(method, pathname, filter) {
-    if (method === "middleware") return this.#middleware;
     pathname = pathname.endsWith("/") ? pathname : pathname + "/";
+    const routes = this.#routes[method !== "error" && method !== "middleware" ? "default" : method];
+    const handlers = method === "error" ? this.#errors : method === "middleware" ? this.#middlewares : this.#handlers;
     let handler;
-    for (let i = 0, len = this.#routes.length; i < len; i++) {
-      let route = this.#routes[i];
+    for (let i = 0, len = routes?.length || 0; i < len; i++) {
+      let route = routes[i];
       if (
-        (() => {
-          switch (method) {
-            case "error":
-              return route.endsWith(ERROR) && !pathname.startsWith(route.slice(0, -1));
-            case "tree":
-              return !pathname.startsWith(route.endsWith(WILDCARD) ? route.slice(0, -1) : route);
-            default:
-              return route.endsWith(WILDCARD) ? !pathname.startsWith(route.slice(0, -1)) : route !== pathname;
-          }
-        })()
-      )
-        continue;
-      route = this.#handlers[route];
+        ((method === "error" || method === "middleware") && !pathname.startsWith(route)) ||
+        (method === "tree" && !pathname.startsWith(route.endsWith(WILDCARD) ? route.slice(0, -1) : route)) ||
+        (method !== "error" && method !== "middleware" && method !== "tree" && (route.endsWith(WILDCARD) ? !pathname.startsWith(route.slice(0, -1)) : route !== pathname))
+      ) continue;
+      route = handlers[route];
       if (method === "tree") method = "any";
       if (
         (filter === false || filter ? filter(route) : route?.enabled !== false) &&
-        (method === route.method ||
-          (method === "any" && route.method !== "error") ||
-          (route.method === "any" && method !== "error"))
+        (method === route.method || method === "any" || route.method === "any")
       )
         handler = route;
     }
@@ -106,7 +92,6 @@ class Router {
 
   async setComponent(filepath, pathname, type, callback) {
     const args = { filepath, pathname, type, callback };
-    if (type === "middleware") return (this.#middleware = (await useHandler(args)));
     if (type === "store") return (this.#store = (await useHandler(args)));
     if (type === "template") return (this.#template = (await useHandler(args)));
     if (type === "socket") return (await useHandler(args))((...args) => this.#events.on(...args));
@@ -118,7 +103,7 @@ class Router {
       args.store = this.#store;
       args.template = this.#template;
     }
-    return this.set(type === "api" ? "any" : type === "error" ? "error" : "get", pathname, await useHandler(args));
+    return this.set(type === "api" ? "any" : (type !== "error" && type !== "middleware") ? "get" : type, pathname, await useHandler(args));
   }
 }
 
@@ -138,14 +123,14 @@ Router.readFolder = (folder, api) => {
         pathname: dirname + "/" + basename,
         type: "api",
       });
-    else if (dirname === "/" && ((["socket", "store", "middleware"].includes(basename) && [".js", ".ts"].includes(extname)) || ("template" === basename && [".js", ".jsx", ".ts", ".tsx"].includes(extname))))
+    else if (dirname === "/" && ((["socket", "store"].includes(basename) && [".js", ".ts"].includes(extname)) || ("template" === basename && [".js", ".jsx", ".ts", ".tsx"].includes(extname))))
       routes.push({
         filepath,
         pathname: "",
         type: basename,
       });
     else if (
-      (["page", "error"].includes(basename) || dirname + basename === "/app") &&
+      (["page", "error", "middleware"].includes(basename) || dirname + basename === "/app") &&
       [".js", ".jsx", ".ts", ".tsx"].includes(extname)
     )
       routes.push({

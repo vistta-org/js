@@ -54,8 +54,8 @@ export default class Server {
 
   use(folder: string, pathname: string, options?: UseOptions): void;
   use(subdomain: string, folder: string, pathname: string, options?: UseOptions): void;
-  use(middleware: Middleware): void;
-  use(subdomain: string, middleware: Middleware): void;
+  use(pathname: string, middleware: Middleware): void;
+  use(subdomain: string, pathname: string, middleware: Middleware): void;
 
   disable(pathname: string): void;
   disable(subdomain: string, pathname: string): void;

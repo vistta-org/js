@@ -191,10 +191,13 @@ class Server {
 
   async use(...args) {
     const [subdomain, folder, pathname, options] = (() => {
-      if (typeof args[0] === "function") return ["", null, "/", args[0]];
-      if (typeof args[1] === "function") return [args[0], null, "/", args[1]];
-      if (["object", "undefined", "function"].includes(typeof args[2])) return ["", ...args];
-      else return args
+      if (typeof args[1] === "function") return ["", null, args[0], args[1]];
+      if (typeof args[2] === "object" || typeof args[2] === "undefined") return ["", ...args];
+      if (typeof args[2] === "function") {
+        if (!fs.existsSync(args[0])) return [args[0], null, args[1], args[2]];
+        return ["", ...args];
+      }
+      return args;
     })();
     if (!validateArgs("use", subdomain, pathname)) return;
     const { callback, useApiRoute, useWildcards } = typeof options === "function" ? { callback: options } : options || {};
@@ -249,7 +252,7 @@ class Server {
       const { method, path, hostname } = request;
       const subdomain = getSubdomain(hostname) || "";
       const error = this.#router?.[subdomain]?.get("error", path);
-      const middleware = this.#router?.[subdomain]?.get("middleware");
+      const middleware = this.#router?.[subdomain]?.get("middleware", path);
       request.cookies = parseCookies(request);
       const reject = () => {
         response.status(404);
