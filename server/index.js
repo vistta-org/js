@@ -278,7 +278,7 @@ class Server {
     const subdomain = "build";
     const routes = [];
     const pages = {};
-    await this.use(folder, subdomain, "/", { callback: (event, pathname, type) => event === "ready" && routes.push({ pathname, type }) });
+    await this.use(subdomain, folder, "/", (event, pathname, type) => event === "ready" && routes.push({ pathname, type }));
     for (let i = 0, len = routes.length; i < len; i++) {
       const { pathname, type } = routes[i];
       const wildcard = Router.isWildcard(pathname);

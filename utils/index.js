@@ -4,7 +4,9 @@ export const isServer = () => typeof global !== "undefined";
 
 export const isBrowser = () => typeof window !== "undefined";
 
-export const system = {
+const Console = typeof window === "undefined" && (await import("@vistta/utils/console")).Console;
+
+export const system = Object.assign(typeof Console !== "undefined" ? new Console("system", { date: false, fixed: "\n", message: Console.isTTY ? { before: "\t" } : undefined }) : {}, {
   register(tagname, element) {
     if (isServer()) return new element();
     if (customElements.get(tagname)) return null;
@@ -49,7 +51,7 @@ export const system = {
     if (cache === false) moduleName += `?noCache=${Date.now()}`;
     return import(moduleName);
   },
-};
+});
 
 export class ExtensibleFunction extends Function {
   constructor(f) {
