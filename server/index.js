@@ -282,7 +282,7 @@ class Server {
     for (let i = 0, len = routes.length; i < len; i++) {
       const { pathname, type } = routes[i];
       const wildcard = Router.isWildcard(pathname);
-      let route = pathname + (pathname.endsWith("/") ? "" : "/") + (type === "error" ? "error.html" : "index.html");
+      let route = pathname + (pathname.endsWith("/") ? "" : "/") + (type === "error" ? "error/" : "");
       if (wildcard) route = route.replace(`/[${wildcard}]`, "");
       pages[route] = this.#router[subdomain].get(type === "error" ? "error" : "get", pathname) || {};
     }

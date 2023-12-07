@@ -97,11 +97,11 @@ export { Fragment, TextNode, Element, createElement, convertToElement, cloneElem
 
 function styleToString(style) {
   const keys = Object.keys(style || {});
-  if (!keys.length) return null;
   let result = "";
   for (let i = 0, len = keys.length; i < len; i++) {
     const value = style[keys[i]];
     if (typeof value === "string") result += ` ${camelCaseToKebabCase(keys[i])}: ${value};`;
   }
-  return result.trim();
+  result = result.trim();
+  return result === "" ? null : result;
 }

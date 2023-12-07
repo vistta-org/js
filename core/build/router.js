@@ -1,7 +1,7 @@
 import VirtualDom from "../dom";
 import { createElement } from "../element";
 import { INTERNAL, RENDER_CONTEXT } from "../hooks";
-import { isValidUrl, isServer } from "../../utils";
+import { isValidUrl, isServer, system } from "../../utils";
 
 const route = !isServer() ? document.body : {};
 const __private = { routes: {} };
@@ -72,8 +72,9 @@ function handleClick(event) {
 }
 
 async function build() {
-  if (typeof __import_app === "undefined") return console.error("Internal App Error");
-  const { default: app, config, store, template } = __import_app(); // eslint-disable-line no-undef
+  const pathname = route.location.pathname;
+  let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
+  const { default: app, config, store, template } = await system.import(resource);
   __private.store = store;
   __private.dom = new VirtualDom(route, config);
   __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app));

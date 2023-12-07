@@ -23,7 +23,7 @@ const CONFIG_DEFAULT = {
   keywords: "visttajs",
   robots: "index, follow",
 };
-const CLIENT = (await bundle(fs.resolve(dirname, BUILD ? "../../../core/static/client" : "../../../core/client")))?.code;
+const CLIENT = (await bundle(fs.resolve(dirname, BUILD ? "../../../core/built/client" : "../../../core/client")))?.code;
 const SERVICE_WORKER = (await bundle(fs.resolve(dirname, "../../../core/sw")))?.code;
 
 class PageHandler extends ExtensibleFunction {
@@ -57,7 +57,7 @@ class PageHandler extends ExtensibleFunction {
       const html = this.html;
       if (html) return response.status(200).send(html);
     } else {
-      if (request.resource === "app") return response.type(".js").status(200).send(this.code);
+      if (request.resource === "app") return response.type(".js").status(200).send(this.script);
       const resource = this.resources.get(request.resource);
       const extension = fs.extname(request.resource);
       if (resource) {
@@ -74,31 +74,13 @@ class PageHandler extends ExtensibleFunction {
       const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
       const { default: app, config } = await system.import(this.filepath, { cache: !isRefresh });
-      const { code, resources, files } = await bundle(this.filepath, {
-        exports: "default",
-        globalName: BUILD ? "__app" : undefined,
-      });
+      const { code, resources, files } = await bundle(this.filepath, { exports: "default" });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       Object.assign(this.config, config);
       this.app = app;
-      this.code = ((script) => {
-        if (this.store?.code)
-          script.push(
-            this.store.code,
-            "__app_store = __app_store?.default;",
-            BUILD ? "__app.store = __app_store;" : "export { __app_store as store };",
-          );
-        if (this.template?.code)
-          script.push(
-            this.template.code,
-            "__app_template = __app_template?.default;",
-            BUILD ? "__app.template = __app_template;" : "export { __app_template as template };",
-          );
-        if (BUILD) script.push(`__app.config = ${stringify(this.config, IS_DEV)};`);
-        else script.push(`const __app_config = ${stringify(this.config, IS_DEV)};`, "export { __app_config as config };");
-        return script.join(IS_DEV ? "\n" : " ");
-      })([code]);
+      this.code = code;
       this.resources.add(resources);
+      this.resources.add("client.js", CLIENT);
       if (this.type === "app") {
         this.resources.add("manifest.json", manifest(this.config));
         this.resources.add("sw.js", SERVICE_WORKER);
@@ -133,18 +115,16 @@ class PageHandler extends ExtensibleFunction {
 
   get html() {
     try {
-      const imports = {};
+      // const imports = {};
       system.set("route", this);
       this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
       const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app)) : createElement(this.app));
-      if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
+      // if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
       system.set("route", null);
       return html({
         ...this.config,
         manifest: this.pwa,
-        imports,
         body,
-        client: !BUILD ? CLIENT : `const __import_app = ()=>{ ${this.code} return __app; }; ${CLIENT}`,
         nonce: "v" + randomID(),
         style: this.style,
       });
@@ -152,6 +132,22 @@ class PageHandler extends ExtensibleFunction {
       this.#emit("error", e.stack);
       return null;
     }
+  }
+
+  get script() {
+    let script = [this.code];
+    if (this.store?.code)
+      script.push(
+        this.store.code,
+        "__app_store = __app_store?.default; export { __app_store as store };",
+      );
+    if (this.template?.code)
+      script.push(
+        this.template.code,
+        "__app_template = __app_template?.default; export { __app_template as template };",
+      );
+    script.push(`const __app_config = ${stringify(this.config, IS_DEV)};`, "export { __app_config as config };");
+    return script.join(IS_DEV ? "\n" : " ");
   }
 }
 
@@ -173,9 +169,7 @@ function html({
   language,
   manifest,
   icon,
-  imports,
   body,
-  client,
   nonce,
   links,
   refresh,
@@ -209,7 +203,7 @@ function html({
           createElement("meta", { name: "theme-color", content: theme }),
           createElement("meta", {
             httpEquiv: "Content-Security-Policy",
-            content: `default-src 'self';script-src 'self' 'nonce-${nonce}';style-src 'self' 'nonce-${nonce}';`,
+            content: `default-src 'self';script-src 'self';style-src 'self' 'nonce-${nonce}';`,
           }),
           createElement("meta", { name: "robots", content: robots }),
           author && createElement("meta", { name: "author", content: author }),
@@ -226,11 +220,10 @@ function html({
           ...(links?.map((props) => createElement("link", props)) || []),
           createElement("style", { nonce }, pageStyle.raw),
           createElement("style", { id: "route", nonce }, style),
-          createElement("script", { type: "importmap", nonce }, stringify({ imports })),
+          createElement("script", { src: "./resources/client.js", defer: true }),
           ...(scripts?.map((props) => createElement("script", props)) || []),
         ),
         createElement("body", {}, body),
-        createElement("script", { nonce }, client),
       ),
     )
   );

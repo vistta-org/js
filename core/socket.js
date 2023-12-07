@@ -11,7 +11,7 @@ class Socket {
     if (isServer()) return this;
     import("@socket")
       .then(({ io }) => this.connect(io))
-      .catch(() => (this.active = false));
+      .catch((e) => (console.error(e), this.active = false));
   }
 
   connect(io) {

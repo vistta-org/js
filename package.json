@@ -46,11 +46,11 @@
     "postcss": "^8.4.32",
     "sass": "^1.69.5",
     "socket.io": "^4.7.2",
-    "typescript": "^5.3.2"
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
     "@types/http-proxy": "^1.17.14",
-    "@types/node": "^20.10.3",
+    "@types/node": "^20.10.4",
     "eslint": "^8.55.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-better-styled-components": "^1.1.2",

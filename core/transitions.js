@@ -12,7 +12,6 @@ export function applyTransition(transition, render) {
       // eslint-disable-next-line sonarjs/no-use-of-empty-return-value
       return slideOut(element(), direction, amount, () => (render(), slideIn(element(), direction, amount)));
     case "rotate":
-      console.log("here");
       // eslint-disable-next-line sonarjs/no-use-of-empty-return-value
       return rotateOut(element(), direction, amount, () => (render(), rotateIn(element(), direction, amount)));
     default:

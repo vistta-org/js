@@ -67,7 +67,7 @@ class Bundler {
       case "@content":
         return { path: "content", external: true };
       case "@socket":
-        return { path: "socket", external: true };
+        return { path: "/socket.io/socket.io.esm.min.js", external: true };
       case "@exports":
         return { path: this.base, namespace: "exports" };
       default:
