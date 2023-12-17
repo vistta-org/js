@@ -40,12 +40,11 @@ export default class VirtualDom {
   render(content, refresh, callback) {
     INTERNAL.RENDER.ACTIVE = true;
     this.#effects = [];
-    const node = this.node;
-    this.node = this.createDocumentFragment();
+    const fragment = this.createDocumentFragment();
+    this.appendChild = (element) => fragment.appendChild(element.node);
     this.#content = this.#apply(this, content);
     const render = () => {
-      node.replaceChildren(this.node);
-      this.node = node;
+      this.node.replaceChildren(fragment);
       this.#updateStyles();
       this.#children = [...this.node.children];
       if (isBrowser()) this.#effects.forEach((effect) => effect());
@@ -78,26 +77,32 @@ export default class VirtualDom {
     if (!(element instanceof Element)) {
       if (element instanceof Component) {
         const context = INTERNAL.COMPONENT.COPY_CONTEXT(true);
-        const result = this.#apply(parent, element.call(), INTERNAL.COMPONENT.EFFECTS);
+        element = this.#apply(parent, element.call(), INTERNAL.COMPONENT.EFFECTS);
         INTERNAL.COMPONENT.CONTEXT = context;
-        return result;
+        return element;
       }
       else return this.#apply(parent, convertToElement(element));
     }
+    if (element.props instanceof State && !element.subscribed) {
+      element.props.subscribe(() => this.#update(element));
+      element.context = INTERNAL.COMPONENT.COPY_CONTEXT();
+      element.form = INTERNAL.COMPONENT.FORM;
+      element.subscribed = true;
+    }
     //
     const { type, key, ref, props, children } = element;
-    element.parent = getValidParent(parent);
-    if (type === State.type && !element.subscribed) {
-      props.subscribe(() => this.#update(element));
-      element.subscribed = true;
-      element.context = INTERNAL.COMPONENT.COPY_CONTEXT();
-      element.node = element.parent.node;
-    }
+    element.parent = parent;
     if (props.scope) addScope(this.#css, props.scope);
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = this.createTextNode(children);
-      else if (type !== Fragment && type !== State.type) element.node = this.createElement(type);
-      //
+      else if (type !== Fragment) {
+        element.node = this.createElement(type);
+        element.appendChild = (child) => element.node.appendChild(child.node);
+      }
+      else {
+        element.nodes = [];
+        element.appendChild = (child) => (element.parent.appendChild(child), element.nodes.push(child.node));
+      }
       if (key) this.#keys[key] = element.node;
       if (ref) {
         if (typeof ref === "function") ref(element.node);
@@ -107,7 +112,7 @@ export default class VirtualDom {
         element.effects = effects;
         this.#effects.push(() => effects.forEach(({ add }) => add()));
       }
-      if (type !== Fragment && type !== State.type) {
+      if (type !== Fragment) {
         if (type === "button") props.type = props.type || "button";
         if (props) {
           const keys = Object.keys(props);
@@ -123,42 +128,35 @@ export default class VirtualDom {
         }
       }
       if (type !== TextNode && children) {
-        for (let i = 0, len = children?.length || 0; i < len; i++) {
-          const curr = this.#apply(element, children[i]);
-          if (Array.isArray(curr)) element.children.splice(i, 1, ...curr);
-          else element.children[i] = curr;
-        }
-
+        for (let i = 0, len = children?.length || 0; i < len; i++)
+          element.children[i] = this.#apply(element, children[i]);
       }
-      // INTERNAL[FORM_CONTEXT]?.register(element);
+      INTERNAL.COMPONENT.FORM?.register(element);
     } else element.node = this.#keys[key];
-    if (type === Fragment) return element.children;
-    if (type !== State.type) element.parent.node.appendChild(element.node);
+    if (type !== Fragment) parent.appendChild(element);
     return element;
   }
 
   async #update(element) {
     INTERNAL.RENDER.ACTIVE = true;
     INTERNAL.COMPONENT.CONTEXT = element.context;
+    INTERNAL.COMPONENT.FORM = element.form;
     this.#effects = [];
     const fragment = this.createDocumentFragment();
+    const previous = element?.nodes || [];
     const parent = element.parent;
-    const previous = element.children;
-    element.node = fragment;
     findEffects(element, (effects) =>
       this.#effects.push(() => effects.forEach(({ remove }) => remove())),
     );
-    element.children = [element.props?.valueOf()];
-    this.#apply({ node: fragment }, element);
+    element.children = getStateChildren(element.props);
+    parent.appendChild = (child) => fragment.appendChild(child.node);
+    this.#apply(parent, element);
     // FUTURE: Improvement would be to remove multiple Nodes with one node commit
-    removeChildNodes(previous)
-    if (fragment.childNodes.length > 0) {
-      const sibling = getSibling(parent, element);
-      if (sibling) parent.node.insertBefore(fragment, sibling.node);
-      else parent.node.appendChild(fragment);
+    for (let i = 0, len = previous.length; i < len; i++) {
+      if (i === (len - 1)) previous[i].replaceWith(fragment);
+      else previous[i].remove();
     }
-    element.parent = parent;
-    if (this === parent) this.#children = [...this.node.children];
+    if (parent.node === this.node) this.#children = [...this.node.children];
     this.#updateStyles();
     this.#effects.forEach((effect) => effect());
     INTERNAL.RENDER.ACTIVE = false;
@@ -176,23 +174,18 @@ export default class VirtualDom {
 //
 
 function convertToElement(target) {
-  const element = createElement(Fragment, {}, []);
-  if (target instanceof State) return createElement(target.constructor.type, target, [target?.valueOf()]);
-  else if (Array.isArray(target)) element.children = target;
-  else if (target instanceof Promise) {
+  if (target instanceof State)
+    return createElement(Fragment, target, getStateChildren(target));
+  if (Array.isArray(target)) return createElement(Fragment, {}, ...target);
+  if (target instanceof Promise) {
     if ("production" !== process.env.NODE_ENV) console.warn("Async Components need to be wrapped in async function");
     return false;
   }
-  else if (!target?.toString || typeof target === "function") {
+  if (!target?.toString || typeof target === "function") {
     if ("production" !== process.env.NODE_ENV) console.warn(`${typeof target} are not valid Elements`);
     return false;
   }
-  else return createElement(TextNode, {}, "" + target);
-  return element;
-}
-
-function getValidParent(element) {
-  return element?.type === Fragment ? getValidParent(element?.parent) : element;
+  return createElement(TextNode, {}, "" + target);
 }
 
 function setAttribute(node, name, value) {
@@ -222,26 +215,7 @@ function addScope(css, scope) {
   }
 }
 
-function removeChildNodes(children) {
-  for (let i = 0, len = children.length; i < len; i++) {
-    const curr = children[i];
-    if (!curr) continue;
-    if (curr.type === State.type) removeChildNodes(curr.children);
-    curr.node.remove();
-  }
-}
-
-function getSibling(parent, element) {
-  let found = !element;
-  for (let i = 0, len = parent.children.length; i < len; i++) {
-    const curr = parent.children[i];
-    if (!curr) continue;
-    if (!found) found = parent.children[i] === element;
-    else {
-      if (curr.type !== State.type) return curr;
-      const sibling = getSibling(curr);
-      if (sibling) return sibling;
-    }
-  }
-  return element && parent.type === State.type ? getSibling(parent.parent, parent) : null;
+function getStateChildren(state) {
+  const value = state?.valueOf();
+  return value == null || value === false ? [createElement(TextNode, {}, "")] : [value];
 }

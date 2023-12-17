@@ -130,7 +130,7 @@ export const useEffect = (callback, dependencies) => {
 
 export const useForm = (onSubmit) => {
   if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
-  const context = /*INTERNAL[FORM_CONTEXT] || */{
+  const context = INTERNAL.COMPONENT.FORM || {
     fields: {}, path: [], listeners: {}, register({ type, props: { role, name, type: inputType }, node }) {
       if (type !== "input" && type !== "textarea" && type !== "select" && role !== "input") return;
       if (!name && inputType !== "submit") {
@@ -169,7 +169,7 @@ export const useForm = (onSubmit) => {
     }
   };
   const Form = ({ children, name, id, className, style }) => {
-    /*if (INTERNAL[FORM_CONTEXT]) {
+    if (INTERNAL.COMPONENT.FORM) {
       if (!name) {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
         return null;
@@ -177,7 +177,7 @@ export const useForm = (onSubmit) => {
       if (id || className || style)
         return createElement("div", { id, className, style }, formContext("push", name), ...children, formContext("pop"));
       return createElement(Fragment, {}, formContext("push", name), ...children, formContext("pop"));
-    }*/
+    }
     return createElement("form", {
       ref: (e) => context.node = e, onSubmit(event) {
         event.preventDefault();
@@ -248,10 +248,10 @@ function createScope(id, code) {
 
 function formContext(type, arg) {
   return createElement(() => {
-    /*if (type === "create" && arg) INTERNAL[FORM_CONTEXT] = arg;
-    else if (type === "remove") delete INTERNAL[FORM_CONTEXT];
-    else if (type === "push" && arg) INTERNAL[FORM_CONTEXT]?.path?.push(arg);
-    else if (type === "pop") INTERNAL[FORM_CONTEXT]?.path?.pop();*/
+    if (type === "create" && arg) INTERNAL.COMPONENT.FORM = arg;
+    else if (type === "remove") delete INTERNAL.COMPONENT.FORM;
+    else if (type === "push" && arg) INTERNAL.COMPONENT.FORM?.path?.push(arg);
+    else if (type === "pop") INTERNAL.COMPONENT.FORM?.path?.pop();
     return null;
   });
 }

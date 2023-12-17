@@ -17,8 +17,4 @@ INTERNAL.COMPONENT = {
   }
 }
 
-/*
-export const FORM_CONTEXT = "#form";
-export const ADDED_EFFECT_EVENT = "node_added";
-export const REMOVED_EFFECT_EVENT = "node_removed";*/
 export { INTERNAL };
