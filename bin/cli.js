@@ -39,7 +39,7 @@ function abort(error) {
 
 async function parse([main, ...args]) {
   if (!main?.length) return abort(`Missing first argument`);
-  let env = flatten((await loadPackage(process.cwd()))?.default?.env || {}, "_", (s) =>
+  let env = flatten((await loadPackage(process.cwd()))?.env || {}, "_", (s) =>
     s.toUpperCase(),
   );
   env.NODE_ENV = "production";

@@ -1,32 +1,22 @@
 /* eslint-disable no-undef */
 import { isBrowser, setImmediate, ExtensibleFunction, indexOf } from "../utils";
+import { INTERNAL } from "./context";
 
-export const EFFECT_CONTEXT = "#effect";
-export const PROFILER_CONTEXT = "#profiler";
-export const FORM_CONTEXT = "#form";
-export const HOOK_CONTEXT = "#context";
-export const SCOPE_CONTEXT = "#scope";
-export const RENDER_CONTEXT = "#render";
-export const ADDED_EFFECT_EVENT = "node_added";
-export const REMOVED_EFFECT_EVENT = "node_removed";
-export const INTERNAL = {
-  [HOOK_CONTEXT]: {},
-  [EFFECT_CONTEXT]: {},
-};
+export const HOOKS_ERROR = "Cannot use hooks outside of components.";
 
 // Context
 
 export function useContext(key) {
-  if (invalidateRenderContext()) return null;
-  if (!key?.length) return INTERNAL[HOOK_CONTEXT];
-  if (!INTERNAL[HOOK_CONTEXT][key]) INTERNAL[HOOK_CONTEXT][key] = {};
-  return INTERNAL[HOOK_CONTEXT][key];
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
+  if (!key?.length) return INTERNAL.COMPONENT.CONTEXT;
+  if (!INTERNAL.COMPONENT.CONTEXT[key]) INTERNAL.COMPONENT.CONTEXT[key] = {};
+  return INTERNAL.COMPONENT.CONTEXT[key];
 }
 
 // Style
 
 export function useStyle(...styles) {
-  if (invalidateRenderContext()) return null;
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
   const scope = {};
   for (let i = 0, len = styles.length; i < len; i++) {
     const { id, raw } = styles[i];
@@ -49,13 +39,14 @@ export class Ref {
 }
 
 export function useRef(initialValue) {
-  if (invalidateRenderContext()) return null;
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
   return new Ref(initialValue);
 }
 
 // State
 
 export class State extends ExtensibleFunction {
+  static type = Symbol("State");
   #listeners = new Set();
   #profilers = new Set();
   #value;
@@ -73,9 +64,9 @@ export class State extends ExtensibleFunction {
     this.#value = value;
     if (detect !== false)
       this.#detect = () => {
-        if ("production" !== process.env.NODE_ENV && typeof INTERNAL[PROFILER_CONTEXT] === "function")
-          this.#profilers.add(INTERNAL[PROFILER_CONTEXT]);
-        if (typeof INTERNAL[EFFECT_CONTEXT] === "function") INTERNAL[EFFECT_CONTEXT](this);
+        if ("production" !== process.env.NODE_ENV && typeof INTERNAL.PROFILER === "function")
+          this.#profilers.add(INTERNAL.PROFILER);
+        if (typeof INTERNAL.EFFECTS === "function") INTERNAL.EFFECTS(this);
       };
   }
 
@@ -107,27 +98,28 @@ export class State extends ExtensibleFunction {
 }
 
 export function useState(value) {
-  if (invalidateRenderContext()) return null;
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
   return new State(value);
 }
 
 // Effect
 
 export const useEffect = (callback, dependencies) => {
-  if (invalidateRenderContext()) return null;
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
   let removeCallback;
-  const lifecycle = (status) => {
-    if (status === ADDED_EFFECT_EVENT) {
+  if (!INTERNAL.COMPONENT.EFFECTS.includes(callback)) INTERNAL.COMPONENT.EFFECTS.push({
+    add() {
       if (!Array.isArray(dependencies)) {
         dependencies = [];
-        INTERNAL[EFFECT_CONTEXT] = (dependency) => dependencies.push(dependency);
+        INTERNAL.EFFECTS = (dependency) => dependencies.push(dependency);
         removeCallback = callback(true);
-        INTERNAL[EFFECT_CONTEXT] = null;
+        delete INTERNAL.EFFECTS;
       } else removeCallback = callback(true);
-    } else if (status === REMOVED_EFFECT_EVENT && removeCallback) removeCallback();
-  };
-  if (!INTERNAL[SCOPE_CONTEXT].effects) INTERNAL[SCOPE_CONTEXT].effects = [lifecycle];
-  else if (!INTERNAL[SCOPE_CONTEXT].effects.includes(callback)) INTERNAL[SCOPE_CONTEXT].effects.push(lifecycle);
+    },
+    remove() {
+      removeCallback && removeCallback();
+    }
+  });
   for (let i = 0, len = dependencies.length; i < len; i++) {
     const dependency = unique(dependencies, i);
     if (dependency) dependency.subscribe(() => callback());
@@ -137,8 +129,8 @@ export const useEffect = (callback, dependencies) => {
 // Form
 
 export const useForm = (onSubmit) => {
-  if (invalidateRenderContext()) return null;
-  const context = INTERNAL[FORM_CONTEXT] || {
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
+  const context = /*INTERNAL[FORM_CONTEXT] || */{
     fields: {}, path: [], listeners: {}, register({ type, props: { role, name, type: inputType }, node }) {
       if (type !== "input" && type !== "textarea" && type !== "select" && role !== "input") return;
       if (!name && inputType !== "submit") {
@@ -177,7 +169,7 @@ export const useForm = (onSubmit) => {
     }
   };
   const Form = ({ children, name, id, className, style }) => {
-    if (INTERNAL[FORM_CONTEXT]) {
+    /*if (INTERNAL[FORM_CONTEXT]) {
       if (!name) {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
         return null;
@@ -185,7 +177,7 @@ export const useForm = (onSubmit) => {
       if (id || className || style)
         return createElement("div", { id, className, style }, formContext("push", name), ...children, formContext("pop"));
       return createElement(Fragment, {}, formContext("push", name), ...children, formContext("pop"));
-    }
+    }*/
     return createElement("form", {
       ref: (e) => context.node = e, onSubmit(event) {
         event.preventDefault();
@@ -256,10 +248,10 @@ function createScope(id, code) {
 
 function formContext(type, arg) {
   return createElement(() => {
-    if (type === "create" && arg) INTERNAL[FORM_CONTEXT] = arg;
+    /*if (type === "create" && arg) INTERNAL[FORM_CONTEXT] = arg;
     else if (type === "remove") delete INTERNAL[FORM_CONTEXT];
     else if (type === "push" && arg) INTERNAL[FORM_CONTEXT]?.path?.push(arg);
-    else if (type === "pop") INTERNAL[FORM_CONTEXT]?.path?.pop();
+    else if (type === "pop") INTERNAL[FORM_CONTEXT]?.path?.pop();*/
     return null;
   });
 }
@@ -284,12 +276,4 @@ function getFieldDefaultValue(element) {
   }
   if (element.type === "checkbox") return element.defaultChecked;
   return element.defaultValue;
-}
-
-function invalidateRenderContext() {
-  if (!INTERNAL[RENDER_CONTEXT]) {
-    if ("production" !== process.env.NODE_ENV) console.warn("Cannot use hooks outside of components.");
-    return true;
-  }
-  return false;
 }

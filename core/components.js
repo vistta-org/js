@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
-import { useState, State, INTERNAL, PROFILER_CONTEXT } from "./hooks";
+import { useState, State } from "./hooks";
+import { INTERNAL } from "./context";
 import { isServer, setImmediate } from "../utils";
 
 class ProfileRecorder extends State {
@@ -28,7 +29,7 @@ export const Profiler = ({ id, children, callback }) => {
   const context = { count: 0 };
   const start = (initial) => {
     if (initial !== false) {
-      INTERNAL[PROFILER_CONTEXT] = (_initial) => (_initial ? start(false) : end(false));
+      INTERNAL.PROFILER = (_initial) => (_initial ? start(false) : end(false));
       context.performance = performance.now();
       return null;
     }
@@ -38,7 +39,7 @@ export const Profiler = ({ id, children, callback }) => {
   };
   const end = (initial) => {
     if (initial !== false) {
-      INTERNAL[PROFILER_CONTEXT] = null;
+      delete INTERNAL.PROFILER;
       callback({ id, performance: performance.now() - (context.performance || 0) });
       return null;
     }

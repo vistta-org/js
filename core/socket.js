@@ -1,4 +1,5 @@
-import { INTERNAL, RENDER_CONTEXT } from "./hooks";
+import { HOOKS_ERROR } from "./hooks";
+import { INTERNAL } from "./context";
 import { isServer, INVALID_EVENT_NAME, convertToEventName } from "../utils";
 
 class Socket {
@@ -41,10 +42,7 @@ const socket = new Socket();
 export default socket;
 
 export const useSocket = () => {
-  if (!INTERNAL[RENDER_CONTEXT]) {
-    if ("production" !== process.env.NODE_ENV) console.warn("Cannot use hooks outside of components.");
-    return null;
-  }
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
   return {
     emit: (...args) => socket.emit(...args),
     on: (...args) => socket.on(...args),

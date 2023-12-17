@@ -1,6 +1,7 @@
 import VirtualDom from "../dom";
 import { createElement } from "../element";
-import { INTERNAL, RENDER_CONTEXT } from "../hooks";
+import { HOOKS_ERROR } from "./hooks";
+import { INTERNAL } from "../context";
 import { isValidUrl, isServer, system } from "../../utils";
 
 const route = !isServer() ? document.body : {};
@@ -48,10 +49,7 @@ Object.defineProperties(route, {
 export default route;
 
 export const useRoute = () => {
-  if (!INTERNAL[RENDER_CONTEXT]) {
-    if ("production" !== process.env.NODE_ENV) console.warn("Cannot use hooks outside of components.");
-    return null;
-  }
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
   return {
     navigate: (...args) => route.navigate(...args),
     emit: (...args) => route.emit(...args),

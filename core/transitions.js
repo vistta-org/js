@@ -2,7 +2,7 @@ const INTERVAL = 10;
 
 export function applyTransition(transition, render) {
   const { name, target, direction = "right", duration = 500 } = typeof transition === "object" ? transition : { name: transition };
-  const element = () => typeof target === "string" ? this.querySelector(target) : this.body;
+  const element = () => typeof target === "string" ? this.querySelector(target) : this.node;
   const amount = INTERVAL / duration;
   switch (name) {
     case "fade":
