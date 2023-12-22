@@ -2,9 +2,9 @@ import VirtualDom from "../dom";
 import { createElement } from "../element";
 import { HOOKS_ERROR } from "./hooks";
 import { INTERNAL } from "../context";
-import { isValidUrl, isServer, system } from "../../utils";
+import { isValidUrl, IS_NODE, system } from "../../utils";
 
-const route = !isServer() ? document.body : {};
+const route = !IS_NODE ? document.body : {};
 const __private = { routes: {} };
 
 window.addEventListener("click", handleClick.bind(route));

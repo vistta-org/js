@@ -9,7 +9,7 @@ const htmlToJSX = {
   allowfullscreen: "allowFullScreen",
 };
 
-export default function (source) {
+export default async function (source) {
   source = source.match(/(?<=(<template>)).*(?=(<\/template>))/gs)?.[0];
   if (!source) return {
     code: `export default () => null;`,

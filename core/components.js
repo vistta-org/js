@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 import { useState, State } from "./hooks";
 import { INTERNAL } from "./context";
-import { isServer, setImmediate } from "../utils";
+import { setImmediate } from "../utils";
 
 class ProfileRecorder extends State {
   #callback;
@@ -25,7 +25,7 @@ class ProfileRecorder extends State {
 }
 
 export const Profiler = ({ id, children, callback }) => {
-  if (!callback || isServer() || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
+  if (!callback || IS_NODE || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
   const context = { count: 0 };
   const start = (initial) => {
     if (initial !== false) {

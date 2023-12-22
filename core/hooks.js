@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-import { isBrowser, setImmediate, ExtensibleFunction, indexOf } from "../utils";
+import { setImmediate, ExtensibleFunction, indexOf } from "../utils";
 import { INTERNAL } from "./context";
 
 export const HOOKS_ERROR = "Cannot use hooks outside of components.";
@@ -93,7 +93,7 @@ export class State extends ExtensibleFunction {
   }
 
   subscribe(callback) {
-    if (isBrowser()) this.#listeners.add(callback);
+    if (!IS_NODE) this.#listeners.add(callback);
   }
 }
 

@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { fs, hash } from "@vistta/utils";
-import { bundle, resolveImports } from "./bundler.js";
+import { extractImports } from "../../../bin/loaders";
 import { system, convertToEventName, ExtensibleFunction } from "../../../utils";
 import PageHandler from "./page";
 
@@ -48,15 +48,18 @@ class Handler extends ExtensibleFunction {
         case "template":
         case "store":
           this.code = (
-            await bundle(this.filepath, {
-              globalName: "__app_" + this.type,
-              exports: "default",
+            await import(this.filepath, {
+              assert: {
+                type: 'bundler',
+                globalName: "__app_" + this.type,
+                exports: "default",
+              }
             })
           )?.code;
           this.handler = () => exports?.default;
           break;
       }
-      if (IS_DEV) this.#watch([this.filepath, ...(await resolveImports(this.filepath))]);
+      if (IS_DEV) this.#watch([this.filepath, ...(await extractImports(this.filepath))]);
       this.#emit("ready");
     } catch (e) {
       this.#emit("error", e.stack);

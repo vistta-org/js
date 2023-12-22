@@ -3,9 +3,9 @@ import { createElement } from "./element";
 import socket from "./socket";
 import { HOOKS_ERROR } from "./hooks";
 import { INTERNAL } from "./context";
-import { isServer, isValidUrl, system } from "../utils";
+import { isValidUrl, system } from "../utils";
 
-const route = !isServer() ? document.body : {};
+const route = !IS_NODE ? document.body : {};
 const __private = { routes: {} };
 
 Object.defineProperties(route, {
@@ -55,13 +55,13 @@ Object.defineProperties(route, {
   },
   location: {
     get: () => {
-      if (isServer()) return system.get("route.location");
+      if (IS_NODE) return system.get("route.location");
       return window.location;
     },
   },
   store: {
     get: () => {
-      if (isServer()) return system.get("route.store")();
+      if (IS_NODE) return system.get("route.store")();
       return __private.store;
     },
   },

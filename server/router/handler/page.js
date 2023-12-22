@@ -1,12 +1,11 @@
 import { EventEmitter } from "node:events";
 import { fs, hash, randomID } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
-import { bundle } from "./bundler.js";
 import { validate } from "../../../bin/loaders/typescript";
 import { system, stringify, ExtensibleFunction } from "../../../utils";
 import pageStyle from "./page.css";
 
-system.set("document", {});
+system.set("document", { scripts: [] });
 system.set("HTMLElement", class { });
 system.set("localStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
 system.set("sessionStorage", { setItem: () => null, getItem: () => undefined, removeItem: () => null, clear: () => null });
@@ -23,8 +22,8 @@ const CONFIG_DEFAULT = {
   keywords: "visttajs",
   robots: "index, follow",
 };
-const CLIENT = (await bundle(fs.resolve(dirname, BUILD ? "../../../core/built/client" : "../../../core/client")))?.code;
-const SERVICE_WORKER = (await bundle(fs.resolve(dirname, "../../../core/sw")))?.code;
+const CLIENT = (await import(fs.resolve(dirname, BUILD ? "../../../core/built/client" : "../../../core/client"), { assert: { type: 'bundler' } }))?.code;
+const SERVICE_WORKER = (await import(fs.resolve(dirname, "../../../core/sw"), { assert: { type: 'bundler' } }))?.code;
 
 class PageHandler extends ExtensibleFunction {
   #events = new EventEmitter();
@@ -74,7 +73,7 @@ class PageHandler extends ExtensibleFunction {
       const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
       const { default: app, config } = await system.import(this.filepath, { cache: !isRefresh });
-      const { code, resources, files } = await bundle(this.filepath, { exports: "default" });
+      const { code, resources, files } = await import(this.filepath, { assert: { type: 'bundler', exports: "default" } });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       Object.assign(this.config, config);
       this.app = app;

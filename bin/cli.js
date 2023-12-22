@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+global.IS_NODE = true;
 import { Console, fs, spawn, exec } from "@vistta/utils";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";

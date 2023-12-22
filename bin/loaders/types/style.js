@@ -5,7 +5,7 @@ import * as sass from "sass";
 import postcss from "postcss";
 import autoprefixer from "autoprefixer";
 
-export default function (source, { path }) {
+export default async function (source, { path }) {
   try {
     const dirname = fs.dirname(path);
     const node_modules = fs.resolve(process.cwd(), "node_modules");

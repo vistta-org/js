@@ -37,3 +37,5 @@ declare module "*.ico" {
   const path: string;
   export default path;
 }
+
+declare const IS_NODE: boolean;

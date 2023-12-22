@@ -1,6 +1,6 @@
 import { Fragment, TextNode, Element, Component, createElement } from "./element"
 import { State } from "./hooks";
-import { isEqual, isBrowser } from "../utils";
+import { isEqual } from "../utils";
 import { INTERNAL } from "./context";
 import { applyTransition } from "./transitions";
 
@@ -47,7 +47,7 @@ export default class VirtualDom {
       this.node.replaceChildren(fragment);
       this.#updateStyles();
       this.#children = [...this.node.children];
-      if (isBrowser()) this.#effects.forEach((effect) => effect());
+      if (!IS_NODE) this.#effects.forEach((effect) => effect());
       INTERNAL.RENDER.ACTIVE = false;
       callback && callback(this.#config);
     };
