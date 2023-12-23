@@ -5,7 +5,7 @@ import { HOOKS_ERROR } from "./hooks";
 import { INTERNAL } from "./context";
 import { isValidUrl, system } from "../utils";
 
-const route = !IS_NODE ? document.body : {};
+const route = typeof IS_NODE === "undefined" ? document.body : {};
 const __private = { routes: {} };
 
 Object.defineProperties(route, {
@@ -55,13 +55,13 @@ Object.defineProperties(route, {
   },
   location: {
     get: () => {
-      if (IS_NODE) return system.get("route.location");
+      if (typeof IS_NODE !== "undefined") return system.get("route.location");
       return window.location;
     },
   },
   store: {
     get: () => {
-      if (IS_NODE) return system.get("route.store")();
+      if (typeof IS_NODE !== "undefined") return system.get("route.store")();
       return __private.store;
     },
   },

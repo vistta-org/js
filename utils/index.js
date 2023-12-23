@@ -1,17 +1,17 @@
 export const INVALID_EVENT_NAME = "Invalid socket event";
-export const isBrowser = () => !IS_NODE;
+export const isBrowser = () => typeof IS_NODE === "undefined";
 
 export const system = {
   register(tagname, element) {
-    if (IS_NODE) return new element();
+    if (typeof IS_NODE !== "undefined") return new element();
     if (customElements.get(tagname)) return null;
     customElements.define(tagname, element);
     return document.querySelector(tagname);
   },
   get(key) {
     let ref;
-    if (IS_NODE) ref = global;
-    else if (!IS_NODE) ref = window;
+    if (typeof IS_NODE !== "undefined") ref = global;
+    else if (typeof IS_NODE === "undefined") ref = window;
     else return null;
     key = key.split(".");
     while (key.length > 1) {
@@ -23,8 +23,8 @@ export const system = {
   },
   set(key, value) {
     let ref;
-    if (IS_NODE) ref = global;
-    else if (!IS_NODE) ref = window;
+    if (typeof IS_NODE !== "undefined") ref = global;
+    else if (typeof IS_NODE === "undefined") ref = window;
     else return;
     key = key.split(".");
     while (key.length > 1) {
@@ -35,11 +35,11 @@ export const system = {
     ref[key.shift()] = value;
   },
   addEventListener: (...args) => {
-    if (IS_NODE) return;
+    if (typeof IS_NODE !== "undefined") return;
     window.addEventListener(...args);
   },
   removeEventListener: (...args) => {
-    if (IS_NODE) return;
+    if (typeof IS_NODE !== "undefined") return;
     window.removeEventListener(...args);
   },
   import(moduleName, { cache } = {}) {

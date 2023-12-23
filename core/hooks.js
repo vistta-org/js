@@ -93,7 +93,7 @@ export class State extends ExtensibleFunction {
   }
 
   subscribe(callback) {
-    if (!IS_NODE) this.#listeners.add(callback);
+    if (typeof IS_NODE === "undefined") this.#listeners.add(callback);
   }
 }
 
