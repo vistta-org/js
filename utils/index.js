@@ -6,7 +6,7 @@ export const system = {
     if (IS_NODE) return new element();
     if (customElements.get(tagname)) return null;
     customElements.define(tagname, element);
-    return document.qIS_NODEuerySelector(tagname);
+    return document.querySelector(tagname);
   },
   get(key) {
     let ref;
