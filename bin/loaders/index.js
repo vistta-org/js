@@ -1,4 +1,3 @@
-global.IS_NODE = true;
 import { isBuiltin } from "node:module";
 import { fileURLToPath, pathToFileURL, URLSearchParams } from "node:url";
 import { fs } from "@vistta/utils/fs";

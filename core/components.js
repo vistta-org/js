@@ -25,7 +25,7 @@ class ProfileRecorder extends State {
 }
 
 export const Profiler = ({ id, children, callback }) => {
-  if (!callback || typeof IS_NODE !== "undefined" || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
+  if (!callback || process.env.IS_NODE || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
   const context = { count: 0 };
   const start = (initial) => {
     if (initial !== false) {

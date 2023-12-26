@@ -47,7 +47,7 @@ export default class VirtualDom {
       this.node.replaceChildren(fragment);
       this.#updateStyles();
       this.#children = [...this.node.children];
-      if (typeof IS_NODE === "undefined") this.#effects.forEach((effect) => effect());
+      if (!process.env.IS_NODE) this.#effects.forEach((effect) => effect());
       INTERNAL.RENDER.ACTIVE = false;
       callback && callback(this.#config);
     };

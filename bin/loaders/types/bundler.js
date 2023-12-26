@@ -43,7 +43,7 @@ class Bundler {
       resources: {},
     };
     const filter = /.*/;
-    if (node) this.config.define["IS_NODE"] = JSON.stringify(true);
+    this.config.define["process.env.IS_NODE"] = JSON.stringify(!!node);
     const config = Object.assign({}, this.config, {
       entryPoints: [exports ? "@exports" : filename],
       minify: mode === "production",

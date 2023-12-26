@@ -17,7 +17,7 @@
   "scripts": {
     "validation": "node ./bin/cli.js validation",
     "dev": "nodemon ./bin/cli.js start ./pages --dev --validate none",
-    "prod": "nodemon ./bin/cli.js start ./pages",
+    "prod": "node ./bin/cli.js start ./pages",
     "build": "node ./bin/cli.js build ./pages ./.build",
     "start": "vistta start ./pages",
     "lint": "eslint --fix .",
@@ -34,7 +34,7 @@
     "@vistta:registry": "https://git.vistta.me/api/packages/vistta/npm/"
   },
   "dependencies": {
-    "@vistta/utils": "^0.2.1",
+    "@vistta/utils": "^0.3.1",
     "autoprefixer": "^10.4.16",
     "compression": "^1.7.4",
     "esbuild": "^0.19.10",

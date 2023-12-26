@@ -9,7 +9,7 @@ class Socket {
   }
 
   constructor() {
-    if (typeof IS_NODE !== "undefined") return this;
+    if (process.env.IS_NODE) return this;
     import("@socket")
       .then(({ io }) => this.connect(io))
       .catch((e) => (console.error(e), this.active = false));

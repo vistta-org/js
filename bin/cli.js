@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 "use strict";
-global.IS_NODE = true;
+process.env.IS_NODE = true;
 import { Console, fs, spawn, exec } from "@vistta/utils";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
@@ -43,6 +43,7 @@ async function parse([main, ...args]) {
   let env = flatten((await loadPackage(process.cwd()))?.env || {}, "_", (s) =>
     s.toUpperCase(),
   );
+  env.IS_NODE = true;
   env.NODE_ENV = "production";
   env.APP_VERSION = pkg.version;
   env.APP_NAME = pkg.name;

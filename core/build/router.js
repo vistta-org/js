@@ -4,7 +4,7 @@ import { HOOKS_ERROR } from "./hooks";
 import { INTERNAL } from "../context";
 import { isValidUrl, system } from "../../utils";
 
-const route = typeof IS_NODE === "undefined" ? document.body : {};
+const route = !process.env.IS_NODE ? document.body : {};
 const __private = { routes: {} };
 
 window.addEventListener("click", handleClick.bind(route));
