@@ -37,7 +37,7 @@ class Router {
   };
 
   set(method, pathname, callback) {
-    const wildcard = Router.isWildcard(pathname);
+    const wildcard = pathname.endsWith("/*") ? "any" : Router.isWildcard(pathname);
     const target = method !== "error" && method !== "middleware" ? "default" : method;
     const route = wildcard ? pathname.replace(`/[${wildcard}]`, target === "default" ? WILDCARD : "") : pathname.endsWith("/") ? pathname : pathname + "/";
     const handlers = method === "error" ? this.#errors : method === "middleware" ? this.#middlewares : this.#handlers;
