@@ -1,4 +1,4 @@
-export default function (source, { path }) {
+export default async function (source, { path }) {
   try {
     return { code: `export default (${JSON.stringify(JSON.parse(source))});` };
   } catch (e) {

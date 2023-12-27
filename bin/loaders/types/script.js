@@ -1,9 +1,9 @@
-import { transformSync } from "esbuild";
+import { transform } from "esbuild";
 import { tsconfig } from "../typescript.js";
 
-export default function (source, { extension }) {
+export default async function (source, { extension }) {
   try {
-    const { code, warnings } = transformSync(source, {
+    const { code, warnings } = await transform(source, {
       format: "esm",
       loader: extension.endsWith("x") ? extension : "ts",
       tsconfigRaw: {

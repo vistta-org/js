@@ -1,5 +1,6 @@
 import route from "./router";
-import { State } from "./hooks";
+import { State, HOOKS_ERROR } from "./hooks";
+import { INTERNAL } from "./context";
 import { encode, decode, stringify, parse, isPromise } from "../utils";
 
 const STORAGE_KEY = "Vistta_Store_";
@@ -78,8 +79,12 @@ class Partition extends State {
   }
 }
 
-function useStore(partition) {
-  if (typeof route?.store?.use === "function") return route?.store?.use(partition);
+function useStore(...partitions) {
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
+  if (typeof route?.store?.use === "function" && partitions.length) {
+    if (partitions.length == 1) return route?.store?.use(partitions[0]);
+    else return partitions.map((partition) => route?.store?.use(partition))
+  }
   return null;
 }
 

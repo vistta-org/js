@@ -1,12 +1,12 @@
 import { State } from "./hooks";
 
-interface Partition<T> extends State<T> {
-  readonly key: string;
-  readonly value: any;
+declare class Partition<T> extends State<T> {
+  private key: string;
+  private value: any;
 }
 
 type PartitionConfig<T> = {
-  name: string;
+  key: string;
   initialState?: T;
   cache?: "none" | "session" | "storage";
   actions: PartitionAction[];
@@ -29,4 +29,5 @@ export class Store {
   use<T>(partition: string): Partition<T>;
 }
 
-export function useStore<T>(partition: string): Partition<T>;
+export function useStore<T>(partitions: string): Partition<T>;
+export function useStore<T>(...partitions: string[]): Partition<T>[];

@@ -1,4 +1,4 @@
-import { useRoute } from "@vistta/vistta.js";
+import { useRoute } from "@vistta/js";
 import style from "./style.scss";
 import icon from "../logo.png";
 

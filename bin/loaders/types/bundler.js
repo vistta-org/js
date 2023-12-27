@@ -1,10 +1,12 @@
-import { fs } from "../../filesystem";
-import { resolve, load } from "../../../bin/loaders";
+import { fs } from "@vistta/utils/fs";
 import { build } from "esbuild";
 import { dirname, basename } from "path";
 
 const name = process.env.APP_NAME;
+let bundler;
+
 class Bundler {
+  loader;
   config = {
     bundle: true,
     write: false,
@@ -24,11 +26,14 @@ class Bundler {
     })(),
   };
 
-  constructor() {}
+  constructor(loader) {
+    this.loader = loader;
+  }
 
-  async run(filename, { mode = process.env.NODE_ENV, exports, globalName, sideEffects } = {}) {
+  async run(filename, { mode = process.env.NODE_ENV, exports, globalName, sideEffects, node } = {}) {
     const instance = {
       filename,
+      loader: this.loader,
       base: basename(filename),
       exports,
       dir: dirname(filename),
@@ -38,10 +43,12 @@ class Bundler {
       resources: {},
     };
     const filter = /.*/;
+    this.config.define["process.env.IS_NODE"] = JSON.stringify(!!node);
     const config = Object.assign({}, this.config, {
       entryPoints: [exports ? "@exports" : filename],
       minify: mode === "production",
       format: globalName ? "iife" : "esm",
+      target: "esnext",
       globalName: globalName,
       plugins: [
         {
@@ -58,27 +65,27 @@ class Bundler {
     return instance;
   }
 
-  resolve({ path, resolveDir }) {
+  async resolve({ path, importer, resolveDir, kind }) {
     switch (path) {
       case name:
         return { path: "vistta", namespace: "window" };
       case "@content":
         return { path: "content", external: true };
       case "@socket":
-        return { path: "socket", external: true };
+        return { path: "/socket.io/socket.io.esm.min.js", external: true };
       case "@exports":
         return { path: this.base, namespace: "exports" };
       default:
         break;
     }
-    return resolve(path, { parentURL: resolveDir, bundler: true }, (final, { builtin, file }) => {
-      if (builtin) return { path: final, namespace: "ignore" };
-      if (file) return { path: final, sideEffects: this.sideEffects };
-      return {};
-    });
+    const { final, builtin, file } = await this.loader.resolve(path, { parentURL: resolveDir, bundler: true }, (final, { builtin, file }) => ({ final, builtin, file }));
+    if (!builtin && file) return { path: final, sideEffects: this.sideEffects, pluginData: { type: kind === "import-statement" ? importAssertion(importer, path) : undefined } };
+    const exists = await importExists(final);
+    if (!builtin && exists) return {};
+    return { path: final, namespace: "ignore" };
   }
 
-  load({ path, namespace }) {
+  async load({ path, namespace, pluginData }) {
     if (namespace === "ignore") return { contents: "" };
     if (namespace === "window") return { contents: `module.exports = window.${path};` };
     if (namespace === "exports")
@@ -86,7 +93,7 @@ class Bundler {
         contents: `export { ${this.exports} } from "./${this.base}";`,
         resolveDir: this.dir,
       };
-    const { source, resources, files = [] } = load(path, { bundler: true }, () => ({}));
+    const { source, resources, files = [] } = await this.loader.load(path, { bundler: true, importAssertions: pluginData }, () => ({}));
     this.files.push(...files);
     if (!source) return { loader: "js" };
     resources?.forEach(({ hash, path, code, compiler }) => (this.resources[hash] = path || code || compiler));
@@ -94,21 +101,27 @@ class Bundler {
   }
 }
 
-const resolveImports = async (filepath, _imports = new Set()) => {
-  const imports = (await fs.readFile(filepath, "utf-8"))?.match(/import\s+[^'"]+\s+from\s+['"]([^'"]+)['"]/g);
-  for (let i = 0, len = imports?.length; i < len; i++) {
-    const matches = imports[i].match(/import\s+[^'"]+\s+from\s+['"]([^'"]+)['"]/);
-    if (!matches?.[1]) continue;
-    const dirname = fs.dirname(filepath);
-    const path = resolve(fs.resolve(dirname, matches[1]), { parentURL: dirname, bundler: true }, (final) => final);
-    if (!fs.existsSync(path)) continue;
-    _imports.add(path);
-    await resolveImports(path, _imports);
-  }
-  return Array.from(_imports);
-};
+export { Bundler }
 
-const bundle = ((b) => b.run.bind(b))(new Bundler());
+export default async function (_, { path, ...options }) {
+  if (!bundler) bundler = new Bundler(this);
+  const { code, files, resources } = await bundler.run(path, options)
+  return {
+    code: `export const code = ${JSON.stringify(code)}; export const files = ${JSON.stringify(files)}; export const resources = ${JSON.stringify(resources)}`,
+    resources: resources
+  };
+}
 
-export { bundle, resolveImports };
-export default Bundler;
+
+//
+
+function importAssertion(importer, path) {
+  if (!fs.existsSync(importer)) return undefined;
+  return (new RegExp(`["'](${path})["']\\s+assert\\s+{\\s+type:\\s+["'](\\w+)["']\\s+}`)).exec(fs.readFileSync(importer, "utf-8"))?.[2];
+}
+
+function importExists(module) {
+  return new Promise((resolve) => {
+    import(module).then(() => resolve(true)).catch(() => resolve(false));
+  });
+}

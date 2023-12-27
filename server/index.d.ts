@@ -1,5 +1,4 @@
 /// <reference types="node"/>
-/// <reference types="./console" />
 import { ServerOptions as ProxyOptions } from "http-proxy";
 
 type ServerOptions = {
@@ -12,14 +11,18 @@ type ServerOptions = {
 };
 type ListenCallback = (info: { protocol: "http" | "https"; port: number }) => void;
 type RequestCallback = (request: Request, response: Response) => void;
+type Middleware = (request: Request, response: Response, next: () => void) => void;
 type RedirectOptions = {
   target: ProxyOptions["target"];
 };
-type UseOptions = {
-  callback?: (options: { pathname: string; event: string; type: string }) => void;
-  useApiRoute?: boolean;
-  useWildcards?: boolean;
-};
+type UseOptionsCallback = (event: string, pathname: string, type: string, ...args: any) => void;
+type UseOptions =
+  | {
+      callback?: UseOptionsCallback;
+      useApiRoute?: boolean;
+      useWildcards?: boolean;
+    }
+  | UseOptionsCallback;
 
 export default class Server {
   constructor(options: ServerOptions);
@@ -50,7 +53,9 @@ export default class Server {
   redirect(subdomain: string, pathname: string, options: RedirectOptions): void;
 
   use(folder: string, pathname: string, options?: UseOptions): void;
-  use(folder: string, subdomain: string, pathname: string, options?: UseOptions): void;
+  use(subdomain: string, folder: string, pathname: string, options?: UseOptions): void;
+  use(pathname: string, middleware: Middleware): void;
+  use(subdomain: string, pathname: string, middleware: Middleware): void;
 
   disable(pathname: string): void;
   disable(subdomain: string, pathname: string): void;
@@ -60,7 +65,3 @@ export default class Server {
   emit(subdomain: string, event: string, ...args: any): void;
   on(subdomain: string, event: string, callback: (...args: any) => void): void;
 }
-
-export * from "./crypto";
-export * from "./filesystem";
-export * from "./process";

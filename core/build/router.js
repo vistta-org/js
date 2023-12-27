@@ -1,8 +1,10 @@
 import VirtualDom from "../dom";
 import { createElement } from "../element";
-import { isValidUrl } from "../../utils";
+import { HOOKS_ERROR } from "./hooks";
+import { INTERNAL } from "../context";
+import { isValidUrl, system } from "../../utils";
 
-const route = document.body;
+const route = !process.env.IS_NODE ? document.body : {};
 const __private = { routes: {} };
 
 window.addEventListener("click", handleClick.bind(route));
@@ -46,14 +48,17 @@ Object.defineProperties(route, {
 
 export default route;
 
-export const useRoute = () => ({
-  navigate: (...args) => route.navigate(...args),
-  emit: (...args) => route.emit(...args),
-  on: (...args) => route.on(...args),
-  get location() {
-    return route.location;
-  },
-});
+export const useRoute = () => {
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
+  return {
+    navigate: (...args) => route.navigate(...args),
+    emit: (...args) => route.emit(...args),
+    on: (...args) => route.on(...args),
+    get location() {
+      return route.location;
+    },
+  }
+};
 
 //
 
@@ -65,8 +70,9 @@ function handleClick(event) {
 }
 
 async function build() {
-  if (typeof __import_app === "undefined") return console.error("Internal App Error");
-  const { default: app, config, store, template } = __import_app(); // eslint-disable-line no-undef
+  const pathname = route.location.pathname;
+  let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
+  const { default: app, config, store, template } = await system.import(resource);
   __private.store = store;
   __private.dom = new VirtualDom(route, config);
   __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app));

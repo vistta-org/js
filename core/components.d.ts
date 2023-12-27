@@ -5,4 +5,5 @@ export function Profiler(props: {
 }): JSX.Node;
 export function Suspense(props: { children: JSX.Node; fallback: JSX.Node }): JSX.Node;
 export function TryCatch(props: { children: JSX.Node; fallback: JSX.Node }): JSX.Node;
+export function Render(props: { if?: boolean; children: any } | { each: object; children: any }): JSX.Node;
 export function async<T>(Component: JSX.Component<T>): JSX.Component<T>;

@@ -1,4 +1,4 @@
-import { Suspense, async } from "@vistta/vistta.js";
+import { Suspense, async } from "@vistta/js";
 import { sleep } from "../../utils";
 
 const ShowcaseSuspense = () => {

@@ -1,10 +1,10 @@
-import { useState, useEffect } from "@vistta/vistta.js";
+import { useState, useEffect } from "@vistta/js";
 
 export default function Effect() {
-  const toggle = useState(true);
+  const toggle = useState(false);
   return (
     <>
-      {toggle((v) => v && <ConditionalEffect />)}
+      <>{toggle((v) => v && <ConditionalEffect />)}</>
       <button onclick={() => toggle.set((v) => !v)}>toggle</button>
     </>
   );

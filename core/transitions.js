@@ -2,7 +2,7 @@ const INTERVAL = 10;
 
 export function applyTransition(transition, render) {
   const { name, target, direction = "right", duration = 500 } = typeof transition === "object" ? transition : { name: transition };
-  const element = () => typeof target === "string" ? this.querySelector(target) : this.body;
+  const element = () => typeof target === "string" ? this.querySelector(target) : this.node;
   const amount = INTERVAL / duration;
   switch (name) {
     case "fade":
@@ -12,7 +12,6 @@ export function applyTransition(transition, render) {
       // eslint-disable-next-line sonarjs/no-use-of-empty-return-value
       return slideOut(element(), direction, amount, () => (render(), slideIn(element(), direction, amount)));
     case "rotate":
-      console.log("here");
       // eslint-disable-next-line sonarjs/no-use-of-empty-return-value
       return rotateOut(element(), direction, amount, () => (render(), rotateIn(element(), direction, amount)));
     default:

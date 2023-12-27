@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 "use strict";
-import "../server/console/index.js";
-import { fs } from "../server/filesystem/index.js";
-import { spawn, exec } from "../server/process/index.js";
+process.env.IS_NODE = true;
+import { Console, fs, spawn, exec } from "@vistta/utils";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
+// eslint-disable-next-line no-global-assign
+console = new Console("");
 const dirname = fs.dirname(import.meta.url);
 const pkg = await loadPackage(fs.resolve(dirname, "../"));
-
 console.announce("Starting VisttaJS...");
 
 const { main, args, env } = await parse(process.argv.slice(2));
@@ -17,7 +17,7 @@ const isUpToDate = await validate("modules", null, env);
 if (!(await validate("typescript", main, env))) abort();
 
 if (env.VALIDATION !== "only") {
-  const child = spawn("node", ["--no-warnings", "--loader", "@vistta/vistta.js/loader", main, ...args], {
+  const child = spawn("node", ["--no-warnings", "--loader", "@vistta/js/loader", main, ...args], {
     stdio: 'inherit'
   });
   if (env.CUSTOM_SCRIPT && env.NODE_ENV === "development")
@@ -40,9 +40,10 @@ function abort(error) {
 
 async function parse([main, ...args]) {
   if (!main?.length) return abort(`Missing first argument`);
-  let env = flatten((await loadPackage(process.cwd()))?.default?.env || {}, "_", (s) =>
+  let env = flatten((await loadPackage(process.cwd()))?.env || {}, "_", (s) =>
     s.toUpperCase(),
   );
+  env.IS_NODE = true;
   env.NODE_ENV = "production";
   env.APP_VERSION = pkg.version;
   env.APP_NAME = pkg.name;

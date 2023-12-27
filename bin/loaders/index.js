@@ -1,18 +1,30 @@
 import { isBuiltin } from "node:module";
 import { fileURLToPath, pathToFileURL, URLSearchParams } from "node:url";
-import { fs } from "../../server/filesystem/index.js";
+import { fs } from "@vistta/utils/fs";
 import { compilerResolver } from "./typescript.js";
-import script from "./extensions/script.js";
-import css from "./extensions/css.js";
-import html from "./extensions/html.js";
-import json from "./extensions/json.js";
-import file from "./extensions/file.js";
 
+export const TYPE_DEFAULT = "default";
+export const TYPE_BUNDLER = "bundler";
+export const TYPE_SCRIPT = "script";
+export const TYPE_JSON = "json";
+export const TYPE_STYLE = "style";
+export const TYPE_TEMPLATE = "template";
+export const TYPE_FILE = "file";
+export const TYPE_TEXT = "text";
 const EXTENSIONS = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"];
 const CONTEXT = {};
 const CWD = process.cwd();
+const LOADER = {
+  [TYPE_SCRIPT]: (await import("./types/script.js")).default,
+  [TYPE_BUNDLER]: (await import("./types/bundler.js")).default,
+  [TYPE_JSON]: (await import("./types/json.js")).default,
+  [TYPE_STYLE]: (await import("./types/style.js")).default,
+  [TYPE_TEMPLATE]: (await import("./types/template.js")).default,
+  [TYPE_FILE]: (await import("./types/file.js")).default,
+  [TYPE_TEXT]: (await import("./types/text.js")).default,
+}
 
-export function resolve(specifier, context, next, options) {
+export async function resolve(specifier, context, next, options) {
   [specifier, options] = specifier.split(/\?(.*)/);
   options = new URLSearchParams(options);
   const { parentURL = CWD, bundler } = context;
@@ -38,28 +50,21 @@ export function resolve(specifier, context, next, options) {
   return next(specifier, context);
 }
 
-export function load(url, ctx, next) {
+export async function load(url, ctx, next) {
   if (isBuiltin(url)) return next(url, ctx);
-  const bundler = ctx.bundler;
+  let { bundler, importAttributes: { type, ...options } = {} } = ctx || {};
   url = bundler ? pathToFileURL(url.split("?")[0]).href : url.split("?")[0];
   const path = fileURLToPath(url);
   const extension = fs.extname(url).slice(1);
-  if (["js", "mjs", "cjs"].includes(extension)) return next(url, ctx);
+  type = type || resolveType(extension);
+  if (type === TYPE_DEFAULT) return next(url, ctx);
   const {
     code,
     warnings,
     errors,
     resources,
     files = [],
-  } = (() => {
-    if (["jsx", "tsx", "ts", "mts", "cts"].includes(extension))
-      return script(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
-    else if (["css", "sass", "scss"].includes(extension))
-      return css(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
-    else if (["json"].includes(extension)) return json(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
-    else if (["html"].includes(extension)) return html(fs.readFileSync(path, "utf-8"), { path, extension, bundler });
-    return file(path, { path, extension, bundler });
-  })();
+  } = await LOADER[type].call({ load, resolve }, await fs.readFile(path, type !== TYPE_FILE ? "utf-8" : undefined), { path, extension, bundler, ...options });
   if (errors?.length) throw new Error(errors.join("\n"));
   warnings?.forEach((warning) => console.warn(`Loader Warning: ${warning}\n`));
   return {
@@ -69,6 +74,20 @@ export function load(url, ctx, next) {
     resources: resources,
     files: [path, ...files.map((url) => fileURLToPath(url))],
   };
+}
+
+export async function extractImports(filepath, importSet = new Set()) {
+  const imports = (await fs.readFile(filepath, "utf-8"))?.match(/import\s+[^'"]+\s+from\s+['"]([^'"]+)['"]/g);
+  for (let i = 0, len = imports?.length; i < len; i++) {
+    const matches = imports[i].match(/import\s+[^'"]+\s+from\s+['"]([^'"]+)['"]/);
+    if (!matches?.[1]) continue;
+    const dirname = fs.dirname(filepath);
+    const path = resolve(fs.resolve(dirname, matches[1]), { parentURL: dirname, bundler: true }, (final) => final);
+    if (!fs.existsSync(path)) continue;
+    importSet.add(path);
+    await extractImports(path, importSet);
+  }
+  return Array.from(importSet);
 }
 
 //
@@ -88,4 +107,27 @@ function resolver(specifier, { cwd = process.cwd(), extensions = EXTENSIONS } = 
     if (fs.existsSync(cur)) return cur;
   }
   return fallback;
+}
+
+function resolveType(extension) {
+  switch (extension) {
+    case "js":
+    case "mjs":
+    case "cjs":
+      return TYPE_DEFAULT;
+    case "jsx":
+    case "tsx":
+    case "ts":
+    case "mts":
+    case "cts":
+      return TYPE_SCRIPT;
+    case "json":
+      return TYPE_JSON;
+    case "css":
+    case "sass":
+    case "scss":
+      return TYPE_STYLE;
+    default:
+      return TYPE_FILE;
+  }
 }

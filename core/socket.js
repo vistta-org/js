@@ -1,4 +1,6 @@
-import { isServer, INVALID_EVENT_NAME, convertToEventName } from "../utils";
+import { HOOKS_ERROR } from "./hooks";
+import { INTERNAL } from "./context";
+import { INVALID_EVENT_NAME, convertToEventName } from "../utils";
 
 class Socket {
   active = false;
@@ -7,10 +9,10 @@ class Socket {
   }
 
   constructor() {
-    if (isServer()) return this;
+    if (process.env.IS_NODE) return this;
     import("@socket")
       .then(({ io }) => this.connect(io))
-      .catch(() => (this.active = false));
+      .catch((e) => (console.error(e), this.active = false));
   }
 
   connect(io) {
@@ -40,6 +42,7 @@ const socket = new Socket();
 export default socket;
 
 export const useSocket = () => {
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
   return {
     emit: (...args) => socket.emit(...args),
     on: (...args) => socket.on(...args),

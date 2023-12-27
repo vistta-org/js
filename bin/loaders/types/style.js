@@ -1,11 +1,11 @@
-import { fs } from "../../../server/filesystem/index.js";
+import { fs } from "@vistta/utils/fs";
 import { stringify, parse } from "../../../utils/index.js";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import * as sass from "sass";
 import postcss from "postcss";
 import autoprefixer from "autoprefixer";
 
-export default function (source, { path }) {
+export default async function (source, { path }) {
   try {
     const dirname = fs.dirname(path);
     const node_modules = fs.resolve(process.cwd(), "node_modules");
@@ -73,6 +73,7 @@ function transform(code, dirname, node_modules, params = {}) {
 function loadResources(dirname, code, resources) {
   const urls = code.match(/(?<=url\(("|')?)[^)"']*(?=("|')?\))/g);
   for (let i = 0, len = urls?.length || 0; i < len; i++) {
+    if (urls[i].startsWith("data:")) continue;
     const resourcePath = fs.resolve(dirname, urls[i]);
     const hash = fs.fileId(resourcePath) + fs.extname(resourcePath);
     resources.push({ path: resourcePath, hash });

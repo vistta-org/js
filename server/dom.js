@@ -7,7 +7,7 @@ system.set("IntersectionObserver", class { });
 system.set("ResizeObserver", class { });
 
 class ServerDom extends Dom {
-  body = createServerElement("dom");
+  node = createServerElement("dom");
   style = { styleSheet: {} };
 
   constructor() {
@@ -23,7 +23,7 @@ function renderToString(element) {
   const dom = new ServerDom();
   dom.render(element);
   if (system.get("route")?.style) system.get("route").style += dom.style?.styleSheet?.cssText || "";
-  return dom.body.toString();
+  return dom.node.toString();
 }
 
 export { renderToString, createElement };
@@ -48,6 +48,7 @@ function createServerElement(type) {
       return type === "dom" ? _children : createElementString(type, props, _children);
     },
     append: (child) => children.push(child),
+    appendChild: (child) => children.push(child),
     setAttribute: (name, value) => (props[name] = value),
     removeAttribute: (name) => delete props[name],
     addEventListener: () => null,

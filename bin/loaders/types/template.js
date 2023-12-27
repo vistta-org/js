@@ -9,9 +9,11 @@ const htmlToJSX = {
   allowfullscreen: "allowFullScreen",
 };
 
-export default function (source, { path }) {
+export default async function (source) {
   source = source.match(/(?<=(<template>)).*(?=(<\/template>))/gs)?.[0];
-  if (!source) return { errors: [`${path}(0,0): html error: Cannot find element template.`] };
+  if (!source) return {
+    code: `export default () => null;`,
+  };
   Object.keys(htmlToJSX).forEach((key) => {
     source = source.replace(new RegExp(`(?<=<[^>]*)${key}(?==)`, "g"), htmlToJSX[key]);
   });
@@ -23,9 +25,9 @@ export default function (source, { path }) {
     .match(/(?<=[^{])\{(?=[^{}]*\})(?=[^"]*(?:"[^"]*"[^"]*)*$)[^}\s]*(?=[^{}]*\})\}/g)
     .forEach((match) => props.add(match.slice(1, -1)));
   return script(
-    `const Template = ({ ${Array.from(props).join(
+    `export default ({ ${Array.from(props).join(
       ", ",
-    )} }) => (<>${source.trim()}</>); Template.ignore = true; export default Template;`,
+    )} }) => (<>${source.trim()}</>);`,
     { extension: "jsx" },
   );
 }

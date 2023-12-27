@@ -1,4 +1,4 @@
-import { useContext } from "@vistta/vistta.js";
+import { useContext } from "@vistta/js";
 
 export default function Context() {
   return (

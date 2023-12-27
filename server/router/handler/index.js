@@ -1,7 +1,6 @@
 import { EventEmitter } from "node:events";
-import { fs } from "../../filesystem";
-import { hash } from "../../crypto";
-import { bundle, resolveImports } from "./bundler.js";
+import { fs, hash } from "@vistta/utils";
+import { extractImports } from "../../../bin/loaders";
 import { system, convertToEventName, ExtensibleFunction } from "../../../utils";
 import PageHandler from "./page";
 
@@ -30,6 +29,7 @@ class Handler extends ExtensibleFunction {
     try {
       let exports = await system.import(this.filepath, { cache: !isRefresh });
       switch (this.type) {
+        case "middleware":
         case "api":
           this.handler = exports?.default;
           break;
@@ -48,15 +48,18 @@ class Handler extends ExtensibleFunction {
         case "template":
         case "store":
           this.code = (
-            await bundle(this.filepath, {
-              globalName: "__app_" + this.type,
-              exports: "default",
+            await import(this.filepath, {
+              assert: {
+                type: 'bundler',
+                globalName: "__app_" + this.type,
+                exports: "default",
+              }
             })
           )?.code;
           this.handler = () => exports?.default;
           break;
       }
-      if (IS_DEV) this.#watch([this.filepath, ...(await resolveImports(this.filepath))]);
+      if (IS_DEV) this.#watch([this.filepath, ...(await extractImports(this.filepath))]);
       this.#emit("ready");
     } catch (e) {
       this.#emit("error", e.stack);

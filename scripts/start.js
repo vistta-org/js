@@ -1,6 +1,10 @@
-import Server, { fs } from "../server/index.js";
+import Server from "../server/index.js";
+import { Console, fs } from "@vistta/utils";
 import { trim, capitalize } from "../utils/index.js";
-console.announce(`VisttaJS v${process.env.APP_VERSION}`);
+// eslint-disable-next-line no-global-assign
+console = new Console("");
+const system = new Console("system", { date: false, fixed: "\n", message: Console.isTTY ? { before: "\t" } : undefined });
+system.announce(`VisttaJS v${process.env.APP_VERSION}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const options = await (async (args) => {
   const config = (await import(fs.resolve("./package.json"))).default || {};
@@ -24,15 +28,28 @@ const options = await (async (args) => {
 const app = new Server({
   ...options,
   callback: ({ protocol, port }) =>
-    console.log(`${protocol.toUpperCase()} server app listen on ${protocol}://localhost:${port}`),
+    system.log(`${protocol}://localhost:${port}`),
 });
 
-const logs = {};
-app.use(options.folder, "/", {
-  callback: (event, pathname, type, ...args) => {
-    if (!logs[pathname]) logs[pathname] = new Console(pathname);
-    if (event === "error") return logs[pathname].error(...args);
-    logs[pathname].clear();
-    logs[pathname].log(`${capitalize(type)} "${pathname}" ${event === "ready" ? Console.green : Console.magenta}${event === "change" ? "modified" : event}.`);
-  },
+const context = {};
+const routes = new Console("routes", { fixed: true });
+routes.list = new Set();
+routes.time("routes")
+app.use(options.folder, "/", (event, pathname, type, ...args) => {
+  const cur = type + pathname;
+  if (!context[cur]) context[cur] = new Console(cur);
+  switch (event) {
+    case "error":
+      return context[cur].error(...args);
+    case "ready":
+      context[cur].clear();
+      routes.list.add(pathname);
+      routes.clear();
+      routes.timeLog("routes", `Loaded ${routes.list.size} routes.`);
+      break;
+    case "change":
+      context[cur].clear();
+      context[cur].log(`${capitalize(type)} "${pathname}" ${Console.magenta + "modified"}.`);
+      break;
+  }
 });

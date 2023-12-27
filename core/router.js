@@ -1,9 +1,11 @@
 import VirtualDom from "./dom";
 import { createElement } from "./element";
 import socket from "./socket";
-import { isServer, isValidUrl, system } from "../utils";
+import { HOOKS_ERROR } from "./hooks";
+import { INTERNAL } from "./context";
+import { isValidUrl, system } from "../utils";
 
-const route = document.body || {};
+const route = !process.env.IS_NODE ? document.body : {};
 const __private = { routes: {} };
 
 Object.defineProperties(route, {
@@ -53,13 +55,13 @@ Object.defineProperties(route, {
   },
   location: {
     get: () => {
-      if (isServer()) return system.get("route.location");
+      if (process.env.IS_NODE) return system.get("route.location");
       return window.location;
     },
   },
   store: {
     get: () => {
-      if (isServer()) return system.get("route.store")();
+      if (process.env.IS_NODE) return system.get("route.store")();
       return __private.store;
     },
   },
@@ -84,14 +86,17 @@ system.addEventListener("load", () => (handlerServiceWorker(), handleSocket(), r
 
 export default route;
 
-export const useRoute = () => ({
-  navigate: (...args) => route.navigate(...args),
-  emit: (...args) => route.emit(...args),
-  on: (...args) => route.on(...args),
-  get location() {
-    return route.location;
-  },
-});
+export const useRoute = () => {
+  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
+  return {
+    navigate: (...args) => route.navigate(...args),
+    emit: (...args) => route.emit(...args),
+    on: (...args) => route.on(...args),
+    get location() {
+      return route.location;
+    },
+  }
+};
 
 //
 
