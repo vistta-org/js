@@ -4,7 +4,7 @@ import { useContext, useStyle, useRef, Ref, useState, State, useEffect, useForm 
 import { useRoute } from "./router";
 import { useSocket } from "./socket";
 import { Store, useStore } from "./store";
-import { Profiler, Suspense, TryCatch, async } from "./components";
+import { Profiler, Suspense, TryCatch, Render, async } from "./components";
 import { system } from "../utils";
 
 system.set("vistta", {
@@ -25,5 +25,6 @@ system.set("vistta", {
   Profiler,
   Suspense,
   TryCatch,
+  Render,
   async
 });

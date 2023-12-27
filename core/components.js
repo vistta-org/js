@@ -72,6 +72,34 @@ export const TryCatch = ({ children, fallback }) => {
   }
 };
 
+export const Render = ({ if: _if, each: _each, children }) => {
+  if (_if != null && _each != null) {
+    if ("production" !== process.env.NODE_ENV) console.warn("Cannot use Render with both if and each.");
+    return null;
+  }
+  if (_if != null) return _if instanceof State ? _if((v) => v && children) : _if && children;
+  children = children?.[0];
+  const render = (target) => {
+    if (typeof target !== "object") {
+      if ("production" !== process.env.NODE_ENV) console.warn("Render each needs to be either an object or an array");
+      return null;
+    }
+    if (typeof children !== "function") {
+      if ("production" !== process.env.NODE_ENV) console.warn("Render each needs one children of type function");
+      return null;
+    }
+    let result = [];
+    if (!Array.isArray(target)) {
+      const keys = Object.keys(target);
+      for (let i = 0, len = keys.length; i < len; i++) result.push(children([keys[i], target[keys[i]]], i, target));
+    }
+    else for (let i = 0, len = target.length; i < len; i++) result.push(children(target[i], i, target));
+    return result;
+  }
+  if (_each instanceof State) return _each((v) => render(v));
+  return createElement(Fragment, null, ...render(_each));
+}
+
 // Wrappers
 
 class Async extends State {

@@ -1,11 +1,9 @@
 import { useRoute } from "@vistta/js";
-import { hash } from "@vistta/utils/crypto";
 import style from "./style.scss";
 import icon from "../logo.png";
 
 export default function Home() {
   const { navigate } = useRoute();
-  hash("/docs").then((hashed) => console.log(hashed));
   return (
     <>
       <h1>Vistta.JS</h1>

@@ -3,7 +3,7 @@ import { createElement, cloneElement } from "../element"
 import { useContext, useStyle, useRef, Ref, useState, State, useEffect, useForm } from "../hooks";
 import { useRoute } from "./router";
 import { Store, useStore } from "./store";
-import { Profiler, Suspense, TryCatch, async } from "../components";
+import { Profiler, Suspense, TryCatch, Render, async } from "../components";
 import * as utils from "../../utils";
 
 const { system } = utils;
@@ -26,6 +26,7 @@ system.set("vistta", {
   Profiler,
   Suspense,
   TryCatch,
+  Render,
   async,
   ...utils,
 });
