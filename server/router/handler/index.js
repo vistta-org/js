@@ -46,7 +46,6 @@ class Handler extends ExtensibleFunction {
           };
           break;
         case "template":
-        case "store":
           this.code = (
             await import(this.filepath, {
               assert: {

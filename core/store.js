@@ -1,11 +1,10 @@
-import route from "./router";
 import { State, HOOKS_ERROR } from "./hooks";
 import { INTERNAL } from "./context";
-import { encode, decode, stringify, parse, isPromise } from "../utils";
+import { encode, decode, stringify, parse, isPromise, ExtensibleFunction } from "../utils";
 
 const STORAGE_KEY = "Vistta_Store_";
 
-class Store {
+class Store extends ExtensibleFunction {
   #partitions = {};
 
   static createPartition(config) {
@@ -17,6 +16,7 @@ class Store {
   }
 
   constructor(partitions = []) {
+    super((...args) => this.use(...args));
     for (let i = 0, len = partitions.length; i < len; i++) {
       const partition = partitions[i];
       if (!(partition instanceof Partition)) continue;
@@ -24,8 +24,10 @@ class Store {
     }
   }
 
-  use(partition) {
-    return this.#partitions?.[partition];
+  use(...partitions) {
+    if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR) || !partitions?.length) return null;
+    if (partitions.length == 1) return this.#partitions?.[partitions[0]];
+    else return partitions.map((partition) => this.#partitions?.[partition]);
   }
 }
 
@@ -79,16 +81,7 @@ class Partition extends State {
   }
 }
 
-function useStore(...partitions) {
-  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
-  if (typeof route?.store?.use === "function" && partitions.length) {
-    if (partitions.length == 1) return route?.store?.use(partitions[0]);
-    else return partitions.map((partition) => route?.store?.use(partition))
-  }
-  return null;
-}
-
-export { Store, useStore };
+export { Store };
 
 //
 

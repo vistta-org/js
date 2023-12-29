@@ -28,9 +28,6 @@ Object.defineProperties(route, {
   location: {
     get: () => window.location,
   },
-  store: {
-    get: () => __private?.store,
-  },
   emit: {
     value: (event, details) =>
       route?.dispatchEvent(
@@ -72,8 +69,7 @@ function handleClick(event) {
 async function build() {
   const pathname = route.location.pathname;
   let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
-  const { default: app, config, store, template } = await system.import(resource);
-  __private.store = store;
+  const { default: app, config, template } = await system.import(resource);
   __private.dom = new VirtualDom(route, config);
   __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app));
 }

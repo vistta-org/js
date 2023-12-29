@@ -18,7 +18,7 @@ type PartitionAction = {
   on?: (event: string, value: any) => void;
 };
 
-export class Store {
+export class Store<P> {
   constructor(partitions: Partition<any>[]);
   static createPartition<T>(config: PartitionConfig<T>): Partition<T>;
   static createAction(
@@ -26,8 +26,10 @@ export class Store {
     action: PartitionAction["action"],
     on?: PartitionAction["on"],
   ): PartitionAction;
-  use<T>(partition: string): Partition<T>;
+  use<T extends keyof P>(partition: string): Partition<P[T]>;
+  use<T extends keyof P>(...partitions: string[]): Partition<P[T]>[];
 }
-
-export function useStore<T>(partitions: string): Partition<T>;
-export function useStore<T>(...partitions: string[]): Partition<T>[];
+export interface Store<P> {
+  <T extends keyof P>(partition: string): Partition<P[T]>;
+  <T extends keyof P>(...partitions: string[]): Partition<P[T]>[];
+}
