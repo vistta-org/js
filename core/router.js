@@ -24,8 +24,7 @@ Object.defineProperties(route, {
       if (__private?.dom?.remove) __private.dom.remove();
       if (refresh || !cached) {
         let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
-        const { default: app, config, store, template } = await system.import(resource, { cache: false });
-        if (!__private.store) __private.store = store;
+        const { default: app, config, template } = await system.import(resource, { cache: false });
         __private.dom = new VirtualDom(route, config);
         return __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app), refresh, (config) => {
           updateConfig(config);
@@ -57,12 +56,6 @@ Object.defineProperties(route, {
     get: () => {
       if (process.env.IS_NODE) return system.get("route.location");
       return window.location;
-    },
-  },
-  store: {
-    get: () => {
-      if (process.env.IS_NODE) return system.get("route.store")();
-      return __private.store;
     },
   },
   emit: {

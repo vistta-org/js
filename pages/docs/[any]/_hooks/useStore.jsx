@@ -1,4 +1,4 @@
-import { useStore } from "@vistta/js";
+import useStore from "../../../_store";
 
 export default function Store() {
   const counter = useStore("counter");
@@ -6,6 +6,7 @@ export default function Store() {
     <>
       {counter}
       <button onclick={() => counter.increment()}>increment</button>
+      <button onclick={() => counter.test()}>test</button>
     </>
   );
 }

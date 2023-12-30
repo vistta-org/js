@@ -4,13 +4,12 @@ import { useHandler } from "./handler";
 import { fs } from "@vistta/utils/fs";
 
 const WILDCARD = "/*";
-const TYPES = ["middleware", "socket", "store", "api", "template", "app", "page", "error"];
+const TYPES = ["middleware", "socket", "api", "template", "app", "page", "error"];
 
 class Router {
   static isWildcard = (pathname) => pathname?.match(/\/\[(\w*)\]$/)?.[1];
 
   #pwa = false;
-  #store;
   #template;
   #routes = {};
   #handlers = {};
@@ -37,7 +36,7 @@ class Router {
   };
 
   set(method, pathname, callback) {
-    const wildcard = Router.isWildcard(pathname);
+    const wildcard = pathname.endsWith("/*") ? "any" : Router.isWildcard(pathname);
     const target = method !== "error" && method !== "middleware" ? "default" : method;
     const route = wildcard ? pathname.replace(`/[${wildcard}]`, target === "default" ? WILDCARD : "") : pathname.endsWith("/") ? pathname : pathname + "/";
     const handlers = method === "error" ? this.#errors : method === "middleware" ? this.#middlewares : this.#handlers;
@@ -92,15 +91,13 @@ class Router {
 
   async setComponent(filepath, pathname, type, callback) {
     const args = { filepath, pathname, type, callback };
-    if (type === "store") return (this.#store = (await useHandler(args)));
     if (type === "template") return (this.#template = (await useHandler(args)));
     if (type === "socket") return (await useHandler(args))((...args) => this.#events.on(...args));
     if (type === "app" || type === "page" || type === "error") {
       if (type === "app") this.#pwa = true;
       args.pwa = type === "app" || this.#pwa;
       args.resources = this.resources;
-      args.config = this.get("tree", pathname, (route) => ["app", "page"].includes(route.type))?.config || {};
-      args.store = this.#store;
+      args.config = this.get("tree", pathname, (route) => ["app", "page"].includes(route.type))?.config || {}
       args.template = this.#template;
     }
     return this.set(type === "api" ? "any" : (type !== "error" && type !== "middleware") ? "get" : type, pathname, await useHandler(args));
@@ -123,7 +120,7 @@ Router.readFolder = (folder, api) => {
         pathname: dirname + "/" + basename,
         type: "api",
       });
-    else if (dirname === "/" && ((["socket", "store"].includes(basename) && [".js", ".ts"].includes(extname)) || ("template" === basename && [".js", ".jsx", ".ts", ".tsx"].includes(extname))))
+    else if (dirname === "/" && ((["socket"].includes(basename) && [".js", ".ts"].includes(extname)) || ("template" === basename && [".js", ".jsx", ".ts", ".tsx"].includes(extname))))
       routes.push({
         filepath,
         pathname: "",

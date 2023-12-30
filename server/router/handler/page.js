@@ -30,7 +30,7 @@ class PageHandler extends ExtensibleFunction {
   #emit;
   #watchedFiles = [];
 
-  constructor({ filepath, pathname, type, callback, resources, pwa, store, template, config }) {
+  constructor({ filepath, pathname, type, callback, resources, pwa, template, config }) {
     super((request, response, reject) => this.handler ? this.handler(request, response, reject) : null);
     this.id = hash(filepath);
     this.pwa = pwa;
@@ -38,7 +38,6 @@ class PageHandler extends ExtensibleFunction {
     this.resources = resources;
     this.pathname = pathname;
     this.type = type;
-    this.store = store;
     this.template = template;
     this.config = Object.assign({}, CONFIG_DEFAULT, config);
     this.#emit = (event, ...args) => {
@@ -99,7 +98,6 @@ class PageHandler extends ExtensibleFunction {
       this.app = null;
       this.#emit("change");
     }
-    this.store?.on("change", change);
     this.template?.on("change", change);
     files.forEach((file) => {
       if (this.#watchedFiles.includes(file)) return;
@@ -135,11 +133,6 @@ class PageHandler extends ExtensibleFunction {
 
   get script() {
     let script = [this.code];
-    if (this.store?.code)
-      script.push(
-        this.store.code,
-        "__app_store = __app_store?.default; export { __app_store as store };",
-      );
     if (this.template?.code)
       script.push(
         this.template.code,

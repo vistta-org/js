@@ -6,7 +6,7 @@ declare const React: object;
 type HtmlProps<E extends HTMLElement | SVGElement> = Partial<
   {
     [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K];
-  } & { children?: JSX.Node }
+  } & { children?: JSX.Node; className?: string; onclick?: () => void; onClick?: () => void }
 >;
 
 declare namespace JSX {

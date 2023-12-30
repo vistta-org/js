@@ -165,7 +165,7 @@ class Server {
     const [subdomain, pathname, options] = getMethodArgs(args, "object");
     if (!validateArgs("proxy", subdomain, pathname)) return;
     if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
-    this.#router[subdomain].set("any", pathname, (req, res, rej) =>
+    this.#router[subdomain].set("any", pathname + (!pathname.endsWith("/*") ? (pathname.endsWith("/") ? "*" : "/*") : ""), (req, res, rej) =>
       this.#proxy.web(
         req,
         res,
