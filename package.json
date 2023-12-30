@@ -16,7 +16,7 @@
   },
   "scripts": {
     "validation": "node ./bin/cli.js validation",
-    "dev": "nodemon ./bin/cli.js start ./pages --dev --validate none",
+    "dev": "nodemon ./bin/cli.js start ./pages --dev",
     "prod": "node ./bin/cli.js start ./pages",
     "build": "node ./bin/cli.js build ./pages ./.build",
     "start": "vistta start ./pages",

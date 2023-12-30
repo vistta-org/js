@@ -10,6 +10,7 @@ export const tsconfig = (() => {
   options.paths = Object.assign(projectOptions?.paths || {}, rootOptions?.paths || {});
   options.typeRoots = [...(rootOptions?.typeRoots || []), ...(projectOptions?.typeRoots || [])];
   options.incremental = false;
+  delete options.moduleResolution;
   return options;
 })()
 
