@@ -1,35 +1,36 @@
 import { State } from "./hooks";
 
-declare class Partition<T> extends State<T> {
+type Action<T = any> = (prev: T, ...args: any[]) => T | Promise<T> | void;
+
+declare class PartitionState<T = any> extends State<T> {
   private key: string;
   private value: any;
 }
 
-type PartitionConfig<T> = {
-  key: string;
-  initialState?: T;
-  cache?: "none" | "session" | "storage";
-  actions: PartitionAction[];
-};
+type Partition<T, M extends { [index: string]: Action<T> }> = PartitionState<T> & M;
 
-type PartitionAction = {
-  name: string;
-  action: (...args: any) => void;
-  on?: (event: string, value: any) => void;
+type DropFirst<T extends unknown[]> = T extends [any, ...infer U] ? U : never;
+type UsePartition<T> = {
+  [P in keyof T]: T[P] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => void : never;
 };
-
-export class Store<P> {
-  constructor(partitions: Partition<any>[]);
-  static createPartition<T>(config: PartitionConfig<T>): Partition<T>;
-  static createAction(
-    name: PartitionAction["name"],
-    action: PartitionAction["action"],
-    on?: PartitionAction["on"],
-  ): PartitionAction;
-  use<T extends keyof P>(partition: string): Partition<P[T]>;
-  use<T extends keyof P>(...partitions: string[]): Partition<P[T]>[];
+type StoreCollection = { [key: string]: Partition<any, any> };
+//
+export class Store<P extends StoreCollection> {
+  constructor(partitions: Partition<any, any>[]);
+  static createPartition<T, M extends { [key: string]: Action<T> }>(
+    key: string,
+    initialState?: T,
+    cache?: "none" | "session" | "storage",
+    actions?: M,
+    controllers?:
+      | { [P in keyof M]: (status: string, controllerOrValue: any) => void }
+      | ((partition: keyof M, status: string, controllerOrValue: any) => void),
+  ): Partition<T, M>;
+  use<T extends keyof P>(partition: keyof P): UsePartition<P[T]>;
+  use<T extends keyof P>(...partitions: (keyof P)[]): UsePartition<P[T]>[];
 }
-export interface Store<P> {
-  <T extends keyof P>(partition: string): Partition<P[T]>;
-  <T extends keyof P>(...partitions: string[]): Partition<P[T]>[];
+
+export interface Store<P extends StoreCollection> {
+  <T extends keyof P>(partition: keyof P): UsePartition<P[T]>;
+  <T extends keyof P>(...partitions: (keyof P)[]): UsePartition<P[T]>[];
 }

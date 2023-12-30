@@ -7,12 +7,8 @@ const STORAGE_KEY = "Vistta_Store_";
 class Store extends ExtensibleFunction {
   #partitions = {};
 
-  static createPartition(config) {
-    return new Partition(this, config);
-  }
-
-  static createAction(name, action, on) {
-    return (action.fnName = name), (action.on = on), action;
+  static createPartition(...args) {
+    return new Partition(this, ...args);
   }
 
   constructor(partitions = []) {
@@ -34,27 +30,30 @@ class Store extends ExtensibleFunction {
 class Partition extends State {
   #key;
 
-  constructor(store, { key, initialState, cache = "session", actions }) {
+  constructor(store, key, initialState, cache = "session", actions, controllers) {
     if (!key) return null;
     super((cache !== "none" ? getCacheValue(key) : undefined) || initialState);
     this.store = store;
     this.#key = key;
-    for (let i = 0, len = actions.length; i < len; i++) {
-      const action = actions[i];
-      this[action.fnName] = ((...args) => {
-        action.on?.call(this, "pending", super.valueOf());
+    const controllerFn = (target, ...args) => typeof controllers === "function" ? controllers.call(this, target, ...args) : controllers?.[target]?.call(this, ...args);
+    const actionsFn = Object.keys(actions);
+    for (let i = 0, len = actionsFn.length; i < len; i++) {
+      const actionName = actionsFn[i];
+      const action = actions[actionName];
+      this[actionName] = ((...args) => {
+        controllerFn(actionName, "pending", super.valueOf());
         const controller = new AbortController();
         // eslint-disable-next-line no-async-promise-executor
         const promise = new Promise(async (resolve) => {
           controller.signal.onabort = () => {
-            action.on?.call(this, "rejected", controller.signal.reason);
+            controllerFn(actionName, "rejected", controller.signal.reason);
             resolve(null);
           };
           try {
             let value = action(super.valueOf(), ...args);
             if (isPromise(value)) value = await value;
             if (!controller.signal?.aborted) {
-              action.on?.call(this, "completed", super.valueOf());
+              controllerFn(actionName, "completed", super.valueOf());
               if (value !== undefined && super.valueOf() !== value) {
                 super.set(value);
                 if (cache !== "none") updateCache(key, super.valueOf(), cache);
@@ -62,7 +61,7 @@ class Partition extends State {
               }
             }
           } catch (e) {
-            action.on?.call(this, "rejected", e);
+            controllerFn(actionName, "rejected", e);
             resolve(null);
           }
         });

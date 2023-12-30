@@ -6,6 +6,7 @@ export default function Store() {
     <>
       {counter}
       <button onclick={() => counter.increment()}>increment</button>
+      <button onclick={() => counter.test()}>test</button>
     </>
   );
 }
