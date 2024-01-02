@@ -1,39 +1,29 @@
 import { State, HOOKS_ERROR } from "./hooks";
 import { INTERNAL } from "./context";
-import { encode, decode, stringify, parse, isPromise, ExtensibleFunction } from "../utils";
+import { encode, decode, stringify, parse, isPromise } from "../utils";
 
 const STORAGE_KEY = "Vistta_Store_";
+const partitions = {};
 
-class Store extends ExtensibleFunction {
-  #partitions = {};
-
-  static createPartition(...args) {
-    return new Partition(this, ...args);
+class Store {
+  static createPartition(key, ...args) {
+    if (!key) return null;
+    partitions[key] = new Partition(key, ...args)
+    return partitions[key];
   }
 
-  constructor(partitions = []) {
-    super((...args) => this.use(...args));
-    for (let i = 0, len = partitions.length; i < len; i++) {
-      const partition = partitions[i];
-      if (!(partition instanceof Partition)) continue;
-      this.#partitions[partition.key] = partition;
-    }
-  }
-
-  use(...partitions) {
-    if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR) || !partitions?.length) return null;
-    if (partitions.length == 1) return this.#partitions?.[partitions[0]];
-    else return partitions.map((partition) => this.#partitions?.[partition]);
+  static use(...names) {
+    if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR) || !names?.length) return null;
+    if (names.length == 1) return partitions?.[names[0]];
+    else return names.map((partition) => partitions?.[partition]);
   }
 }
 
 class Partition extends State {
   #key;
 
-  constructor(store, key, initialState, cache = "session", actions, controllers) {
-    if (!key) return null;
+  constructor(key, initialState, cache = "session", actions, controllers) {
     super((cache !== "none" ? getCacheValue(key) : undefined) || initialState);
-    this.store = store;
     this.#key = key;
     const controllerFn = (target, ...args) => typeof controllers === "function" ? controllers.call(this, target, ...args) : controllers?.[target]?.call(this, ...args);
     const actionsFn = Object.keys(actions);
@@ -53,12 +43,13 @@ class Partition extends State {
             let value = action(super.valueOf(), ...args);
             if (isPromise(value)) value = await value;
             if (!controller.signal?.aborted) {
-              controllerFn(actionName, "completed", super.valueOf());
               if (value !== undefined && super.valueOf() !== value) {
                 super.set(value);
                 if (cache !== "none") updateCache(key, super.valueOf(), cache);
                 resolve(super.valueOf());
+                console.log(value, super.valueOf());
               }
+              controllerFn(actionName, "completed", super.valueOf());
             }
           } catch (e) {
             controllerFn(actionName, "rejected", e);

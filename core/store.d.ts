@@ -1,22 +1,19 @@
 import { State } from "./hooks";
 
-type Action<T = any> = (prev: T, ...args: any[]) => T | Promise<T> | void;
-
-declare class PartitionState<T = any> extends State<T> {
-  private key: string;
-  private value: any;
-}
-
-type Partition<T, M extends { [index: string]: Action<T> }> = PartitionState<T> & M;
-
 type DropFirst<T extends unknown[]> = T extends [any, ...infer U] ? U : never;
-type UsePartition<T> = {
-  [P in keyof T]: T[P] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => void : never;
-};
+type Action<T> = (prev: T, ...args: any[]) => T | Promise<T> | void;
+type Partition<T, A extends { [index: string]: Action<T> }> = { readonly key: string } & State<T> & A;
 type StoreCollection = { [key: string]: Partition<any, any> };
-//
-export class Store<P extends StoreCollection> {
-  constructor(partitions: Partition<any, any>[]);
+type UsePartition<P> = P extends Partition<infer E, infer A>
+  ? Partition<
+      E,
+      {
+        [K in keyof A]: P[K] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => Promise<E> : never;
+      }
+    >
+  : never;
+
+export class Store {
   static createPartition<T, M extends { [key: string]: Action<T> }>(
     key: string,
     initialState?: T,
@@ -26,11 +23,6 @@ export class Store<P extends StoreCollection> {
       | { [P in keyof M]: (status: string, controllerOrValue: any) => void }
       | ((partition: keyof M, status: string, controllerOrValue: any) => void),
   ): Partition<T, M>;
-  use<T extends keyof P>(partition: keyof P): UsePartition<P[T]>;
-  use<T extends keyof P>(...partitions: (keyof P)[]): UsePartition<P[T]>[];
-}
-
-export interface Store<P extends StoreCollection> {
-  <T extends keyof P>(partition: keyof P): UsePartition<P[T]>;
-  <T extends keyof P>(...partitions: (keyof P)[]): UsePartition<P[T]>[];
+  static use<P extends StoreCollection, T extends keyof P>(partition: T): UsePartition<P[T]>;
+  static use<P extends StoreCollection, T extends keyof P>(...partitions: T[]): UsePartition<P[T]>[];
 }
