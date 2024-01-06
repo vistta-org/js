@@ -1,6 +1,8 @@
 export const INVALID_EVENT_NAME = "Invalid socket event";
 export const isBrowser = () => !process.env.IS_NODE;
 
+export const noCache = (path) => path + `?noCache=${Date.now()}`;
+
 export const system = {
   register(tagname, element) {
     if (process.env.IS_NODE) return new element();
@@ -41,10 +43,6 @@ export const system = {
   removeEventListener: (...args) => {
     if (process.env.IS_NODE) return;
     window.removeEventListener(...args);
-  },
-  import(moduleName, { cache } = {}) {
-    if (cache === false) moduleName += `?noCache=${Date.now()}`;
-    return import(moduleName);
   }
 };
 

@@ -2,7 +2,7 @@ import VirtualDom from "../dom";
 import { createElement } from "../element";
 import { HOOKS_ERROR } from "./hooks";
 import { INTERNAL } from "../context";
-import { isValidUrl, system } from "../../utils";
+import { isValidUrl } from "../../utils";
 
 const route = !process.env.IS_NODE ? document.body : {};
 const __private = { routes: {} };
@@ -69,7 +69,7 @@ function handleClick(event) {
 async function build() {
   const pathname = route.location.pathname;
   let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
-  const { default: app, config, template } = await system.import(resource);
+  const { default: app, config, template } = await import(resource);
   __private.dom = new VirtualDom(route, config);
   __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app));
 }

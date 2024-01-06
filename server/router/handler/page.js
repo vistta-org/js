@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { fs, hash, randomID } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
-import { system, stringify, ExtensibleFunction } from "../../../utils";
+import { system, stringify, ExtensibleFunction, noCache } from "../../../utils";
 import pageStyle from "./page.css";
 
 system.set("document", { scripts: [] });
@@ -71,8 +71,9 @@ class PageHandler extends ExtensibleFunction {
     try {
       const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
-      const { default: app, config } = await system.import(this.filepath, { cache: !isRefresh });
-      const { code, resources, files } = await import(this.filepath, { assert: { type: 'bundler', exports: "default" } });
+      const filepath = isRefresh ? noCache(this.filepath) : this.filepath;
+      const { default: app, config } = await import(filepath, { cache: !isRefresh });
+      const { code, resources, files } = await import(filepath, { assert: { type: 'bundler', exports: "default" } });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       Object.assign(this.config, config);
       this.app = app;

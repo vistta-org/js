@@ -3,7 +3,7 @@ import { createElement } from "./element";
 import socket from "./socket";
 import { HOOKS_ERROR } from "./hooks";
 import { INTERNAL } from "./context";
-import { isValidUrl, system } from "../utils";
+import { isValidUrl, noCache, system } from "../utils";
 
 const route = !process.env.IS_NODE ? document.body : {};
 const __private = { routes: {} };
@@ -24,7 +24,7 @@ Object.defineProperties(route, {
       if (__private?.dom?.remove) __private.dom.remove();
       if (refresh || !cached) {
         let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
-        const { default: app, config, template } = await system.import(resource, { cache: false });
+        const { default: app, config, template } = await import(noCache(resource));
         __private.dom = new VirtualDom(route, config);
         return __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app), refresh, (config) => {
           updateConfig(config);
