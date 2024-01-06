@@ -2,7 +2,6 @@ import { fs } from "@vistta/utils/fs";
 import ts from "typescript";
 
 const Compiler = ts.createCompilerHost({});
-
 export const tsconfig = (() => {
   const rootOptions = loadTSConfig(fs.resolve(fs.dirname(import.meta.url), "../../"))?.compilerOptions || {};
   const projectOptions = loadTSConfig(process.cwd())?.compilerOptions || {};

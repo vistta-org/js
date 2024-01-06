@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 "use strict";
-process.env.IS_NODE = true;
+import "./loaders/env.js";
 import { Console, fs, spawn, exec } from "@vistta/utils";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
@@ -8,9 +8,8 @@ import { validate as _validate } from "./loaders/typescript.js";
 console = new Console("");
 const dirname = fs.dirname(import.meta.url);
 const pkg = await loadPackage(fs.resolve(dirname, "../"));
-console.announce("Starting VisttaJS...");
-
 const { main, args, env } = await parse(process.argv.slice(2));
+if (main !== "validation") console.announce("Starting VisttaJS...");
 Object.assign(process.env, env);
 
 const isUpToDate = await validate("modules", null, env);
