@@ -5,7 +5,7 @@ import { useRoute } from "./router";
 import { useSocket } from "./socket";
 import { Store } from "./store";
 import { Profiler, Suspense, TryCatch, Render, async } from "./components";
-import { system } from "../utils";
+import { system, isBrowser } from "../utils";
 
 system.set("vistta", {
   createElement,
@@ -25,5 +25,6 @@ system.set("vistta", {
   Suspense,
   TryCatch,
   Render,
-  async
+  async,
+  isBrowser
 });

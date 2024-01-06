@@ -1,3 +1,4 @@
+/* eslint-disable sonarjs/no-duplicate-string */
 import { useState, useEffect } from "@vistta/js";
 import useStore from "./_store";
 import icon from "../logo.png";

@@ -47,7 +47,6 @@ class Partition extends State {
                 super.set(value);
                 if (cache !== "none") updateCache(key, super.valueOf(), cache);
                 resolve(super.valueOf());
-                console.log(value, super.valueOf());
               }
               controllerFn(actionName, "completed", super.valueOf());
             }

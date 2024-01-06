@@ -4,3 +4,4 @@ export { useRoute } from "./core/router.js";
 export { useSocket } from "./core/socket.js";
 export { Store } from "./core/store.js";
 export { Profiler, Suspense, TryCatch, Render, async } from "./core/components.js";
+export { isBrowser } from "./utils/index.js";

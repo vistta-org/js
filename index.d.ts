@@ -7,4 +7,4 @@ export { Store } from "./core/store";
 export { useRoute } from "./core/router";
 export { useSocket } from "./core/socket";
 export { Profiler, Suspense, TryCatch, Render, async } from "./core/components";
-export * from "./utils/index";
+export { isBrowser } from "./utils/index";

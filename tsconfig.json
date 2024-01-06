@@ -7,7 +7,7 @@
     "module": "esnext",
     "target": "ESNext",
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "jsx": "react",
     "jsxFactory": "createElement",
     "jsxFragmentFactory": "Fragment",
