@@ -143,13 +143,14 @@ export default class VirtualDom {
     INTERNAL.COMPONENT.FORM = element.form;
     this.#effects = [];
     const fragment = this.createDocumentFragment();
-    const previous = element?.nodes || [];
+    const previous = element.nodes;
     const parent = element.parent;
     findEffects(element, (effects) =>
       this.#effects.push(() => effects.forEach(({ remove }) => remove())),
     );
     element.children = getStateChildren(element.props);
     parent.appendChild = (child) => fragment.appendChild(child.node);
+    element.nodes = [];
     this.#apply(parent, element);
     // FUTURE: Improvement would be to remove multiple Nodes with one node commit
     for (let i = 0, len = previous.length; i < len; i++) {
@@ -217,5 +218,6 @@ function addScope(css, scope) {
 
 function getStateChildren(state) {
   const value = state?.valueOf();
+  if (Array.isArray(value)) return value.length == 0 ? [createElement(TextNode, {}, "")] : value;
   return value == null || value === false ? [createElement(TextNode, {}, "")] : [value];
 }

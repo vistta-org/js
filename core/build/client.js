@@ -4,9 +4,7 @@ import { useContext, useStyle, useRef, Ref, useState, State, useEffect, useForm 
 import { useRoute } from "./router";
 import { Store } from "./store";
 import { Profiler, Suspense, TryCatch, Render, async } from "../components";
-import * as utils from "../../utils";
-
-const { system } = utils;
+import { system, isBrowser } from "../../utils";
 
 system.set("vistta", {
   createElement,
@@ -27,5 +25,5 @@ system.set("vistta", {
   TryCatch,
   Render,
   async,
-  ...utils,
+  isBrowser,
 });

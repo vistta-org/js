@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { fs, hash } from "@vistta/utils";
 import { extractImports } from "../../../bin/loaders";
-import { system, convertToEventName, ExtensibleFunction } from "../../../utils";
+import { convertToEventName, ExtensibleFunction } from "../../../utils";
 import PageHandler from "./page";
 
 const IS_DEV = process.env.NODE_ENV === "development";
@@ -27,7 +27,7 @@ class Handler extends ExtensibleFunction {
 
   async import(isRefresh) {
     try {
-      let exports = await system.import(this.filepath, { cache: !isRefresh });
+      let exports = await import(isRefresh ? noCache(this.filepath) : this.filepath);
       switch (this.type) {
         case "middleware":
         case "api":

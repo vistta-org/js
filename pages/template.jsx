@@ -1,5 +1,6 @@
+/* eslint-disable sonarjs/no-duplicate-string */
 import { useState, useEffect } from "@vistta/js";
-import useStore from "./_store";
+import { useStore } from "./_store";
 import icon from "../logo.png";
 // import template from "./_template/template.html" assert { type: "template" };
 

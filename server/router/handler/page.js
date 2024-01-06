@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { fs, hash, randomID } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
-import { system, stringify, ExtensibleFunction } from "../../../utils";
+import { system, stringify, ExtensibleFunction, noCache } from "../../../utils";
 import pageStyle from "./page.css";
 
 system.set("document", { scripts: [] });
@@ -53,7 +53,7 @@ class PageHandler extends ExtensibleFunction {
     if (!this.app) await this.import(true);
     if (!request?.resource) {
       const html = this.html;
-      if (html) return response.status(200).send(html);
+      if (html) return response.status(this.type !== "error" ? 200 : 404).send(html);
     } else {
       if (request.resource === "app") return response.type(".js").status(200).send(this.script);
       const resource = this.resources.get(request.resource);
@@ -71,8 +71,9 @@ class PageHandler extends ExtensibleFunction {
     try {
       const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
-      const { default: app, config } = await system.import(this.filepath, { cache: !isRefresh });
-      const { code, resources, files } = await import(this.filepath, { assert: { type: 'bundler', exports: "default" } });
+      const filepath = isRefresh ? noCache(this.filepath) : this.filepath;
+      const { default: app, config } = await import(filepath, { cache: !isRefresh });
+      const { code, resources, files } = await import(filepath, { assert: { type: 'bundler', exports: "default" } });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       Object.assign(this.config, config);
       this.app = app;
@@ -112,11 +113,9 @@ class PageHandler extends ExtensibleFunction {
 
   get html() {
     try {
-      // const imports = {};
       system.set("route", this);
       this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
       const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app)) : createElement(this.app));
-      // if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
       system.set("route", null);
       return html({
         ...this.config,

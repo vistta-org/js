@@ -1,4 +1,4 @@
-import useStore from "../../../_store";
+import { useStore } from "../../../_store";
 
 export default function Store() {
   const counter = useStore("counter");
