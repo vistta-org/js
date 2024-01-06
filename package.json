@@ -34,7 +34,7 @@
     "@vistta:registry": "https://git.vistta.me/api/packages/vistta/npm/"
   },
   "dependencies": {
-    "@vistta/utils": "^0.3.1",
+    "@vistta/utils": "^0.3.2",
     "autoprefixer": "^10.4.16",
     "compression": "^1.7.4",
     "esbuild": "^0.19.11",
@@ -43,9 +43,9 @@
     "helmet": "^7.1.0",
     "http-proxy": "^1.18.1",
     "http2-express-bridge": "^1.0.7",
-    "postcss": "^8.4.32",
-    "sass": "^1.69.6",
-    "socket.io": "^4.7.2",
+    "postcss": "^8.4.33",
+    "sass": "^1.69.7",
+    "socket.io": "^4.7.3",
     "typescript": "^5.3.3"
   },
   "devDependencies": {
