@@ -53,7 +53,7 @@ class PageHandler extends ExtensibleFunction {
     if (!this.app) await this.import(true);
     if (!request?.resource) {
       const html = this.html;
-      if (html) return response.status(200).send(html);
+      if (html) return response.status(this.type !== "error" ? 200 : 404).send(html);
     } else {
       if (request.resource === "app") return response.type(".js").status(200).send(this.script);
       const resource = this.resources.get(request.resource);
@@ -112,11 +112,9 @@ class PageHandler extends ExtensibleFunction {
 
   get html() {
     try {
-      // const imports = {};
       system.set("route", this);
       this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
       const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app)) : createElement(this.app));
-      // if (!BUILD) imports.socket = "/socket.io/socket.io.esm.min.js";
       system.set("route", null);
       return html({
         ...this.config,
