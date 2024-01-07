@@ -1,11 +1,14 @@
 declare function createElement(type: any, props?: { [name: string]: any }, children?: JSX.Node[]): JSX.Element | null;
-
 declare const Fragment: symbol;
 declare const React: object;
 
+interface State<T> {
+  (): T;
+  (callback?: (value: T) => any): any;
+}
 type HtmlProps<E extends HTMLElement | SVGElement> = Partial<
   {
-    [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K];
+    [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K] | State<E[K]>;
   } & { children?: JSX.Node; className?: string; onclick?: () => void; onClick?: () => void }
 >;
 
