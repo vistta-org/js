@@ -160,6 +160,8 @@ export default class VirtualDom {
     if (parent.node === this.node) this.#children = [...this.node.children];
     this.#updateStyles();
     this.#effects.forEach((effect) => effect());
+    delete INTERNAL.COMPONENT.CONTEXT;
+    delete INTERNAL.COMPONENT.FORM;
     INTERNAL.RENDER.ACTIVE = false;
   }
 
