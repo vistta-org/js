@@ -5,7 +5,7 @@ import Test2 from "./_tests/2";
 import Test3 from "./_tests/3";
 import Test4 from "./_tests/4";
 const ITERATIONS = 1000;
-const BENCHMARK_RUNS = 500;
+const BENCHMARK_RUNS = 400;
 const TESTS = {
   1: { active: true },
   2: { active: true },

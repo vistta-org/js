@@ -152,12 +152,16 @@ export default class VirtualDom {
     parent.appendChild = (child) => fragment.appendChild(child.node);
     element.nodes = [];
     this.#apply(parent, element);
-    // FUTURE: Improvement would be to remove multiple Nodes with one node commit
-    for (let i = 0, len = previous.length; i < len; i++) {
-      if (i === (len - 1)) previous[i].replaceWith(fragment);
-      else previous[i].remove();
+    const parentNode = previous[0].parentNode;
+    const elements = [];
+    let replaced = -1;
+    for (let i = 0, len = parentNode.childNodes.length; i < len; i++) {
+      const cur = parentNode.childNodes[i];
+      if (!previous.includes(cur)) elements.push(cur);
+      else if (replaced == -1) replaced = elements.push(fragment);
     }
-    if (parent.node === this.node) this.#children = [...this.node.children];
+    parentNode.replaceChildren(...elements);
+    if (parentNode === this.node) this.#children = [...this.node.children];
     this.#updateStyles();
     this.#effects.forEach((effect) => effect());
     delete INTERNAL.COMPONENT.CONTEXT;
