@@ -2,7 +2,12 @@ import { system, clone, camelCaseToKebabCase } from "../utils";
 
 const Fragment = Symbol("Fragment");
 const TextNode = Symbol("TextNode");
-class Element { }
+class Element {
+  toString() {
+    const children = this.children?.reduce((acc, cur) => acc + cur, "");
+    return typeof this.type === "symbol" ? children : createElementString(this.type, this.props, children);
+  }
+}
 class Component { }
 
 const createElement = (type, props, ...children) => {
