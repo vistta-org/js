@@ -7,7 +7,7 @@ import http2express from "http2-express-bridge";
 import proxy from "http-proxy";
 import { Server as SocketServer } from "socket.io";
 import { Router } from "./router";
-import compression, { filter } from "compression";
+import compression from "./compression";
 import helmet from "helmet";
 
 class Server {
@@ -44,7 +44,7 @@ class Server {
     this.#app.use([
       useSecure({ http, https }),
       express.json(),
-      compression({ filter: shouldCompress }),
+      compression(),
       this.#appHandler(),
     ]);
     if (autoStart || callback) this.listen(null, callback);
@@ -76,7 +76,7 @@ class Server {
     this.listen("http", callback);
     this.listen("https", callback);
     this.#socket.on("connection", (socket) => {
-      const subdomain = getSubdomain(socket.handshake.headers.host) || "";
+      const subdomain = getSubdomain(socket.handshake.headers.referer) || "";
       socket.join(subdomain);
       socket.onAny((event, ...args) => {
         this.#router?.[subdomain].emit(
@@ -311,7 +311,8 @@ function getMethodArgs(args, type = "function") {
 
 function getSubdomain(hostname) {
   if (isIPAddress(hostname)) return false;
-  let parts = hostname.split(".");
+  const match = hostname.match(/^(?:https?:\/\/)?(?:www\.)?([^/?]+)/i);
+  const parts = (match && match[1] ? match[1] : hostname).split(".");
   if (parts[0] === "www") parts.shift();
   const isLocal = parts.includes("localhost");
   if (parts.length > (isLocal ? 1 : 2)) return parts[0];
@@ -347,8 +348,4 @@ function parseCookies({ headers }) {
     cookies[name] = decodeURIComponent(parts.join('=').trim());
   });
   return cookies;
-}
-
-function shouldCompress(request, response) {
-  return !request.headers["x-no-compression"] && filter(request, response);
 }
