@@ -197,7 +197,15 @@ function convertToElement(target) {
 
 function setAttribute(node, name, value) {
   if (/^on\w.*/.test(name) && typeof value === "function") {
-    node.addEventListener(name.charAt(2).toLowerCase() + name.slice(3), value);
+    node.addEventListener(name.charAt(2).toLowerCase() + name.slice(3), (event, ...args) => {
+      try {
+        event.stritMode = () => {
+          if (event.target !== node) throw "Event strict mode active";
+        }
+        value(event, ...args);
+      }
+      catch { /* Do Nothing */ }
+    });
     return;
   }
   if (name === "className") name = "class";

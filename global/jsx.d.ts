@@ -6,10 +6,19 @@ interface State<T> {
   (): T;
   (callback?: (value: T) => any): any;
 }
+
+interface Event {
+  strictMode: () => void;
+}
+
+interface Element {
+  children?: JSX.Node;
+}
+
 type HtmlProps<E extends HTMLElement | SVGElement> = Partial<
   {
     [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K] | State<E[K]>;
-  } & { children?: JSX.Node; className?: string; onclick?: () => void; onClick?: () => void }
+  } & GlobalEventHandlers
 >;
 
 declare namespace JSX {
