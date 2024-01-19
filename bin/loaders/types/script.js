@@ -14,7 +14,6 @@ export default async function (source, { extension }) {
     });
     return { code: code, warnings };
   } catch (e) {
-    console.log(e);
     return [e];
   }
 }

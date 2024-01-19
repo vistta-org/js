@@ -3,7 +3,6 @@ import { fs, hash, randomID } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
 import { system, stringify, ExtensibleFunction, noCache } from "../../../utils";
-import pageStyle from "./page.css";
 
 system.set("document", { scripts: [] });
 system.set("HTMLElement", class { });
@@ -22,7 +21,8 @@ const CONFIG_DEFAULT = {
   keywords: "visttajs",
   robots: "index, follow",
 };
-const CLIENT = (await import(fs.resolve(dirname, BUILD ? "../../../core/built/client" : "../../../core/client"), { assert: { type: 'bundler' } }))?.code;
+const CLIENT = (await import(fs.resolve(dirname, BUILD ? "../../../core/build/client" : "../../../core/client"), { assert: { type: 'bundler' } }))?.code;
+const CLIENT_STYLE = (await import("./page.css", { assert: { type: 'raw' } }))?.code;
 const SERVICE_WORKER = (await import(fs.resolve(dirname, "../../../core/sw"), { assert: { type: 'bundler' } }))?.code;
 
 class PageHandler extends ExtensibleFunction {
@@ -80,6 +80,7 @@ class PageHandler extends ExtensibleFunction {
       this.code = code;
       this.resources.add(resources);
       this.resources.add("client.js", CLIENT);
+      this.resources.add("client.css", CLIENT_STYLE);
       if (this.type === "app") {
         this.resources.add("manifest.json", manifest(this.config));
         this.resources.add("sw.js", SERVICE_WORKER);
@@ -114,15 +115,15 @@ class PageHandler extends ExtensibleFunction {
   get html() {
     try {
       system.set("route", this);
-      this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
+      this.styles = this.config?.styles?.map(({ hash }) => ({ href: "./resources/" + hash })) || [];
       const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app)) : createElement(this.app));
       system.set("route", null);
       return html({
         ...this.config,
         manifest: this.pwa,
+        styles: this.styles,
         body,
         nonce: "v" + randomID(),
-        style: this.style,
       });
     } catch (e) {
       this.#emit("error", e.stack);
@@ -166,7 +167,7 @@ function html({
   refresh,
   revisitAfter,
   robots,
-  style,
+  styles,
   scripts,
 } = {}) {
   return (
@@ -209,10 +210,13 @@ function html({
           icon && createElement("link", { rel: "shortcut icon", href: icon }),
           icon && createElement("link", { rel: "apple-touch-icon", href: icon }),
           ...(links?.map((props) => createElement("link", props)) || []),
-          createElement("style", { nonce }, pageStyle.raw),
-          createElement("style", { id: "route", nonce }, style),
+          createElement("link", { rel: "preload", href: "./resources/client.js", as: "script" }),
+          createElement("link", { rel: "preload", href: "./resources/client.css", as: "style" }),
           createElement("script", { src: "./resources/client.js", defer: true }),
+          createElement("link", { rel: "stylesheet", href: "./resources/client.css" }),
           ...(scripts?.map((props) => createElement("script", props)) || []),
+          ...(styles?.map(({ href }) => createElement("link", { rel: "preload", href, as: "style" })) || []),
+          ...(styles?.map(({ href, id }) => createElement("link", { id, rel: "stylesheet", href })) || []),
         ),
         createElement("body", {}, body),
       ),

@@ -1,7 +1,5 @@
 export function useContext<T = any>(key?: string): T;
 
-export function useStyle(...styles: JSX.Style[]): JSX.Component | { scope: string };
-
 export class Ref<T> {
   constructor(value: T);
   current?: T;

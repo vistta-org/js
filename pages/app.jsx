@@ -1,5 +1,5 @@
 import { useRoute } from "@vistta/js";
-import style from "./style.scss";
+import style from "./style.scss" assert { type: "raw" };
 import icon from "../logo.png";
 
 export default function Home() {

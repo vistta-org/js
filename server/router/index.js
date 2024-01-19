@@ -40,7 +40,7 @@ class Router {
     const target = method !== "error" && method !== "middleware" ? "default" : method;
     const route = wildcard ? pathname.replace(`/[${wildcard}]`, target === "default" ? WILDCARD : "") : pathname.endsWith("/") ? pathname : pathname + "/";
     const handlers = method === "error" ? this.#errors : method === "middleware" ? this.#middlewares : this.#handlers;
-    if (handlers[route].enabled !== false) return console.warn(`Route for ${method === "error" || method === "middleware" ? method + " on " : ""}"${pathname}" already defined.`);
+    if (handlers[route] && handlers[route].enabled !== false) return console.warn(`Route for ${method === "error" || method === "middleware" ? method + " on " : ""}"${pathname}" already defined.`);
     handlers[route] = Object.assign(Array.isArray(callback) ? transformCallback(callback) : callback, {
       pathname,
       method,

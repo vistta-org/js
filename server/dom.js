@@ -8,7 +8,6 @@ system.set("ResizeObserver", class { });
 
 class ServerDom extends Dom {
   node = createServerElement("dom");
-  style = { styleSheet: {} };
 
   constructor() {
     super(false);
@@ -17,12 +16,12 @@ class ServerDom extends Dom {
   createDocumentFragment = () => createServerElement("fragment");
   createTextNode = (text) => ({ toString: () => "" + text });
   createElement = (tag) => createServerElement(tag);
+  createStyle = (scope) => system.get("route").styles.push({ id: scope, href: `./resources/${scope}.css` });
 }
 
 function renderToString(element) {
   const dom = new ServerDom();
   dom.render(element);
-  if (system.get("route")?.style) system.get("route").style += dom.style?.styleSheet?.cssText || "";
   return dom.node.toString();
 }
 

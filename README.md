@@ -45,3 +45,5 @@ Benchmark #1: 4.896000000007451ms
 Benchmark #2: 4.793999999672175ms
 Benchmark #3: 14.330000000268221ms
 Benchmark #4: 21.95400000009127ms
+
+Build Size: 293KB

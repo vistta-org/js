@@ -1,6 +1,6 @@
 import VirtualDom from "../dom";
 import { createElement } from "../element";
-import { HOOKS_ERROR } from "./hooks";
+import { HOOKS_ERROR } from "../hooks";
 import { INTERNAL } from "../context";
 import { isValidUrl } from "../../utils";
 

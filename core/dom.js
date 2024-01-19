@@ -1,6 +1,5 @@
 import { Fragment, TextNode, Element, Component, createElement } from "./element"
-import { State } from "./hooks";
-import { isEqual } from "../utils";
+import { Ref, State } from "./hooks";
 import { INTERNAL } from "./context";
 import { applyTransition } from "./transitions";
 
@@ -12,28 +11,28 @@ export default class VirtualDom {
   #store;
   #keys = {};
   #children = [];
-  #css = {};
   #effects = [];
-  #appliedScopes = [];
 
   node = document.body;
   body = document.body;
   head = document.head;
-  style;
   querySelector = (query) => document.querySelector(query);
   createDocumentFragment = () => document.createDocumentFragment();
   createTextNode = (text) => document.createTextNode(text);
   createElement = (tag) => document.createElement(tag);
+  createStyle(scope) {
+    const exist = this.head.querySelector(`link[id="${scope}"]`);
+    if (exist) return;
+    const link = document.createElement("link");
+    link.id = scope;
+    link.rel = "stylesheet";
+    link.href = `./resources/${scope}.css`;
+    this.head.appendChild(link);
+  }
 
   constructor(node, config = {}) {
     if (node === false) return this;
     else if (node) this.node = node;
-    this.style = this.head.querySelector("style#route");
-    if (!this.style) {
-      this.style = this.createElement("style");
-      this.head.appendChild(this.style);
-    }
-    this.#css = config?.styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {}) || {};
     this.#config = config;
   }
 
@@ -45,7 +44,6 @@ export default class VirtualDom {
     this.#content = this.#apply(this, content);
     const render = () => {
       this.node.replaceChildren(fragment);
-      this.#updateStyles();
       this.#children = [...this.node.children];
       if (!process.env.IS_NODE) this.#effects.forEach((effect) => effect());
       INTERNAL.RENDER.ACTIVE = false;
@@ -64,7 +62,6 @@ export default class VirtualDom {
     this.#effects = [];
     const render = () => {
       this.node.replaceChildren(...this.#children);
-      this.#updateStyles();
       findEffects(this.#content, (effects) => effects.forEach(({ add }) => add()));
       callback && callback(this.#config);
     }
@@ -92,7 +89,7 @@ export default class VirtualDom {
     //
     const { type, key, ref, props, children } = element;
     element.parent = parent;
-    if (props.scope) addScope(this.#css, props.scope);
+    if (props.scope) this.createStyle(props.scope);
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = this.createTextNode(children);
       else if (type !== Fragment) {
@@ -106,7 +103,7 @@ export default class VirtualDom {
       if (key) this.#keys[key] = element.node;
       if (ref) {
         if (typeof ref === "function") ref(element.node);
-        else if (typeof ref === "object") ref.current = element.node;
+        else if (ref instanceof Ref) ref.current = element.node;
       }
       if (effects?.length > 0) {
         element.effects = effects;
@@ -162,19 +159,10 @@ export default class VirtualDom {
     }
     parentNode.replaceChildren(...elements);
     if (parentNode === this.node) this.#children = [...this.node.children];
-    this.#updateStyles();
     this.#effects.forEach((effect) => effect());
     delete INTERNAL.COMPONENT.CONTEXT;
     delete INTERNAL.COMPONENT.FORM;
     INTERNAL.RENDER.ACTIVE = false;
-  }
-
-  #updateStyles() {
-    const keys = Object.keys(this.#css);
-    if (isEqual(this.#appliedScopes, keys)) return;
-    if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
-    else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
-    this.#appliedScopes = keys;
   }
 }
 
@@ -209,7 +197,6 @@ function setAttribute(node, name, value) {
     return;
   }
   if (name === "className") name = "class";
-  if (name === "scope") value = Object.keys(value).join(" ");
   if (!value) node.removeAttribute(name);
   else if (name === "style") {
     const keys = Object.keys(value);
@@ -221,13 +208,6 @@ function findEffects(element, callback) {
   if (!element || !(element instanceof Element)) return null;
   if (element?.effects) callback(element?.effects);
   for (let i = 0, len = element?.children?.length || 0; i < len; i++) findEffects(element.children[i], callback);
-}
-
-function addScope(css, scope) {
-  const keys = Object.keys(scope);
-  for (let i = 0, len = keys.length; i < len; i++) {
-    if (!css[keys[i]]) css[keys[i]] = scope[keys[i]];
-  }
 }
 
 function getStateChildren(state) {

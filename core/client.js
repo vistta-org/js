@@ -1,17 +1,16 @@
 "use strict";
 import { createElement, cloneElement } from "./element"
-import { useContext, useStyle, useRef, Ref, useState, State, useEffect, useForm } from "./hooks";
+import { useContext, useRef, Ref, useState, State, useEffect, useForm } from "./hooks";
+import { Profiler, Suspense, TryCatch, Render, Scope, async } from "./components";
 import { useRoute } from "./router";
 import { useSocket } from "./socket";
 import { Store } from "./store";
-import { Profiler, Suspense, TryCatch, Render, async } from "./components";
 import { system, isBrowser } from "../utils";
 
 system.set("vistta", {
   createElement,
   cloneElement,
   useContext,
-  useStyle,
   useRef,
   Ref,
   useState,
@@ -25,6 +24,7 @@ system.set("vistta", {
   Suspense,
   TryCatch,
   Render,
+  Scope,
   async,
   isBrowser
 });

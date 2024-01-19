@@ -100,6 +100,10 @@ export const Render = ({ if: _if, each: _each, children }) => {
   return createElement(Fragment, null, ...render(_each));
 }
 
+export const Scope = ({ styles }) => {
+  return createElement(Fragment, { scope: styles?.reduce((acc, { scope }) => acc + " " + scope, "")?.trim() }, children)
+}
+
 // Wrappers
 
 class Async extends State {

@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-import { setImmediate, ExtensibleFunction, indexOf } from "../utils";
+import { setImmediate, ExtensibleFunction } from "../utils";
 import { INTERNAL } from "./context";
 
 export const HOOKS_ERROR = "Cannot use hooks outside of components.";
@@ -11,21 +11,6 @@ export function useContext(key) {
   if (!key?.length) return INTERNAL.COMPONENT.CONTEXT;
   if (!INTERNAL.COMPONENT.CONTEXT[key]) INTERNAL.COMPONENT.CONTEXT[key] = {};
   return INTERNAL.COMPONENT.CONTEXT[key];
-}
-
-// Style
-
-export function useStyle(...styles) {
-  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
-  const scope = {};
-  for (let i = 0, len = styles.length; i < len; i++) {
-    const { id, raw } = styles[i];
-    scope[id] = createScope(id, raw);
-  }
-  // eslint-disable-next-line no-undef
-  const Scope = ({ children }) => createElement(Fragment, { scope }, children);
-  Scope.scope = scope;
-  return Scope;
 }
 
 // Ref
@@ -225,25 +210,6 @@ function unique(dependencies, index) {
     if (dependencies[i] === cur) return null;
   }
   return cur;
-}
-
-function createScope(id, code) {
-  const regex = /([^{}\s][^{}]*)\s*(?=\{)/g;
-  const add = (value) => {
-    const index = indexOf(value, " ", ">", ":");
-    if (index === -1) return value + `[scope~="${id}"]`;
-    return value.slice(0, index) + `[scope~="${id}"]` + value.slice(index);
-  };
-  const replacer = (value) => {
-    if (value.includes("@") || value.includes("%")) return value;
-    if (value.includes(","))
-      return value
-        .split(",")
-        .reduce((acc, c) => `${acc}${add(c)},`, "")
-        .slice(0, -1);
-    return add(value);
-  };
-  return code.match(regex) ? code.replace(regex, (v) => replacer(v.trim())) : code;
 }
 
 function formContext(type, arg) {

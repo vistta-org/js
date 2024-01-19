@@ -71,7 +71,6 @@ function rotateOut(element, direction, amount, callback) {
   let rotate = 0;
   const interval = setInterval(() => {
     rotate += amount;
-    console.log(`rotate${axis}(${rotate * converter}deg)`);
     element.style.transform = `rotate${axis}(${rotate * converter}deg)`;
     if (rotate >= 1) clearInterval(interval), callback();
   }, INTERVAL);
@@ -83,7 +82,6 @@ function rotateIn(element, direction, amount) {
   let rotate = -1;
   const interval = setInterval(() => {
     rotate += amount;
-    console.log(`rotate${axis}(${rotate * converter}deg)`);
     element.style.transform = `rotate${axis}(${rotate * converter}deg)`;
     if (rotate >= 0) clearInterval(interval), element.style.transform = "";
   }, INTERVAL);
