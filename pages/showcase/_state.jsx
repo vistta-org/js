@@ -1,7 +1,7 @@
-import { useState, Profiler } from "@vistta/js";
+import { State, Profiler } from "@vistta/js";
 
 export default function Showcase() {
-  const age = useState(0);
+  const age = new State(0);
   return (
     <Profiler callback={console.log}>
       <button onClick={() => age.set((v) => v - 1)}>-</button>

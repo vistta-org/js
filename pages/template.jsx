@@ -1,19 +1,19 @@
 /* eslint-disable sonarjs/no-duplicate-string */
-import { useState, useEffect } from "@vistta/js";
+import { State, Effect } from "@vistta/js";
 import { useStore } from "./store";
 import icon from "../logo.png";
 // import template from "./_template/template.html" assert { type: "template" };
 
 export default function Template({ children }) {
   const theme = useStore("theme");
-  const menu = useState(false);
+  const menu = new State(false);
   if (!theme.valueOf()) {
     if (document?.documentElement?.getAttribute("data-theme"))
       theme.set(document.documentElement.getAttribute("data-theme"));
     else if (typeof window !== "undefined" && window?.matchMedia("(prefers-color-scheme: dark)")?.matches) theme.set("dark");
     else theme.set("light");
   }
-  useEffect(() => {
+  new Effect(() => {
     document?.documentElement?.setAttribute("data-theme", theme);
   }, [theme]);
   //

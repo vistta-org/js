@@ -1,17 +1,18 @@
-import { State } from "./hooks";
+import { State } from "./classes";
 
 type DropFirst<T extends unknown[]> = T extends [any, ...infer U] ? U : never;
 type Action<T> = (prev: T, ...args: any[]) => T | Promise<T> | void;
 type Partition<T, A extends { [index: string]: Action<T> }> = { readonly key: string } & State<T> & A;
 type StoreCollection = { [key: string]: Partition<any, any> };
-type UsePartition<P> = P extends Partition<infer E, infer A>
-  ? Partition<
-      E,
-      {
-        [K in keyof A]: P[K] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => Promise<E> : never;
-      }
-    >
-  : never;
+type UsePartition<P> =
+  P extends Partition<infer E, infer A>
+    ? Partition<
+        E,
+        {
+          [K in keyof A]: P[K] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => Promise<E> : never;
+        }
+      >
+    : never;
 
 export class Store {
   static createPartition<T, M extends { [key: string]: Action<T> }>(

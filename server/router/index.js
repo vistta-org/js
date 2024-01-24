@@ -108,8 +108,11 @@ Router.readFolder = (folder, api) => {
   const routes = [];
   const recursive = (pathname = "") => {
     const filepath = folder + pathname;
-    if (fs.isDirectory(filepath))
-      return fs.readdirSync(filepath).forEach((entry) => recursive(pathname + "/" + entry)), routes;
+    if (fs.isDirectory(filepath)) {
+      const entries = fs.readdirSync(filepath);
+      for (let i = 0, len = entries.length; i < len; i++) recursive(pathname + "/" + entries[i]);
+      return routes;
+    }
     //
     const extname = fs.extname(filepath);
     const dirname = fs.dirname(pathname);

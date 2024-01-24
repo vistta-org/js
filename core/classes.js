@@ -1,0 +1,256 @@
+/* eslint-disable no-undef */
+import { RENDER } from "./internal";
+import { BaseClass, BaseFunction } from "../utils";
+
+// Context
+
+export class Context {
+  constructor(key) {
+    if (!RENDER.IS_ACTIVE("Context") || !key?.length) return null;
+    if (!RENDER.CONTEXT["#" + key]) RENDER.CONTEXT["#" + key] = {};
+    return RENDER.CONTEXT["#" + key];
+  }
+}
+
+export const newContext = (key) => new Context(key);
+
+// Ref
+
+export class Ref extends BaseClass {
+  current;
+
+  constructor(initialValue) {
+    if (!RENDER.IS_ACTIVE("Ref")) return null;
+    super();
+    this.current = initialValue;
+  }
+}
+
+export const newRef = (initialValue) => new Ref(initialValue);
+
+// State
+
+export class State extends BaseFunction {
+  static type = Symbol("State");
+  #listeners = [];
+  #value;
+
+  constructor(value, { strict } = {}) {
+    if (strict !== false && !RENDER.IS_ACTIVE("State")) return null;
+    super((mutator) => {
+      if (typeof mutator !== "function") return this.valueOf();
+      const mutation = new State(mutator(this.#value));
+      const set = mutation.set.bind(mutation);
+      this.subscribe(() => set(mutator(this.#value)));
+      delete mutation.set;
+      return mutation;
+    });
+    this.#value = value;
+  }
+
+  set(value) {
+    if (this.#value === value) return;
+    if (typeof value === "function") this.#value = value(this.#value);
+    else this.#value = value;
+    if ("production" !== process.env.NODE_ENV) RENDER.UPDATE++;
+    for (let i = 0, len = this.#listeners.length; i < len; i++)
+      this.#listeners[i](RENDER.UPDATE);
+  }
+
+  valueOf() {
+    if (typeof RENDER.EFFECT === "function") RENDER.EFFECT(this);
+    return this.#value;
+  }
+
+  toString() {
+    if (typeof RENDER.EFFECT === "function") RENDER.EFFECT(this);
+    if (this.#value == null || typeof this.#value === "object") return "";
+    return `${this.#value}`;
+  }
+
+  subscribe(callback) {
+    if (!process.env.IS_NODE && this.#listeners.indexOf(callback) == -1) this.#listeners.push(callback);
+  }
+}
+
+export const newState = (value) => new State(value);
+
+// Effect
+
+export class Effect {
+  constructor(callback, dependencies) {
+    if (!RENDER.IS_ACTIVE("Effect")) return null;
+    let removeCallback;
+    if (!RENDER.CONTEXT.effects.includes(callback)) RENDER.CONTEXT.effects.push({
+      add() {
+        if (!Array.isArray(dependencies)) {
+          dependencies = [];
+          RENDER.EFFECT = (dependency) => dependencies.push(dependency);
+          removeCallback = callback(true);
+          delete RENDER.EFFECT;
+        } else removeCallback = callback(true);
+      },
+      remove() {
+        removeCallback && removeCallback();
+      }
+    });
+    for (let i = 0, len = dependencies.length; i < len; i++) {
+      const dependency = unique(dependencies, i);
+      if (dependency) dependency.subscribe(() => callback());
+    }
+  }
+}
+
+export const newEffect = (callback, dependencies) => new Effect(callback, dependencies);
+
+// Form
+
+export class Form extends BaseFunction {
+  #node;
+  #path = [];
+  #parent;
+  #fields = [];
+  #listeners = {};
+
+  constructor() {
+    if (!RENDER.IS_ACTIVE("Form")) return null;
+    super((props) => this.render(props));
+  }
+
+  get path() {
+    return this.#path;
+  }
+
+  render({ children, ...props }) {
+    if (RENDER.CONTEXT.form) {
+      if (!props.name) {
+        if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
+        return null;
+      }
+      this.#parent = RENDER.CONTEXT.form;
+      this.#path = [...this.#parent.path, props.name];
+      RENDER.CONTEXT.form = this;
+      return Object.keys(props)?.length > 1 ? createElement("div", props, ...children) : createElement(Fragment, {}, ...children);
+    }
+    props.ref = (e) => this.#node = e;
+    const onSubmit = props.onSubmit;
+    props.onSubmit = (event) => {
+      event.preventDefault();
+      event.value = this.values();
+      if (onSubmit) onSubmit(event);
+    }
+    RENDER.CONTEXT.form = this;
+    return createElement("form", props, ...children);
+  }
+
+  register({ type, props, node } = {}) {
+    if (!node || type !== "input" && type !== "textarea" && type !== "select" && props.role !== "input" || props.type === "submit") return;
+    if (!props.name) {
+      if ("production" !== process.env.NODE_ENV) console.warn(`Missing "name" attribute on ${type} inside of form.`);
+      return;
+    }
+    if (props.type === "radio") {
+      if (!this.#fields[props.name]) this.fields[props.name] = [];
+      this.#fields[props.name].push(node);
+    }
+    else this.#fields[props.name] = node;
+    if (type === "select") node.defaultValue = node.value;
+    if (this.#parent) return this.#parent.register({ type, props: { name: [...this.path, props.name].join("."), ...props }, node });
+    node.addEventListener(type === "select" ? "change" : "input", (e) => {
+      for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++) this.#listeners[props.name][i](e);
+      for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
+    });
+    node.addEventListener("keydown", (e) => e.key === 'Enter' && this.#node?.requestSubmit());
+  }
+
+  watch(...args) {
+    if (args.length == 0) return;
+    if (args.length == 1) args.unshift("*");
+    const [name, listener] = args;
+    if (this.#parent) return this.#parent.watch([...this.path, name].join("."), listener);
+    if (!this.#listeners[name]) this.#listeners[name] = [listener];
+    else this.#listeners[name].push(listener);
+  }
+
+  reset(name = "*") {
+    if (name === "*") {
+      const inputs = Object.keys(this.#fields);
+      for (let i = 0, len = inputs.length; i < len; i++)
+        this.#fields[inputs[i]].value = getFieldDefaultValue(this.#fields[inputs[i]]);
+      return;
+    }
+    this.#fields[name].value = getFieldDefaultValue(this.#fields[name]);
+  }
+
+  validate() {
+
+  }
+
+  clear(name = "*") {
+    if (name === "*") {
+      const inputs = Object.keys(this.#fields);
+      for (let i = 0, len = inputs.length; i < len; i++)
+        this.#fields[inputs[i]].value = "";
+      return;
+    }
+    this.#fields[name].value = "";
+  }
+
+  submit() {
+    this.#node.requestSubmit();
+  }
+
+  values() {
+    const value = {};
+    const inputs = Object.keys(this.#fields);
+    for (let i = 0, len = inputs.length; i < len; i++) {
+      const cur = inputs[i];
+      if (cur.includes(".")) {
+        let temp = value;
+        const paths = cur.split(".");
+        for (let n = 0, pathsLen = paths.length; n < pathsLen; n++) {
+          const key = paths[n];
+          if (n === pathsLen - 1) temp[key] = getFieldValue(this.#fields[cur]);
+          else (temp[key] = temp[key] || {}, temp = temp[key])
+        }
+      }
+      else value[cur] = getFieldValue(this.#fields[cur]);
+    }
+    return value;
+  }
+}
+
+export const newForm = () => new Form();
+
+//
+
+function unique(dependencies, index) {
+  const cur = dependencies[index];
+  if (!(cur instanceof State)) return null;
+  for (let i = 0; i < index; i++) {
+    if (dependencies[i] === cur) return null;
+  }
+  return cur;
+}
+
+function getFieldValue(element) {
+  if (Array.isArray(element)) {
+    for (let i = 0, len = element.length; i < len; i++) {
+      if (element[i].checked) return element[i].value;
+    }
+    return null;
+  }
+  if (element.type === "checkbox") return element.checked;
+  return element.value;
+}
+
+function getFieldDefaultValue(element) {
+  if (Array.isArray(element)) {
+    for (let i = 0, len = element.length; i < len; i++) {
+      if (element[i].defaultChecked) return element[i].value;
+    }
+    return null;
+  }
+  if (element.type === "checkbox") return element.defaultChecked;
+  return element.defaultValue;
+}

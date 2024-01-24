@@ -1,4 +1,4 @@
-import { useState, Profiler } from "@vistta/js";
+import { State, Profiler } from "@vistta/js";
 import style from "./style.scss";
 import Test1 from "./_tests/1";
 import Test2 from "./_tests/2";
@@ -15,7 +15,7 @@ const TESTS = {
 const ENABLED_TESTS = Object.values(TESTS).filter((x) => x.active).length;
 
 export default function Benchmark() {
-  const counter = useState(1);
+  const counter = new State(1);
   const tests = {};
   const benchRun = () => {
     tests.running = true;
@@ -65,7 +65,7 @@ export default function Benchmark() {
 
 function Bench({ id, run, Test, onRender }) {
   if (!TESTS[id].active) return null;
-  const time = useState(0);
+  const time = new State(0);
   const callback = ({ performance }) => {
     time.set(performance);
     onRender(id, performance);

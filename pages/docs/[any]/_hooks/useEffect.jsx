@@ -1,7 +1,7 @@
-import { useState, useEffect } from "@vistta/js";
+import { State, Effect } from "@vistta/js";
 
-export default function Effect() {
-  const toggle = useState(false);
+export default function DocEffect() {
+  const toggle = new State(false);
   return (
     <>
       <>{toggle((v) => v && <ConditionalEffect />)}</>
@@ -11,8 +11,8 @@ export default function Effect() {
 }
 
 function ConditionalEffect() {
-  const count = useState(0);
-  useEffect(
+  const count = new State(0);
+  new Effect(
     (init) => {
       if (init) console.log("connect");
       else console.log("update");

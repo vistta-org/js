@@ -15,7 +15,7 @@ interface Element {
   children?: JSX.Node;
 }
 
-type HtmlProps<E extends HTMLElement | SVGElement> = Partial<
+declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
   {
     [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K] | State<E[K]>;
   } & GlobalEventHandlers
@@ -27,9 +27,9 @@ declare namespace JSX {
   type Component<T = { [attr: string]: any }> = (props: T) => Element | Element[] | null;
   type Style = { scope: string };
 
-  interface IntrinsicElements extends IntrinsicElementMap {}
-
   type IntrinsicElementMap = {
-    [K in keyof HTMLElementTagNameMap]: HtmlProps<HTMLElementTagNameMap[K]>;
+    [K in keyof HTMLElementTagNameMap]: HTMLProps<HTMLElementTagNameMap[K]>;
   };
+
+  interface IntrinsicElements extends IntrinsicElementMap {}
 }

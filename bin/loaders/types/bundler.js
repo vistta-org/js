@@ -102,7 +102,10 @@ class Bundler {
     const { source, resources, files = [] } = await this.loader.load(path, { importAttributes }, () => ({}));
     this.files.push(...files);
     if (!source) return { loader: "js" };
-    resources?.forEach(({ hash, path, code, compiler }) => (this.resources[hash] = path || code || compiler));
+    for (let i = 0, len = resources?.length || 0; i < len; i++) {
+      const { hash, path, code, compiler } = resources[i];
+      this.resources[hash] = path || code || compiler;
+    }
     return { contents: source, loader: "js" };
   }
 }

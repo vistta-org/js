@@ -1,136 +1,133 @@
 /* eslint-disable no-undef */
-import { useState, State } from "./hooks";
-import { INTERNAL } from "./context";
-import { setImmediate } from "../utils";
+import { State } from "./classes";
+import { RENDER } from "./internal";
+import { BaseFunction } from "../utils";
 
-class ProfileRecorder extends State {
+export class Component extends BaseFunction {
+  constructor(props) {
+    super(() => this.render());
+    if (props && typeof props === "object") {
+      const keys = Object.keys(props);
+      for (let i = 0, len = keys.length; i < len; i++) this[keys[i]] = props[keys[i]];
+    }
+  }
+}
+
+export class Profiler extends Component {
+  #recordCount = 0;
+  constructor({ id, children, callback }) {
+    super({ id, children, callback });
+  }
+
+  record(refresh) {
+    if (refresh) {
+      this.#recordCount++;
+      const initial = {};
+      let count = this.#recordCount;
+      return (update) => {
+        if (!initial[update]) initial[update] = performance.now();
+        return refresh((callback) => {
+          callback && callback();
+          if (count !== this.#recordCount) return;
+          this.callback({ id: this.id, performance: performance.now() - (initial[update] || 0) });
+        });
+      }
+    }
+    let initial = null;
+    return [
+      () => (initial = performance.now(), null),
+      () => (this.callback({ id: this.id, performance: performance.now() - (initial || 0) }), null)
+    ];
+  }
+
+  render() {
+    if (!this.callback || process.env.IS_NODE || "production" === process.env.NODE_ENV) return createElement(Fragment, null, ...this.children);
+    if (RENDER.CONTEXT.profiler) {
+      console.warn("Cannot use Profiler inside another Profiler");
+      return createElement(Fragment, null, ...this.children);
+    }
+    RENDER.CONTEXT.profiler = this;
+    const [start, end] = this.record();
+    return createElement(Fragment, null, createElement(start), ...this.children, createElement(end));
+  }
+}
+
+export class Render extends Component {
+  constructor({ if: _if, each: _each, children }) {
+    super({ if: _if, each: _each, children });
+  }
+
+  render() {
+    if (this.if != null && this.each != null) {
+      if ("production" !== process.env.NODE_ENV) console.warn("Cannot use Render with both if and each.");
+      return null;
+    }
+    if (this.if != null) return this.if instanceof State ? this.if((v) => v && this.children) : this.if && this.children;
+    this.children = this.children?.[0];
+    const render = (target) => {
+      if (typeof target !== "object") {
+        if ("production" !== process.env.NODE_ENV) console.warn("Render each needs to be either an object or an array");
+        return null;
+      }
+      if (typeof this.children !== "function") {
+        if ("production" !== process.env.NODE_ENV) console.warn("Render each needs one children of type function");
+        return null;
+      }
+      let result = [];
+      if (!Array.isArray(target)) {
+        const keys = Object.keys(target);
+        for (let i = 0, len = keys.length; i < len; i++) result.push(this.children([keys[i], target[keys[i]]], i, target));
+      }
+      else for (let i = 0, len = target.length; i < len; i++) result.push(this.children(target[i], i, target));
+      return result;
+    }
+    if (this.each instanceof State) return this.each((v) => render(v));
+    return createElement(Fragment, null, ...render(this.each));
+  }
+}
+
+export class Scope extends Component {
+  constructor({ styles, children }) {
+    super({ styles, children });
+  }
+
+  render() {
+    return createElement(Fragment, { scope: this.styles?.reduce((acc, { scope }) => acc + " " + scope, "")?.trim() }, ...this.children);
+  }
+}
+
+export class Suspense extends Component {
+  #count = 0;
   #callback;
-
-  constructor(callback) {
-    super(undefined, false);
-    this.#callback = callback;
+  constructor({ children, fallback }) {
+    super({ children, fallback });
   }
 
-  set() {
-    /* Do Nothing */
+  wait() {
+    this.#count++;
   }
 
-  valueOf() {
-    return this.#callback(), null;
+  resolve(callback) {
+    if (!callback) this.#count--;
+    else this.#callback = callback;
+    if (this.#count == 0) this.#callback();
   }
 
-  subscribe() {
-    /* Do Nothing */
-  }
-}
-
-export const Profiler = ({ id, children, callback }) => {
-  if (!callback || process.env.IS_NODE || "production" === process.env.NODE_ENV) return createElement(Fragment, null, children);
-  const context = { count: 0 };
-  const start = (initial) => {
-    if (initial !== false) {
-      INTERNAL.PROFILER = (_initial) => (_initial ? start(false) : end(false));
-      context.performance = performance.now();
-      return null;
-    }
-    if (context.count == 0) context.performance = performance.now();
-    context.count++;
-    return null;
-  };
-  const end = (initial) => {
-    if (initial !== false) {
-      delete INTERNAL.PROFILER;
-      callback({ id, performance: performance.now() - (context.performance || 0) });
-      return null;
-    }
-    context.count--;
-    if (context.count === 0) callback({ id, performance: performance.now() - (context.performance || 0) });
-    return null;
-  };
-  return createElement(Fragment, null, new ProfileRecorder(start), ...children, new ProfileRecorder(end));
-};
-
-export const Suspense = ({ children, fallback }) => {
-  const loaded = useState(fallback);
-  const asyncs = extractAsyncs(children);
-  if (asyncs?.length > 0) {
-    let readyCount = 0;
-    const onReady = () => {
-      readyCount++;
-      if (asyncs.length === readyCount) setImmediate(() => loaded.set(children));
-    };
-    for (let i = 0, len = asyncs.length; i < len; i++) asyncs[i].subscribe(onReady);
-  } else setImmediate(() => loaded.set(children));
-  return loaded;
-};
-
-export const TryCatch = ({ children, fallback }) => {
-  try {
-    return children;
-  } catch {
-    return fallback;
-  }
-};
-
-export const Render = ({ if: _if, each: _each, children }) => {
-  if (_if != null && _each != null) {
-    if ("production" !== process.env.NODE_ENV) console.warn("Cannot use Render with both if and each.");
-    return null;
-  }
-  if (_if != null) return _if instanceof State ? _if((v) => v && children) : _if && children;
-  children = children?.[0];
-  const render = (target) => {
-    if (typeof target !== "object") {
-      if ("production" !== process.env.NODE_ENV) console.warn("Render each needs to be either an object or an array");
-      return null;
-    }
-    if (typeof children !== "function") {
-      if ("production" !== process.env.NODE_ENV) console.warn("Render each needs one children of type function");
-      return null;
-    }
-    let result = [];
-    if (!Array.isArray(target)) {
-      const keys = Object.keys(target);
-      for (let i = 0, len = keys.length; i < len; i++) result.push(children([keys[i], target[keys[i]]], i, target));
-    }
-    else for (let i = 0, len = target.length; i < len; i++) result.push(children(target[i], i, target));
-    return result;
-  }
-  if (_each instanceof State) return _each((v) => render(v));
-  return createElement(Fragment, null, ...render(_each));
-}
-
-export const Scope = ({ styles }) => {
-  return createElement(Fragment, { scope: styles?.reduce((acc, { scope }) => acc + " " + scope, "")?.trim() }, children)
-}
-
-// Wrappers
-
-class Async extends State {
-  constructor(promise) {
-    super(undefined, false);
-    promise.then((Component) => super.set(Component));
-  }
-
-  set() {
-    /* Do Nothing */
+  render() {
+    return this.children;
   }
 }
 
-export const async = (Component) => (props) => new Async(Component(props));
-
-//
-
-function extractAsyncs(_elements) {
-  const asyncs = [];
-  function recursive(elements) {
-    if (!Array.isArray(elements)) elements = [elements];
-    for (let i = 0, len = elements.length; i < len; i++) {
-      const element = elements[i];
-      if (element instanceof Async) asyncs.push(element);
-      else if (element?.children?.length > 0) recursive(element.children);
-    }
-    return asyncs;
+export class Try extends Component {
+  constructor({ children, fallback }) {
+    super({ children, fallback });
   }
-  return recursive(_elements);
+
+  render() {
+    try {
+      return this.children;
+    } catch {
+      return this.fallback;
+    }
+  }
 }

@@ -1,7 +1,7 @@
 import VirtualDom from "../dom";
 import { createElement } from "../element";
-import { HOOKS_ERROR } from "../hooks";
-import { INTERNAL } from "../context";
+import { HOOKS_ERROR } from "../classes";
+import { RENDER } from "../internal";
 import { isValidUrl } from "../../utils";
 
 const route = !process.env.IS_NODE ? document.body : {};
@@ -46,7 +46,7 @@ Object.defineProperties(route, {
 export default route;
 
 export const useRoute = () => {
-  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
+  if (!RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
   return {
     navigate: (...args) => route.navigate(...args),
     emit: (...args) => route.emit(...args),

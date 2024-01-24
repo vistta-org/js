@@ -1,9 +1,9 @@
-import { useState, useSocket } from "@vistta/js";
+import { State, useSocket } from "@vistta/js";
 import { buildForm } from "./_form";
 
 export default function Chat({ username, messages: _messages }) {
   const { emit, on } = useSocket();
-  const messages = useState(_messages);
+  const messages = new State(_messages);
   on("chat-update", (_messages) => messages.set(_messages));
   const onSubmit = async (e) => {
     e.preventDefault();

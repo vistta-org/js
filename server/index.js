@@ -341,11 +341,14 @@ function useSecure({ http, https }) {
 }
 
 function parseCookies({ headers }) {
-  const cookies = {};
-  if (headers?.cookie) headers?.cookie.split(';').forEach(cookie => {
-    const parts = cookie.split('=');
-    const name = parts.shift().trim();
-    cookies[name] = decodeURIComponent(parts.join('=').trim());
-  });
-  return cookies;
+  const result = {};
+  if (headers?.cookie) {
+    const cookies = headers?.cookie.split(';');
+    for (let i = 0, len = cookies?.length; i < len; i++) {
+      const parts = cookies[i].split('=');
+      const name = parts.shift().trim();
+      result[name] = decodeURIComponent(parts.join('=').trim());
+    }
+  }
+  return result;
 }

@@ -1,14 +1,14 @@
 import { EventEmitter } from "node:events";
 import { fs, hash } from "@vistta/utils";
 import { extractImports } from "../../../bin/loaders";
-import { convertToEventName, ExtensibleFunction, noCache } from "../../../utils";
+import { convertToEventName, BaseFunction, noCache } from "../../../utils";
 import PageHandler from "./page";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
-class Handler extends ExtensibleFunction {
-  #events = new EventEmitter();
-  #emit;
+class Handler extends BaseFunction {
+  events = new EventEmitter();
+  emit;
   watchedFiles = [];
 
   constructor({ filepath, pathname, type, callback, ...config }) {
@@ -19,8 +19,8 @@ class Handler extends ExtensibleFunction {
     this.filepath = fs.resolve(filepath);
     this.pathname = pathname;
     this.type = type;
-    this.#emit = (event, ...args) => {
-      this.#events.emit(event, ...args);
+    this.emit = (event, ...args) => {
+      this.events.emit(event, ...args);
       callback && callback(event, pathname, type, ...args);
     };
   }
@@ -58,27 +58,27 @@ class Handler extends ExtensibleFunction {
           this.handler = () => exports?.default;
           break;
       }
-      if (IS_DEV) this.#watch([this.filepath, ...(await extractImports(this.filepath))]);
-      this.#emit("ready");
+      if (IS_DEV) this.watch([this.filepath, ...(await extractImports(this.filepath))]);
+      this.emit("ready");
     } catch (e) {
-      this.#emit("error", e.stack);
+      this.emit("error", e.stack);
     }
     return this;
   }
 
   on(event, callback) {
-    this.#events.on(event, callback);
+    this.events.on(event, callback);
   }
 
-  #watch(files) {
-    files.forEach((file) => {
-      if (this.watchedFiles.includes(file)) return;
-      this.watchedFiles.push(file);
-      fs.watchFile(file, () => {
-        this.#emit("change");
+  watch(files) {
+    for (let i = 0, len = files.length; i < len; i++) {
+      if (this.watchedFiles.includes(files[i])) return;
+      this.watchedFiles.push(files[i]);
+      fs.watchFile(files[i], () => {
+        this.emit("change");
         this.import(true);
       });
-    });
+    }
   }
 }
 

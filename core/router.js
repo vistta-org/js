@@ -1,8 +1,7 @@
 import VirtualDom from "./dom";
 import { createElement } from "./element";
 import socket from "./socket";
-import { HOOKS_ERROR } from "./hooks";
-import { INTERNAL } from "./context";
+import { RENDER } from "./internal";
 import { isValidUrl, noCache, system } from "../utils";
 
 const route = !process.env.IS_NODE ? document.body : {};
@@ -80,7 +79,7 @@ system.addEventListener("load", () => (handlerServiceWorker(), handleSocket(), r
 export default route;
 
 export const useRoute = () => {
-  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
+  if (!RENDER.IS_ACTIVE("Route")) return null;
   return {
     navigate: (...args) => route.navigate(...args),
     emit: (...args) => route.emit(...args),
@@ -94,13 +93,25 @@ export const useRoute = () => {
 //
 
 function updateConfig(config) {
-  Object.keys(config).forEach((key) => {
-    if (key === "title") return (document.title = config.title);
-    if (key === "href") return document.querySelector(`head > base`)?.setAttribute("href", config.href);
-    if (key === "icon")
-      return document.querySelectorAll(`head > link[rel$="icon"]`)?.forEach((e) => e.setAttribute("href", config.icon));
-    document.querySelector(`head > meta[name="${key}"]`)?.setAttribute("content", config[key]);
-  });
+  const keys = Object.keys(config);
+  for (let i = 0, len = keys.length; i < len; i++) {
+    switch (keys[i]) {
+      case "title":
+        document.title = config.title
+        break;
+      case "href":
+        document.querySelector(`head > base`)?.setAttribute("href", config.href);
+        break;
+      case "icon":
+        var icons = document.querySelectorAll(`head > link[rel$="icon"]`);
+        for (let ii = 0, ilen = icons.length; ii < ilen; ii++)
+          icons[ii].setAttribute("href", config.icon);
+        break;
+      default:
+        document.querySelector(`head > meta[name="${keys[i]}"]`)?.setAttribute("content", config[keys[i]]);
+        break;
+    }
+  }
 }
 
 function handleClick(event) {

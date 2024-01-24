@@ -1,3 +1,4 @@
+import { Component } from "./components";
 import { system, clone, camelCaseToKebabCase } from "../utils";
 
 const Fragment = Symbol("Fragment");
@@ -8,27 +9,28 @@ class Element {
     return typeof this.type === "symbol" ? children : createElementString(this.type, this.props, children);
   }
 }
-class Component { }
 
 const createElement = (type, props, ...children) => {
-  const typeOf = typeof type;
-  if (typeOf === "function") {
-    const component = new Component();
-    props = props || {};
-    props.children = children;
-    component.call = type.bind(null, props);
-    return component;
+  switch (typeof type) {
+    case "function":
+      props = props || {};
+      props.children = children;
+      if (type?.prototype instanceof Component) return new type(props);
+      var component = new Component();
+      component.render = type.bind(component, props);
+      return component;
+    case "string":
+    case "symbol":
+      var element = new Element();
+      element.type = type;
+      element.props = props || {};
+      if (props?.key) (element.key = props.key), delete element.props.key;
+      if (props?.ref) (element.ref = props.ref), delete element.props.ref;
+      element.children = children;
+      return element;
+    default:
+      return null;
   }
-  if (typeOf === "string" || typeOf === "symbol") {
-    const element = new Element();
-    element.type = type;
-    element.props = props || {};
-    if (props?.key) (element.key = props.key), delete element.props.key;
-    if (props?.ref) (element.ref = props.ref), delete element.props.ref;
-    element.children = children;
-    return element;
-  }
-  return null;
 };
 
 const cloneElement = (element, props, children) => {
@@ -59,7 +61,7 @@ const createElementString = (type, props, children) => {
 system.set("Fragment", Fragment);
 system.set("createElement", createElement);
 
-export { Fragment, TextNode, Element, Component, createElement, cloneElement, createElementString };
+export { Fragment, TextNode, Element, createElement, cloneElement, createElementString };
 
 //
 

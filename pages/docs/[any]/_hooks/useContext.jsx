@@ -1,6 +1,6 @@
-import { useContext } from "@vistta/js";
+import { Context } from "@vistta/js";
 
-export default function Context() {
+export default function DocContext() {
   return (
     <div>
       <InsideContext />
@@ -10,16 +10,17 @@ export default function Context() {
 }
 
 function InsideContext() {
-  const context = useContext();
+  const myContext = new Context("test");
+  myContext.test = "123";
   return (
     <>
-      <input onchange={({ target }) => (context.input = target.value)} />
+      <input onchange={({ target }) => (myContext.input = target.value)} />
       <ButtonContext label="Alert with context" />
     </>
   );
 }
 
 function ButtonContext({ label }) {
-  const context = useContext();
-  return <button onclick={() => alert(context.input)}>{label}</button>;
+  const myContext = new Context("test");
+  return <button onclick={() => alert(myContext.input)}>{label}</button>;
 }

@@ -1,5 +1,4 @@
-import { HOOKS_ERROR } from "./hooks";
-import { INTERNAL } from "./context";
+import { RENDER } from "./internal";
 import { INVALID_EVENT_NAME, convertToEventName } from "../utils";
 
 class Socket {
@@ -42,7 +41,7 @@ const socket = new Socket();
 export default socket;
 
 export const useSocket = () => {
-  if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
+  if (!RENDER.IS_ACTIVE("Socket")) return null;
   return {
     emit: (...args) => socket.emit(...args),
     on: (...args) => socket.on(...args),
