@@ -1,5 +1,5 @@
-import { State, HOOKS_ERROR } from "./hooks";
-import { INTERNAL } from "./context";
+import { State } from "./classes";
+import { RENDER } from "./internal";
 import { encode, decode, stringify, parse, isPromise } from "../utils";
 
 const STORAGE_KEY = "Vistta_Store_";
@@ -13,7 +13,7 @@ class Store {
   }
 
   static use(...names) {
-    if (!INTERNAL.RENDER.IS_ACTIVE(HOOKS_ERROR) || !names?.length) return null;
+    if (!RENDER.IS_ACTIVE("Store") || !names?.length) return null;
     if (names.length == 1) return partitions?.[names[0]];
     else return names.map((partition) => partitions?.[partition]);
   }
@@ -23,7 +23,7 @@ class Partition extends State {
   #key;
 
   constructor(key, initialState, cache = "session", actions, controllers) {
-    super((cache !== "none" ? getCacheValue(key) : undefined) || initialState);
+    super((cache !== "none" ? getCacheValue(key) : undefined) || initialState, { strict: false });
     this.#key = key;
     const controllerFn = (target, ...args) => typeof controllers === "function" ? controllers.call(this, target, ...args) : controllers?.[target]?.call(this, ...args);
     const actionsFn = Object.keys(actions);

@@ -2,8 +2,7 @@ import { EventEmitter } from "node:events";
 import { fs, hash, randomID } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
-import { system, stringify, ExtensibleFunction, noCache } from "../../../utils";
-import pageStyle from "./page.css";
+import { system, stringify, BaseFunction, noCache } from "../../../utils";
 
 system.set("document", { scripts: [] });
 system.set("HTMLElement", class { });
@@ -22,13 +21,14 @@ const CONFIG_DEFAULT = {
   keywords: "visttajs",
   robots: "index, follow",
 };
-const CLIENT = (await import(fs.resolve(dirname, BUILD ? "../../../core/built/client" : "../../../core/client"), { assert: { type: 'bundler' } }))?.code;
+const CLIENT = (await import(fs.resolve(dirname, BUILD ? "../../../core/build/client" : "../../../core/client"), { assert: { type: 'bundler' } }))?.code;
+const CLIENT_STYLE = (await import("./page.css", { assert: { type: 'raw' } }))?.code;
 const SERVICE_WORKER = (await import(fs.resolve(dirname, "../../../core/sw"), { assert: { type: 'bundler' } }))?.code;
 
-class PageHandler extends ExtensibleFunction {
-  #events = new EventEmitter();
-  #emit;
-  #watchedFiles = [];
+class PageHandler extends BaseFunction {
+  events = new EventEmitter();
+  emit;
+  watchedFiles = [];
 
   constructor({ filepath, pathname, type, callback, resources, pwa, template, config }) {
     super((request, response, reject) => this.handler ? this.handler(request, response, reject) : null);
@@ -40,11 +40,11 @@ class PageHandler extends ExtensibleFunction {
     this.type = type;
     this.template = template;
     this.config = Object.assign({}, CONFIG_DEFAULT, config);
-    this.#emit = (event, ...args) => {
-      this.#events.emit(event, ...args);
+    this.emit = (event, ...args) => {
+      this.events.emit(event, ...args);
       callback && callback(event, pathname, type, ...args);
     };
-    this.#events.on('error', () => null);
+    this.events.on('error', () => null);
   }
 
   async handler(request, response, reject) {
@@ -80,52 +80,50 @@ class PageHandler extends ExtensibleFunction {
       this.code = code;
       this.resources.add(resources);
       this.resources.add("client.js", CLIENT);
+      this.resources.add("client.css", CLIENT_STYLE);
       if (this.type === "app") {
         this.resources.add("manifest.json", manifest(this.config));
         this.resources.add("sw.js", SERVICE_WORKER);
       }
       if (IS_DEV) this.watch(files);
-      this.#emit("ready");
+      this.emit("ready");
       return this;
     } catch (e) {
       if (IS_DEV) this.watch([this.filepath]);
-      this.#emit("error", e.stack);
+      this.emit("error", e.stack);
       return this;
     }
   }
 
   watch(files) {
-    const change = () => {
-      this.app = null;
-      this.#emit("change");
-    }
+    const change = () => (this.app = null, this.emit("change"));
     this.template?.on("change", change);
-    files.forEach((file) => {
-      if (this.#watchedFiles.includes(file)) return;
-      this.#watchedFiles.push(file);
-      fs.watchFile(file, change);
-    });
+    for (let i = 0, len = files.length; i < len; i++) {
+      if (this.watchedFiles.includes(files[i])) return;
+      this.watchedFiles.push(files[i]);
+      fs.watchFile(files[i], change);
+    }
   }
 
   on(event, callback) {
-    this.#events.on(event, callback);
+    this.events.on(event, callback);
   }
 
   get html() {
     try {
       system.set("route", this);
-      this.style = this.config?.styles?.reduce((acc, { raw }) => acc + raw, "") || "";
+      this.styles = this.config?.styles?.map(({ hash }) => ({ href: "./resources/" + hash })) || [];
       const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app)) : createElement(this.app));
       system.set("route", null);
       return html({
         ...this.config,
         manifest: this.pwa,
+        styles: this.styles,
         body,
         nonce: "v" + randomID(),
-        style: this.style,
       });
     } catch (e) {
-      this.#emit("error", e.stack);
+      this.emit("error", e.stack);
       return null;
     }
   }
@@ -166,7 +164,7 @@ function html({
   refresh,
   revisitAfter,
   robots,
-  style,
+  styles,
   scripts,
 } = {}) {
   return (
@@ -209,10 +207,13 @@ function html({
           icon && createElement("link", { rel: "shortcut icon", href: icon }),
           icon && createElement("link", { rel: "apple-touch-icon", href: icon }),
           ...(links?.map((props) => createElement("link", props)) || []),
-          createElement("style", { nonce }, pageStyle.raw),
-          createElement("style", { id: "route", nonce }, style),
+          createElement("link", { rel: "preload", href: "./resources/client.js", as: "script" }),
+          createElement("link", { rel: "preload", href: "./resources/client.css", as: "style" }),
           createElement("script", { src: "./resources/client.js", defer: true }),
+          createElement("link", { rel: "stylesheet", href: "./resources/client.css" }),
           ...(scripts?.map((props) => createElement("script", props)) || []),
+          ...(styles?.map(({ href }) => createElement("link", { rel: "preload", href, as: "style" })) || []),
+          ...(styles?.map(({ href, id }) => createElement("link", { id, rel: "stylesheet", href })) || []),
         ),
         createElement("body", {}, body),
       ),

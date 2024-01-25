@@ -1,4 +1,4 @@
-import { Suspense, async } from "@vistta/js";
+import { Suspense } from "@vistta/js";
 import { sleep } from "../../utils";
 
 const ShowcaseSuspense = () => {
@@ -18,10 +18,10 @@ const ShowcaseSuspense = () => {
   );
 };
 
-const AsyncComponent = async(async ({ time = 1000 }) => {
+const AsyncComponent = async ({ time = 1000 }) => {
   await sleep(time);
   return <p>{"Loaded"}</p>;
-});
+};
 
 /*
 

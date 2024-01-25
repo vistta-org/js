@@ -1,11 +1,11 @@
-import { useStyle, useState, Profiler } from "@vistta/js";
+import { State, Profiler } from "@vistta/js";
 import style from "./style.scss";
 import Test1 from "./_tests/1";
 import Test2 from "./_tests/2";
 import Test3 from "./_tests/3";
 import Test4 from "./_tests/4";
 const ITERATIONS = 1000;
-const BENCHMARK_RUNS = 500;
+const BENCHMARK_RUNS = 400;
 const TESTS = {
   1: { active: true },
   2: { active: true },
@@ -15,8 +15,7 @@ const TESTS = {
 const ENABLED_TESTS = Object.values(TESTS).filter((x) => x.active).length;
 
 export default function Benchmark() {
-  const scope = useStyle(style);
-  const counter = useState(1);
+  const counter = new State(1);
   const tests = {};
   const benchRun = () => {
     tests.running = true;
@@ -45,7 +44,7 @@ export default function Benchmark() {
   };
   return (
     <>
-      <div className="container" {...scope}>
+      <div className="container" {...style}>
         <Bench id="1" run={counter} Test={Test1} onRender={runComplete} />
         <Bench id="2" run={counter} Test={Test2} onRender={runComplete} />
         <Bench id="3" run={counter} Test={Test3} onRender={runComplete} />
@@ -66,7 +65,7 @@ export default function Benchmark() {
 
 function Bench({ id, run, Test, onRender }) {
   if (!TESTS[id].active) return null;
-  const time = useState(0);
+  const time = new State(0);
   const callback = ({ performance }) => {
     time.set(performance);
     onRender(id, performance);

@@ -10,12 +10,12 @@ const options = await (async (args) => {
   const config = (await import(fs.resolve("./package.json"))).default || {};
   const folder = args.shift() || config.folder;
   if (!folder) return abort(`Missing main folder. Either define it as an argument or on the package json.`);
-  args.forEach((arg) => {
-    let [key, value] = arg.split(/=(.*)/s, 2);
+  for (let i = 0, len = args?.length; i < len; i++) {
+    let [key, value] = args[i].split(/=(.*)/s, 2);
     if (key.startsWith("--")) key = key.slice(2);
     if (key.startsWith("-")) key = key.slice(1);
     config[key] = trim(value);
-  });
+  }
   return {
     folder,
     http: config.http || 8080,

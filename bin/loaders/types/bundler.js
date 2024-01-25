@@ -1,6 +1,7 @@
 import { fs } from "@vistta/utils/fs";
 import { build } from "esbuild";
-import { dirname, basename } from "path";
+import { dirname, basename } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const name = process.env.APP_NAME;
 let bundler;
@@ -78,14 +79,18 @@ class Bundler {
       default:
         break;
     }
-    const { final, builtin, file } = await this.loader.resolve(path, { parentURL: resolveDir, bundler: true }, (final, { builtin, file }) => ({ final, builtin, file }));
-    if (!builtin && file) return { path: final, sideEffects: this.sideEffects, pluginData: { type: kind === "import-statement" ? importAssertion(importer, path) : undefined } };
+    if (!fs.isAbsolute(importer)) importer = fs.resolve(resolveDir, importer);
+    const { final, builtin, file } = await this.loader.resolve(path, {
+      conditions: ['bundler'],
+      parentURL: pathToFileURL(importer).href
+    }, (final, { builtin, file }) => ({ final, builtin, file }));
+    if (!builtin && file) return { path: final, sideEffects: this.sideEffects, pluginData: kind === "import-statement" ? importAssertion(importer, path) : {} };
     const exists = await importExists(final);
     if (!builtin && exists) return {};
     return { path: final, namespace: "ignore" };
   }
 
-  async load({ path, namespace, pluginData }) {
+  async load({ path, namespace, pluginData: importAttributes = {} }) {
     if (namespace === "ignore") return { contents: "" };
     if (namespace === "window") return { contents: `module.exports = window.${path};` };
     if (namespace === "exports")
@@ -93,10 +98,14 @@ class Bundler {
         contents: `export { ${this.exports} } from "./${this.base}";`,
         resolveDir: this.dir,
       };
-    const { source, resources, files = [] } = await this.loader.load(path, { bundler: true, importAssertions: pluginData }, () => ({}));
+    importAttributes.bundler = true;
+    const { source, resources, files = [] } = await this.loader.load(path, { importAttributes }, () => ({}));
     this.files.push(...files);
     if (!source) return { loader: "js" };
-    resources?.forEach(({ hash, path, code, compiler }) => (this.resources[hash] = path || code || compiler));
+    for (let i = 0, len = resources?.length || 0; i < len; i++) {
+      const { hash, path, code, compiler } = resources[i];
+      this.resources[hash] = path || code || compiler;
+    }
     return { contents: source, loader: "js" };
   }
 }
@@ -116,8 +125,15 @@ export default async function (_, { path, ...options }) {
 //
 
 function importAssertion(importer, path) {
-  if (!fs.existsSync(importer)) return undefined;
-  return (new RegExp(`["'](${path})["']\\s+assert\\s+{\\s+type:\\s+["'](\\w+)["']\\s+}`)).exec(fs.readFileSync(importer, "utf-8"))?.[2];
+  if (!fs.existsSync(importer)) return {};
+  const importAttributes = (new RegExp(`["'](${path})["']\\s+assert\\s+({[\\s\\S]*?})`, 'g')).exec(fs.readFileSync(importer, "utf-8"))?.[2];
+  if (!importAttributes) return {};
+  try {
+    return eval("(" + importAttributes + ")");
+  }
+  catch {
+    return {};
+  }
 }
 
 function importExists(module) {

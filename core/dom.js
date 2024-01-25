@@ -1,8 +1,9 @@
-import { Fragment, TextNode, Element, Component, createElement } from "./element"
-import { State } from "./hooks";
-import { isEqual } from "../utils";
-import { INTERNAL } from "./context";
+import { Ref, State } from "./classes";
+import { Component, Suspense } from "./components";
+import { Fragment, TextNode, Element, createElement } from "./element"
+import { RENDER } from "./internal";
 import { applyTransition } from "./transitions";
+import { isBrowser, setImmediate } from "../utils";
 
 const BUILD = process.env.BUILD;
 
@@ -12,43 +13,49 @@ export default class VirtualDom {
   #store;
   #keys = {};
   #children = [];
-  #css = {};
   #effects = [];
-  #appliedScopes = [];
 
   node = document.body;
   body = document.body;
   head = document.head;
-  style;
   querySelector = (query) => document.querySelector(query);
   createDocumentFragment = () => document.createDocumentFragment();
   createTextNode = (text) => document.createTextNode(text);
   createElement = (tag) => document.createElement(tag);
+  createStyle(scope) {
+    const exist = this.head.querySelector(`link[id="${scope}"]`);
+    if (exist) return;
+    const link = document.createElement("link");
+    link.id = scope;
+    link.rel = "stylesheet";
+    link.href = `./resources/${scope}.css`;
+    this.head.appendChild(link);
+  }
 
   constructor(node, config = {}) {
     if (node === false) return this;
     else if (node) this.node = node;
-    this.style = this.head.querySelector("style#route");
-    if (!this.style) {
-      this.style = this.createElement("style");
-      this.head.appendChild(this.style);
-    }
-    this.#css = config?.styles?.reduce((res, { id, raw }) => ((res[id] = raw), res), {}) || {};
     this.#config = config;
   }
 
   render(content, refresh, callback) {
-    INTERNAL.RENDER.ACTIVE = true;
+    RENDER.ACTIVE = true;
     this.#effects = [];
     const fragment = this.createDocumentFragment();
     this.appendChild = (element) => fragment.appendChild(element.node);
-    this.#content = this.#apply(this, content);
+    this.#content = this.#apply(this, content, { context: {} });
     const render = () => {
       this.node.replaceChildren(fragment);
-      this.#updateStyles();
       this.#children = [...this.node.children];
-      if (!process.env.IS_NODE) this.#effects.forEach((effect) => effect());
-      INTERNAL.RENDER.ACTIVE = false;
+      if (!process.env.IS_NODE) {
+        for (let i = 0, len = this.#effects.length; i < len; i++) {
+          const effectsLen = this.#effects[i].length;
+          for (let e = 0; e < effectsLen; e++) {
+            this.#effects[i][e].add();
+          }
+        }
+      }
+      RENDER.ACTIVE = false;
       callback && callback(this.#config);
     };
     if (BUILD || refresh) render();
@@ -56,43 +63,70 @@ export default class VirtualDom {
   }
 
   remove() {
-    this.#effects = [];
-    findEffects(this.#content, (effects) => effects.forEach(({ remove }) => remove()));
+    for (let i = 0, len = this.#effects.length; i < len; i++) {
+      const effectsLen = this.#effects[i].length;
+      for (let e = 0; e < effectsLen; e++) {
+        this.#effects[i][e].remove();
+      }
+    }
   }
 
   refresh(callback) {
-    this.#effects = [];
     const render = () => {
       this.node.replaceChildren(...this.#children);
-      this.#updateStyles();
-      findEffects(this.#content, (effects) => effects.forEach(({ add }) => add()));
+      for (let i = 0, len = this.#effects.length; i < len; i++) {
+        const effectsLen = this.#effects[i].length;
+        for (let e = 0; e < effectsLen; e++) {
+          this.#effects[i][e].add();
+        }
+      }
       callback && callback(this.#config);
     }
     if (BUILD) return render();
     else applyTransition.call(this, this.#config?.transition, render);
   }
 
-  #apply(parent, element, effects) {
+  #apply(parent, element, { effects, ...context }) {
     if (element == null || element === false) return null;
     if (!(element instanceof Element)) {
-      if (element instanceof Component) {
-        const context = INTERNAL.COMPONENT.COPY_CONTEXT(true);
-        element = this.#apply(parent, element.call(), INTERNAL.COMPONENT.EFFECTS);
-        INTERNAL.COMPONENT.CONTEXT = context;
-        return element;
+      if (Array.isArray(element)) element = createElement(Fragment, {}, ...element);
+      else if (element instanceof Component) {
+        if (element instanceof Suspense) {
+          const suspense = element;
+          element = createElement(Fragment, {}, suspense.fallback);
+          context.suspense = suspense;
+          setImmediate(() => this.#update(element, suspense(), context, (render) => suspense.resolve(render)));
+          return this.#apply(parent, element, context);
+        }
+        RENDER.CONTEXT = (context.effects = [], context);
+        return this.#apply(parent, element(), context);
       }
-      else return this.#apply(parent, convertToElement(element));
-    }
-    if (element.props instanceof State && !element.subscribed) {
-      element.props.subscribe(() => this.#update(element));
-      element.context = INTERNAL.COMPONENT.COPY_CONTEXT();
-      element.form = INTERNAL.COMPONENT.FORM;
-      element.subscribed = true;
+      else if (element instanceof State) {
+        const state = element;
+        element = createElement(Fragment, {}, convertStateValueToChildren(state.valueOf()));
+        if (context.profiler) state.subscribe(context.profiler.record((callback) =>
+          this.#update(element, convertStateValueToChildren(state.valueOf()), context, callback)
+        ));
+        else state.subscribe(() => this.#update(element, convertStateValueToChildren(state.valueOf()), context));
+        return this.#apply(parent, element, context);
+      }
+      else if (element instanceof Promise) {
+        context.suspense?.wait();
+        const promise = element;
+        element = createElement(Fragment, {}, createElement(TextNode, {}, ""));
+        promise.then((children) => (this.#update(element, [children], context), context.suspense?.resolve()));
+        return this.#apply(parent, element, context);
+      }
+      else if (!element?.toString || typeof element === "function" || element instanceof Promise) {
+        if ("production" !== process.env.NODE_ENV) console.warn(`${typeof target} are not valid Elements`);
+        return null;
+      }
+      else element = createElement(TextNode, {}, "" + element);
     }
     //
     const { type, key, ref, props, children } = element;
     element.parent = parent;
-    if (props.scope) addScope(this.#css, props.scope);
+    if (props.scope) this.createStyle(props.scope);
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = this.createTextNode(children);
       else if (type !== Fragment) {
@@ -106,12 +140,9 @@ export default class VirtualDom {
       if (key) this.#keys[key] = element.node;
       if (ref) {
         if (typeof ref === "function") ref(element.node);
-        else if (typeof ref === "object") ref.current = element.node;
+        else if (ref instanceof Ref) ref.current = element.node;
       }
-      if (effects?.length > 0) {
-        element.effects = effects;
-        this.#effects.push(() => effects.forEach(({ add }) => add()));
-      }
+      if (effects?.length > 0) element.effects = this.#effects.push(effects) - 1;
       if (type !== Fragment) {
         if (type === "button") props.type = props.type || "button";
         if (props) {
@@ -120,7 +151,10 @@ export default class VirtualDom {
             const name = keys[i];
             const value = props[name];
             if (value && value instanceof State) {
-              value.subscribe(() => setAttribute(element.node, name, value.valueOf()));
+              if (context.profiler) value.subscribe(context.profiler.record((callback) => (
+                setAttribute(element.node, name, value.valueOf()), callback()
+              )));
+              else value.subscribe(() => setAttribute(element.node, name, value.valueOf()));
               setAttribute(element.node, name, value.valueOf());
             }
             else setAttribute(element.node, name, value);
@@ -129,73 +163,73 @@ export default class VirtualDom {
       }
       if (type !== TextNode && children) {
         for (let i = 0, len = children?.length || 0; i < len; i++)
-          element.children[i] = this.#apply(element, children[i]);
+          element.children[i] = this.#apply(element, children[i], context);
       }
-      INTERNAL.COMPONENT.FORM?.register(element);
+      context.form?.register(element);
     } else element.node = this.#keys[key];
     if (type !== Fragment) parent.appendChild(element);
     return element;
   }
 
-  async #update(element) {
-    INTERNAL.RENDER.ACTIVE = true;
-    INTERNAL.COMPONENT.CONTEXT = element.context;
-    INTERNAL.COMPONENT.FORM = element.form;
-    this.#effects = [];
+  #update(element, children, context, callback) {
+    if (!isBrowser()) return;
+    RENDER.ACTIVE = true;
     const fragment = this.createDocumentFragment();
     const previous = element.nodes;
+    const previousEffects = findEffects(element);
+    const initialEffectsLength = this.#effects.length;
     const parent = element.parent;
-    findEffects(element, (effects) =>
-      this.#effects.push(() => effects.forEach(({ remove }) => remove())),
-    );
-    element.children = getStateChildren(element.props);
+    element.children = children;
     parent.appendChild = (child) => fragment.appendChild(child.node);
     element.nodes = [];
-    this.#apply(parent, element);
-    // FUTURE: Improvement would be to remove multiple Nodes with one node commit
-    for (let i = 0, len = previous.length; i < len; i++) {
-      if (i === (len - 1)) previous[i].replaceWith(fragment);
-      else previous[i].remove();
+    this.#apply(parent, element, context);
+    const parentNode = previous[0].parentNode;
+    const elements = [];
+    let replaced = -1;
+    for (let i = 0, len = parentNode.childNodes.length; i < len; i++) {
+      const cur = parentNode.childNodes[i];
+      if (!previous.includes(cur)) elements.push(cur);
+      else if (replaced == -1) replaced = elements.push(fragment);
     }
-    if (parent.node === this.node) this.#children = [...this.node.children];
-    this.#updateStyles();
-    this.#effects.forEach((effect) => effect());
-    INTERNAL.RENDER.ACTIVE = false;
-  }
-
-  #updateStyles() {
-    const keys = Object.keys(this.#css);
-    if (isEqual(this.#appliedScopes, keys)) return;
-    if (this.style?.styleSheet) this.style.styleSheet.cssText = Object.values(this.#css).join(" ");
-    else this.style?.replaceChildren(this.createTextNode(Object.values(this.#css).join(" ")));
-    this.#appliedScopes = keys;
+    const render = () => {
+      parentNode.replaceChildren(...elements);
+      if (parentNode === this.node) this.#children = [...this.node.children];
+      const allEffectsLength = this.#effects.length;
+      for (let i = 0, len = previousEffects.length; i < len; i++) {
+        const previous = this.#effects.splice(previousEffects[i], 1)[0];
+        for (let e = 0, eLen = previous.length; e < eLen; e++) {
+          previous[e].remove();
+        }
+      }
+      for (let i = previousEffects.length > 0 ? allEffectsLength - previousEffects.length : initialEffectsLength, len = this.#effects.length; i < len; i++) {
+        const effectsLen = this.#effects[i].length;
+        for (let e = 0; e < effectsLen; e++) {
+          this.#effects[i][e].add();
+        }
+      }
+      RENDER.ACTIVE = false;
+    }
+    if (!callback) render();
+    else callback(render);
   }
 }
 
 //
 
-function convertToElement(target) {
-  if (target instanceof State)
-    return createElement(Fragment, target, getStateChildren(target));
-  if (Array.isArray(target)) return createElement(Fragment, {}, ...target);
-  if (target instanceof Promise) {
-    if ("production" !== process.env.NODE_ENV) console.warn("Async Components need to be wrapped in async function");
-    return false;
-  }
-  if (!target?.toString || typeof target === "function") {
-    if ("production" !== process.env.NODE_ENV) console.warn(`${typeof target} are not valid Elements`);
-    return false;
-  }
-  return createElement(TextNode, {}, "" + target);
-}
-
 function setAttribute(node, name, value) {
   if (/^on\w.*/.test(name) && typeof value === "function") {
-    node.addEventListener(name.charAt(2).toLowerCase() + name.slice(3), value);
+    node.addEventListener(name.charAt(2).toLowerCase() + name.slice(3), (event, ...args) => {
+      try {
+        event.stritMode = () => {
+          if (event.target !== node) throw "Event strict mode active";
+        }
+        value(event, ...args);
+      }
+      catch { /* Do Nothing */ }
+    });
     return;
   }
   if (name === "className") name = "class";
-  if (name === "scope") value = Object.keys(value).join(" ");
   if (!value) node.removeAttribute(name);
   else if (name === "style") {
     const keys = Object.keys(value);
@@ -203,21 +237,14 @@ function setAttribute(node, name, value) {
   } else node.setAttribute(name, value);
 }
 
-function findEffects(element, callback) {
-  if (!element || !(element instanceof Element)) return null;
-  if (element?.effects) callback(element?.effects);
-  for (let i = 0, len = element?.children?.length || 0; i < len; i++) findEffects(element.children[i], callback);
+function findEffects(element, effects = []) {
+  if (!element || !(element instanceof Element)) return effects;
+  if (element?.effects) effects.push(element.effects);
+  for (let i = 0, len = element?.children?.length || 0; i < len; i++) findEffects(element.children[i], effects);
+  return effects;
 }
 
-function addScope(css, scope) {
-  const keys = Object.keys(scope);
-  for (let i = 0, len = keys.length; i < len; i++) {
-    if (!css[keys[i]]) css[keys[i]] = scope[keys[i]];
-  }
-}
-
-function getStateChildren(state) {
-  const value = state?.valueOf();
+function convertStateValueToChildren(value) {
   if (Array.isArray(value)) return value.length == 0 ? [createElement(TextNode, {}, "")] : value;
   return value == null || value === false ? [createElement(TextNode, {}, "")] : [value];
 }

@@ -1,9 +1,9 @@
-import { useState } from "@vistta/js";
+import { State } from "@vistta/js";
 import Form from "./_form";
 import Chat from "./_chat";
 
 export default function ChatPage() {
-  const user = useState("");
+  const user = new State("");
   let messages;
   const onLogin = ({ username, messages: _messages }) => {
     user.set(username);

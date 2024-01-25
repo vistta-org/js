@@ -23,26 +23,27 @@ const LOADER = {
   [TYPE_FILE]: (await import("./types/file.js")).default,
   [TYPE_TEXT]: (await import("./types/text.js")).default,
 }
+const ACCEPTABLE_TYPES = Object.keys(LOADER);
 
 export async function resolve(specifier, context, next, options) {
   [specifier, options] = specifier.split(/\?(.*)/);
   options = new URLSearchParams(options);
-  const { parentURL = CWD, bundler } = context;
+  const { parentURL = CWD, conditions: [type] = [] } = context;
   if (isBuiltin(specifier)) {
-    if (bundler) context.builtin = true;
+    if (type === "bundler") context.builtin = true;
     return next(specifier, context);
   }
+
   specifier = compilerResolver(specifier, CWD + "/");
   if (!/^(\w:|\.?\.?\/)/.test(specifier)) return next(specifier, context);
   if (specifier?.startsWith("file://")) specifier = fileURLToPath(specifier);
   specifier = resolver(specifier, { cwd: parentURL });
-  const isAbsolute = fs.isAbsolute(specifier);
-  //
-  if (bundler) {
-    if (isAbsolute) context.file = true;
+
+  if (type === "bundler") {
+    if (fs.isAbsolute(specifier)) context.file = true;
     return next(specifier, context);
   }
-  //
+
   const useCache = !options.has("noCache") && CONTEXT[fileURLToPath(parentURL)]?.useCache !== false;
   CONTEXT[specifier] = { useCache };
   specifier = pathToFileURL(specifier).href;
@@ -50,21 +51,22 @@ export async function resolve(specifier, context, next, options) {
   return next(specifier, context);
 }
 
-export async function load(url, ctx, next) {
-  if (isBuiltin(url)) return next(url, ctx);
-  let { bundler, importAttributes: { type, ...options } = {} } = ctx || {};
-  url = bundler ? pathToFileURL(url.split("?")[0]).href : url.split("?")[0];
-  const path = fileURLToPath(url);
-  const extension = fs.extname(url).slice(1);
-  type = type || resolveType(extension);
-  if (type === TYPE_DEFAULT) return next(url, ctx);
+export async function load(url, context, next) {
+  if (isBuiltin(url)) return next(url, context);
+  const { ...options } = context?.importAttributes || {};
+  url = options.bundler ? pathToFileURL(url.split("?")[0]).href : url.split("?")[0];
+  options.path = fileURLToPath(url);
+  options.extension = fs.extname(url).slice(1);
+
+  const loader = resolveLoader(options);
+  if (loader === TYPE_DEFAULT) return next(url, context);
   const {
     code,
     warnings,
     errors,
     resources,
     files = [],
-  } = await LOADER[type].call({ load, resolve }, await fs.readFile(path, type !== TYPE_FILE ? "utf-8" : undefined), { path, extension, bundler, ...options });
+  } = await LOADER[loader].call({ load, resolve }, await fs.readFile(options.path, loader !== TYPE_FILE ? "utf-8" : undefined), options);
   if (errors?.length) throw new Error(errors.join("\n"));
   warnings?.forEach((warning) => console.warn(`Loader Warning: ${warning}\n`));
   return {
@@ -72,7 +74,7 @@ export async function load(url, ctx, next) {
     shortCircuit: true,
     source: code,
     resources: resources,
-    files: [path, ...files.map((url) => fileURLToPath(url))],
+    files: [options.path, ...files.map((url) => fileURLToPath(url))],
   };
 }
 
@@ -82,7 +84,7 @@ export async function extractImports(filepath, importSet = new Set()) {
     const matches = imports[i].match(/import\s+[^'"]+\s+from\s+['"]([^'"]+)['"]/);
     if (!matches?.[1]) continue;
     const dirname = fs.dirname(filepath);
-    const path = resolve(fs.resolve(dirname, matches[1]), { parentURL: dirname, bundler: true }, (final) => final);
+    const path = resolve(fs.resolve(dirname, matches[1]), { conditions: ['bundler'], parentURL: pathToFileURL(filepath).href }, (final) => final);
     if (!fs.existsSync(path)) continue;
     importSet.add(path);
     await extractImports(path, importSet);
@@ -109,7 +111,8 @@ function resolver(specifier, { cwd = process.cwd(), extensions = EXTENSIONS } = 
   return fallback;
 }
 
-function resolveType(extension) {
+function resolveLoader({ type, extension }) {
+  if (ACCEPTABLE_TYPES.includes(type)) return type;
   switch (extension) {
     case "js":
     case "mjs":

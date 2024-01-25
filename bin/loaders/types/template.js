@@ -14,16 +14,15 @@ export default async function (source) {
   if (!source) return {
     code: `export default () => null;`,
   };
-  Object.keys(htmlToJSX).forEach((key) => {
-    source = source.replace(new RegExp(`(?<=<[^>]*)${key}(?==)`, "g"), htmlToJSX[key]);
-  });
+  const keys = Object.keys(htmlToJSX);
+  for (let i = 0, len = keys.length; i < len; i++)
+    source = source.replace(new RegExp(`(?<=<[^>]*)${keys[i]}(?==)`, "g"), htmlToJSX[keys[i]]);
   source = source.replace(/(\r\n|\n|\r)/gm, "");
   source = source.replace(/<!--[\s\S]*?-->/gm, "");
   source = source.replace(/="{[^}]*}"/gm, (m) => "=" + m.slice(2, -1));
   const props = new Set();
-  source
-    .match(/(?<=[^{])\{(?=[^{}]*\})(?=[^"]*(?:"[^"]*"[^"]*)*$)[^}\s]*(?=[^{}]*\})\}/g)
-    .forEach((match) => props.add(match.slice(1, -1)));
+  const matches = source.match(/(?<=[^{])\{(?=[^{}]*\})(?=[^"]*(?:"[^"]*"[^"]*)*$)[^}\s]*(?=[^{}]*\})\}/g);
+  for (let i = 0, len = matches.length; i < len; i++) props.add(matches[i].slice(1, -1));
   return script(
     `export default ({ ${Array.from(props).join(
       ", ",

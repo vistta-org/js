@@ -40,7 +40,7 @@ class Router {
     const target = method !== "error" && method !== "middleware" ? "default" : method;
     const route = wildcard ? pathname.replace(`/[${wildcard}]`, target === "default" ? WILDCARD : "") : pathname.endsWith("/") ? pathname : pathname + "/";
     const handlers = method === "error" ? this.#errors : method === "middleware" ? this.#middlewares : this.#handlers;
-    if (handlers[route]) return console.warn(`Route for ${method === "error" || method === "middleware" ? method + " on " : ""}"${pathname}" already defined.`);
+    if (handlers[route] && handlers[route].enabled !== false) return console.warn(`Route for ${method === "error" || method === "middleware" ? method + " on " : ""}"${pathname}" already defined.`);
     handlers[route] = Object.assign(Array.isArray(callback) ? transformCallback(callback) : callback, {
       pathname,
       method,
@@ -108,8 +108,11 @@ Router.readFolder = (folder, api) => {
   const routes = [];
   const recursive = (pathname = "") => {
     const filepath = folder + pathname;
-    if (fs.isDirectory(filepath))
-      return fs.readdirSync(filepath).forEach((entry) => recursive(pathname + "/" + entry)), routes;
+    if (fs.isDirectory(filepath)) {
+      const entries = fs.readdirSync(filepath);
+      for (let i = 0, len = entries.length; i < len; i++) recursive(pathname + "/" + entries[i]);
+      return routes;
+    }
     //
     const extname = fs.extname(filepath);
     const dirname = fs.dirname(pathname);
