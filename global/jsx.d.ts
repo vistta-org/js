@@ -11,10 +11,6 @@ interface Event {
   strictMode: () => void;
 }
 
-interface Element {
-  children?: JSX.Node;
-}
-
 declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
   {
     [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K] | State<E[K]>;

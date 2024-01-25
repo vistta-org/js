@@ -37,9 +37,9 @@ export function validate(path, source) {
         },
       }),
     })
-  ).forEach((diagnostic) => {
-    const { line, character } = diagnostic.file ? ts.getLineAndCharacterOfPosition(diagnostic.file, diagnostic.start) : {};
-    errors.push(`${path} (${line || 0},${character || 0}): ${ts.flattenDiagnosticMessageText(diagnostic.messageText)}`);
+  ).forEach(({ file, start, messageText }) => {
+    const { line, character } = file ? ts.getLineAndCharacterOfPosition(file, start) : {};
+    errors.push(`${file.path} (${line || 0},${character || 0}): ${ts.flattenDiagnosticMessageText(messageText, "\n\t")}`);
   });
   return errors ? { errors } : null;
 }
