@@ -1,28 +1,37 @@
 import { State } from "./classes";
 import { RENDER } from "./internal";
-import { encode, decode, stringify, parse, isPromise } from "../utils";
+import { encode, decode, stringify, parse, isPromise, BaseFunction } from "../utils";
 
 const STORAGE_KEY = "Vistta_Store_";
-const partitions = {};
+RENDER.STORE = {};
 
-class Store {
-  static createPartition(key, ...args) {
-    if (!key) return null;
-    partitions[key] = new Partition(key, ...args)
-    return partitions[key];
+class Store extends BaseFunction {
+  static partition(initialState, cache = "session", actions, controllers) {
+    return ({ initialState, cache, actions, controllers });
   }
 
-  static use(...names) {
+  constructor(partitions) {
+    if (typeof partitions !== "object") return null;
+    super((...names) => this.get(...names));
+    const keys = Object.keys(partitions);
+    for (let i = 0, len = keys.length; i < len; i++) {
+      if (RENDER.STORE[keys[i]]) continue;
+      partitions[keys[i]].key = keys[i];
+      RENDER.STORE[keys[i]] = new Partition(partitions[keys[i]]);
+    }
+  }
+
+  get(...names) {
     if (!RENDER.IS_ACTIVE("Store") || !names?.length) return null;
-    if (names.length == 1) return partitions?.[names[0]];
-    else return names.map((partition) => partitions?.[partition]);
+    if (names.length == 1) return RENDER.STORE?.[names[0]];
+    else return names.map((partition) => RENDER.STORE?.[partition]);
   }
 }
 
 class Partition extends State {
   #key;
 
-  constructor(key, initialState, cache = "session", actions, controllers) {
+  constructor({ key, initialState, cache = "session", actions, controllers }) {
     super((cache !== "none" ? getCacheValue(key) : undefined) || initialState, { strict: false });
     this.#key = key;
     const controllerFn = (target, ...args) => typeof controllers === "function" ? controllers.call(this, target, ...args) : controllers?.[target]?.call(this, ...args);

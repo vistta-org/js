@@ -1,11 +1,11 @@
 import VirtualDom from "./dom";
 import { createElement } from "./element";
-import socket from "./socket";
 import { RENDER } from "./internal";
+import { socket } from "./socket";
 import { isValidUrl, noCache, system } from "../utils";
 
 const route = !process.env.IS_NODE ? document.body : {};
-const __private = { routes: {} };
+RENDER.ROUTES = {};
 
 Object.defineProperties(route, {
   navigate: {
@@ -16,24 +16,23 @@ Object.defineProperties(route, {
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
       const { pathname, hash } = new URL(href);
-      if (!refresh && __private.active === pathname) return updateHash(hash);
-      __private.active = pathname;
-      const cached = __private.routes?.[pathname];
+      if (!refresh && RENDER.DOM.active === pathname) return updateHash(hash);
+      const cached = RENDER.ROUTES?.[pathname];
       if (pushState !== false) history.pushState({}, "", pathname);
-      if (__private?.dom?.remove) __private.dom.remove();
+      if (RENDER?.DOM?.remove) RENDER.DOM.remove();
       if (refresh || !cached) {
         let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
         const { default: app, config, template } = await import(noCache(resource));
-        __private.dom = new VirtualDom(route, config);
-        return __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app), refresh, (config) => {
+        RENDER.DOM = new VirtualDom(pathname, route, config);
+        return RENDER.DOM.render(template ? createElement(template, {}, createElement(app)) : createElement(app), refresh, (config) => {
           updateConfig(config);
-          __private.routes[pathname] = __private.dom;
+          RENDER.ROUTES[pathname] = RENDER.DOM;
           updateHash(hash);
           callback && callback();
         });
       }
-      __private.dom = cached;
-      __private.dom.refresh((config) => {
+      RENDER.DOM = cached;
+      RENDER.DOM.refresh((config) => {
         updateConfig(config);
         updateHash(hash);
         callback && callback(config);
@@ -42,14 +41,14 @@ Object.defineProperties(route, {
   },
   refresh: {
     value: (href) => {
-      if (__private.routes?.[href]) delete __private.routes[href];
-      if (href !== __private.active) return;
+      if (RENDER.ROUTES?.[href]) delete RENDER.ROUTES[href];
+      if (href !== RENDER.DOM.active) return;
       route.classList.toggle("loading", true);
       route.navigate({ refresh: true, callback: () => route.classList.toggle("loading", false) });
     },
   },
   active: {
-    get: () => __private.active,
+    get: () => RENDER.DOM.active,
   },
   location: {
     get: () => {
@@ -78,24 +77,14 @@ system.addEventListener("load", () => (handlerServiceWorker(), handleSocket(), r
 
 export default route;
 
-export const useRoute = () => {
-  if (!RENDER.IS_ACTIVE("Route")) return null;
-  return {
-    navigate: (...args) => route.navigate(...args),
-    emit: (...args) => route.emit(...args),
-    on: (...args) => route.on(...args),
-    get location() {
-      return route.location;
-    },
-  }
-};
+export { route };
 
 //
 
 function updateConfig(config) {
   const keys = Object.keys(config);
-  for (let i = 0, len = keys.length; i < len; i++) {
-    switch (keys[i]) {
+  for (let i1 = 0, len1 = keys.length; i1 < len1; i1++) {
+    switch (keys[i1]) {
       case "title":
         document.title = config.title
         break;
@@ -104,11 +93,11 @@ function updateConfig(config) {
         break;
       case "icon":
         var icons = document.querySelectorAll(`head > link[rel$="icon"]`);
-        for (let ii = 0, ilen = icons.length; ii < ilen; ii++)
-          icons[ii].setAttribute("href", config.icon);
+        for (let i2 = 0, len2 = icons.length; i2 < len2; i2++)
+          icons[i2].setAttribute("href", config.icon);
         break;
       default:
-        document.querySelector(`head > meta[name="${keys[i]}"]`)?.setAttribute("content", config[keys[i]]);
+        document.querySelector(`head > meta[name="${keys[i1]}"]`)?.setAttribute("content", config[keys[i1]]);
         break;
     }
   }
@@ -126,7 +115,7 @@ function handleClick(event) {
 function handleSocket() {
   if (socket.active === false) return setTimeout(handleSocket, 250);
   socket.router = route;
-  socket.instance.on(`@app/refresh`, (href) => route.refresh(href));
+  socket.on(`@app/refresh`, (href) => route.refresh(href));
 }
 
 function handlerServiceWorker() {

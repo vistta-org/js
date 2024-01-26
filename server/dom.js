@@ -10,7 +10,7 @@ class ServerDom extends Dom {
   node = createServerElement("dom");
 
   constructor() {
-    super(false);
+    super("", false);
   }
 
   createDocumentFragment = () => createServerElement("fragment");
