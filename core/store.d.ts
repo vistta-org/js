@@ -14,9 +14,9 @@ type UsePartition<P> =
       >
     : never;
 
-export class Store {
-  static createPartition<T, M extends { [key: string]: Action<T> }>(
-    key: string,
+export class Store<P extends StoreCollection, T extends keyof P> {
+  constructor(partitions: P);
+  static partition<T, M extends { [key: string]: Action<T> }>(
     initialState?: T,
     cache?: "none" | "session" | "storage",
     actions?: M,
@@ -24,6 +24,10 @@ export class Store {
       | { [P in keyof M]: (status: string, controllerOrValue: any) => void }
       | ((partition: keyof M, status: string, controllerOrValue: any) => void),
   ): Partition<T, M>;
-  static use<P extends StoreCollection, T extends keyof P>(partition: T): UsePartition<P[T]>;
-  static use<P extends StoreCollection, T extends keyof P>(...partitions: T[]): UsePartition<P[T]>[];
+  get(partition: T): UsePartition<P[T]>;
+  get(...partitions: T[]): UsePartition<P[T]>[];
+}
+export interface Store<P extends StoreCollection, T extends keyof P> {
+  (partition: T): UsePartition<P[T]>;
+  (...partitions: T[]): UsePartition<P[T]>[];
 }

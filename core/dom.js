@@ -14,6 +14,7 @@ export default class VirtualDom {
   #keys = {};
   #children = [];
   #effects = [];
+  #pathname;
 
   node = document.body;
   body = document.body;
@@ -32,7 +33,12 @@ export default class VirtualDom {
     this.head.appendChild(link);
   }
 
-  constructor(node, config = {}) {
+  get pathname() {
+    return this.#pathname;
+  }
+
+  constructor(pathname, node, config = {}) {
+    this.#pathname = pathname;
     if (node === false) return this;
     else if (node) this.node = node;
     this.#config = config;

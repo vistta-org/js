@@ -34,18 +34,33 @@ export class State extends BaseFunction {
   static type = Symbol("State");
   #listeners = [];
   #value;
+  #status;
+
+  get status() {
+    return this.#status;
+  }
 
   constructor(value, { strict } = {}) {
     if (strict !== false && !RENDER.IS_ACTIVE("State")) return null;
     super((mutator) => {
       if (typeof mutator !== "function") return this.valueOf();
-      const mutation = new State(mutator(this.#value));
+      const mutation = new State(mutator(this.#value, this.#status));
       const set = mutation.set.bind(mutation);
-      this.subscribe(() => set(mutator(this.#value)));
+      this.subscribe(() => set(mutator(this.#value, this.#status)));
       delete mutation.set;
       return mutation;
     });
-    this.#value = value;
+    if (value instanceof Promise) {
+      this.#status = "pending";
+      value.then((resolved) => {
+        this.#status = "resolved";
+        this.set(resolved);
+      }).catch((error) => {
+        this.#status = "rejected";
+        this.set(error);
+      })
+    }
+    else this.#value = value;
   }
 
   set(value) {

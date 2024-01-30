@@ -1,11 +1,9 @@
 import VirtualDom from "../dom";
 import { createElement } from "../element";
-import { HOOKS_ERROR } from "../classes";
 import { RENDER } from "../internal";
 import { isValidUrl } from "../../utils";
 
 const route = !process.env.IS_NODE ? document.body : {};
-const __private = { routes: {} };
 
 window.addEventListener("click", handleClick.bind(route));
 window.addEventListener("load", build);
@@ -16,14 +14,13 @@ Object.defineProperties(route, {
       let { href } = typeof arg === "object" ? arg : { href: arg };
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       window.location.href = href;
-      __private.active = href;
     },
   },
   refresh: {
     value: () => location.reload(),
   },
   active: {
-    get: () => __private.active,
+    get: () => RENDER.DOM.active,
   },
   location: {
     get: () => window.location,
@@ -45,17 +42,7 @@ Object.defineProperties(route, {
 
 export default route;
 
-export const useRoute = () => {
-  if (!RENDER.IS_ACTIVE(HOOKS_ERROR)) return null;
-  return {
-    navigate: (...args) => route.navigate(...args),
-    emit: (...args) => route.emit(...args),
-    on: (...args) => route.on(...args),
-    get location() {
-      return route.location;
-    },
-  }
-};
+export { route };
 
 //
 
@@ -70,8 +57,8 @@ async function build() {
   const pathname = route.location.pathname;
   let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
   const { default: app, config, template } = await import(resource);
-  __private.dom = new VirtualDom(route, config);
-  __private.dom.render(template ? createElement(template, {}, createElement(app)) : createElement(app));
+  RENDER.DOM = new VirtualDom(pathname, route, config);
+  RENDER.DOM.render(template ? createElement(template, {}, createElement(app)) : createElement(app));
 }
 
 function buildUrl(href) {

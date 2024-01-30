@@ -16,9 +16,9 @@
   },
   "scripts": {
     "validation": "node ./bin/cli.js validation",
-    "dev": "nodemon ./bin/cli.js start ./pages --dev",
-    "prod": "node ./bin/cli.js start ./pages",
-    "build": "node ./bin/cli.js build ./pages ./.build",
+    "dev": "nodemon ./bin/cli.js start ./docs/pages --dev",
+    "prod": "node ./bin/cli.js start ./docs/pages",
+    "build": "node ./bin/cli.js build ./docs/pages ./.build",
     "start": "vistta start ./pages",
     "lint": "eslint --fix .",
     "tsc": "tsc .",
@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@types/http-proxy": "^1.17.14",
-    "@types/node": "^20.11.6",
+    "@types/node": "^20.11.10",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-better-styled-components": "^1.1.2",
