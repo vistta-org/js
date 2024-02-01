@@ -114,8 +114,7 @@ function handleClick(event) {
 
 function handleSocket() {
   if (socket.active === false) return setTimeout(handleSocket, 250);
-  socket.router = route;
-  socket.on(`@app/refresh`, (href) => route.refresh(href));
+  socket.register(route);
 }
 
 function handlerServiceWorker() {
