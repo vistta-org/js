@@ -147,15 +147,16 @@ export class Form extends BaseFunction {
       RENDER.CONTEXT.form = this;
       return Object.keys(props)?.length > 1 ? createElement("div", props, ...children) : createElement(Fragment, {}, ...children);
     }
-    props.ref = (e) => this.#node = e;
-    const onSubmit = props.onSubmit;
-    props.onSubmit = (event) => {
-      event.preventDefault();
-      event.value = this.values();
-      if (onSubmit) onSubmit(event);
-    }
     RENDER.CONTEXT.form = this;
-    return createElement("form", props, ...children);
+    const onSubmit = props.onSubmit || props.onsubmit;
+    return createElement("form", Object.assign(props, {
+      ref: (e) => this.#node = e,
+      onSubmit: (event) => {
+        event.preventDefault();
+        event.value = this.values();
+        if (onSubmit) onSubmit(event);
+      }
+    }), ...children);
   }
 
   register({ type, props, node } = {}) {
