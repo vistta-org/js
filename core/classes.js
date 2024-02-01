@@ -12,7 +12,7 @@ export class Context {
   }
 }
 
-export const newContext = (key) => new Context(key);
+export const context = (key) => new Context(key);
 
 // Ref
 
@@ -26,7 +26,7 @@ export class Ref extends BaseClass {
   }
 }
 
-export const newRef = (initialValue) => new Ref(initialValue);
+export const ref = (initialValue) => new Ref(initialValue);
 
 // State
 
@@ -88,7 +88,7 @@ export class State extends BaseFunction {
   }
 }
 
-export const newState = (value) => new State(value);
+export const state = (value) => new State(value);
 
 // Effect
 
@@ -116,7 +116,7 @@ export class Effect {
   }
 }
 
-export const newEffect = (callback, dependencies) => new Effect(callback, dependencies);
+export const effect = (callback, dependencies) => new Effect(callback, dependencies);
 
 // Form
 
@@ -235,7 +235,7 @@ export class Form extends BaseFunction {
   }
 }
 
-export const newForm = () => new Form();
+export const form = () => new Form();
 
 //
 

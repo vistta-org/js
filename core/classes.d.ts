@@ -1,13 +1,13 @@
 export class Context<T> {
   constructor(key: string);
 }
-export function newContext<T>(key: string): Context<T>;
+export function context<T>(key: string): Context<T>;
 
 export class Ref<T> {
   constructor(initialValue: T);
   current?: T;
 }
-export function newRef<T = any>(initialValue?: T): Ref<T>;
+export function ref<T = any>(initialValue?: T): Ref<T>;
 
 export class State<T> {
   constructor(initialValue: T | Promise<T>);
@@ -20,12 +20,12 @@ export interface State<T> {
   (): T;
   (callback?: (value: T, status?: "pending" | "resolved" | "rejected") => any): any;
 }
-export function newState<T = any>(initialValue?: T | Promise<T>): State<T>;
+export function state<T = any>(initialValue?: T | Promise<T>): State<T>;
 
 export class Effect {
   constructor(callback: () => void | (() => void), dependencies?: any[], runOnRender?: boolean);
 }
-export function newEffect(callback: () => void | (() => void), dependencies?: any[], runOnRender?: boolean): void;
+export function effect(callback: () => void | (() => void), dependencies?: any[], runOnRender?: boolean): void;
 
 type EventListener = (event?: any) => void;
 export class Form {
@@ -39,4 +39,4 @@ export class Form {
 export interface Form {
   (props: HTMLProps<HTMLFormElement>): JSX.Node;
 }
-export function newForm(): Form;
+export function form(): Form;
