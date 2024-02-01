@@ -136,7 +136,7 @@ export class Form extends BaseFunction {
     return this.#path;
   }
 
-  render({ children, ...props }) {
+  render({ children, onSubmit, onsubmit, ...props }) {
     if (RENDER.CONTEXT.form) {
       if (!props.name) {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
@@ -148,15 +148,14 @@ export class Form extends BaseFunction {
       return Object.keys(props)?.length > 1 ? createElement("div", props, ...children) : createElement(Fragment, {}, ...children);
     }
     RENDER.CONTEXT.form = this;
-    const onSubmit = props.onSubmit || props.onsubmit;
-    return createElement("form", Object.assign(props, {
-      ref: (e) => this.#node = e,
-      onSubmit: (event) => {
-        event.preventDefault();
-        event.value = this.values();
-        if (onSubmit) onSubmit(event);
-      }
-    }), ...children);
+    props.ref = (element) => this.#node = element;
+    onSubmit = onSubmit || onsubmit;
+    props.onSubmit = (event) => {
+      event.preventDefault();
+      event.value = this.values();
+      if (onSubmit) onSubmit(event);
+    }
+    return createElement("form", props, ...children);
   }
 
   register({ type, props, node } = {}) {
