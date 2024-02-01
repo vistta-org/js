@@ -1,11 +1,11 @@
 import VirtualDom from "./dom";
 import { createElement } from "./element";
-import { RENDER } from "./internal";
+import { INTERNAL } from "./tools";
 import { socket } from "./socket";
 import { isValidUrl, noCache, system } from "../utils";
 
 const route = !process.env.IS_NODE ? document.body : {};
-RENDER.ROUTES = {};
+INTERNAL.ROUTES = {};
 
 Object.defineProperties(route, {
   navigate: {
@@ -16,23 +16,23 @@ Object.defineProperties(route, {
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
       const { pathname, hash } = new URL(href);
-      if (!refresh && RENDER.DOM.active === pathname) return updateHash(hash);
-      const cached = RENDER.ROUTES?.[pathname];
+      if (!refresh && INTERNAL.DOM.active === pathname) return updateHash(hash);
+      const cached = INTERNAL.ROUTES?.[pathname];
       if (pushState !== false) history.pushState({}, "", pathname);
-      if (RENDER?.DOM?.remove) RENDER.DOM.remove();
+      if (INTERNAL?.DOM?.remove) INTERNAL.DOM.remove();
       if (refresh || !cached) {
         let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
         const { default: app, config, template } = await import(noCache(resource));
-        RENDER.DOM = new VirtualDom(pathname, route, config);
-        return RENDER.DOM.render(template ? createElement(template, {}, createElement(app)) : createElement(app), refresh, (config) => {
+        INTERNAL.DOM = new VirtualDom(pathname, route, config);
+        return INTERNAL.DOM.render(template ? createElement(template, {}, createElement(app)) : createElement(app), refresh, (config) => {
           updateConfig(config);
-          RENDER.ROUTES[pathname] = RENDER.DOM;
+          INTERNAL.ROUTES[pathname] = INTERNAL.DOM;
           updateHash(hash);
           callback && callback();
         });
       }
-      RENDER.DOM = cached;
-      RENDER.DOM.refresh((config) => {
+      INTERNAL.DOM = cached;
+      INTERNAL.DOM.refresh((config) => {
         updateConfig(config);
         updateHash(hash);
         callback && callback(config);
@@ -41,14 +41,14 @@ Object.defineProperties(route, {
   },
   refresh: {
     value: (href) => {
-      if (RENDER.ROUTES?.[href]) delete RENDER.ROUTES[href];
-      if (href !== RENDER.DOM.active) return;
+      if (INTERNAL.ROUTES?.[href]) delete INTERNAL.ROUTES[href];
+      if (href !== INTERNAL.DOM.active) return;
       route.classList.toggle("loading", true);
       route.navigate({ refresh: true, callback: () => route.classList.toggle("loading", false) });
     },
   },
   active: {
-    get: () => RENDER.DOM.active,
+    get: () => INTERNAL.DOM.active,
   },
   location: {
     get: () => {

@@ -1,10 +1,5 @@
-const RENDER = {
-  UPDATE: 0,
-  ACTIVE: false,
-  IS_ACTIVE(target) {
-    if (!this.ACTIVE && "production" !== process.env.NODE_ENV) console.warn(`Cannot use ${target} outside of the render.`);
-    return this.ACTIVE
-  }
+const INTERNAL = {
+  UPDATE: 0
 }
 
-export { RENDER };
+export { INTERNAL };

@@ -1,7 +1,6 @@
-import { Ref, State } from "./classes";
+import { INTERNAL, Ref, State } from "./tools";
 import { Component, Suspense } from "./components";
-import { Fragment, TextNode, Element, createElement } from "./element"
-import { RENDER } from "./internal";
+import { Fragment, TextNode, Element, createElement } from "./element";
 import { applyTransition } from "./transitions";
 import { isBrowser, setImmediate } from "../utils";
 
@@ -45,7 +44,6 @@ export default class VirtualDom {
   }
 
   render(content, refresh, callback) {
-    RENDER.ACTIVE = true;
     this.#effects = [];
     const fragment = this.createDocumentFragment();
     this.appendChild = (element) => fragment.appendChild(element.node);
@@ -61,7 +59,6 @@ export default class VirtualDom {
           }
         }
       }
-      RENDER.ACTIVE = false;
       callback && callback(this.#config);
     };
     if (BUILD || refresh) render();
@@ -104,7 +101,7 @@ export default class VirtualDom {
           setImmediate(() => this.#update(element, suspense(), context, (render) => suspense.resolve(render)));
           return this.#apply(parent, element, context);
         }
-        RENDER.CONTEXT = (context.effects = [], context);
+        INTERNAL.CONTEXT = (context.effects = [], context);
         return this.#apply(parent, element(), context);
       }
       else if (element instanceof State) {
@@ -179,7 +176,6 @@ export default class VirtualDom {
 
   #update(element, children, context, callback) {
     if (!isBrowser()) return;
-    RENDER.ACTIVE = true;
     const fragment = this.createDocumentFragment();
     const previous = element.nodes;
     const previousEffects = findEffects(element);
@@ -213,7 +209,6 @@ export default class VirtualDom {
           this.#effects[i][e].add();
         }
       }
-      RENDER.ACTIVE = false;
     }
     if (!callback) render();
     else callback(render);

@@ -1,6 +1,6 @@
 import VirtualDom from "../dom";
 import { createElement } from "../element";
-import { RENDER } from "../internal";
+import { INTERNAL } from "../tools";
 import { isValidUrl } from "../../utils";
 
 const route = !process.env.IS_NODE ? document.body : {};
@@ -20,7 +20,7 @@ Object.defineProperties(route, {
     value: () => location.reload(),
   },
   active: {
-    get: () => RENDER.DOM.active,
+    get: () => INTERNAL.DOM.active,
   },
   location: {
     get: () => window.location,
@@ -57,8 +57,8 @@ async function build() {
   const pathname = route.location.pathname;
   let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
   const { default: app, config, template } = await import(resource);
-  RENDER.DOM = new VirtualDom(pathname, route, config);
-  RENDER.DOM.render(template ? createElement(template, {}, createElement(app)) : createElement(app));
+  INTERNAL.DOM = new VirtualDom(pathname, route, config);
+  INTERNAL.DOM.render(template ? createElement(template, {}, createElement(app)) : createElement(app));
 }
 
 function buildUrl(href) {
