@@ -46,7 +46,7 @@
     "http-proxy": "^1.18.1",
     "http2-express-bridge": "^1.0.7",
     "on-headers": "^1.0.2",
-    "postcss": "^8.4.33",
+    "postcss": "^8.4.35",
     "sass": "^1.70.0",
     "socket.io": "^4.7.4",
     "typescript": "^5.3.3"
@@ -59,7 +59,7 @@
     "eslint-plugin-better-styled-components": "^1.1.2",
     "eslint-plugin-jsx": "^0.1.0",
     "eslint-plugin-sonarjs": "^0.23.0",
-    "prettier": "^3.2.4"
+    "prettier": "^3.2.5"
   },
   "engines": {
     "node": ">=21.5.0"
