@@ -21,9 +21,9 @@ const CONFIG_DEFAULT = {
   keywords: "visttajs",
   robots: "index, follow",
 };
-const CLIENT = (await import(fs.resolve(dirname, BUILD ? "../../../core/build/client" : "../../../core/client"), { assert: { type: 'bundler' } }))?.code;
-const CLIENT_STYLE = (await import("./page.css", { assert: { type: 'raw' } }))?.code;
-const SERVICE_WORKER = (await import(fs.resolve(dirname, "../../../core/sw"), { assert: { type: 'bundler' } }))?.code;
+const CLIENT = (await import(fs.resolve(dirname, BUILD ? "../../../core/build/client" : "../../../core/client"), { with: { type: 'bundler' } }))?.code;
+const CLIENT_STYLE = (await import("./page.css", { with: { type: 'raw' } }))?.code;
+const SERVICE_WORKER = (await import(fs.resolve(dirname, "../../../core/sw"), { with: { type: 'bundler' } }))?.code;
 
 class PageHandler extends BaseFunction {
   events = new EventEmitter();
@@ -48,23 +48,46 @@ class PageHandler extends BaseFunction {
   }
 
   async handler(request, response, reject) {
-    if (!IS_DEV && !this.app) return reject();
-    this.location = new URL(request?.path, request?.headers?.referer || `${request?.protocol}://${request?.headers?.host}`);
-    if (!this.app) await this.import(true);
-    if (!request?.resource) {
-      const html = this.html;
-      if (html) return response.status(this.type !== "error" ? 200 : 404).send(html);
-    } else {
-      if (request.resource === "app") return response.type(".js").status(200).send(this.script);
-      const resource = this.resources.get(request.resource);
-      const extension = fs.extname(request.resource);
+    try {
+      if (!IS_DEV && !this.app) return reject();
+      this.location = new URL(request?.path, request?.headers?.referer || `${request?.protocol}://${request?.headers?.host}`);
+      if (!this.app) await this.import(true);
+      let resource = request?.resource;
       if (resource) {
-        if (fs.isFile(resource)) return response.sendFile(resource);
+        if (resource === "app") {
+          const next = (...args) => {
+            const script = this.script(...args);
+            response.type(".js").status(200).send(script);
+          }
+          if (typeof this.gateway !== "function") return next({});
+          return this.gateway(request, {
+            next,
+            redirect: (...args) => response.redirect(...args),
+            reject: (...args) => reject(...args),
+          });
+        }
+        const extension = fs.extname(resource);
+        resource = this.resources.get(resource);
+        if (!resource) return reject();
+        if (fs.isFile(resource)) return response.status(200).sendFile(resource);
         if (extension) response.type(extension);
-        return response.send(resource);
+        return response.status(200).send(resource);
       }
+      const next = (...args) => {
+        const html = this.render(...args);
+        response.status(this.type !== "error" ? 200 : 404).send(html);
+      }
+      if (typeof this.gateway !== "function") next({});
+      else this.gateway(request, {
+        next,
+        redirect: (...args) => response.redirect(...args),
+        reject: (...args) => reject(...args),
+      });
     }
-    return reject();
+    catch (e) {
+      this.emit("error", e.stack);
+      reject();
+    }
   }
 
   async import(isRefresh) {
@@ -72,12 +95,13 @@ class PageHandler extends BaseFunction {
       const { errors } = ["typescript", "type", "all"].includes(VALIDATION) ? validate(this.filepath) : {};
       if (errors?.length) throw new Error("Unexpected Bundler Error:\n" + stringify(errors));
       const filepath = isRefresh ? noCache(this.filepath) : this.filepath;
-      const { default: app, config } = await import(filepath, { cache: !isRefresh });
-      const { code, resources, files } = await import(filepath, { assert: { type: 'bundler', exports: "default" } });
+      const { default: app, config, gateway } = await import(filepath, { cache: !isRefresh });
+      const { code, resources, files } = await import(filepath, { with: { type: 'bundler', exports: "default" } });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
       Object.assign(this.config, config);
       this.app = app;
       this.code = code;
+      this.gateway = gateway;
       this.resources.add(resources);
       this.resources.add("client.js", CLIENT);
       this.resources.add("client.css", CLIENT_STYLE);
@@ -109,32 +133,73 @@ class PageHandler extends BaseFunction {
     this.events.on(event, callback);
   }
 
-  get html() {
-    try {
-      system.set("route", this);
-      this.styles = this.config?.styles?.map(({ hash }) => ({ href: "./resources/" + hash })) || [];
-      const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app)) : createElement(this.app));
-      system.set("route", null);
-      return html({
-        ...this.config,
-        manifest: this.pwa,
-        styles: this.styles,
-        body,
-        nonce: "v" + randomID(),
-      });
-    } catch (e) {
-      this.emit("error", e.stack);
-      return null;
-    }
+  render(props) {
+    system.set("route", this);
+    this.styles = this.config?.styles?.map(({ hash }) => ({ href: "./resources/" + hash })) || [];
+    const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app, props)) : createElement(this.app, props));
+    system.set("route", null);
+    return (
+      "<!doctype html>\n" +
+      renderToString(
+        createElement(
+          "html",
+          { lang: this.config?.lang || "en" },
+          createElement(
+            "head",
+            null,
+            createElement("title", null, this.config.title),
+            createElement("base", { href: this.config.href }),
+            createElement("meta", { name: "referrer", content: this.config?.referrer || "origin" }),
+            createElement("meta", {
+              name: "viewport",
+              content: this.config?.viewport || "width=device-width,initial-scale=1,minimum-scale=1.0",
+            }),
+            createElement("meta", {
+              "http-equiv": "Content-Type",
+              content: this.config?.contentType || "text/html; charset=utf-8",
+            }),
+            createElement("meta", { name: "description", content: this.config.description }),
+            createElement("meta", { name: "keywords", content: this.config.keywords }),
+            createElement("meta", { name: "theme-color", content: this.config.theme }),
+            createElement("meta", {
+              httpEquiv: "Content-Security-Policy",
+              content: `default-src 'self';script-src 'self';style-src 'self';`,
+            }),
+            createElement("meta", { name: "robots", content: this.config.robots }),
+            this.config?.author && createElement("meta", { name: "author", content: this.config.author }),
+            this.config?.language && createElement("meta", { name: "language", content: this.config.language }),
+            this.config?.refresh && createElement("meta", { "http-equiv": "refresh", content: this.config.refresh }),
+            this.config?.revisitAfter && createElement("meta", { name: "revisit-after", content: this.config.revisitAfter }),
+            this.pwa &&
+            createElement("link", {
+              rel: "manifest",
+              href: "/resources/manifest.json",
+            }),
+            this.config?.icon && createElement("link", { rel: "shortcut icon", href: this.config.icon }),
+            this.config?.icon && createElement("link", { rel: "apple-touch-icon", href: this.config.icon }),
+            ...(this.config?.links?.map((props) => createElement("link", props)) || []),
+            createElement("link", { rel: "preload", href: "./resources/client.js", as: "script" }),
+            createElement("link", { rel: "preload", href: "./resources/client.css", as: "style" }),
+            createElement("script", { src: "./resources/client.js", defer: true }),
+            createElement("link", { rel: "stylesheet", href: "./resources/client.css" }),
+            ...(this.config?.scripts?.map((props) => createElement("script", props)) || []),
+            ...(this.styles?.map(({ href }) => createElement("link", { rel: "preload", href, as: "style" })) || []),
+            ...(this.styles?.map(({ href, id }) => createElement("link", { id, rel: "stylesheet", href })) || []),
+          ),
+          createElement("body", {}, body),
+        ),
+      )
+    );
   }
 
-  get script() {
+  script(props) {
     let script = [this.code];
     if (this.template?.code)
       script.push(
         this.template.code,
         "__app_template = __app_template?.default; export { __app_template as template };",
       );
+    if (props) script.push(`const __app_props = ${stringify(props, IS_DEV)};`, "export { __app_props as props };");
     script.push(`const __app_config = ${stringify(this.config, IS_DEV)};`, "export { __app_config as config };");
     return script.join(IS_DEV ? "\n" : " ");
   }
@@ -143,83 +208,6 @@ class PageHandler extends BaseFunction {
 export default PageHandler;
 
 //
-
-function html({
-  author,
-  contentType,
-  lang,
-  title,
-  href,
-  referrer,
-  viewport,
-  description,
-  keywords,
-  theme,
-  language,
-  manifest,
-  icon,
-  body,
-  nonce,
-  links,
-  refresh,
-  revisitAfter,
-  robots,
-  styles,
-  scripts,
-} = {}) {
-  return (
-    "<!doctype html>\n" +
-    renderToString(
-      createElement(
-        "html",
-        { lang: lang || "en" },
-        createElement(
-          "head",
-          null,
-          createElement("title", null, title),
-          createElement("base", { href: href }),
-          createElement("meta", { name: "referrer", content: referrer || "origin" }),
-          createElement("meta", {
-            name: "viewport",
-            content: viewport || "width=device-width,initial-scale=1,minimum-scale=1.0",
-          }),
-          createElement("meta", {
-            "http-equiv": "Content-Type",
-            content: contentType || "text/html; charset=utf-8",
-          }),
-          createElement("meta", { name: "description", content: description }),
-          createElement("meta", { name: "keywords", content: keywords }),
-          createElement("meta", { name: "theme-color", content: theme }),
-          createElement("meta", {
-            httpEquiv: "Content-Security-Policy",
-            content: `default-src 'self';script-src 'self';style-src 'self' 'nonce-${nonce}';`,
-          }),
-          createElement("meta", { name: "robots", content: robots }),
-          author && createElement("meta", { name: "author", content: author }),
-          language && createElement("meta", { name: "language", content: language }),
-          refresh && createElement("meta", { "http-equiv": "refresh", content: refresh }),
-          revisitAfter && createElement("meta", { name: "revisit-after", content: revisitAfter }),
-          manifest &&
-          createElement("link", {
-            rel: "manifest",
-            href: "/resources/manifest.json",
-          }),
-          icon && createElement("link", { rel: "shortcut icon", href: icon }),
-          icon && createElement("link", { rel: "apple-touch-icon", href: icon }),
-          ...(links?.map((props) => createElement("link", props)) || []),
-          createElement("link", { rel: "preload", href: "./resources/client.js", as: "script" }),
-          createElement("link", { rel: "preload", href: "./resources/client.css", as: "style" }),
-          createElement("script", { src: "./resources/client.js", defer: true }),
-          createElement("link", { rel: "stylesheet", href: "./resources/client.css" }),
-          ...(scripts?.map((props) => createElement("script", props)) || []),
-          ...(styles?.map(({ href }) => createElement("link", { rel: "preload", href, as: "style" })) || []),
-          ...(styles?.map(({ href, id }) => createElement("link", { id, rel: "stylesheet", href })) || []),
-        ),
-        createElement("body", {}, body),
-      ),
-    )
-  );
-}
 
 function manifest(config) {
   if (typeof config.manifest === "object") Object.assign(config, config.manifest);

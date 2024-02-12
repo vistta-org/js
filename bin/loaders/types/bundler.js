@@ -126,7 +126,7 @@ export default async function (_, { path, ...options }) {
 
 function importAssertion(importer, path) {
   if (!fs.existsSync(importer)) return {};
-  const importAttributes = (new RegExp(`["'](${path})["']\\s+(assert|with)\\s+({[\\s\\S]*?})`, 'g')).exec(fs.readFileSync(importer, "utf-8"))?.[2];
+  const importAttributes = (new RegExp(`["'](${path})["']\\s+(assert|with)\\s+({[\\s\\S]*?})`, 'g')).exec(fs.readFileSync(importer, "utf-8"))?.[3];
   if (!importAttributes) return {};
   try {
     return eval("(" + importAttributes + ")");

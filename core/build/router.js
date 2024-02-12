@@ -56,9 +56,9 @@ function handleClick(event) {
 async function build() {
   const pathname = route.location.pathname;
   let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
-  const { default: app, config, template } = await import(resource);
+  const { default: app, config, template, props } = await import(resource);
   INTERNAL.DOM = new VirtualDom(pathname, route, config);
-  INTERNAL.DOM.render(template ? createElement(template, {}, createElement(app)) : createElement(app));
+  INTERNAL.DOM.render(template ? createElement(template, {}, createElement(app, props)) : createElement(app, props));
 }
 
 function buildUrl(href) {

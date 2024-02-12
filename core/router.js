@@ -22,9 +22,9 @@ Object.defineProperties(route, {
       if (INTERNAL?.DOM?.remove) INTERNAL.DOM.remove();
       if (refresh || !cached) {
         let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
-        const { default: app, config, template } = await import(noCache(resource));
+        const { default: app, config, template, props } = await import(noCache(resource));
         INTERNAL.DOM = new VirtualDom(pathname, route, config);
-        return INTERNAL.DOM.render(template ? createElement(template, {}, createElement(app)) : createElement(app), refresh, (config) => {
+        return INTERNAL.DOM.render(template ? createElement(template, {}, createElement(app, props)) : createElement(app, props), refresh, (config) => {
           updateConfig(config);
           INTERNAL.ROUTES[pathname] = INTERNAL.DOM;
           updateHash(hash);

@@ -25,9 +25,9 @@ for (let i = 0, len = files.length; i < len; i++) {
   const len = files[i].length;
   if (!fs.existsSync(dirname)) fs.mkdir(dirname);
   build.timeLog("build", `├ ${files[i] + " ".repeat(max - len)}\t\t`);
-  await fs.writeFile(dirname + HTML, page.html);
+  await fs.writeFile(dirname + HTML, page.render());
   build.timeLog("build", `│ ${" ".repeat(len - 1) + HTML + " ".repeat(max - len - HTML.length)}\t${fs.statSync(dirname + HTML).size} B\t`);
-  await fs.writeFile(dirname + SCRIPT, page.script);
+  await fs.writeFile(dirname + SCRIPT, page.script());
   build.timeLog("build", `│ ${" ".repeat(len - 1) + SCRIPT + " ".repeat(max - len - SCRIPT.length)}\t${fs.statSync(dirname + SCRIPT).size} B\t`);
 }
 build.timeLog("build", "└ Done");

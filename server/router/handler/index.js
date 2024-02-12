@@ -30,6 +30,8 @@ class Handler extends BaseFunction {
       let exports = await import(isRefresh ? noCache(this.filepath) : this.filepath);
       switch (this.type) {
         case "middleware":
+          this.handler = exports?.default;
+          break;
         case "api":
           this.handler = exports?.default;
           break;
@@ -48,7 +50,7 @@ class Handler extends BaseFunction {
         case "template":
           this.code = (
             await import(this.filepath, {
-              assert: {
+              with: {
                 type: 'bundler',
                 globalName: "__app_" + this.type,
                 exports: "default",
