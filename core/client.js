@@ -1,6 +1,6 @@
 "use strict";
 import { createElement, cloneElement } from "./element"
-import { Context, context, Ref, ref, State, state, Effect, effect, Form, form } from "./classes";
+import { Context, context, Ref, ref, State, state, Effect, effect, Form, form } from "./tools";
 import { Component, Profiler, Render, Scope, Suspense, Try } from "./components";
 import { route } from "./router";
 import { socket } from "./socket";

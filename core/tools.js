@@ -1,14 +1,15 @@
 /* eslint-disable no-undef */
-import { RENDER } from "./internal";
 import { BaseClass, BaseFunction } from "../utils";
+
+export const INTERNAL = { UPDATES: 0 }
 
 // Context
 
 export class Context {
   constructor(key) {
-    if (!RENDER.IS_ACTIVE("Context") || !key?.length) return null;
-    if (!RENDER.CONTEXT["#" + key]) RENDER.CONTEXT["#" + key] = {};
-    return RENDER.CONTEXT["#" + key];
+    if (!key?.length) return null;
+    if (!INTERNAL.CONTEXT["#" + key]) INTERNAL.CONTEXT["#" + key] = {};
+    return INTERNAL.CONTEXT["#" + key];
   }
 }
 
@@ -20,7 +21,6 @@ export class Ref extends BaseClass {
   current;
 
   constructor(initialValue) {
-    if (!RENDER.IS_ACTIVE("Ref")) return null;
     super();
     this.current = initialValue;
   }
@@ -40,8 +40,7 @@ export class State extends BaseFunction {
     return this.#status;
   }
 
-  constructor(value, { strict } = {}) {
-    if (strict !== false && !RENDER.IS_ACTIVE("State")) return null;
+  constructor(value) {
     super((mutator) => {
       if (typeof mutator !== "function") return this.valueOf();
       const mutation = new State(mutator(this.#value, this.#status));
@@ -67,18 +66,18 @@ export class State extends BaseFunction {
     if (this.#value === value) return;
     if (typeof value === "function") this.#value = value(this.#value);
     else this.#value = value;
-    if ("production" !== process.env.NODE_ENV) RENDER.UPDATE++;
+    if ("production" !== process.env.NODE_ENV) INTERNAL.UPDATES++;
     for (let i = 0, len = this.#listeners.length; i < len; i++)
-      this.#listeners[i](RENDER.UPDATE);
+      this.#listeners[i](INTERNAL.UPDATES);
   }
 
   valueOf() {
-    if (typeof RENDER.EFFECT === "function") RENDER.EFFECT(this);
+    if (typeof INTERNAL.EFFECT === "function") INTERNAL.EFFECT(this);
     return this.#value;
   }
 
   toString() {
-    if (typeof RENDER.EFFECT === "function") RENDER.EFFECT(this);
+    if (typeof INTERNAL.EFFECT === "function") INTERNAL.EFFECT(this);
     if (this.#value == null || typeof this.#value === "object") return "";
     return `${this.#value}`;
   }
@@ -94,15 +93,14 @@ export const state = (value) => new State(value);
 
 export class Effect {
   constructor(callback, dependencies) {
-    if (!RENDER.IS_ACTIVE("Effect")) return null;
     let removeCallback;
-    if (!RENDER.CONTEXT.effects.includes(callback)) RENDER.CONTEXT.effects.push({
+    if (!INTERNAL.CONTEXT.effects.includes(callback)) INTERNAL.CONTEXT.effects.push({
       add() {
         if (!Array.isArray(dependencies)) {
           dependencies = [];
-          RENDER.EFFECT = (dependency) => dependencies.push(dependency);
+          INTERNAL.EFFECT = (dependency) => dependencies.push(dependency);
           removeCallback = callback(true);
-          delete RENDER.EFFECT;
+          delete INTERNAL.EFFECT;
         } else removeCallback = callback(true);
       },
       remove() {
@@ -128,7 +126,6 @@ export class Form extends BaseFunction {
   #listeners = {};
 
   constructor() {
-    if (!RENDER.IS_ACTIVE("Form")) return null;
     super((props) => this.render(props));
   }
 
@@ -136,25 +133,25 @@ export class Form extends BaseFunction {
     return this.#path;
   }
 
-  render({ children, ...props }) {
-    if (RENDER.CONTEXT.form) {
+  render({ children, onSubmit, onsubmit, ...props }) {
+    if (INTERNAL.CONTEXT.form) {
       if (!props.name) {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
         return null;
       }
-      this.#parent = RENDER.CONTEXT.form;
+      this.#parent = INTERNAL.CONTEXT.form;
       this.#path = [...this.#parent.path, props.name];
-      RENDER.CONTEXT.form = this;
+      INTERNAL.CONTEXT.form = this;
       return Object.keys(props)?.length > 1 ? createElement("div", props, ...children) : createElement(Fragment, {}, ...children);
     }
-    props.ref = (e) => this.#node = e;
-    const onSubmit = props.onSubmit;
+    INTERNAL.CONTEXT.form = this;
+    props.ref = (element) => this.#node = element;
+    onSubmit = onSubmit || onsubmit;
     props.onSubmit = (event) => {
       event.preventDefault();
       event.value = this.values();
       if (onSubmit) onSubmit(event);
     }
-    RENDER.CONTEXT.form = this;
     return createElement("form", props, ...children);
   }
 

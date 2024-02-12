@@ -1,6 +1,5 @@
 /* eslint-disable no-undef */
-import { State } from "./classes";
-import { RENDER } from "./internal";
+import { INTERNAL, State } from "./tools";
 import { BaseFunction } from "../utils";
 
 export class Component extends BaseFunction {
@@ -42,11 +41,11 @@ export class Profiler extends Component {
 
   render() {
     if (!this.callback || process.env.IS_NODE || "production" === process.env.NODE_ENV) return createElement(Fragment, null, ...this.children);
-    if (RENDER.CONTEXT.profiler) {
+    if (INTERNAL.CONTEXT.profiler) {
       console.warn("Cannot use Profiler inside another Profiler");
       return createElement(Fragment, null, ...this.children);
     }
-    RENDER.CONTEXT.profiler = this;
+    INTERNAL.CONTEXT.profiler = this;
     const [start, end] = this.record();
     return createElement(Fragment, null, createElement(start), ...this.children, createElement(end));
   }

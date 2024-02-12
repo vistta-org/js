@@ -2,13 +2,19 @@ import { INVALID_EVENT_NAME, convertToEventName, BaseClass } from "../utils";
 
 class Socket extends BaseClass {
   #active = false;
+  #route;
   #instance;
+
   get href() {
     return this.router.active;
   }
 
   get active() {
     return this.#active;
+  }
+
+  get route() {
+    return this.#route;
   }
 
   constructor() {
@@ -24,6 +30,11 @@ class Socket extends BaseClass {
     this.#instance = io({ reconnectionDelay: 10000 });
     this.#instance.on("connect", () => (this.#active = true));
     this.#instance.io.on("reconnect", () => location.reload());
+  }
+
+  register(route) {
+    this.#route = route;
+    if ("production" !== process.env.NODE_ENV) this.#instance.on(`@app/refresh`, (href) => route.refresh(href));
   }
 
   emit(event, ...args) {

@@ -1,4 +1,4 @@
-import { State } from "./classes";
+import { State } from "./tools";
 
 type DropFirst<T extends unknown[]> = T extends [any, ...infer U] ? U : never;
 type Action<T> = (prev: T, ...args: any[]) => T | Promise<T> | void;

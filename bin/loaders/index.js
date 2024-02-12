@@ -4,6 +4,7 @@ import { fs } from "@vistta/utils/fs";
 import { compilerResolver } from "./typescript.js";
 
 export const TYPE_DEFAULT = "default";
+export const TYPE_BUFFER = "buffer";
 export const TYPE_BUNDLER = "bundler";
 export const TYPE_SCRIPT = "script";
 export const TYPE_JSON = "json";
@@ -15,8 +16,9 @@ const EXTENSIONS = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"];
 const CONTEXT = {};
 const CWD = process.cwd();
 const LOADER = {
-  [TYPE_SCRIPT]: (await import("./types/script.js")).default,
+  [TYPE_BUFFER]: (await import("./types/buffer.js")).default,
   [TYPE_BUNDLER]: (await import("./types/bundler.js")).default,
+  [TYPE_SCRIPT]: (await import("./types/script.js")).default,
   [TYPE_JSON]: (await import("./types/json.js")).default,
   [TYPE_STYLE]: (await import("./types/style.js")).default,
   [TYPE_TEMPLATE]: (await import("./types/template.js")).default,
@@ -44,9 +46,9 @@ export async function resolve(specifier, context, next, options) {
     return next(specifier, context);
   }
 
-  const useCache = !options.has("noCache") && CONTEXT[fileURLToPath(parentURL)]?.useCache !== false;
-  CONTEXT[specifier] = { useCache };
   specifier = pathToFileURL(specifier).href;
+  const useCache = !options.has("noCache") && CONTEXT[parentURL]?.useCache !== false;
+  CONTEXT[specifier] = { useCache };
   if (!useCache) return next(`${specifier}?${Date.now()}`, context);
   return next(specifier, context);
 }
