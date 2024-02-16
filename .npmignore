@@ -2,5 +2,4 @@
 .prettierrc.json
 .gitea
 logo.png
-README.md
-pages
+docs

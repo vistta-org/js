@@ -133,3 +133,5 @@ dist
 .build
 .npmrc
 
+#temp
+docs
