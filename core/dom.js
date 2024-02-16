@@ -219,7 +219,7 @@ export default class VirtualDom {
 
 function setAttribute(node, name, value) {
   if (/^on\w.*/.test(name) && typeof value === "function") {
-    node.addEventListener(name.charAt(2).toLowerCase() + name.slice(3), (event, ...args) => {
+    node.addEventListener(name.slice(2).toLowerCase(), (event, ...args) => {
       try {
         event.stritMode = () => {
           if (event.target !== node) throw "Event strict mode active";

@@ -7,6 +7,11 @@ interface State<T> {
   (callback?: (value: T) => any): any;
 }
 
+interface Element {
+  key?: string;
+  ref?: any;
+}
+
 interface Event {
   strictMode: () => void;
 }
@@ -20,7 +25,7 @@ declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
 declare namespace JSX {
   type Element = {};
   type Node = Element | Element[] | null;
-  type Component<T = { [attr: string]: any }> = (props: T) => Element | Element[] | null;
+  type Component<T = { [attr: string]: any }> = (props: T & { children?: JSX.Node }) => Element | Element[] | null;
   type Style = { scope: string };
 
   type IntrinsicElementMap = {
