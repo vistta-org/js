@@ -16,7 +16,6 @@ class ServerDom extends Dom {
   createDocumentFragment = () => createServerElement("fragment");
   createTextNode = (text) => ({ toString: () => "" + text });
   createElement = (tag) => createServerElement(tag);
-  createStyle = (scope) => system.get("route").styles.push({ id: scope, href: `./resources/${scope}.css` });
 }
 
 function renderToString(element) {

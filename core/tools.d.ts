@@ -10,7 +10,7 @@ export class Ref<T> {
 export function ref<T = any>(initialValue?: T): Ref<T>;
 
 export class State<T> {
-  constructor(initialValue: T | Promise<T>);
+  constructor(initialValue?: T | Promise<T>);
   readonly status?: "pending" | "resolved" | "rejected";
   set: (value: T | ((value: T) => T)) => void;
   valueOf: () => T;

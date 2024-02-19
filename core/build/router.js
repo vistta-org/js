@@ -20,7 +20,7 @@ Object.defineProperties(route, {
     value: () => location.reload(),
   },
   active: {
-    get: () => INTERNAL.DOM.active,
+    get: () => INTERNAL.DOM.pathname,
   },
   location: {
     get: () => window.location,

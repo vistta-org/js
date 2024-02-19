@@ -22,15 +22,6 @@ export default class VirtualDom {
   createDocumentFragment = () => document.createDocumentFragment();
   createTextNode = (text) => document.createTextNode(text);
   createElement = (tag) => document.createElement(tag);
-  createStyle(scope) {
-    const exist = this.head.querySelector(`link[id="${scope}"]`);
-    if (exist) return;
-    const link = document.createElement("link");
-    link.id = scope;
-    link.rel = "stylesheet";
-    link.href = `./resources/${scope}.css`;
-    this.head.appendChild(link);
-  }
 
   get pathname() {
     return this.#pathname;
@@ -129,7 +120,6 @@ export default class VirtualDom {
     //
     const { type, key, ref, props, children } = element;
     element.parent = parent;
-    if (props.scope) this.createStyle(props.scope);
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = this.createTextNode(children);
       else if (type !== Fragment) {
@@ -232,7 +222,7 @@ function setAttribute(node, name, value) {
   }
   if (name === "className") name = "class";
   if (!value) node.removeAttribute(name);
-  else if (name === "style") {
+  else if (name === "style" && typeof value === "object") {
     const keys = Object.keys(value);
     for (let i = 0, len = keys.length || 0; i < len; i++) node.style.setProperty(keys[i], value[keys[i]]);
   } else node.setAttribute(name, value);

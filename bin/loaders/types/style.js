@@ -10,13 +10,13 @@ export default async function (source, { path, type, bundler }) {
     const raw = type === "raw";
     const dirname = fs.dirname(path);
     const id = fs.fileId(path);
-    const hash = id + ".css";
+    const hash = id + (raw ? ".css" : ".scoped.css");
     if (!raw) {
       const matches = source.match(/([^\s]+:root|[^\s]+:scope|[^\s]+:scoped)\b/g);
       for (let i = 0, len = matches?.length || 0; i < len; i++) {
         source = source.replace(matches[i], (match) => "@at-root " + match.replace(/:root|:scope|:scoped/g, "#{&}"));
       }
-      source = `[scope~="${id}"] { ${source.replace(/:root|:scope|:scoped/g, "&")} }`;
+      source = `[scope~="${id}"] { ${source.replace(/:root|:scope|:scoped/g, "&").replace(/,\s+@at-root/g, ",")} }`;
     }
     const { code, resources, files } = transform(source, dirname, fs.resolve(process.cwd(), "node_modules"));
     resources.push({ hash, code });

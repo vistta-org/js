@@ -122,7 +122,8 @@ export class Form extends BaseFunction {
   #node;
   #path = [];
   #parent;
-  #fields = [];
+  #fields = {};
+  #validations = {};
   #listeners = {};
 
   constructor() {
@@ -149,7 +150,7 @@ export class Form extends BaseFunction {
     onSubmit = onSubmit || onsubmit;
     props.onSubmit = (event) => {
       event.preventDefault();
-      event.value = this.values();
+      event.values = this.values();
       if (onSubmit) onSubmit(event);
     }
     return createElement("form", props, ...children);
@@ -168,6 +169,7 @@ export class Form extends BaseFunction {
     else this.#fields[props.name] = node;
     if (type === "select") node.defaultValue = node.value;
     if (this.#parent) return this.#parent.register({ type, props: { name: [...this.path, props.name].join("."), ...props }, node });
+    if (props.pattern) this.#validations[props.name] = props.pattern;
     node.addEventListener(type === "select" ? "change" : "input", (e) => {
       for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++) this.#listeners[props.name][i](e);
       for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);

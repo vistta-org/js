@@ -10,10 +10,16 @@ interface State<T> {
 interface Element {
   key?: string;
   ref?: any;
+  scope?: string;
+  style?: any;
 }
 
 interface Event {
   strictMode: () => void;
+}
+
+interface SubmitEvent {
+  values?: { [name: string]: any };
 }
 
 declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
