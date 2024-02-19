@@ -225,7 +225,7 @@ function setAttribute(node, name, value) {
   else if (name === "style" && typeof value === "object") {
     const keys = Object.keys(value);
     for (let i = 0, len = keys.length || 0; i < len; i++) node.style.setProperty(keys[i], value[keys[i]]);
-  } else node.setAttribute(name, value);
+  } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
 }
 
 function findEffects(element, effects = []) {
