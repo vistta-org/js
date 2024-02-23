@@ -18,6 +18,13 @@ export default async function (source, { path, type, bundler }) {
       }
       source = `[scope~="${id}"] { ${source.replace(/:root|:scope|:scoped/g, "&").replace(/,\s+@at-root/g, ",")} }`;
     }
+    else {
+      const matches = source.match(/([^\s]+:scope|[^\s]+:scoped)\b/g);
+      for (let i = 0, len = matches?.length || 0; i < len; i++) {
+        source = source.replace(matches[i], (match) => match.replace(/:scope|:scoped/g, ""));
+      }
+      source = source.replace(/:scope|:scoped/g, "&");
+    }
     const { code, resources, files } = transform(source, dirname, fs.resolve(process.cwd(), "node_modules"));
     resources.push({ hash, code });
     return {
