@@ -43,18 +43,30 @@ export class State extends BaseFunction {
   constructor(value) {
     super((mutator) => {
       if (typeof mutator !== "function") return this.valueOf();
-      const mutation = new State(mutator(this.#value, this.#status));
-      const set = mutation.set.bind(mutation);
-      this.subscribe(() => set(mutator(this.#value, this.#status)));
+      const mutation = new State();
       delete mutation.set;
+      mutation.valueOf = () => {
+        if (typeof INTERNAL.EFFECT === "function") INTERNAL.EFFECT(this);
+        return mutator(this.#value, this.#status);
+      }
+      mutation.toString = () => {
+        if (typeof INTERNAL.EFFECT === "function") INTERNAL.EFFECT(this);
+        const result = mutator(this.#value, this.#status);
+        if (result == null || typeof result === "object") return "";
+        return `${result}`;
+      }
+      mutation.subscribe = (callback) => this.subscribe(callback);
       return mutation;
     });
     if (value instanceof Promise) {
+      INTERNAL.SUSPENSE?.wait();
       this.#status = "pending";
       value.then((resolved) => {
+        INTERNAL.SUSPENSE?.resolve();
         this.#status = "resolved";
         this.set(resolved);
       }).catch((error) => {
+        INTERNAL.SUSPENSE?.resolve();
         this.#status = "rejected";
         this.set(error);
       })
@@ -83,33 +95,62 @@ export class State extends BaseFunction {
   }
 
   subscribe(callback) {
-    if (!process.env.IS_NODE && this.#listeners.indexOf(callback) == -1) this.#listeners.push(callback);
+    if (process.env.IS_NODE) return;
+    for (let i = 0, len = this.#listeners.length; i < len; i++) {
+      if (this.#listeners[i] === callback) return;
+    }
+    this.#listeners.push(callback);
+  }
+
+  unsubscribe(callback) {
+    if (process.env.IS_NODE) return;
+    for (let i = 0, len = this.#listeners.length; i < len; i++) {
+      if (this.#listeners[i] === callback) {
+        this.#listeners.splice(i, 1);
+        return;
+      }
+    }
   }
 }
 
 export const state = (value) => new State(value);
 
 // Effect
-
 export class Effect {
+  #callback;
+  #dependencies;
+  #detect;
+  #subscribeCallback;
   constructor(callback, dependencies) {
-    let removeCallback;
-    if (!INTERNAL.CONTEXT.effects.includes(callback)) INTERNAL.CONTEXT.effects.push({
-      add() {
-        if (!Array.isArray(dependencies)) {
-          dependencies = [];
-          INTERNAL.EFFECT = (dependency) => dependencies.push(dependency);
-          removeCallback = callback(true);
-          delete INTERNAL.EFFECT;
-        } else removeCallback = callback(true);
-      },
-      remove() {
-        removeCallback && removeCallback();
-      }
-    });
-    for (let i = 0, len = dependencies.length; i < len; i++) {
-      const dependency = unique(dependencies, i);
-      if (dependency) dependency.subscribe(() => callback());
+    if (!INTERNAL.EFFECTS) {
+      if (process.env.NODE_ENV === "development") console.warn("Invalid effect placement");
+      return null;
+    }
+    this.#callback = (_, init) => callback(init);
+    this.#detect = !Array.isArray(dependencies);
+    this.#dependencies = dependencies;
+    if (!INTERNAL.EFFECTS.includes(this)) INTERNAL.EFFECTS.push(this);
+    else console.warn("IT IS POSSIBLE THAT AN EFFECT CAN BE READDED TO THE LIST");
+  }
+
+  subscribe() {
+    if (this.#detect) {
+      this.#dependencies = [];
+      INTERNAL.EFFECT = (dependency) => this.#dependencies.push(dependency);
+      this.#subscribeCallback = this.#callback(null, true);
+      delete INTERNAL.EFFECT;
+    } else this.#subscribeCallback = this.#callback(null, true);
+    for (let i = 0, len = this.#dependencies.length; i < len; i++) {
+      const dependency = unique(this.#dependencies, i);
+      if (dependency) dependency.subscribe(this.#callback);
+    }
+  }
+
+  unsubscribe() {
+    if (this.#subscribeCallback) this.#subscribeCallback();
+    for (let i = 0, len = this.#dependencies.length; i < len; i++) {
+      const dependency = unique(this.#dependencies, i);
+      if (dependency) dependency.unsubscribe(this.#callback);
     }
   }
 }

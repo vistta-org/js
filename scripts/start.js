@@ -18,8 +18,8 @@ const options = await (async (args) => {
   }
   return {
     folder,
-    http: config.http || 8080,
-    https: config.https || 8443,
+    http: config.http || (process.env.NODE_ENV === "development" ? 3000 : 8080),
+    https: config.https || (process.env.NODE_ENV === "development" ? null : 8443),
     cert: config.cert,
     key: config.key,
   };

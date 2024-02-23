@@ -21,7 +21,7 @@ const CONFIG_DEFAULT = {
   keywords: "visttajs",
   robots: "index, follow",
 };
-const CLIENT = (await import(fs.resolve(dirname, BUILD ? "../../../core/build/client" : "../../../core/client"), { with: { type: 'bundler' } }))?.code;
+const CLIENT = `${process.env.NODE_ENV === "development" ? "\n" : ""}${(await import(fs.resolve(dirname, BUILD ? "../../../core/build/client" : "../../../core/client"), { with: { type: 'bundler' } }))?.code}`;
 const CLIENT_STYLE = (await import("./page.css", { with: { type: 'raw' } }))?.code;
 const SERVICE_WORKER = (await import(fs.resolve(dirname, "../../../core/sw"), { with: { type: 'bundler' } }))?.code;
 

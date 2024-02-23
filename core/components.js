@@ -18,18 +18,17 @@ export class Profiler extends Component {
     super({ id, children, callback });
   }
 
-  record(refresh) {
-    if (refresh) {
+  record(callback) {
+    if (callback) {
       this.#recordCount++;
       const initial = {};
       let count = this.#recordCount;
       return (update) => {
         if (!initial[update]) initial[update] = performance.now();
-        return refresh((callback) => {
-          callback && callback();
+        callback(() => {
           if (count !== this.#recordCount) return;
           this.callback({ id: this.id, performance: performance.now() - (initial[update] || 0) });
-        });
+        })
       }
     }
     let initial = null;
@@ -98,6 +97,7 @@ export class Scope extends Component {
 export class Suspense extends Component {
   #count = 0;
   #callback;
+
   constructor({ children, fallback }) {
     super({ children, fallback });
   }
@@ -107,9 +107,14 @@ export class Suspense extends Component {
   }
 
   resolve(callback) {
-    if (!callback) this.#count--;
-    else this.#callback = callback;
-    if (this.#count == 0) this.#callback();
+    if (!callback) {
+      this.#count--;
+      if (this.#count == 0) this.#callback();
+    }
+    else {
+      if (this.#count == 0) callback();
+      else this.#callback = callback;
+    }
   }
 
   render() {
