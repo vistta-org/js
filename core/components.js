@@ -13,22 +13,27 @@ export class Component extends BaseFunction {
 }
 
 export class Profiler extends Component {
-  #recordCount = 0;
-  constructor({ id, children, callback }) {
+  #idle;
+  #debounce;
+  #total = 0;
+  constructor({ id, children, idle, callback }) {
     super({ id, children, callback });
+    this.#idle = idle || 250;
   }
 
   record(callback) {
     if (callback) {
-      this.#recordCount++;
-      const initial = {};
-      let count = this.#recordCount;
-      return (update) => {
-        if (!initial[update]) initial[update] = performance.now();
+      return () => {
+        let initial = performance.now();
         callback(() => {
-          if (count !== this.#recordCount) return;
-          this.callback({ id: this.id, performance: performance.now() - (initial[update] || 0) });
-        })
+          this.#total = performance.now() - initial;
+          clearTimeout(this.#debounce);
+          this.#debounce = setTimeout(() => {
+            const total = this.#total;
+            this.#total = 0;
+            this.callback({ id: this.id, performance: total });
+          }, this.#idle);
+        });
       }
     }
     let initial = null;

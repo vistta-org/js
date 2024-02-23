@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 import { BaseClass, BaseFunction } from "../utils";
 
-export const INTERNAL = { UPDATES: 0 }
+export const INTERNAL = {}
 
 // Context
 
@@ -78,9 +78,8 @@ export class State extends BaseFunction {
     if (this.#value === value) return;
     if (typeof value === "function") this.#value = value(this.#value);
     else this.#value = value;
-    if ("production" !== process.env.NODE_ENV) INTERNAL.UPDATES++;
     for (let i = 0, len = this.#listeners.length; i < len; i++)
-      this.#listeners[i](INTERNAL.UPDATES);
+      this.#listeners[i]();
   }
 
   valueOf() {
@@ -126,7 +125,7 @@ export class Effect {
       if (process.env.NODE_ENV === "development") console.warn("Invalid effect placement");
       return null;
     }
-    this.#callback = (_, init) => callback(init);
+    this.#callback = callback;
     this.#detect = !Array.isArray(dependencies);
     this.#dependencies = dependencies;
     if (!INTERNAL.EFFECTS.includes(this)) INTERNAL.EFFECTS.push(this);
@@ -137,9 +136,9 @@ export class Effect {
     if (this.#detect) {
       this.#dependencies = [];
       INTERNAL.EFFECT = (dependency) => this.#dependencies.push(dependency);
-      this.#subscribeCallback = this.#callback(null, true);
+      this.#subscribeCallback = this.#callback(true);
       delete INTERNAL.EFFECT;
-    } else this.#subscribeCallback = this.#callback(null, true);
+    } else this.#subscribeCallback = this.#callback(true);
     for (let i = 0, len = this.#dependencies.length; i < len; i++) {
       const dependency = unique(this.#dependencies, i);
       if (dependency) dependency.subscribe(this.#callback);
