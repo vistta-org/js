@@ -3,8 +3,8 @@ import { fs, Console } from "@vistta/utils";
 const HTML = "/index.html";
 const SCRIPT = "/script.js";
 // eslint-disable-next-line no-global-assign
-console = new Console("");
-const system = new Console("system", { date: false, fixed: "\n", message: Console.isTTY ? { before: "\t" } : undefined });
+console = new Console("", { trace: process.env.CONSOLE_TRACE });
+const system = new Console("system", { date: false, index: 0, trace: process.env.CONSOLE_TRACE });
 system.announce(`VisttaJS v${process.env.APP_VERSION}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const config = (await import(fs.resolve("./package.json"))).default || {};
@@ -13,9 +13,9 @@ const output = process.argv?.slice(3)?.shift() || config.output;
 if (!main || !fs.existsSync(main)) abort(`Missing main folder. Either define it as an argument or on the package json.`);
 if (!output) abort(`Missing output folder. Either define it as an argument or on the package json.`);
 if (!fs.existsSync(output)) fs.mkdir(output);
-const build = new Console("build", { date: false });
+const build = new Console("build", { date: false, trace: process.env.CONSOLE_TRACE });
 build.time("build");
-const { pages, resources } = await new Server({ build: true }).build(main);
+const { pages, resources } = await new Server({ build: true, trace: process.env.CONSOLE_TRACE }).build(main);
 const files = Object.keys(pages);
 const max = Math.max(...files.map(file => file.length + HTML.length));
 build.log(`┌ Routes${" ".repeat(max - 6)}\tSize`)

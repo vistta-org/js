@@ -3,8 +3,8 @@ import { Console, fs } from "@vistta/utils";
 import { trim, capitalize } from "../utils/index.js";
 // eslint-disable-next-line no-global-assign
 console = new Console("");
-const system = new Console("system", { date: false, fixed: "\n", message: Console.isTTY ? { before: "\t" } : undefined });
-system.announce(`VisttaJS v${process.env.APP_VERSION}`);
+const system = new Console("system", { date: false, index: 0 });
+system.announce(`\tVisttaJS v${process.env.APP_VERSION}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const options = await (async (args) => {
   const config = (await import(fs.resolve("./package.json"))).default || {};
@@ -28,12 +28,12 @@ const options = await (async (args) => {
 const app = new Server({
   ...options,
   callback: ({ protocol, port }) =>
-    system.log(`${protocol}://localhost:${port}`),
+    system.log(`\t${protocol}://localhost:${port}`),
 });
 
 const context = {};
-const routes = new Console("routes", { fixed: true });
-routes.list = new Set();
+const routes = new Console("routes", { index: 1 });
+routes.list = [];
 routes.time("routes")
 app.use(options.folder, "/", (event, pathname, type, ...args) => {
   const cur = type + pathname;
@@ -43,9 +43,11 @@ app.use(options.folder, "/", (event, pathname, type, ...args) => {
       return context[cur].error(...args);
     case "ready":
       context[cur].clear();
-      routes.list.add(pathname);
+      if (routes.list.includes(pathname)) break;
+      routes.list.push(pathname);
       routes.clear();
-      routes.timeLog("routes", `Loaded ${routes.list.size} routes.`);
+      routes.println();
+      routes.timeLog("routes", `Loaded ${routes.list.length} routes.`);
       break;
     case "change":
       context[cur].clear();
