@@ -21,8 +21,6 @@ export declare const Render: {
   Each: typeof RenderEach;
 };
 
-export class Scope extends Component<{ styles: JSX.Style[] }> {}
-
 export class Suspense extends Component<{ fallback: JSX.Node }> {}
 
 export class Try extends Component<{ fallback: JSX.Node }> {}

@@ -94,16 +94,6 @@ export const Render = {
   }
 }
 
-export class Scope extends Component {
-  constructor({ styles, children }) {
-    super({ styles, children });
-  }
-
-  render() {
-    return createElement(Fragment, { scope: this.styles?.reduce((acc, { scope }) => acc + " " + scope, "")?.trim() }, ...this.children);
-  }
-}
-
 export class Suspense extends Component {
   #count = 0;
   #callback;

@@ -40,7 +40,7 @@ export default class VirtualDom {
     this.#effects = [];
     const fragment = this.createDocumentFragment();
     this.appendChild = (element) => fragment.appendChild(element.node);
-    this.#content = this.#apply(this, content, { effects: [] });
+    this.#content = this.#apply(this, content, {});
     const render = () => {
       this.node.replaceChildren(fragment);
       this.#children = [...this.node.children];
@@ -71,7 +71,7 @@ export default class VirtualDom {
     else applyTransition.call(this, this.#config?.transition, render);
   }
 
-  #apply(parent, element, { ...context }, effects) {
+  #apply(parent, element, { ...context }) {
     if (element == null || element === false) element = createElement(TextNode, {}, "");
     else if (!(element instanceof Element)) {
       if (Array.isArray(element)) element = createElement(Fragment, {}, ...element);
@@ -85,8 +85,8 @@ export default class VirtualDom {
             INTERNAL.SUSPENSE = suspense;
             const value = suspense();
             let prev = element;
-            if (Array.isArray(value)) element = this.#apply(parent, createElement(Fragment, {}, ...(value.length == 0 ? [createElement(TextNode, {}, "")] : value)), context);
-            else element = this.#apply(parent, createElement(Fragment, {}, value == null || value === false ? createElement(TextNode, {}, "") : value), context);
+            if (Array.isArray(value)) element = this.#apply(parent, createElement(Fragment, {}, ...value), context);
+            else element = this.#apply(parent, createElement(Fragment, {}, value), context);
             suspense.resolve(() => this.#queue?.length > 0 ?
               this.#queue.push(() => this.#replace(prev, element, fragment)) :
               this.#replace(prev, element, fragment)
@@ -95,10 +95,13 @@ export default class VirtualDom {
           });
           return this.#apply(parent, element, context);
         }
-        const _effects = [];
+        const fragment = createElement(Fragment);
+        fragment.effects = [];
         INTERNAL.CONTEXT = context;
-        INTERNAL.EFFECTS = _effects;
-        return this.#apply(parent, element(), context, _effects);
+        INTERNAL.EFFECTS = fragment.effects;
+        fragment.children = element();
+        if (!Array.isArray(fragment.children)) fragment.children = [fragment.children];
+        return this.#apply(parent, fragment, context);
       }
       else if (element instanceof State) {
         const state = element;
@@ -120,23 +123,17 @@ export default class VirtualDom {
       else element = createElement(TextNode, {}, "" + element);
     }
     //
-    const { type, key, ref, props, children } = element;
+    const { type, key, ref, props, effects, children } = element;
     element.parent = parent;
-    element.effects = effects;
     if (!this.#keys?.[key]) {
       if (type === TextNode) element.node = this.createTextNode(children);
-      else if (type === Fragment) element.appendChild = (child) => (element.parent.appendChild(child));
+      else if (type === Fragment) {
+        element.appendChild = (child) => (element.parent.appendChild(child));
+        if (effects?.length > 0) this.#effects.push(effects);
+      }
       else {
         element.node = this.createElement(type);
         element.appendChild = (child) => element.node.appendChild(child.node);
-      }
-      if (key) this.#keys[key] = element.node;
-      if (ref) {
-        if (typeof ref === "function") ref(element.node);
-        else if (ref instanceof Ref) ref.current = element.node;
-      }
-      if (element.effects?.length > 0) this.#effects.push(effects);
-      if (type !== Fragment) {
         if (type === "button") props.type = props.type || "button";
         if (props) {
           const keys = Object.keys(props);
@@ -153,6 +150,11 @@ export default class VirtualDom {
             else setAttribute(element.node, name, value);
           }
         }
+      }
+      if (key) this.#keys[key] = element.node;
+      if (ref) {
+        if (typeof ref === "function") ref(element.node);
+        else if (ref instanceof Ref) ref.current = element.node;
       }
       if (type !== TextNode && children) {
         for (let i = 0, len = children?.length || 0; i < len; i++)
@@ -226,8 +228,8 @@ function setAttribute(node, name, value) {
 function convertState(state, { ...context }) {
   INTERNAL.CONTEXT = context;
   const value = state();
-  if (Array.isArray(value)) return [createElement(Fragment, {}, ...(value.length == 0 ? [createElement(TextNode, {}, "")] : value)), context];
-  return [createElement(Fragment, {}, value == null || value === false ? createElement(TextNode, {}, "") : value), context];
+  if (Array.isArray(value)) return [createElement(Fragment, {}, ...value), context];
+  return [createElement(Fragment, {}, value), context];
 }
 
 function subscribe(effects) {
