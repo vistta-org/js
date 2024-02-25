@@ -22,6 +22,10 @@ interface SubmitEvent {
   values?: { [name: string]: any };
 }
 
+interface GlobalEventHandlers {
+  validation: (target: Element) => string | boolean;
+}
+
 declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
   {
     [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K] | State<E[K]>;

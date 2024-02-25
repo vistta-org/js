@@ -1,7 +1,14 @@
 /* eslint-disable no-undef */
-import { BaseClass, BaseFunction } from "../utils";
+import { BaseClass, BaseFunction, isBrowser } from "../utils";
 
 export const INTERNAL = {}
+const DEFAULT_ERROR_MESSAGE = (() => {
+  if (!isBrowser()) return;
+  const inputElement = document.createElement('input');
+  inputElement.type = 'text';
+  inputElement.required = true;
+  return inputElement.validationMessage;
+})();
 
 // Context
 
@@ -163,8 +170,10 @@ export class Form extends BaseFunction {
   #path = [];
   #parent;
   #fields = {};
+  #required = {};
   #validations = {};
   #listeners = {};
+  #invalidEvent;
 
   constructor() {
     super((props) => this.render(props));
@@ -174,7 +183,7 @@ export class Form extends BaseFunction {
     return this.#path;
   }
 
-  render({ children, onSubmit, onsubmit, ...props }) {
+  render({ children, onsubmit, oninvalid, ...props }) {
     if (INTERNAL.CONTEXT.form) {
       if (!props.name) {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
@@ -187,11 +196,14 @@ export class Form extends BaseFunction {
     }
     INTERNAL.CONTEXT.form = this;
     props.ref = (element) => this.#node = element;
-    onSubmit = onSubmit || onsubmit;
-    props.onSubmit = (event) => {
+    props.onreset = () => this.reset();
+    props.oninvalid = oninvalid;
+    this.#invalidEvent = typeof oninvalid === "function";
+    props.onsubmit = (event) => {
       event.preventDefault();
+      if (!this.validate()) return;
       event.values = this.values();
-      if (onSubmit) onSubmit(event);
+      if (onsubmit) onsubmit(event);
     }
     return createElement("form", props, ...children);
   }
@@ -209,8 +221,10 @@ export class Form extends BaseFunction {
     else this.#fields[props.name] = node;
     if (type === "select") node.defaultValue = node.value;
     if (this.#parent) return this.#parent.register({ type, props: { name: [...this.path, props.name].join("."), ...props }, node });
-    if (props.pattern) this.#validations[props.name] = props.pattern;
+    this.#required[props.name] = props.required;
+    this.#validations[props.name] = props.validation;
     node.addEventListener(type === "select" ? "change" : "input", (e) => {
+      if (!this.#invalidEvent) node.setCustomValidity("");
       for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++) this.#listeners[props.name][i](e);
       for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
     });
@@ -229,15 +243,45 @@ export class Form extends BaseFunction {
   reset(name = "*") {
     if (name === "*") {
       const inputs = Object.keys(this.#fields);
-      for (let i = 0, len = inputs.length; i < len; i++)
+      for (let i = 0, len = inputs.length; i < len; i++) {
         this.#fields[inputs[i]].value = getFieldDefaultValue(this.#fields[inputs[i]]);
+        if (!this.#invalidEvent) this.#fields[inputs[i]].setCustomValidity("");
+      }
       return;
     }
     this.#fields[name].value = getFieldDefaultValue(this.#fields[name]);
   }
 
-  validate() {
-
+  validate(name) {
+    if (name && !this.#fields[name]) return null;
+    let errors = [];
+    const inputs = name ? [name] : Object.keys(this.#fields);
+    for (let i = 0, len = inputs.length; i < len; i++) {
+      const field = this.#fields[inputs[i]];
+      const value = getFieldValue(field);
+      if (convertFromState(this.#required[inputs[i]]) === true && !value) {
+        if (this.#invalidEvent) errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
+        else field.setCustomValidity(DEFAULT_ERROR_MESSAGE);
+        continue;
+      }
+      const validation = convertFromState(this.#validations[inputs[i]]);
+      const error = typeof validation === "function" ? validation(value) : null;
+      if (typeof error === "string") {
+        if (this.#invalidEvent) errors.push({ field, error });
+        else field.setCustomValidity(error);
+      }
+      else if (error === false) {
+        if (this.#invalidEvent) errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
+        else field.setCustomValidity(DEFAULT_ERROR_MESSAGE);
+      }
+      else if (!this.#invalidEvent) field.setCustomValidity("");
+    }
+    if (!this.#invalidEvent) return this.#node.reportValidity();
+    if (errors.length === 0) return true;
+    const invalidEvent = new Event("invalid");
+    invalidEvent.errors = errors;
+    this.#node.dispatchEvent(invalidEvent);
+    return false;
   }
 
   clear(name = "*") {
@@ -255,12 +299,12 @@ export class Form extends BaseFunction {
   }
 
   values() {
-    const value = {};
+    const values = {};
     const inputs = Object.keys(this.#fields);
     for (let i = 0, len = inputs.length; i < len; i++) {
       const cur = inputs[i];
       if (cur.includes(".")) {
-        let temp = value;
+        let temp = values;
         const paths = cur.split(".");
         for (let n = 0, pathsLen = paths.length; n < pathsLen; n++) {
           const key = paths[n];
@@ -268,9 +312,9 @@ export class Form extends BaseFunction {
           else (temp[key] = temp[key] || {}, temp = temp[key])
         }
       }
-      else value[cur] = getFieldValue(this.#fields[cur]);
+      else values[cur] = getFieldValue(this.#fields[cur]);
     }
-    return value;
+    return values;
   }
 }
 
@@ -307,4 +351,9 @@ function getFieldDefaultValue(element) {
   }
   if (element.type === "checkbox") return element.defaultChecked;
   return element.defaultValue;
+}
+
+function convertFromState(value) {
+  if (!(value instanceof State)) return value;
+  return value();
 }

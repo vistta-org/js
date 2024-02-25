@@ -35,6 +35,7 @@ export class Form {
   clear: (name?: string) => void;
   submit: () => void;
   values: () => { [name: string]: any };
+  validate: (name?: string) => boolean;
 }
 export interface Form {
   (props: HTMLProps<HTMLFormElement>): JSX.Node;

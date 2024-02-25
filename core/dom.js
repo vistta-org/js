@@ -200,6 +200,7 @@ export default class VirtualDom {
 //
 
 function setAttribute(node, name, value) {
+  if (name === "validation" && typeof value === "function") return;
   if (/^on\w.*/.test(name) && typeof value === "function") {
     node.addEventListener(name.slice(2).toLowerCase(), (event, ...args) => {
       try {
