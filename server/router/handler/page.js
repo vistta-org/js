@@ -177,6 +177,7 @@ class PageHandler extends BaseFunction {
               httpEquiv: "Content-Security-Policy",
               content: `default-src 'self';script-src 'self';style-src 'self';`,
             }),
+            createElement("meta", { name: "color-scheme", content: this.config.colorScheme || "light dark" }),
             createElement("meta", { name: "robots", content: this.config.robots }),
             this.config?.author && createElement("meta", { name: "author", content: this.config.author }),
             this.config?.language && createElement("meta", { name: "language", content: this.config.language }),

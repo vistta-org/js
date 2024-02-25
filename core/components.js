@@ -55,37 +55,42 @@ export class Profiler extends Component {
   }
 }
 
-export class Render extends Component {
-  constructor({ if: _if, each: _each, children }) {
-    super({ if: _if, each: _each, children });
-  }
+export const Render = {
+  If: class extends Component {
+    constructor({ condition, children }) {
+      super({ condition, children });
+    }
 
-  render() {
-    if (this.if != null && this.each != null) {
-      if ("production" !== process.env.NODE_ENV) console.warn("Cannot use Render with both if and each.");
-      return null;
+    render() {
+      return this.condition instanceof State ? this.condition((v) => v && this.children) : this.condition && this.children;
     }
-    if (this.if != null) return this.if instanceof State ? this.if((v) => v && this.children) : this.if && this.children;
-    this.children = this.children?.[0];
-    const render = (target) => {
-      if (typeof target !== "object") {
-        if ("production" !== process.env.NODE_ENV) console.warn("Render each needs to be either an object or an array");
-        return null;
-      }
-      if (typeof this.children !== "function") {
-        if ("production" !== process.env.NODE_ENV) console.warn("Render each needs one children of type function");
-        return null;
-      }
-      let result = [];
-      if (!Array.isArray(target)) {
-        const keys = Object.keys(target);
-        for (let i = 0, len = keys.length; i < len; i++) result.push(this.children([keys[i], target[keys[i]]], i, target));
-      }
-      else for (let i = 0, len = target.length; i < len; i++) result.push(this.children(target[i], i, target));
-      return result;
+  },
+  Each: class extends Component {
+    constructor({ in: _in, callback }) {
+      super({ in: _in, callback });
     }
-    if (this.each instanceof State) return this.each((v) => render(v));
-    return createElement(Fragment, null, ...render(this.each));
+
+    render() {
+      const render = (target) => {
+        if (typeof target !== "object") {
+          if ("production" !== process.env.NODE_ENV) console.warn("Render.Each in needs to be either an object or an array");
+          return null;
+        }
+        if (typeof this.callback !== "function") {
+          if ("production" !== process.env.NODE_ENV) console.warn("Render.Each callback needs to be a function");
+          return null;
+        }
+        let result = [];
+        if (!Array.isArray(target)) {
+          const keys = Object.keys(target);
+          for (let i = 0, len = keys.length; i < len; i++) result.push(this.callback(target[keys[i]], keys[i]));
+        }
+        else for (let i = 0, len = target.length; i < len; i++) result.push(this.callback(target[i], i));
+        return result;
+      }
+      if (this.in instanceof State) return this.in((v) => render(v));
+      return createElement(Fragment, null, ...render(this.in));
+    }
   }
 }
 

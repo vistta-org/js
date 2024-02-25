@@ -11,7 +11,15 @@ export class Profiler extends Component<{
   callback: (id: string, performance: number) => void;
 }> {}
 
-export class Render extends Component<{ if?: any; each?: any }> {}
+declare class RenderEach<T> extends Component<{
+  in: T[] | { [key: string]: T } | State<T[]> | State<{ [key: string]: T }>;
+  callback: (value: T, index: number | string) => JSX.Node;
+}> {}
+
+export declare const Render: {
+  If: typeof Component<{ condition: any }>;
+  Each: typeof RenderEach;
+};
 
 export class Scope extends Component<{ styles: JSX.Style[] }> {}
 
