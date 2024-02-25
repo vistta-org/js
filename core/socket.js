@@ -6,7 +6,7 @@ class Socket extends BaseClass {
   #instance;
 
   get href() {
-    return this.router.active;
+    return this.router.pathname;
   }
 
   get active() {

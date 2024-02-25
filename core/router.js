@@ -10,19 +10,20 @@ INTERNAL.ROUTES = {};
 Object.defineProperties(route, {
   navigate: {
     value: async (arg) => {
-      let { href, pushState, callback, refresh } = typeof arg === "object" ? arg : { href: arg };
+      let { href, pushState, callback, refresh, initial } = typeof arg === "object" ? arg : { href: arg };
       if (href?.startsWith("#")) return updateHash(href);
-      if (!refresh) refresh = href === true;
+      if (!refresh && !initial) refresh = href === true;
       if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
       const { pathname, hash } = new URL(href);
-      if (!refresh && INTERNAL.DOM.active === pathname) return updateHash(hash);
+      if (!refresh && !initial && INTERNAL.DOM.pathname === pathname) return updateHash(hash);
       const cached = INTERNAL.ROUTES?.[pathname];
       if (pushState !== false) history.pushState({}, "", pathname);
       if (INTERNAL?.DOM?.remove) INTERNAL.DOM.remove();
-      if (refresh || !cached) {
-        let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
-        const { default: app, config, template, props } = await import(noCache(resource));
+      if (initial || refresh || !cached) {
+        const appHref = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
+        if (!initial) document.querySelector("link#app-style").href = noCache(appHref + ".css");
+        const { default: app, config, template, props } = await import(noCache(appHref + ".js"));
         INTERNAL.DOM = new VirtualDom(pathname, route, config);
         return INTERNAL.DOM.render(template ? createElement(template, {}, createElement(app, props)) : createElement(app, props), refresh, (config) => {
           updateConfig(config);
@@ -42,13 +43,13 @@ Object.defineProperties(route, {
   refresh: {
     value: (href) => {
       if (INTERNAL.ROUTES?.[href]) delete INTERNAL.ROUTES[href];
-      if (href !== INTERNAL.DOM.active) return;
+      if (href !== INTERNAL.DOM.pathname) return;
       route.classList.toggle("loading", true);
       route.navigate({ refresh: true, callback: () => route.classList.toggle("loading", false) });
     },
   },
-  active: {
-    get: () => INTERNAL.DOM.active,
+  pathname: {
+    get: () => INTERNAL.DOM.pathname,
   },
   location: {
     get: () => {
@@ -73,7 +74,7 @@ Object.defineProperties(route, {
 
 system.addEventListener("click", handleClick);
 system.addEventListener("popstate", () => route.navigate({ pushState: false }));
-system.addEventListener("load", () => (handlerServiceWorker(), handleSocket(), route.navigate({ refresh: true })));
+system.addEventListener("load", () => (handlerServiceWorker(), handleSocket(), route.navigate({ initial: true })));
 
 export default route;
 

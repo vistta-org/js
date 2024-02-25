@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { fs, hash, randomID } from "@vistta/utils";
+import { fs, hash } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
 import { system, stringify, BaseFunction, noCache } from "../../../utils";
@@ -21,7 +21,7 @@ const CONFIG_DEFAULT = {
   keywords: "visttajs",
   robots: "index, follow",
 };
-const CLIENT = (await import(fs.resolve(dirname, BUILD ? "../../../core/build/client" : "../../../core/client"), { with: { type: 'bundler' } }))?.code;
+const CLIENT = `${process.env.NODE_ENV === "development" ? "\n" : ""}${(await import(fs.resolve(dirname, BUILD ? "../../../core/build/client" : "../../../core/client"), { with: { type: 'bundler' } }))?.code}`;
 const CLIENT_STYLE = (await import("./page.css", { with: { type: 'raw' } }))?.code;
 const SERVICE_WORKER = (await import(fs.resolve(dirname, "../../../core/sw"), { with: { type: 'bundler' } }))?.code;
 
@@ -53,8 +53,23 @@ class PageHandler extends BaseFunction {
       this.location = new URL(request?.path, request?.headers?.referer || `${request?.protocol}://${request?.headers?.host}`);
       if (!this.app) await this.import(true);
       let resource = request?.resource;
-      if (resource) {
-        if (resource === "app") {
+      if (!resource) {
+        const next = (...args) => {
+          const html = this.render(...args);
+          response.status(this.type !== "error" ? 200 : 404).send(html);
+        }
+        if (typeof this.gateway !== "function") return next({});
+        return this.gateway(request, {
+          next,
+          redirect: (...args) => response.redirect(...args),
+          reject: (...args) => reject(...args),
+        });
+      }
+      switch (resource) {
+        case "app.css":
+          const stylesheet = this.stylesheet();
+          return response.type(".css").status(200).send(stylesheet);
+        case "app.js":
           const next = (...args) => {
             const script = this.script(...args);
             response.type(".js").status(200).send(script);
@@ -65,24 +80,14 @@ class PageHandler extends BaseFunction {
             redirect: (...args) => response.redirect(...args),
             reject: (...args) => reject(...args),
           });
-        }
-        const extension = fs.extname(resource);
-        resource = this.resources.get(resource);
-        if (!resource) return reject();
-        if (fs.isFile(resource)) return response.status(200).sendFile(resource);
-        if (extension) response.type(extension);
-        return response.status(200).send(resource);
+        default:
+          const extension = fs.extname(resource);
+          resource = this.resources.get(resource);
+          if (!resource) return reject();
+          if (fs.isFile(resource)) return response.status(200).sendFile(resource);
+          if (extension) response.type(extension);
+          return response.status(200).send(resource);
       }
-      const next = (...args) => {
-        const html = this.render(...args);
-        response.status(this.type !== "error" ? 200 : 404).send(html);
-      }
-      if (typeof this.gateway !== "function") next({});
-      else this.gateway(request, {
-        next,
-        redirect: (...args) => response.redirect(...args),
-        reject: (...args) => reject(...args),
-      });
     }
     catch (e) {
       this.emit("error", e.stack);
@@ -102,7 +107,13 @@ class PageHandler extends BaseFunction {
       this.app = app;
       this.code = code;
       this.gateway = gateway;
-      this.resources.add(resources);
+      this.styles = {};
+      const keys = Object.keys(resources);
+      for (let i = 0, len = keys.length; i < len; i++) {
+        const resource = keys[i];
+        if (resource.endsWith(".scoped.css")) this.styles[resource] = resources[resource];
+        else this.resources.add(resource, resources[resource]);
+      }
       this.resources.add("client.js", CLIENT);
       this.resources.add("client.css", CLIENT_STYLE);
       if (this.type === "app") {
@@ -135,9 +146,10 @@ class PageHandler extends BaseFunction {
 
   render(props) {
     system.set("route", this);
-    this.styles = this.config?.styles?.map(({ hash }) => ({ href: "./resources/" + hash })) || [];
     const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app, props)) : createElement(this.app, props));
     system.set("route", null);
+    const { pathname } = this.location;
+    const styleHref = `.${pathname + (pathname.endsWith("/") ? "" : "/")}resources/app.css`;
     return (
       "<!doctype html>\n" +
       renderToString(
@@ -165,6 +177,7 @@ class PageHandler extends BaseFunction {
               httpEquiv: "Content-Security-Policy",
               content: `default-src 'self';script-src 'self';style-src 'self';`,
             }),
+            createElement("meta", { name: "color-scheme", content: this.config.colorScheme || "light dark" }),
             createElement("meta", { name: "robots", content: this.config.robots }),
             this.config?.author && createElement("meta", { name: "author", content: this.config.author }),
             this.config?.language && createElement("meta", { name: "language", content: this.config.language }),
@@ -178,13 +191,13 @@ class PageHandler extends BaseFunction {
             this.config?.icon && createElement("link", { rel: "shortcut icon", href: this.config.icon }),
             this.config?.icon && createElement("link", { rel: "apple-touch-icon", href: this.config.icon }),
             ...(this.config?.links?.map((props) => createElement("link", props)) || []),
-            createElement("link", { rel: "preload", href: "./resources/client.js", as: "script" }),
-            createElement("link", { rel: "preload", href: "./resources/client.css", as: "style" }),
             createElement("script", { src: "./resources/client.js", defer: true }),
             createElement("link", { rel: "stylesheet", href: "./resources/client.css" }),
+            createElement("link", { rel: "preload", href: styleHref, as: "style" }),
+            createElement("link", { id: "app-style", rel: "stylesheet", href: styleHref }),
             ...(this.config?.scripts?.map((props) => createElement("script", props)) || []),
-            ...(this.styles?.map(({ href }) => createElement("link", { rel: "preload", href, as: "style" })) || []),
-            ...(this.styles?.map(({ href, id }) => createElement("link", { id, rel: "stylesheet", href })) || []),
+            ...(this.config?.styles?.map(({ hash }) => createElement("link", { rel: "preload", href: "./resources/" + hash, as: "style" })) || []),
+            ...(this.config?.styles?.map(({ hash }) => createElement("link", { rel: "stylesheet", href: "./resources/" + hash })) || []),
           ),
           createElement("body", {}, body),
         ),
@@ -202,6 +215,10 @@ class PageHandler extends BaseFunction {
     if (props) script.push(`const __app_props = ${stringify(props, IS_DEV)};`, "export { __app_props as props };");
     script.push(`const __app_config = ${stringify(this.config, IS_DEV)};`, "export { __app_config as config };");
     return script.join(IS_DEV ? "\n" : " ");
+  }
+
+  stylesheet() {
+    return Object.values(this.styles || {}).join(IS_DEV ? "\n" : " ");
   }
 }
 

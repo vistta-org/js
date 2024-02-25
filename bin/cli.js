@@ -4,11 +4,11 @@ import "./loaders/env.js";
 import { Console, fs, spawn, exec } from "@vistta/utils";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
-// eslint-disable-next-line no-global-assign
-console = new Console("");
 const dirname = fs.dirname(import.meta.url);
 const pkg = await loadPackage(fs.resolve(dirname, "../"));
 const { main, args, env } = await parse(process.argv.slice(2));
+// eslint-disable-next-line no-global-assign
+console = new Console("", { persistent: env.CONSOLE_DEBUG });
 if (main !== "validation") console.announce("Starting VisttaJS...");
 Object.assign(process.env, env);
 
@@ -47,7 +47,6 @@ async function parse([main, ...args]) {
   env.APP_VERSION = pkg.version;
   env.APP_NAME = pkg.name;
   env.VALIDATION = "modules";
-  env.DYNAMIC_LOG_ENABLED = !!process.stdout.isTTY;
   if (main === "build") env.BUILD = true;
   let skipNext = false;
   args = args.filter((arg, index, arr) => {
@@ -56,6 +55,10 @@ async function parse([main, ...args]) {
       if (!env.BUILD) env.NODE_ENV = "development";
       return false;
     }
+    if (arg.toLowerCase() === "--debug")
+      return (env.CONSOLE_DEBUG = true, false);
+    if (arg.toLowerCase() === "--trace")
+      return (env.CONSOLE_TRACE = true, false);
     if (arg.startsWith("--")) {
       const value = arr?.[index + 1];
       const key = transformFlag(arg);

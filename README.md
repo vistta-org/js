@@ -4,14 +4,16 @@
       <img src="https://git.vistta.me/Vistta/JS/raw/branch/master/logo.png" height="128">
     </picture>
   </a>
-  <h1 align="center">VisttaJS</h1>
+  <h1 align="center">Vistta.JS</h1>
 </div>
 
-VisttaJS is a Javascript Component Integration Framework with the objective of simplifying web development.
+A Nodejs Javascript Component Integration Framework with the objective of simplifying web development.
 
-## Installation
+[Section]: #
 
-This is a Node.js module available through this gitlab instance private npm registry. Node.js and npm are required.
+# Getting Started
+
+This is a Node.js module available through this gitea instance private npm registry. Node.js and npm are required.
 
 On you project folder create a `.npmrc` file with the following content:
 
@@ -26,7 +28,17 @@ After that you can install the module
 npm i @vistta/js
 ```
 
-## Usage
+[Section]: #
+
+# Server API
+
+[Section]: #
+
+# Client API
+
+[Section]: #
+
+---
 
 ## Authors
 

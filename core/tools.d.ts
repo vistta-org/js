@@ -10,7 +10,7 @@ export class Ref<T> {
 export function ref<T = any>(initialValue?: T): Ref<T>;
 
 export class State<T> {
-  constructor(initialValue: T | Promise<T>);
+  constructor(initialValue?: T | Promise<T>);
   readonly status?: "pending" | "resolved" | "rejected";
   set: (value: T | ((value: T) => T)) => void;
   valueOf: () => T;
@@ -23,9 +23,9 @@ export interface State<T> {
 export function state<T = any>(initialValue?: T | Promise<T>): State<T>;
 
 export class Effect {
-  constructor(callback: () => void | (() => void), dependencies?: any[], runOnRender?: boolean);
+  constructor(callback: (render: boolean) => void | (() => void), dependencies?: any[]);
 }
-export function effect(callback: () => void | (() => void), dependencies?: any[], runOnRender?: boolean): void;
+export function effect(callback: (render: boolean) => void | (() => void), dependencies?: any[]): void;
 
 type EventListener = (event?: any) => void;
 export class Form {
@@ -35,6 +35,7 @@ export class Form {
   clear: (name?: string) => void;
   submit: () => void;
   values: () => { [name: string]: any };
+  validate: (name?: string) => boolean;
 }
 export interface Form {
   (props: HTMLProps<HTMLFormElement>): JSX.Node;

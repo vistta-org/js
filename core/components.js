@@ -13,22 +13,26 @@ export class Component extends BaseFunction {
 }
 
 export class Profiler extends Component {
-  #recordCount = 0;
-  constructor({ id, children, callback }) {
+  #idle;
+  #debounce;
+  #total = 0;
+  constructor({ id, children, idle, callback }) {
     super({ id, children, callback });
+    this.#idle = idle || 250;
   }
 
-  record(refresh) {
-    if (refresh) {
-      this.#recordCount++;
-      const initial = {};
-      let count = this.#recordCount;
-      return (update) => {
-        if (!initial[update]) initial[update] = performance.now();
-        return refresh((callback) => {
-          callback && callback();
-          if (count !== this.#recordCount) return;
-          this.callback({ id: this.id, performance: performance.now() - (initial[update] || 0) });
+  record(callback) {
+    if (callback) {
+      return () => {
+        let initial = performance.now();
+        callback(() => {
+          this.#total = performance.now() - initial;
+          clearTimeout(this.#debounce);
+          this.#debounce = setTimeout(() => {
+            const total = this.#total;
+            this.#total = 0;
+            this.callback({ id: this.id, performance: total });
+          }, this.#idle);
         });
       }
     }
@@ -51,53 +55,49 @@ export class Profiler extends Component {
   }
 }
 
-export class Render extends Component {
-  constructor({ if: _if, each: _each, children }) {
-    super({ if: _if, each: _each, children });
-  }
-
-  render() {
-    if (this.if != null && this.each != null) {
-      if ("production" !== process.env.NODE_ENV) console.warn("Cannot use Render with both if and each.");
-      return null;
+export const Render = {
+  If: class extends Component {
+    constructor({ condition, children }) {
+      super({ condition, children });
     }
-    if (this.if != null) return this.if instanceof State ? this.if((v) => v && this.children) : this.if && this.children;
-    this.children = this.children?.[0];
-    const render = (target) => {
-      if (typeof target !== "object") {
-        if ("production" !== process.env.NODE_ENV) console.warn("Render each needs to be either an object or an array");
-        return null;
-      }
-      if (typeof this.children !== "function") {
-        if ("production" !== process.env.NODE_ENV) console.warn("Render each needs one children of type function");
-        return null;
-      }
-      let result = [];
-      if (!Array.isArray(target)) {
-        const keys = Object.keys(target);
-        for (let i = 0, len = keys.length; i < len; i++) result.push(this.children([keys[i], target[keys[i]]], i, target));
-      }
-      else for (let i = 0, len = target.length; i < len; i++) result.push(this.children(target[i], i, target));
-      return result;
+
+    render() {
+      return this.condition instanceof State ? this.condition((v) => v && this.children) : this.condition && this.children;
     }
-    if (this.each instanceof State) return this.each((v) => render(v));
-    return createElement(Fragment, null, ...render(this.each));
-  }
-}
+  },
+  Each: class extends Component {
+    constructor({ in: _in, callback }) {
+      super({ in: _in, callback });
+    }
 
-export class Scope extends Component {
-  constructor({ styles, children }) {
-    super({ styles, children });
-  }
-
-  render() {
-    return createElement(Fragment, { scope: this.styles?.reduce((acc, { scope }) => acc + " " + scope, "")?.trim() }, ...this.children);
+    render() {
+      const render = (target) => {
+        if (typeof target !== "object") {
+          if ("production" !== process.env.NODE_ENV) console.warn("Render.Each in needs to be either an object or an array");
+          return null;
+        }
+        if (typeof this.callback !== "function") {
+          if ("production" !== process.env.NODE_ENV) console.warn("Render.Each callback needs to be a function");
+          return null;
+        }
+        let result = [];
+        if (!Array.isArray(target)) {
+          const keys = Object.keys(target);
+          for (let i = 0, len = keys.length; i < len; i++) result.push(this.callback(target[keys[i]], keys[i]));
+        }
+        else for (let i = 0, len = target.length; i < len; i++) result.push(this.callback(target[i], i));
+        return result;
+      }
+      if (this.in instanceof State) return this.in((v) => render(v));
+      return createElement(Fragment, null, ...render(this.in));
+    }
   }
 }
 
 export class Suspense extends Component {
   #count = 0;
   #callback;
+
   constructor({ children, fallback }) {
     super({ children, fallback });
   }
@@ -107,9 +107,14 @@ export class Suspense extends Component {
   }
 
   resolve(callback) {
-    if (!callback) this.#count--;
-    else this.#callback = callback;
-    if (this.#count == 0) this.#callback();
+    if (!callback) {
+      this.#count--;
+      if (this.#count == 0) this.#callback();
+    }
+    else {
+      if (this.#count == 0) callback();
+      else this.#callback = callback;
+    }
   }
 
   render() {
