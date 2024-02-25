@@ -11,7 +11,6 @@ interface Element {
   key?: string;
   ref?: any;
   scope?: string;
-  style?: any;
 }
 
 interface Event {
@@ -29,7 +28,7 @@ interface GlobalEventHandlers {
 declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
   {
     [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K] | State<E[K]>;
-  } & GlobalEventHandlers
+  } & GlobalEventHandlers & { style?: Partial<CSSStyleDeclaration> }
 >;
 
 declare namespace JSX {
