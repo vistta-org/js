@@ -66,7 +66,7 @@ class Bundler {
     return instance;
   }
 
-  async resolve({ path, importer, resolveDir, kind }) {
+  async resolve({ path, importer, resolveDir }) {
     switch (path) {
       case name:
         return { path: "vistta", namespace: "window" };
@@ -84,13 +84,13 @@ class Bundler {
       conditions: ['bundler'],
       parentURL: pathToFileURL(importer).href
     }, (final, { builtin, file }) => ({ final, builtin, file }));
-    if (!builtin && file) return { path: final, sideEffects: this.sideEffects, pluginData: kind === "import-statement" ? importAssertion(importer, path) : {} };
+    if (!builtin && file) return { path: final, sideEffects: this.sideEffects };
     const exists = await importExists(final);
     if (!builtin && exists) return {};
     return { path: final, namespace: "ignore" };
   }
 
-  async load({ path, namespace, pluginData: importAttributes = {} }) {
+  async load({ path, namespace, with: importAttributes = {} }) {
     if (namespace === "ignore") return { contents: "" };
     if (namespace === "window") return { contents: `module.exports = window.${path};` };
     if (namespace === "exports")
@@ -121,20 +121,7 @@ export default async function (_, { path, ...options }) {
   };
 }
 
-
 //
-
-function importAssertion(importer, path) {
-  if (!fs.existsSync(importer)) return {};
-  const importAttributes = (new RegExp(`["'](${path})["']\\s+(assert|with)\\s+({[\\s\\S]*?})`, 'g')).exec(fs.readFileSync(importer, "utf-8"))?.[3];
-  if (!importAttributes) return {};
-  try {
-    return eval("(" + importAttributes + ")");
-  }
-  catch {
-    return {};
-  }
-}
 
 function importExists(module) {
   return new Promise((resolve) => {
