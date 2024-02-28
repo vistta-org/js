@@ -1,5 +1,5 @@
 import { Component } from "./components";
-import { system, clone, camelCaseToKebabCase } from "../utils";
+import { system, camelCaseToKebabCase } from "../utils";
 
 const Fragment = Symbol("Fragment");
 const TextNode = Symbol("TextNode");
@@ -37,10 +37,10 @@ const cloneElement = (element, props, children) => {
   if (!(element instanceof Element)) return null;
   if (props) {
     const { style, ...rest } = props || {};
-    props = Object.assign(clone(element.props), rest);
+    props = Object.assign(cloneProps(element.props), rest);
     props.style = Object.assign(props.style || {}, style || {});
   }
-  else props = clone(element.props);
+  else props = cloneProps(element.props);
   if (children === true) children = element?.children?.map((child) => child instanceof Element ? cloneElement(child, undefined, true) : child);
   return createElement(element.type, props, children);
 }
@@ -64,6 +64,28 @@ system.set("createElement", createElement);
 export { Fragment, TextNode, Element, createElement, cloneElement, createElementString };
 
 //
+
+function cloneProps(props) {
+  const clone = (value) => {
+    if (typeof value === "object") {
+      if (Array.isArray(value)) {
+        const cloned = [];
+        for (let i = 0, len = value.length; i < len; i++)
+          cloned[i] = clone(value[i]);
+        return cloned;
+      }
+      else {
+        const cloned = {};
+        const keys = Object.keys(value);
+        for (let i = 0, len = keys.length; i < len; i++)
+          cloned[keys[i]] = clone(value[keys[i]]);
+        return cloned;
+      }
+    }
+    else return value;
+  }
+  return clone(props);
+}
 
 function styleToString(style) {
   const keys = Object.keys(style || {});
