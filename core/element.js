@@ -1,39 +1,87 @@
-import { Component } from "./components";
+import { Component } from "./classes";
 import { system, camelCaseToKebabCase } from "../utils";
-
 const Fragment = Symbol("Fragment");
 const TextNode = Symbol("TextNode");
+
 class Element {
+  constructor(type, props, children) {
+    this.type = type;
+    this.props = props || {};
+    this.children = children;
+  }
+
   toString() {
     const children = this.children?.reduce((acc, cur) => acc + cur, "");
     return typeof this.type === "symbol" ? children : createElementString(this.type, this.props, children);
   }
+
+  appendNode(node, referenceNode) {
+    if (this.type === Fragment || this.type === Component.Node) {
+      if (referenceNode) {
+        let next = {};
+        if (this.firstNode === node && this.firstNode !== this.lastNode)
+          next.firstNode = this.firstNode.nextSibling;
+        if (this.lastNode === node && this.firstNode !== this.lastNode)
+          next.lastNode = this.lastNode.previousSibling;
+        this.parent.appendNode(node, referenceNode);
+        if (!this.firstNode || this.firstNode === node.nextSibling) this.firstNode = node;
+        else if (next.firstNode) this.firstNode = next.firstNode;
+        if (!this.lastNode || this.lastNode === node.previousSibling) this.lastNode = node;
+        else if (next.lastNode) this.lastNode = next.lastNode;
+      }
+      else {
+        if (this.firstNode === node && this.firstNode !== this.lastNode)
+          this.firstNode = this.firstNode.nextSibling;
+        else this.firstNode ||= node;
+        this.lastNode = node;
+        this.parent.appendNode(node);
+      }
+    }
+    else if (this.type !== TextNode) {
+      if (referenceNode) this.node.insertBefore(node, referenceNode);
+      else this.node.appendChild(node);
+    }
+  }
+
+  removeNode(node) {
+    if (this.type === Fragment || this.type === Component.Node) {
+      if (this.firstNode === node) {
+        if (this.firstNode === this.lastNode)
+          this.firstNode = null, this.lastNode = null;
+        else this.firstNode = this.firstNode.nextSibling
+      }
+      else if (this.lastNode === node)
+        this.lastNode = this.lastNode.previousSibling;
+      this.parent.removeNode(node);
+    }
+    else if (this.type !== TextNode && this.node === node.parentNode)
+      this.node.removeChild(node);
+  }
 }
 
-const createElement = (type, props, ...children) => {
-  switch (typeof type) {
-    case "function":
-      props = props || {};
-      props.children = children;
-      if (type?.prototype instanceof Component) return new type(props);
-      var component = new Component();
-      component.render = type.bind(component, props);
-      return component;
-    case "string":
-    case "symbol":
-      var element = new Element();
-      element.type = type;
-      element.props = props || {};
-      if (props?.key) (element.key = props.key), delete element.props.key;
-      if (props?.ref) (element.ref = props.ref), delete element.props.ref;
-      element.children = children;
-      return element;
-    default:
-      return null;
+function createElement(type, props, ...children) {
+  if (type?.prototype instanceof Component) {
+    const element = new Element(Component.Node, props);
+    element.id = this?.id;
+    element.props.children = children;
+    if (typeof props?.key === "number") props.key = "" + props.key
+    if (typeof props?.key === "string") (element.key = props.key), delete element.props.key;
+    element.ref = type;
+    return element;
   }
-};
+  const typeOf = typeof type;
+  if (typeOf === "string" || typeOf === "symbol") {
+    const element = new Element(type, props, children);
+    if (type !== TextNode) element.id = this?.id;
+    if (typeof props?.key === "number") props.key = "" + props.key
+    if (typeof props?.key === "string") (element.key = props.key), delete element.props.key;
+    if (props?.ref != null) (element.ref = props.ref), delete element.props.ref;
+    return element;
+  }
+  return null;
+}
 
-const cloneElement = (element, props, children) => {
+function cloneElement(element, props, children) {
   if (!(element instanceof Element)) return null;
   if (props) {
     const { style, ...rest } = props || {};
@@ -42,7 +90,7 @@ const cloneElement = (element, props, children) => {
   }
   else props = cloneProps(element.props);
   if (children === true) children = element?.children?.map((child) => child instanceof Element ? cloneElement(child, undefined, true) : child);
-  return createElement(element.type, props, children);
+  return createElement.call(element.id, element.type, props, children);
 }
 
 const createElementString = (type, props, children) => {

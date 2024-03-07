@@ -7,10 +7,8 @@ system.set("IntersectionObserver", class { });
 system.set("ResizeObserver", class { });
 
 class ServerDom extends Dom {
-  node = createServerElement("dom");
-
   constructor() {
-    super("", false);
+    super("", createServerElement("dom"));
   }
 
   createDocumentFragment = () => createServerElement("fragment");
@@ -45,7 +43,6 @@ function createServerElement(type) {
       const _children = children?.reduce((acc, cur) => acc + cur, "");
       return type === "dom" ? _children : createElementString(type, props, _children);
     },
-    append: (child) => children.push(child),
     appendChild: (child) => children.push(child),
     setAttribute: (name, value) => (props[name] = value),
     removeAttribute: (name) => delete props[name],

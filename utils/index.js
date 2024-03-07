@@ -66,36 +66,9 @@ export const system = {
   }
 };
 
-class ExtensibleFunction extends Function {
+export class ClassFunction extends Function {
   constructor(f) {
     return Object.setPrototypeOf(f, new.target.prototype);
-  }
-}
-
-export class BaseClass {
-  constructor() {
-    const prototype = Object.getPrototypeOf(this);
-    const functions = Object.getOwnPropertyNames(prototype);
-    for (let i = 0, len = functions.length; i < len; i++) {
-      if (functions[i] === "constructor") continue;
-      const descriptor = Object.getOwnPropertyDescriptor(prototype, functions[i]);
-      if (typeof descriptor.get === 'undefined' && typeof descriptor.set === 'undefined')
-        this[functions[i]] = this[functions[i]].bind(this);
-    }
-  }
-}
-
-export class BaseFunction extends ExtensibleFunction {
-  constructor(f) {
-    super(f);
-    const prototype = Object.getPrototypeOf(this);
-    const functions = Object.getOwnPropertyNames(prototype);
-    for (let i = 0, len = functions.length; i < len; i++) {
-      if (functions[i] === "constructor") continue;
-      const descriptor = Object.getOwnPropertyDescriptor(prototype, functions[i]);
-      if (typeof descriptor.get === 'undefined' && typeof descriptor.set === 'undefined')
-        this[functions[i]] = this[functions[i]].bind(this);
-    }
   }
 }
 

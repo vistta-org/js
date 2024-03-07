@@ -46,10 +46,10 @@ npm i @vistta/js
 
 ## Benchmarks Latest Results (Incognito)
 
-Benchmark #1: 0.0022500000149011613ms
-Benchmark #2: 0.004749999940395355ms
-Benchmark #3: 5.874500001221895ms
-Benchmark #4: 0.0677499996125698ms
+Benchmark #1: 1.856750000009779ms
+Benchmark #2: 0.9109999999636784ms
+Benchmark #3: 11.270000000002328ms
+Benchmark #4: 30ms (NEEDS IMPROVEMENT!!!)
 
 #React Equivalent (Incognito)
 
