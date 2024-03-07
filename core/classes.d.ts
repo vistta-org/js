@@ -11,6 +11,8 @@ export declare const Component: new <
   props: T & { key?: string },
 ) => T;
 
+export class Suspense extends Component<{ fallback: JSX.Node }> {}
+
 export class Profiler extends Component<{
   callback: (performance: number) => void;
 }> {}

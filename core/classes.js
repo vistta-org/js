@@ -23,6 +23,27 @@ export class Component {
   }
 }
 
+export class Suspense extends Component {
+  #count = 0;
+  #callback;
+  fallback;
+
+  wait() {
+    this.#count++;
+  }
+
+  resolve(callback) {
+    if (!callback) {
+      this.#count--;
+      if (this.#count == 0) this.#callback();
+    }
+    else {
+      if (this.#count == 0) callback();
+      else this.#callback = callback;
+    }
+  }
+}
+
 export class Profiler extends Component {
   callback;
 

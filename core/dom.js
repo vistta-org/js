@@ -13,7 +13,7 @@ Update:
 #4: 11.344199999928474ms
 */
 
-import { Component, Ref } from "./classes";
+import { Ref, Component, Suspense } from "./classes";
 import { Fragment, TextNode, Element, createElement } from "./element";
 import { applyTransition } from "./transitions";
 import { isBrowser, capitalize } from "../utils";
@@ -40,7 +40,7 @@ export default class VirtualDom {
 
   render(content, refresh, callback) {
     this.node.innerHTML = "";
-    this.content = render.call(this, this, content);
+    this.content = render.call(this, this, content, {});
     const resolve = () => {
       this.children = [...this.node.children];
       callback?.(this.config);
@@ -77,7 +77,7 @@ export default class VirtualDom {
 
 // VDOM Manipulators
 
-function render(parent, element, referenceNode) {
+function render(parent, element, context, referenceNode) {
   if (element == null || element === false) return null;
   if (!(element instanceof Element)) {
     if (Array.isArray(element)) element = new Element(Fragment, {}, element);
@@ -98,7 +98,7 @@ function render(parent, element, referenceNode) {
       if (this.keys[key] != null) {
         if (this.keys[key].type !== type) throw new Error(`Key ${key} already in use.`);
         this.keys[key].parent = parent;
-        update.call(this, this.keys[key], element.props, element.children);
+        update.call(this, this.keys[key], element.props, element.children, context);
         return (parent.appendNode(this.keys[key].node, referenceNode), this.keys[key]);
       }
       else this.keys[key] = element;
@@ -112,7 +112,7 @@ function render(parent, element, referenceNode) {
     if (typeof ref === "function") ref(element.node);
     else if (ref instanceof Ref) ref.current = element.node;
     for (let i = 0, len = children?.length || 0; i < len; i++)
-      element.children[i] = render.call(this, element, children[i]);
+      element.children[i] = render.call(this, element, children[i], { ...context });
     return (parent.appendNode(element.node, referenceNode), element);
   }
 
@@ -122,51 +122,89 @@ function render(parent, element, referenceNode) {
         if (this.keys[key].type !== type || element.ref !== this.keys[key].ref.constructor) throw new Error(`Key ${key} already in use.`);
         this.keys[key].parent = parent;
         const { firstNode, lastNode } = this.keys[key];
-        if (firstNode === lastNode) parent.appendNode(firstNode, referenceNode);
-        else {
-          let currentNode = firstNode;
-          while (currentNode) {
-            const next = currentNode.nextSibling;
-            parent.appendNode(currentNode, referenceNode);
-            if (currentNode === lastNode) currentNode = null;
-            else currentNode = next;
-          }
-        }
-        update.call(this, this.keys[key], element.props);
+        mutate(element, "appendNode", firstNode, lastNode, referenceNode);
+        update.call(this, this.keys[key], element.props, context);
         return this.keys[key];
       }
       else this.keys[key] = element;
     }
     const component = new element.ref();
     element.ref = component;
-    const properties = Object.getOwnPropertyNames(component);
-    for (let i = 0, len = properties.length; i < len; i++) {
-      const property = properties[i];
-      if (property === "render" || property === "onconnect" || property === "ondisconnect") continue;
-      let value = props[property] ?? component[property];
-      Object.defineProperty(component, property, {
-        configurable: false,
-        enumerable: true,
-        get: () => value,
-        set: (v) => {
-          if (v === value) return;
-          value = v;
-          if (element.update) element.update();
-          else if (this.queue?.length > 0) this.queue.push(() => update.call(this, element, null, null, false, true));
-          else update.call(this, element, null, null, false, true);
+    if (component.constructor === Suspense) {
+      if (props.fallback) {
+        element.children = [props.fallback];
+        if (isBrowser()) {
+          context.suspense = component;
+          const fragment = new Element("", {}, props.children);
+          fragment.node = this.createDocumentFragment();
+          for (let i = 0, len = element.children?.length || 0; i < len; i++)
+            fragment.children[i] = render.call(this, fragment, fragment.children[i], { ...context });
+          component.resolve(() => {
+            if (element.parent.children.indexOf(element) == -1) return;
+            const referenceNode = element.lastNode?.nextSibling;
+            mutate(element, "removeNode", element.firstNode, element.lastNode);
+            mutate(element, "appendNode", fragment.node.firstChild, fragment.node.lastChild, referenceNode);
+            element.children = fragment.children;
+          });
         }
-      });
+      }
+      else element.children = props.children;
     }
-    element.children = component.render();
-    if (!Array.isArray(element.children)) element.children = [element.children];
+    else {
+      const properties = Object.getOwnPropertyNames(component);
+      for (let i = 0, len = properties.length; i < len; i++) {
+        const property = properties[i];
+        if (property === "render" || property === "onconnect" || property === "ondisconnect") continue;
+        if (component[property] instanceof Promise) {
+          let value = null;
+          if (isBrowser()) {
+            context.suspense?.wait();
+            component[property].then((result) => {
+              value = result;
+              if (element.update) element.update();
+              else if (this.queue?.length > 0) this.queue.push(() => {
+                update.call(this, element, null, null, context, false, true);
+                context.suspense?.resolve();
+              });
+              else {
+                update.call(this, element, null, null, context, false, true);
+                context.suspense?.resolve();
+              }
+            }).catch(() => context.suspense?.resolve());
+          }
+          Object.defineProperty(component, property, {
+            configurable: false,
+            enumerable: true,
+            get: () => value,
+          });
+        }
+        else {
+          let value = props[property] ?? component[property];
+          Object.defineProperty(component, property, {
+            configurable: false,
+            enumerable: true,
+            get: () => value,
+            set: (v) => {
+              if (v === value) return;
+              value = v;
+              if (element.update) element.update();
+              else if (this.queue?.length > 0) this.queue.push(() => update.call(this, element, null, null, context, false, true));
+              else update.call(this, element, null, null, context, false, true);
+            }
+          });
+        }
+      }
+      element.children = component.render();
+      if (!Array.isArray(element.children)) element.children = [element.children];
+    }
   }
   for (let i = 0, len = element.children?.length || 0; i < len; i++)
-    element.children[i] = render.call(this, element, element.children[i], referenceNode);
+    element.children[i] = render.call(this, element, element.children[i], { ...context }, referenceNode);
   if (type === Component.Node) isBrowser() && element.ref.onconnect?.();
   return element;
 }
 
-function update(element, props, children, reset, dequeue) {
+function update(element, props, children, context, reset, dequeue) {
   if (!isBrowser()) return;
   if (element.type === TextNode) {
     element.node.nodeValue = children[0];
@@ -230,17 +268,7 @@ function update(element, props, children, reset, dequeue) {
     for (let i = 0, len = previousChildren.length; i < len; i++) {
       if (!previousChildren[i]) continue;
       const { node, firstNode, lastNode } = previousChildren[i];
-      if (node) element.removeNode(node)
-      else if ((firstNode && firstNode == lastNode)) element.removeNode(firstNode);
-      else {
-        let currentNode = firstNode;
-        while (currentNode) {
-          const next = currentNode.nextSibling;
-          element.removeNode(currentNode);
-          if (currentNode === lastNode) currentNode = null;
-          else currentNode = next;
-        }
-      }
+      mutate(element, "removeNode", node || firstNode, lastNode);
       findComponents(previousChildren[i], (component) => component.ondisconnect?.());
     }
 
@@ -249,9 +277,9 @@ function update(element, props, children, reset, dequeue) {
       const { insert, props, children, reset: _reset } = changes[i];
       const previousSibling = findPreviousSibling(element, i);
       if (insert)
-        element.children[i] = render.call(this, element, element.children[i], previousSibling?.nextSibling);
+        element.children[i] = render.call(this, element, element.children[i], { ...context }, previousSibling?.nextSibling);
       else {
-        update.call(this, element.children[i], props, children, _reset);
+        update.call(this, element.children[i], props, children, { ...context }, _reset);
         const firstNode = element.children[i].node || element.children[i].firstNode;
         if (!firstNode) continue;
         let referenceNode = null;
@@ -262,16 +290,7 @@ function update(element, props, children, reset, dequeue) {
         else if (firstNode.parentNode.firstChild !== firstNode) referenceNode = firstNode.parentNode.firstChild;
         else continue;
         const lastNode = element.children[i].lastNode;
-        if (!lastNode || firstNode === lastNode) element.appendNode(firstNode, referenceNode);
-        else {
-          let currentNode = firstNode;
-          while (currentNode) {
-            const next = currentNode.nextSibling;
-            element.appendNode(currentNode, referenceNode);
-            if (currentNode === lastNode) currentNode = null;
-            else currentNode = next;
-          }
-        }
+        mutate(element, "appendNode", firstNode, lastNode, referenceNode);
       }
     }
   }
@@ -352,6 +371,19 @@ function duplicatedId(children, index) {
     if (children[i].id === id) return true;
   }
   return false;
+}
+
+function mutate(element, mutation, firstNode, lastNode, referenceNode) {
+  if (!lastNode || firstNode == lastNode) element[mutation](firstNode, referenceNode);
+  else {
+    let currentNode = firstNode;
+    while (currentNode) {
+      const next = currentNode.nextSibling;
+      element[mutation](currentNode, referenceNode);
+      if (currentNode === lastNode) currentNode = null;
+      else currentNode = next;
+    }
+  }
 }
 
 function findComponents(element, callback) {
