@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { fs, hash } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
-import { system, stringify, ClassFunction, noCache } from "../../../utils";
+import { system, stringify, FunctionClass, noCache } from "../../../utils";
 
 system.set("document", { scripts: [] });
 system.set("HTMLElement", class { });
@@ -25,7 +25,7 @@ const CLIENT = `${process.env.NODE_ENV === "development" ? "\n" : ""}${(await im
 const CLIENT_STYLE = (await import("./page.css", { with: { type: 'raw' } }))?.code;
 const SERVICE_WORKER = (await import(fs.resolve(dirname, "../../../core/sw"), { with: { type: 'bundler' } }))?.code;
 
-class PageHandler extends ClassFunction {
+class PageHandler extends FunctionClass {
   events = new EventEmitter();
   emit;
   watchedFiles = [];

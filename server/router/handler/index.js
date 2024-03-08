@@ -1,12 +1,12 @@
 import { EventEmitter } from "node:events";
 import { fs, hash } from "@vistta/utils";
 import { extractImports } from "../../../bin/loaders";
-import { convertToEventName, ClassFunction, noCache } from "../../../utils";
+import { convertToEventName, FunctionClass, noCache } from "../../../utils";
 import PageHandler from "./page";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
-class Handler extends ClassFunction {
+class Handler extends FunctionClass {
   events = new EventEmitter();
   emit;
   watchedFiles = [];

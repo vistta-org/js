@@ -1,12 +1,3 @@
-export declare const Context: new <
-  T extends {
-    [attr: string]: any;
-  },
->(
-  key: string,
-  defaultValue?: T,
-) => T;
-
 export class Ref<T> {
   constructor(initialValue: T);
   current?: T;

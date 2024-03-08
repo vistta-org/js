@@ -13,7 +13,8 @@ Update:
 #4: 11.344199999928474ms
 */
 
-import { Context, Ref, Component, Suspense } from "./classes";
+import { Ref, Component, Suspense } from "./classes";
+import { Context } from "./context";
 import { Fragment, TextNode, Element, createElement } from "./element";
 import { applyTransition } from "./transitions";
 import { isBrowser, capitalize } from "../utils";
@@ -152,10 +153,12 @@ function render(parent, element, context, referenceNode) {
     }
     else {
       const properties = Object.getOwnPropertyNames(component);
+      if (!element.ignoreProperties) element.ignoreProperties = [];
       for (let i = 0, len = properties.length; i < len; i++) {
         const property = properties[i];
         if (property === "render" || property === "onconnect" || property === "ondisconnect") continue;
         if (component[property] instanceof Promise) {
+          element.ignoreProperties.push(property);
           let value = null;
           if (isBrowser()) {
             context.suspense?.wait();
@@ -179,12 +182,23 @@ function render(parent, element, context, referenceNode) {
           });
         }
         else if (component[property] instanceof Context) {
-          const key = "#" + component[property].key;
-          if (!context[key]) context[key] = component[property].defaultValue;
+          element.ignoreProperties.push(property);
+          const _context = component[property];
+          if (!context["#" + _context.key]) {
+            context["#" + _context.key] = _context;
+            _context.__register(() => {
+              if (element.update) element.update();
+              else if (this.queue?.length > 0) this.queue.push(() => update.call(this, element, null, null, context, false, true));
+              else update.call(this, element, null, null, context, false, true);
+            });
+          }
           Object.defineProperty(component, property, {
             configurable: false,
-            enumerable: true,
-            get: () => context[key]
+            enumerable: false,
+            get: () => _context.valueOf(),
+            set: (value) => {
+              _context.setValue(value);
+            },
           });
         }
         else {
@@ -229,7 +243,7 @@ function update(element, props, children, context, reset, dequeue) {
       const properties = Object.getOwnPropertyNames(component);
       for (let i = 0, len = properties.length; i < len; i++) {
         const property = properties[i];
-        if (property === "render" || property === "onconnect" || property === "ondisconnect") continue;
+        if (property === "render" || property === "onconnect" || property === "ondisconnect" || element.ignoreProperties.includes(property)) continue;
         component[property] = props[property];
       }
       element.update = null;

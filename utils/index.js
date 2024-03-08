@@ -66,7 +66,7 @@ export const system = {
   }
 };
 
-export class ClassFunction extends Function {
+export class FunctionClass extends Function {
   constructor(f) {
     return Object.setPrototypeOf(f, new.target.prototype);
   }
