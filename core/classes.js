@@ -3,7 +3,30 @@ export const INTERNAL = {}
 
 const node = Symbol("Component");
 
-export class Ref { }
+export class Context {
+  #key;
+  #defaultValue;
+
+  get key() {
+    return this.#key;
+  }
+
+  get defaultValue() {
+    return this.#defaultValue || {};
+  }
+
+  constructor(key, defaultValue) {
+    if (typeof key !== "string" || key.length == 0) return null;
+    this.#key = key;
+    if (typeof defaultValue === "object") this.#defaultValue = defaultValue;
+  }
+}
+
+export class Ref {
+  constructor(initialValue) {
+    this.current = initialValue;
+  }
+}
 
 export class Component {
   children = [];

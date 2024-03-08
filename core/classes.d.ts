@@ -1,15 +1,18 @@
-export class Ref<T extends HTMLElement> {
-  constructor(initialValue: T);
-  current?: T;
-}
-
-export declare const Component: new <
+export declare const Context: new <
   T extends {
     [attr: string]: any;
   },
 >(
-  props: T & { key?: string },
+  key: string,
+  defaultValue?: T,
 ) => T;
+
+export class Ref<T> {
+  constructor(initialValue: T);
+  current?: T;
+}
+
+export class Component<T = {}> extends JSX.Component<T> {}
 
 export class Suspense extends Component<{ fallback: JSX.Node }> {}
 
@@ -18,7 +21,7 @@ export class Profiler extends Component<{
 }> {}
 
 declare class RenderEach<T> extends Component<{
-  target: T[] | { [key: string]: T } | State<T[]> | State<{ [key: string]: T }>;
+  target: T[] | { [key: string]: T };
   callback: (value: T, index: number | string) => JSX.Node;
 }> {}
 
@@ -26,7 +29,5 @@ export declare const Render: {
   If: typeof Component<{ condition: any }>;
   Each: typeof RenderEach;
 };
-
-//export class Suspense extends Component<{ fallback: JSX.Node }> {}
 
 export class Try extends Component<{ fallback: JSX.Node }> {}

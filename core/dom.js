@@ -13,7 +13,7 @@ Update:
 #4: 11.344199999928474ms
 */
 
-import { Ref, Component, Suspense } from "./classes";
+import { Context, Ref, Component, Suspense } from "./classes";
 import { Fragment, TextNode, Element, createElement } from "./element";
 import { applyTransition } from "./transitions";
 import { isBrowser, capitalize } from "../utils";
@@ -176,6 +176,15 @@ function render(parent, element, context, referenceNode) {
             configurable: false,
             enumerable: true,
             get: () => value,
+          });
+        }
+        else if (component[property] instanceof Context) {
+          const key = "#" + component[property].key;
+          if (!context[key]) context[key] = component[property].defaultValue;
+          Object.defineProperty(component, property, {
+            configurable: false,
+            enumerable: true,
+            get: () => context[key]
           });
         }
         else {

@@ -1,6 +1,6 @@
 "use strict";
 import { createElement, cloneElement } from "./element"
-import { Ref, Component, Suspense, Profiler, Render, Try, /*Form*/ } from "./classes";
+import { Context, Ref, Component, Suspense, Profiler, Render, Try, /*Form*/ } from "./classes";
 import { route } from "./router";
 import { socket } from "./socket";
 // import { Store } from "./store";
@@ -11,6 +11,6 @@ system.set("vistta", {
   route,
   socket,
   //  Store,
-  Ref, Component, Suspense, Profiler, Render, Try,
+  Context, Ref, Component, Suspense, Profiler, Render, Try,
   isBrowser, apply
 });
