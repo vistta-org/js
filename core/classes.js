@@ -1,7 +1,103 @@
 /* eslint-disable no-undef */
-export const INTERNAL = {}
+import { encode, decode, stringify, parse, isPromise, FunctionClass } from "../utils";
+
+const CONTEXT_CACHE_KEY = "Vistta_Context_";
 
 const node = Symbol("Component");
+
+export class Context extends FunctionClass {
+  #key;
+  #value;
+  #cache;
+  #writable;
+  #callback
+
+  constructor(key, defaultValue, cache, actions, controllers) {
+    if (typeof key !== "string" || key.length == 0) return null;
+    super(() => this);
+    this.#key = key;
+    this.#value = (cache !== "none" ? getCacheValue(key) : undefined) ?? defaultValue;
+    this.#cache = cache || "none";
+    if (!actions || typeof actions === "boolean") this.#writable = actions !== false;
+    else {
+      this.#writable = false;
+      const actionsNames = Object.keys(actions || {});
+      if (actionsNames.length > 0) {
+        const controllerFn = (target, ...args) => typeof controllers === "function" ? controllers.call(this, target, ...args) : controllers?.[target]?.call(this, ...args);
+        const updateValue = (value) => {
+          if (this.#value === value) return;
+          this.#value = value;
+          if (this.#cache !== "none") updateCache(this.#key, value, this.#cache);
+          this.#callback?.();
+        }
+        for (let i = 0, len = actionsNames.length; i < len; i++) {
+          const actionName = actionsNames[i];
+          if (["valueOf", "toString", "setValue", "register"].includes(actionName)) throw new Error(`Invalid action name "${actionName}".`);
+          const action = actions[actionName];
+          this[actionName] = ((...args) => {
+            controllerFn(actionName, "pending", this.valueOf());
+            const controller = new AbortController();
+            const promise = new Promise((resolve) => {
+              controller.signal.onabort = () => {
+                controllerFn(actionName, "rejected", controller.signal.reason);
+                resolve(null);
+              };
+              try {
+                let value = action(this.valueOf(), ...args);
+                if (isPromise(value)) value.then((result) => {
+                  if (controller.signal?.aborted) return;
+                  updateValue(result);
+                  resolve(this.valueOf());
+                  controllerFn(actionName, "completed", this.valueOf());
+                }).catch((e) => {
+                  controllerFn(actionName, "rejected", e);
+                  resolve(null);
+                });
+                else if (!controller.signal?.aborted) {
+                  updateValue(value);
+                  resolve(this.valueOf());
+                  controllerFn(actionName, "completed", this.valueOf());
+                }
+              } catch (e) {
+                controllerFn(actionName, "rejected", e);
+                resolve(null);
+              }
+            });
+            promise.abort = (...args) => controller.abort(...args);
+            return promise;
+          }).bind(this);
+        }
+      }
+    }
+  }
+
+  get key() {
+    return this.#key;
+  }
+
+  get writable() {
+    return this.#writable;
+  }
+
+  valueOf() {
+    return this.#value;
+  }
+
+  toString() {
+    return "" + this.#value;
+  }
+
+  setValue(value) {
+    if (!this.#writable || this.#value === value) return;
+    this.#value = value;
+    if (this.#cache !== "none") updateCache(this.#key, value, this.#cache);
+    this.#callback?.();
+  }
+
+  register(callback) {
+    this.#callback = callback;
+  }
+}
 
 export class Ref {
   constructor(initialValue) {
@@ -109,4 +205,239 @@ export class Try extends Component {
       return this.fallback;
     }
   }
+}
+
+export class Form extends Component {
+  static Ref = Ref;
+  #node;
+  #path = [];
+  #parent;
+  #fields = {};
+  #required = {};
+  #validations = {};
+  #listeners = {};
+  #invalidEvent;
+  ref;
+  name;
+  className;
+  autocomplete;
+  style;
+  onsubmit;
+  oninvalid;
+
+  get path() {
+    return this.#path;
+  }
+
+  onconnect() {
+    if (this.#parent || !this.ref || this.ref.current) return;
+    Object.assign(this.ref, {
+      current: true,
+      watch: (...args) => this.watch(...args),
+      unwatch: (...args) => this.unwatch(...args),
+      reset: (name) => this.reset(name),
+      clear: (name) => this.clear(name),
+      submit: () => this.submit(),
+      values: () => this.values(),
+      validate: (name) => this.validate(name)
+    });
+  }
+
+  render() {
+    if (this.#parent) {
+      if (!this.name) {
+        if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
+        return null;
+      }
+      if (this.className || this.style) return createElement("div", { className: this.className, style: this.style }, ...children);
+      return createElement(Fragment, {}, ...this.children);
+    }
+    this.#invalidEvent = typeof oninvalid === "function";
+    return createElement("form", {
+      ref: (element) => this.#node = element,
+      className: this.className,
+      autocomplete: this.autocomplete,
+      onreset: () => this.reset(),
+      oninvalid: this.oninvalid,
+      onsubmit: (event) => {
+        event.preventDefault();
+        if (!this.validate()) return;
+        event.values = this.values();
+        this.onsubmit?.(event);
+      },
+      style: this.style,
+    }, ...this.children);
+  }
+
+  register(target) {
+    if (target instanceof Form) {
+      this.#parent = target;
+      this.#path = [...this.#parent.path, this.name];
+      return;
+    }
+
+    const { type, props, node } = target || {};
+    if (!node || type !== "input" && type !== "textarea" && type !== "select" && props.role !== "input" || props.type === "submit") return;
+    if (!props.name) {
+      if ("production" !== process.env.NODE_ENV) console.warn(`Missing "name" attribute on ${type} inside of form.`);
+      return;
+    }
+    if (props.type === "radio") {
+      if (!this.#fields[props.name]) this.fields[props.name] = [];
+      this.#fields[props.name].push(node);
+    }
+    else this.#fields[props.name] = node;
+    if (type === "select") node.defaultValue = node.value;
+    if (this.#parent) return this.#parent.register({ type, props: { name: [...this.path, props.name].join("."), ...props }, node });
+    this.#required[props.name] = props.required;
+    this.#validations[props.name] = props.validation;
+    node.addEventListener(type === "select" ? "change" : "input", (e) => {
+      if (!this.#invalidEvent) node.setCustomValidity?.("");
+      for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++) this.#listeners[props.name][i](e);
+      for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
+    });
+    node.addEventListener("keydown", (e) => e.key === 'Enter' && this.#node?.requestSubmit());
+  }
+
+  watch(...args) {
+    if (args.length == 0 || this.#parent) return;
+    if (args.length == 1) args.unshift("*");
+    const [name, listener] = args;
+    if (!this.#listeners[name]) {
+      this.#listeners[name] = [listener];
+      return;
+    }
+    for (let i = 0, len = this.#listeners[name]?.length; i < len; i++) {
+      if (this.#listeners[name][i] === listener) return;
+    }
+    this.#listeners[name].push(listener);
+  }
+
+  unwatch(...args) {
+    if (args.length == 0 || this.#parent) return;
+    if (args.length == 1) args.unshift("*");
+    const [name, listener] = args;
+    for (let i = 0, len = this.#listeners[name]?.length; i < len; i++) {
+      if (this.#listeners[name][i] === listener) {
+        this.#listeners[name].splice(i, 1);
+        return;
+      }
+    }
+  }
+
+  reset(name = "*") {
+    if (name === "*") {
+      const inputs = Object.keys(this.#fields);
+      for (let i = 0, len = inputs.length; i < len; i++) {
+        this.#fields[inputs[i]].value = getFieldDefaultValue(this.#fields[inputs[i]]);
+        if (!this.#invalidEvent) this.#fields[inputs[i]].setCustomValidity?.("");
+      }
+      return;
+    }
+    this.#fields[name].value = getFieldDefaultValue(this.#fields[name]);
+  }
+
+  validate(name) {
+    if (name && !this.#fields[name]) return null;
+    let errors = [];
+    const inputs = name ? [name] : Object.keys(this.#fields);
+    for (let i = 0, len = inputs.length; i < len; i++) {
+      const field = this.#fields[inputs[i]];
+      const value = getFieldValue(field);
+      if (this.#required[inputs[i]] === true && !value) {
+        if (this.#invalidEvent) errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
+        else field.setCustomValidity?.(DEFAULT_ERROR_MESSAGE);
+        continue;
+      }
+      const validation = this.#validations[inputs[i]];
+      const error = typeof validation === "function" ? validation(value) : null;
+      if (typeof error === "string") {
+        if (this.#invalidEvent) errors.push({ field, error });
+        else field.setCustomValidity?.(error);
+      }
+      else if (error === false) {
+        if (this.#invalidEvent) errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
+        else field.setCustomValidity?.(DEFAULT_ERROR_MESSAGE);
+      }
+      else if (!this.#invalidEvent) field.setCustomValidity?.("");
+    }
+    if (!this.#invalidEvent) return this.#node.reportValidity();
+    if (errors.length === 0) return true;
+    const invalidEvent = new Event("invalid");
+    invalidEvent.errors = errors;
+    this.#node.dispatchEvent(invalidEvent);
+    return false;
+  }
+
+  clear(name = "*") {
+    if (name === "*") {
+      const inputs = Object.keys(this.#fields);
+      for (let i = 0, len = inputs.length; i < len; i++)
+        this.#fields[inputs[i]].value = "";
+      return;
+    }
+    this.#fields[name].value = "";
+  }
+
+  submit() {
+    this.#node.requestSubmit();
+  }
+
+  values() {
+    const values = {};
+    const inputs = Object.keys(this.#fields);
+    for (let i = 0, len = inputs.length; i < len; i++) {
+      const cur = inputs[i];
+      if (cur.includes(".")) {
+        let temp = values;
+        const paths = cur.split(".");
+        for (let n = 0, pathsLen = paths.length; n < pathsLen; n++) {
+          const key = paths[n];
+          if (n === pathsLen - 1) temp[key] = getFieldValue(this.#fields[cur]);
+          else (temp[key] = temp[key] || {}, temp = temp[key])
+        }
+      }
+      else values[cur] = getFieldValue(this.#fields[cur]);
+    }
+    return values;
+  }
+}
+
+//
+
+function updateCache(key, value, type) {
+  const storage = type === "session" ? sessionStorage : localStorage;
+  storage.setItem(encode(CONTEXT_CACHE_KEY + key), encode(stringify(value)));
+}
+
+function getCacheValue(key) {
+  try {
+    return parse(decode(localStorage.getItem(encode(CONTEXT_CACHE_KEY + key)))) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+
+
+function getFieldValue(element) {
+  if (Array.isArray(element)) {
+    for (let i = 0, len = element.length; i < len; i++) {
+      if (element[i].checked) return element[i].value;
+    }
+    return null;
+  }
+  if (element.type === "checkbox") return element.checked;
+  return element.value;
+}
+
+function getFieldDefaultValue(element) {
+  if (Array.isArray(element)) {
+    for (let i = 0, len = element.length; i < len; i++) {
+      if (element[i].defaultChecked) return element[i].value;
+    }
+    return null;
+  }
+  if (element.type === "checkbox") return element.defaultChecked;
+  return element.defaultValue;
 }

@@ -1,5 +1,20 @@
+type DropFirst<T extends unknown[]> = T extends [any, ...infer U] ? U : never;
+type Action<T> = (prev: T, ...args: any[]) => T | Promise<T> | void;
+
+export declare const Context: new <T, Actions extends { [key: string]: Action<T> }>(
+  key: string,
+  defaultValue?: T,
+  cache?: "none" | "session" | "storage",
+  actions?: Actions,
+  controllers?:
+    | { [K in keyof Actions]: (status: string, controllerOrValue: any) => void }
+    | ((action: keyof Actions, status: string, controllerOrValue: any) => void),
+) => {
+  [K in keyof Actions]: Actions[K] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => Promise<T> : never;
+} & { (): T };
+
 export class Ref<T> {
-  constructor(initialValue: T);
+  constructor(initialValue?: T);
   current?: T;
 }
 
@@ -22,3 +37,27 @@ export declare const Render: {
 };
 
 export class Try extends Component<{ fallback: JSX.Node }> {}
+
+type FormRef = {
+  watch: (name: string | EventListener, listener?: EventListener) => void;
+  unwatch: (name: string | EventListener, listener?: EventListener) => void;
+  reset: (name?: string) => void;
+  clear: (name?: string) => void;
+  submit: () => void;
+  values: () => { [name: string]: any };
+  validate: (name?: string) => boolean;
+};
+
+export class Form extends Component<
+  | {
+      ref?: FormRef;
+      className?: string;
+      autocomplete?: boolean;
+      onsubmit: (event: any) => any;
+      oninvalid?: (event: any) => any;
+      style?: Partial<CSSStyleDeclaration>;
+    }
+  | { name: string; className?: string; style?: Partial<CSSStyleDeclaration> }
+> {
+  static Ref: new () => FormRef;
+}

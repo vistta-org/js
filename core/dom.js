@@ -13,8 +13,7 @@ Update:
 #4: 11.344199999928474ms
 */
 
-import { Ref, Component, Suspense } from "./classes";
-import { Context } from "./context";
+import { Context, Ref, Component, Suspense, Form } from "./classes";
 import { Fragment, TextNode, Element, createElement } from "./element";
 import { applyTransition } from "./transitions";
 import { isBrowser, capitalize } from "../utils";
@@ -88,6 +87,7 @@ function render(parent, element, context, referenceNode) {
   }
   const { type, key, ref, props, children } = element;
   element.parent = parent;
+  element.context = context;
 
   if (type === TextNode) {
     element.node = this.createTextNode(children);
@@ -99,7 +99,7 @@ function render(parent, element, context, referenceNode) {
       if (this.keys[key] != null) {
         if (this.keys[key].type !== type) throw new Error(`Key ${key} already in use.`);
         this.keys[key].parent = parent;
-        update.call(this, this.keys[key], element.props, element.children, context);
+        update.call(this, this.keys[key], element.props, element.children);
         return (parent.appendNode(this.keys[key].node, referenceNode), this.keys[key]);
       }
       else this.keys[key] = element;
@@ -114,6 +114,7 @@ function render(parent, element, context, referenceNode) {
     else if (ref instanceof Ref) ref.current = element.node;
     for (let i = 0, len = children?.length || 0; i < len; i++)
       element.children[i] = render.call(this, element, children[i], { ...context });
+    context.form?.register(element);
     return (parent.appendNode(element.node, referenceNode), element);
   }
 
@@ -124,7 +125,7 @@ function render(parent, element, context, referenceNode) {
         this.keys[key].parent = parent;
         const { firstNode, lastNode } = this.keys[key];
         mutate(element, "appendNode", firstNode, lastNode, referenceNode);
-        update.call(this, this.keys[key], element.props, context);
+        update.call(this, this.keys[key], element.props);
         return this.keys[key];
       }
       else this.keys[key] = element;
@@ -152,11 +153,18 @@ function render(parent, element, context, referenceNode) {
       else element.children = props.children;
     }
     else {
+      if (component.constructor === Form) {
+        if (context.form) component.register(context.form);
+        else context.form = component;
+      }
       const properties = Object.getOwnPropertyNames(component);
       if (!element.ignoreProperties) element.ignoreProperties = [];
       for (let i = 0, len = properties.length; i < len; i++) {
         const property = properties[i];
-        if (property === "render" || property === "onconnect" || property === "ondisconnect") continue;
+        if (typeof component[property] === "function") {
+          element.ignoreProperties.push(property);
+          continue;
+        }
         if (component[property] instanceof Promise) {
           element.ignoreProperties.push(property);
           let value = null;
@@ -166,11 +174,11 @@ function render(parent, element, context, referenceNode) {
               value = result;
               if (element.update) element.update();
               else if (this.queue?.length > 0) this.queue.push(() => {
-                update.call(this, element, null, null, context, false, true);
+                update.call(this, element, null, null, false, true);
                 context.suspense?.resolve();
               });
               else {
-                update.call(this, element, null, null, context, false, true);
+                update.call(this, element, null, null, false, true);
                 context.suspense?.resolve();
               }
             }).catch(() => context.suspense?.resolve());
@@ -186,10 +194,10 @@ function render(parent, element, context, referenceNode) {
           const _context = component[property];
           if (!context["#" + _context.key]) {
             context["#" + _context.key] = _context;
-            _context.__register(() => {
+            _context.register(() => {
               if (element.update) element.update();
-              else if (this.queue?.length > 0) this.queue.push(() => update.call(this, element, null, null, context, false, true));
-              else update.call(this, element, null, null, context, false, true);
+              else if (this.queue?.length > 0) this.queue.push(() => update.call(this, element, null, null, false, true));
+              else update.call(this, element, null, null, false, true);
             });
           }
           Object.defineProperty(component, property, {
@@ -211,8 +219,8 @@ function render(parent, element, context, referenceNode) {
               if (v === value) return;
               value = v;
               if (element.update) element.update();
-              else if (this.queue?.length > 0) this.queue.push(() => update.call(this, element, null, null, context, false, true));
-              else update.call(this, element, null, null, context, false, true);
+              else if (this.queue?.length > 0) this.queue.push(() => update.call(this, element, null, null, false, true));
+              else update.call(this, element, null, null, false, true);
             }
           });
         }
@@ -227,7 +235,7 @@ function render(parent, element, context, referenceNode) {
   return element;
 }
 
-function update(element, props, children, context, reset, dequeue) {
+function update(element, props, children, reset, dequeue) {
   if (!isBrowser()) return;
   if (element.type === TextNode) {
     element.node.nodeValue = children[0];
@@ -243,7 +251,7 @@ function update(element, props, children, context, reset, dequeue) {
       const properties = Object.getOwnPropertyNames(component);
       for (let i = 0, len = properties.length; i < len; i++) {
         const property = properties[i];
-        if (property === "render" || property === "onconnect" || property === "ondisconnect" || element.ignoreProperties.includes(property)) continue;
+        if (element.ignoreProperties.includes(property)) continue;
         component[property] = props[property];
       }
       element.update = null;
@@ -300,9 +308,9 @@ function update(element, props, children, context, reset, dequeue) {
       const { insert, props, children, reset: _reset } = changes[i];
       const previousSibling = findPreviousSibling(element, i);
       if (insert)
-        element.children[i] = render.call(this, element, element.children[i], { ...context }, previousSibling?.nextSibling);
+        element.children[i] = render.call(this, element, element.children[i], { ...element.context }, previousSibling?.nextSibling);
       else {
-        update.call(this, element.children[i], props, children, { ...context }, _reset);
+        update.call(this, element.children[i], props, children, _reset);
         const firstNode = element.children[i].node || element.children[i].firstNode;
         if (!firstNode) continue;
         let referenceNode = null;
@@ -387,7 +395,7 @@ function setAttribute(node, name, value) {
 }
 
 function duplicatedId(children, index) {
-  const id = children[index].id;
+  const id = children[index]?.id;
   if (!id) return false;
   for (let i = 0, len = children.length; i < len; i++) {
     if (i == index) continue;
@@ -397,7 +405,8 @@ function duplicatedId(children, index) {
 }
 
 function mutate(element, mutation, firstNode, lastNode, referenceNode) {
-  if (!lastNode || firstNode == lastNode) element[mutation](firstNode, referenceNode);
+  if (!firstNode) return;
+  if (!lastNode || firstNode === lastNode) element[mutation](firstNode, referenceNode);
   else {
     let currentNode = firstNode;
     while (currentNode) {
