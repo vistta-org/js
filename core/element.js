@@ -66,7 +66,16 @@ function createElement(type, props, ...children) {
     element.props.children = children;
     if (typeof props?.key === "number") props.key = "" + props.key
     if (typeof props?.key === "string") (element.key = props.key), delete element.props.key;
-    element.ref = type;
+    element.ref = new type();
+    return element;
+  }
+  if (typeof type === "function") {
+    const element = new Element(Component.Node, props);
+    element.id = this?.id;
+    element.props.children = children;
+    if (typeof props?.key === "number") props.key = "" + props.key
+    if (typeof props?.key === "string") (element.key = props.key), delete element.props.key;
+    element.ref = Object.assign(new Component(), type());
     return element;
   }
   const typeOf = typeof type;

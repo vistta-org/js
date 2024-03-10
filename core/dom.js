@@ -111,7 +111,7 @@ function render(parent, element, context, referenceNode) {
         setAttribute(element.node, keys[i], props[keys[i]]);
     }
     if (typeof ref === "function") ref(element.node);
-    else if (ref instanceof Ref) ref.current = element.node;
+    else if (ref instanceof Ref) ref.node = element.node;
     for (let i = 0, len = children?.length || 0; i < len; i++)
       element.children[i] = render.call(this, element, children[i], { ...context });
     context.form?.register(element);
@@ -130,8 +130,7 @@ function render(parent, element, context, referenceNode) {
       }
       else this.keys[key] = element;
     }
-    const component = new element.ref();
-    element.ref = component;
+    const component = element.ref;
     if (component.constructor === Suspense) {
       if (props.fallback) {
         element.children = [props.fallback];
@@ -165,7 +164,10 @@ function render(parent, element, context, referenceNode) {
           element.ignoreProperties.push(property);
           continue;
         }
-        if (component[property] instanceof Promise) {
+        if (component[property] instanceof Ref) {
+          element.ignoreProperties.push(property);
+        }
+        else if (component[property] instanceof Promise) {
           element.ignoreProperties.push(property);
           let value = null;
           if (isBrowser()) {

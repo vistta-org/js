@@ -101,7 +101,7 @@ export class Context extends FunctionClass {
 
 export class Ref {
   constructor(initialValue) {
-    this.current = initialValue;
+    this.node = initialValue;
   }
 }
 
@@ -230,9 +230,9 @@ export class Form extends Component {
   }
 
   onconnect() {
-    if (this.#parent || !this.ref || this.ref.current) return;
+    if (this.#parent || !this.ref || this.ref.node) return;
     Object.assign(this.ref, {
-      current: true,
+      node: this.#node,
       watch: (...args) => this.watch(...args),
       unwatch: (...args) => this.unwatch(...args),
       reset: (name) => this.reset(name),
@@ -417,8 +417,6 @@ function getCacheValue(key) {
     return undefined;
   }
 }
-
-
 
 function getFieldValue(element) {
   if (Array.isArray(element)) {

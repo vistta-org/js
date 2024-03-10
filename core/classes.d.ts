@@ -13,9 +13,9 @@ export declare const Context: new <T, Actions extends { [key: string]: Action<T>
   [K in keyof Actions]: Actions[K] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => Promise<T> : never;
 } & { (): T };
 
-export class Ref<T> {
-  constructor(initialValue?: T);
-  current?: T;
+export class Ref<T extends HTMLElement> {
+  constructor(node?: T);
+  node?: T;
 }
 
 export class Component<T = {}> extends JSX.Component<T> {}
@@ -39,6 +39,7 @@ export declare const Render: {
 export class Try extends Component<{ fallback: JSX.Node }> {}
 
 type FormRef = {
+  node: HTMLFormElement;
   watch: (name: string | EventListener, listener?: EventListener) => void;
   unwatch: (name: string | EventListener, listener?: EventListener) => void;
   reset: (name?: string) => void;
