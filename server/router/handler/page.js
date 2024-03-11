@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { fs, hash } from "@vistta/utils";
+import { fs } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
 import { system, stringify, FunctionClass, noCache } from "../../../utils";
@@ -32,7 +32,7 @@ class PageHandler extends FunctionClass {
 
   constructor({ filepath, pathname, type, callback, resources, pwa, template, config }) {
     super((request, response, reject) => this.handler ? this.handler(request, response, reject) : null);
-    this.id = hash(filepath);
+    this.id = fs.fileId(filepath);
     this.pwa = pwa;
     this.filepath = fs.resolve(filepath);
     this.resources = resources;

@@ -16,12 +16,12 @@ export default async function (source, { path, type, bundler }) {
       for (let i = 0, len = matches?.length || 0; i < len; i++) {
         source = source.replace(matches[i], (match) => "@at-root " + match.replace(/:root|:scope|:scoped/g, "#{&}"));
       }
-      source = `[scope~="${id}"] { ${source.replace(/:root|:scope|:scoped/g, "&").replace(/,\s+@at-root/g, ",")} }`;
+      source = `[scope-${id}] { ${source.replace(/:root|:scope|:scoped/g, "&").replace(/,\s+@at-root/g, ",")} }`;
     }
     const { code, resources, files } = transform(source, dirname, fs.resolve(process.cwd(), "node_modules"));
     resources.push({ hash, code });
     return {
-      code: `export default (${stringify(config ? { hash, href: "./resources/" + hash } : { scope: id })}); export const code = ${bundler ? "\"\"" : JSON.stringify(code)};`,
+      code: `export default (${stringify(config ? { hash, href: "./resources/" + hash } : { ["scope-" + id]: true })}); export const code = ${bundler ? "\"\"" : JSON.stringify(code)};`,
       resources,
       files,
     };
