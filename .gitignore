@@ -133,7 +133,9 @@ dist
 .build
 .npmrc
 
-#temp
+# project
 docs
 playground.js
-tests
+
+# vscode
+.vscode
