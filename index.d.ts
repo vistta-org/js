@@ -2,9 +2,7 @@
 /// <reference types="node"/>
 
 export { createElement, cloneElement } from "./core/element";
-export { Context, context, Ref, ref, State, state, Effect, effect, Form, form } from "./core/tools";
-export { Component, Profiler, Render, Suspense, Try } from "./core/components";
-export { Store } from "./core/store";
 export { route } from "./core/router";
+export { Context, Ref, Component, Suspense, Profiler, Render, Try, Form } from "./core/classes";
 export { socket } from "./core/socket";
 export { isBrowser, apply } from "./utils/index";

@@ -1,8 +1,8 @@
 import { EventEmitter } from "node:events";
-import { fs, hash } from "@vistta/utils";
+import { fs } from "@vistta/utils";
 import { createElement, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
-import { system, stringify, BaseFunction, noCache } from "../../../utils";
+import { system, stringify, FunctionClass, noCache } from "../../../utils";
 
 system.set("document", { scripts: [] });
 system.set("HTMLElement", class { });
@@ -25,14 +25,14 @@ const CLIENT = `${process.env.NODE_ENV === "development" ? "\n" : ""}${(await im
 const CLIENT_STYLE = (await import("./page.css", { with: { type: 'raw' } }))?.code;
 const SERVICE_WORKER = (await import(fs.resolve(dirname, "../../../core/sw"), { with: { type: 'bundler' } }))?.code;
 
-class PageHandler extends BaseFunction {
+class PageHandler extends FunctionClass {
   events = new EventEmitter();
   emit;
   watchedFiles = [];
 
   constructor({ filepath, pathname, type, callback, resources, pwa, template, config }) {
     super((request, response, reject) => this.handler ? this.handler(request, response, reject) : null);
-    this.id = hash(filepath);
+    this.id = fs.fileId(filepath);
     this.pwa = pwa;
     this.filepath = fs.resolve(filepath);
     this.resources = resources;
@@ -148,8 +148,11 @@ class PageHandler extends BaseFunction {
     system.set("route", this);
     const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app, props)) : createElement(this.app, props));
     system.set("route", null);
-    const { pathname } = this.location;
-    const styleHref = `.${pathname + (pathname.endsWith("/") ? "" : "/")}resources/app.css`;
+    let stylesheet;
+    if (this.stylesheet().length > 0) {
+      const { pathname } = BUILD ? this : this.location;
+      stylesheet = `.${pathname + (pathname.endsWith("/") ? "" : "/")}${BUILD ? "style.css" : "resources/app.css"}`;
+    }
     return (
       "<!doctype html>\n" +
       renderToString(
@@ -193,11 +196,11 @@ class PageHandler extends BaseFunction {
             ...(this.config?.links?.map((props) => createElement("link", props)) || []),
             createElement("script", { src: "./resources/client.js", defer: true }),
             createElement("link", { rel: "stylesheet", href: "./resources/client.css" }),
-            createElement("link", { rel: "preload", href: styleHref, as: "style" }),
-            createElement("link", { id: "app-style", rel: "stylesheet", href: styleHref }),
+            stylesheet && createElement("link", { rel: "preload", href: stylesheet, as: "style" }),
+            stylesheet && createElement("link", { id: "app-style", rel: "stylesheet", href: stylesheet }),
             ...(this.config?.scripts?.map((props) => createElement("script", props)) || []),
-            ...(this.config?.styles?.map(({ hash }) => createElement("link", { rel: "preload", href: "./resources/" + hash, as: "style" })) || []),
-            ...(this.config?.styles?.map(({ hash }) => createElement("link", { rel: "stylesheet", href: "./resources/" + hash })) || []),
+            ...(this.config?.styles?.map(({ href }) => createElement("link", { rel: "preload", href, as: "style" })) || []),
+            ...(this.config?.styles?.map(({ href }) => createElement("link", { rel: "stylesheet", href })) || []),
           ),
           createElement("body", {}, body),
         ),

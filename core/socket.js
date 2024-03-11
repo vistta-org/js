@@ -1,6 +1,6 @@
-import { INVALID_EVENT_NAME, convertToEventName, BaseClass } from "../utils";
+import { INVALID_EVENT_NAME, convertToEventName } from "../utils";
 
-class Socket extends BaseClass {
+class Socket {
   #active = false;
   #route;
   #instance;
@@ -18,7 +18,6 @@ class Socket extends BaseClass {
   }
 
   constructor() {
-    super();
     if (process.env.IS_NODE) return this;
     import("@socket")
       .then(({ io }) => this.#connect(io))

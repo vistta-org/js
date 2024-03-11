@@ -1,11 +1,10 @@
-declare function createElement(type: any, props?: { [name: string]: any }, children?: JSX.Node[]): JSX.Element | null;
+declare function createElement<Props extends { [name: string]: any }>(
+  type: string | JSX.Component<Props>,
+  props?: Props,
+  children?: JSX.Node[],
+): JSX.Element | null;
 declare const Fragment: symbol;
 declare const React: object;
-
-interface State<T> {
-  (): T;
-  (callback?: (value: T) => any): any;
-}
 
 interface Element {
   key?: string;
@@ -27,14 +26,16 @@ interface GlobalEventHandlers {
 
 declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
   {
-    [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K] | State<E[K]>;
+    [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K];
   } & GlobalEventHandlers & { style?: Partial<CSSStyleDeclaration> }
 >;
 
 declare namespace JSX {
   type Element = {};
   type Node = Element | Element[] | null;
-  type Component<T = { [attr: string]: any }> = (props: T & { children?: JSX.Node }) => Element | Element[] | null;
+  class Component<T extends { [name: string]: any }> {
+    constructor(props?: T);
+  }
   type Style = { scope: string };
 
   type IntrinsicElementMap = {

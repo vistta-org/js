@@ -7,28 +7,21 @@ import autoprefixer from "autoprefixer";
 
 export default async function (source, { path, type, bundler }) {
   try {
-    const raw = type === "raw";
+    const config = type === "config";
     const dirname = fs.dirname(path);
     const id = fs.fileId(path);
-    const hash = id + (raw ? ".css" : ".scoped.css");
-    if (!raw) {
+    const hash = id + (config ? ".css" : ".scoped.css");
+    if (!config) {
       const matches = source.match(/([^\s]+:root|[^\s]+:scope|[^\s]+:scoped)\b/g);
       for (let i = 0, len = matches?.length || 0; i < len; i++) {
         source = source.replace(matches[i], (match) => "@at-root " + match.replace(/:root|:scope|:scoped/g, "#{&}"));
       }
-      source = `[scope~="${id}"] { ${source.replace(/:root|:scope|:scoped/g, "&").replace(/,\s+@at-root/g, ",")} }`;
-    }
-    else {
-      const matches = source.match(/([^\s]+:scope|[^\s]+:scoped)\b/g);
-      for (let i = 0, len = matches?.length || 0; i < len; i++) {
-        source = source.replace(matches[i], (match) => match.replace(/:scope|:scoped/g, ""));
-      }
-      source = source.replace(/:scope|:scoped/g, "&");
+      source = `[scope-${id}] { ${source.replace(/:root|:scope|:scoped/g, "&").replace(/,\s+@at-root/g, ",")} }`;
     }
     const { code, resources, files } = transform(source, dirname, fs.resolve(process.cwd(), "node_modules"));
     resources.push({ hash, code });
     return {
-      code: `export default (${stringify(raw ? { hash } : { scope: id })}); export const code = ${bundler ? "\"\"" : JSON.stringify(code)};`,
+      code: `export default (${stringify(config ? { hash, href: "./resources/" + hash } : { ["scope-" + id]: true })}); export const code = ${bundler ? "\"\"" : JSON.stringify(code)};`,
       resources,
       files,
     };
