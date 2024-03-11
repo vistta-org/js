@@ -148,8 +148,11 @@ class PageHandler extends FunctionClass {
     system.set("route", this);
     const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app, props)) : createElement(this.app, props));
     system.set("route", null);
-    const { pathname } = BUILD ? this : this.location;
-    const styleHref = `.${pathname + (pathname.endsWith("/") ? "" : "/")}${BUILD ? "style.css" : "resources/app.css"}`;
+    let stylesheet;
+    if (this.stylesheet().length > 0) {
+      const { pathname } = BUILD ? this : this.location;
+      stylesheet = `.${pathname + (pathname.endsWith("/") ? "" : "/")}${BUILD ? "style.css" : "resources/app.css"}`;
+    }
     return (
       "<!doctype html>\n" +
       renderToString(
@@ -193,8 +196,8 @@ class PageHandler extends FunctionClass {
             ...(this.config?.links?.map((props) => createElement("link", props)) || []),
             createElement("script", { src: "./resources/client.js", defer: true }),
             createElement("link", { rel: "stylesheet", href: "./resources/client.css" }),
-            createElement("link", { rel: "preload", href: styleHref, as: "style" }),
-            createElement("link", { id: "app-style", rel: "stylesheet", href: styleHref }),
+            stylesheet && createElement("link", { rel: "preload", href: stylesheet, as: "style" }),
+            stylesheet && createElement("link", { id: "app-style", rel: "stylesheet", href: stylesheet }),
             ...(this.config?.scripts?.map((props) => createElement("script", props)) || []),
             ...(this.config?.styles?.map(({ href }) => createElement("link", { rel: "preload", href, as: "style" })) || []),
             ...(this.config?.styles?.map(({ href }) => createElement("link", { rel: "stylesheet", href })) || []),

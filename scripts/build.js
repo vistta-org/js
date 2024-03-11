@@ -30,7 +30,9 @@ for (let i = 0, len = files.length; i < len; i++) {
   build.timeLog("build", `│ ${" ".repeat(len - 1) + HTML + " ".repeat(max - len - HTML.length)}\t${formatFileSize(fs.statSync(dirname + HTML).size)}\t`);
   await fs.writeFile(dirname + SCRIPT, page.script());
   build.timeLog("build", `│ ${" ".repeat(len - 1) + SCRIPT + " ".repeat(max - len - SCRIPT.length)}\t${formatFileSize(fs.statSync(dirname + SCRIPT).size)}\t`);
-  await fs.writeFile(dirname + STYLESHEET, page.stylesheet());
+  const stylesheet = page.stylesheet()
+  if (stylesheet.length == 0) continue;
+  await fs.writeFile(dirname + STYLESHEET, stylesheet);
   build.timeLog("build", `│ ${" ".repeat(len - 1) + STYLESHEET + " ".repeat(max - len - STYLESHEET.length)}\t${formatFileSize(fs.statSync(dirname + STYLESHEET).size)}\t`);
 }
 build.timeLog("build", "└ Done");
