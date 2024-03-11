@@ -148,8 +148,8 @@ class PageHandler extends FunctionClass {
     system.set("route", this);
     const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app, props)) : createElement(this.app, props));
     system.set("route", null);
-    const { pathname } = this.location;
-    const styleHref = `.${pathname + (pathname.endsWith("/") ? "" : "/")}resources/app.css`;
+    const { pathname } = BUILD ? this : this.location;
+    const styleHref = `.${pathname + (pathname.endsWith("/") ? "" : "/")}${BUILD ? "style.css" : "resources/app.css"}`;
     return (
       "<!doctype html>\n" +
       renderToString(

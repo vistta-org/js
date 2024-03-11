@@ -81,6 +81,17 @@ function render(parent, element, context, referenceNode) {
   if (element == null || element === false) return null;
   if (!(element instanceof Element)) {
     if (Array.isArray(element)) element = new Element(Fragment, {}, element);
+    else if (element instanceof Context) {
+      if (!context["#" + element.key]) {
+        context["#" + element.key] = element;
+        element.register(() => {
+          if (context.component.update) context.component.update();
+          else if (this.queue?.length > 0) this.queue.push(() => update.call(this, context.component, null, null, false, true));
+          else update.call(this, context.component, null, null, false, true);
+        });
+      }
+      element = createElement(TextNode, {}, element.toString());
+    }
     else if (typeof element === "object" || typeof element === "function" || element instanceof Promise)
       throw new Error(`${capitalize(typeof element)} is not a valid Element`);
     else element = createElement(TextNode, {}, "" + element);
@@ -130,6 +141,7 @@ function render(parent, element, context, referenceNode) {
       }
       else this.keys[key] = element;
     }
+    context.component = element;
     const component = element.ref;
     if (component.constructor === Suspense) {
       if (props.fallback) {
@@ -160,14 +172,7 @@ function render(parent, element, context, referenceNode) {
       if (!element.ignoreProperties) element.ignoreProperties = [];
       for (let i = 0, len = properties.length; i < len; i++) {
         const property = properties[i];
-        if (typeof component[property] === "function") {
-          element.ignoreProperties.push(property);
-          continue;
-        }
-        if (component[property] instanceof Ref) {
-          element.ignoreProperties.push(property);
-        }
-        else if (component[property] instanceof Promise) {
+        if (component[property] instanceof Promise) {
           element.ignoreProperties.push(property);
           let value = null;
           if (isBrowser()) {
@@ -211,6 +216,8 @@ function render(parent, element, context, referenceNode) {
             },
           });
         }
+        else if (component[property] instanceof Ref || typeof component[property] === "function")
+          element.ignoreProperties.push(property);
         else {
           let value = props[property] ?? component[property];
           Object.defineProperty(component, property, {

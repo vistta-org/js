@@ -2,6 +2,7 @@ import Server from "../server/index.js";
 import { fs, Console } from "@vistta/utils";
 const HTML = "/index.html";
 const SCRIPT = "/script.js";
+const STYLESHEET = "/style.css";
 // eslint-disable-next-line no-global-assign
 console = new Console("", { trace: process.env.CONSOLE_TRACE });
 const system = new Console("system", { date: false, index: 0, trace: process.env.CONSOLE_TRACE });
@@ -12,7 +13,7 @@ const main = process.argv?.slice(2)?.shift() || config.folder;
 const output = process.argv?.slice(3)?.shift() || config.output;
 if (!main || !fs.existsSync(main)) abort(`Missing main folder. Either define it as an argument or on the package json.`);
 if (!output) abort(`Missing output folder. Either define it as an argument or on the package json.`);
-if (!fs.existsSync(output)) fs.mkdir(output);
+await createDirectory(output);
 const build = new Console("build", { date: false, trace: process.env.CONSOLE_TRACE });
 build.time("build");
 const { pages, resources } = await new Server({ build: true, trace: process.env.CONSOLE_TRACE }).build(main);
@@ -23,12 +24,14 @@ for (let i = 0, len = files.length; i < len; i++) {
   const page = pages[files[i]];
   const dirname = fs.resolve(output + files[i]);
   const len = files[i].length;
-  if (!fs.existsSync(dirname)) fs.mkdir(dirname);
-  build.timeLog("build", `├ ${files[i] + " ".repeat(max - len)}\t\t`);
+  await createDirectory(dirname);
+  build.timeLog("build", `├ ${formatDisplayPath(files[i]) + " ".repeat(max - len)}\t\t\t`);
   await fs.writeFile(dirname + HTML, page.render());
-  build.timeLog("build", `│ ${" ".repeat(len - 1) + HTML + " ".repeat(max - len - HTML.length)}\t${fs.statSync(dirname + HTML).size} B\t`);
+  build.timeLog("build", `│ ${" ".repeat(len - 1) + HTML + " ".repeat(max - len - HTML.length)}\t${formatFileSize(fs.statSync(dirname + HTML).size)}\t`);
   await fs.writeFile(dirname + SCRIPT, page.script());
-  build.timeLog("build", `│ ${" ".repeat(len - 1) + SCRIPT + " ".repeat(max - len - SCRIPT.length)}\t${fs.statSync(dirname + SCRIPT).size} B\t`);
+  build.timeLog("build", `│ ${" ".repeat(len - 1) + SCRIPT + " ".repeat(max - len - SCRIPT.length)}\t${formatFileSize(fs.statSync(dirname + SCRIPT).size)}\t`);
+  await fs.writeFile(dirname + STYLESHEET, page.stylesheet());
+  build.timeLog("build", `│ ${" ".repeat(len - 1) + STYLESHEET + " ".repeat(max - len - STYLESHEET.length)}\t${formatFileSize(fs.statSync(dirname + STYLESHEET).size)}\t`);
 }
 build.timeLog("build", "└ Done");
 // Page Resources
@@ -42,4 +45,29 @@ if (resourceFiles.length) {
     if (fs.existsSync(content)) await fs.copyFile(content, fs.resolve(dirname, filename));
     else await fs.writeFile(fs.resolve(dirname, filename), typeof content === "function" ? content() : content?.toString());
   }
+}
+
+//
+
+function formatFileSize(size) {
+  const units = ["B  ", "KiB", "MiB", "GiB"];
+  let power = 0;
+  while (size > 1024 && power < units.length - 1) {
+    size /= 1024;
+    power += 1;
+  }
+  const spaces = Math.max(0, 4 - Math.floor(size).toString().length);
+  return `${' '.repeat(spaces)}${size.toFixed(2)} ${units[power]}`;
+}
+
+function formatDisplayPath(path) {
+  if (path === "/") return path;
+  if (path.endsWith("/")) return path.slice(0, -1);
+  return path;
+}
+
+async function createDirectory(path) {
+  if (fs.existsSync(path)) return;
+  await fs.mkdir(path, { recursive: true });
+  createDirectory(path);
 }
