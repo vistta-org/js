@@ -152,7 +152,7 @@ export class Profiler extends Component {
     let start = performance.now();
     const callback = this.callback;
     return createElement(Fragment, null, ...this.children, createElement(class extends Component {
-      onconnect() {
+      onConnect() {
         callback(performance.now() - start);
       }
 
@@ -214,7 +214,7 @@ export class Form extends Component {
   #parent;
   #fields = {};
   #required = {};
-  #validations = {};
+  #validators = {};
   #listeners = {};
   #invalidEvent;
   ref;
@@ -229,7 +229,7 @@ export class Form extends Component {
     return this.#path;
   }
 
-  onconnect() {
+  onConnect() {
     if (this.#parent || !this.ref || this.ref.node) return;
     Object.assign(this.ref, {
       node: this.#node,
@@ -290,7 +290,7 @@ export class Form extends Component {
     if (type === "select") node.defaultValue = node.value;
     if (this.#parent) return this.#parent.register({ type, props: { name: [...this.path, props.name].join("."), ...props }, node });
     this.#required[props.name] = props.required;
-    this.#validations[props.name] = props.validation;
+    this.#validators[props.name] = props.validator;
     node.addEventListener(type === "select" ? "change" : "input", (e) => {
       if (!this.#invalidEvent) node.setCustomValidity?.("");
       for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++) this.#listeners[props.name][i](e);
@@ -349,8 +349,8 @@ export class Form extends Component {
         else field.setCustomValidity?.(DEFAULT_ERROR_MESSAGE);
         continue;
       }
-      const validation = this.#validations[inputs[i]];
-      const error = typeof validation === "function" ? validation(value) : null;
+      const validator = this.#validators[inputs[i]];
+      const error = typeof validator === "function" ? validator(value) : null;
       if (typeof error === "string") {
         if (this.#invalidEvent) errors.push({ field, error });
         else field.setCustomValidity?.(error);

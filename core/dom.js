@@ -51,13 +51,13 @@ export default class VirtualDom {
   }
 
   remove() {
-    findComponents(this.content, (component) => component.ondisconnect?.());
+    findComponents(this.content, (component) => component.onDisconnect?.());
   }
 
   refresh(callback) {
     const resolve = () => {
       this.node.replaceChildren(...this.children);
-      findComponents(this.content, (component) => component.onconnect?.());
+      findComponents(this.content, (component) => component.onConnect?.());
       callback?.(this.config);
     }
     if (BUILD) return resolve();
@@ -240,7 +240,7 @@ function render(parent, element, context, referenceNode) {
   }
   for (let i = 0, len = element.children?.length || 0; i < len; i++)
     element.children[i] = render.call(this, element, element.children[i], { ...context }, referenceNode);
-  if (type === Component.Node) isBrowser() && element.ref.onconnect?.();
+  if (type === Component.Node) isBrowser() && element.ref.onConnect?.();
   return element;
 }
 
@@ -309,7 +309,7 @@ function update(element, props, children, reset, dequeue) {
       if (!previousChildren[i]) continue;
       const { node, firstNode, lastNode } = previousChildren[i];
       mutate(element, "removeNode", node || firstNode, lastNode);
-      findComponents(previousChildren[i], (component) => component.ondisconnect?.());
+      findComponents(previousChildren[i], (component) => component.onDisconnect?.());
     }
 
     for (let i = 0, len = element.children.length; i < len; i++) {
@@ -380,9 +380,9 @@ function diff(element, index, previous, reset, strict) {
 }
 
 function setAttribute(node, name, value) {
-  if (name === "validation" && typeof value === "function") return;
+  if (name === "validator" && typeof value === "function") return;
   if (/^on\w.*/.test(name) && typeof value === "function") {
-    node[name] = (event, ...args) => {
+    node[name.toLowerCase()] = (event, ...args) => {
       try {
         event.stritMode = () => {
           if (event.target !== node) throw STRICT_MODE;
