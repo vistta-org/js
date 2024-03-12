@@ -408,7 +408,7 @@ function duplicatedId(children, index) {
   if (!id) return false;
   for (let i = 0, len = children.length; i < len; i++) {
     if (i == index) continue;
-    if (children[i].id === id) return true;
+    if (children[i]?.id === id) return true;
   }
   return false;
 }
