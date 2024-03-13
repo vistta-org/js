@@ -108,7 +108,7 @@ const createElementString = (type, props, children) => {
   for (let i = 0, len = attr.length; i < len; i++) {
     const name = attr[i];
     const value = name === "style" ? styleToString(props[name]) : props[name];
-    if (["function", "object"].includes(typeof value) || value == null) continue;
+    if (value == null || value === false || ["function", "object"].includes(typeof value)) continue;
     if (value === true) propsString += ` ${name}`;
     else propsString += ` ${name}="${value}"`;
   }
