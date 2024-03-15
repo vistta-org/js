@@ -5,6 +5,8 @@ export default async function (source, { extension }) {
   try {
     const { code, warnings } = await transform(source, {
       format: "esm",
+      keepNames: true,
+      treeShaking: true,
       loader: extension.endsWith("x") ? extension : "ts",
       tsconfigRaw: {
         compilerOptions: tsconfig,
