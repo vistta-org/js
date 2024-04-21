@@ -1,5 +1,5 @@
 import VirtualDom from "../dom";
-import { createElement } from "../element";
+import { Element } from "../classes";
 import { isValidUrl } from "../../utils";
 
 let dom;
@@ -58,7 +58,7 @@ async function build() {
   let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
   const { default: app, config, template, props } = await import(resource);
   dom = new VirtualDom(pathname, route, config);
-  dom.render(template ? createElement(template, {}, createElement(app, props)) : createElement(app, props));
+  dom.render(template ? new Element(template, {}, new Element(app, props)) : new Element(app, props));
 }
 
 function buildUrl(href) {

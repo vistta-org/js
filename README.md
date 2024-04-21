@@ -46,16 +46,17 @@ npm i @vistta/js
 
 ## Benchmarks Latest Results (Incognito)
 
-Benchmark #1: 1.856750000009779ms
-Benchmark #2: 0.9109999999636784ms
-Benchmark #3: 11.270000000002328ms
-Benchmark #4: 30ms (NEEDS IMPROVEMENT!!!)
+Benchmark #1: 0.0005999999940395355ms (No keys)
+Benchmark #2: 0.003199999988079071ms (No keys)
+Benchmark #3: 8.399999998509884ms (No keys)
+Benchmark #3: 9.872ms (With keys)
+Benchmark #4: 0.0493999999165535ms (No keys)
 
 #React Equivalent (Incognito)
 
-Benchmark #1: 4.896000000007451ms
-Benchmark #2: 4.793999999672175ms
-Benchmark #3: 14.330000000268221ms
-Benchmark #4: 21.95400000009127ms
+Benchmark #1: 4.896000000007451ms (Mandatory keys)
+Benchmark #2: 4.793999999672175ms (Mandatory keys)
+Benchmark #3: 14.330000000268221ms (Mandatory keys)
+Benchmark #4: 21.95400000009127ms (Mandatory keys)
 
 Build Size: 293KB

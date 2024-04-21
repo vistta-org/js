@@ -9,8 +9,8 @@
     "esModuleInterop": true,
     "moduleResolution": "bundler",
     "jsx": "react",
-    "jsxFactory": "createElement",
-    "jsxFragmentFactory": "Fragment",
+    "jsxFactory": "_Element",
+    "jsxFragmentFactory": "_Fragment",
     "typeRoots": ["./index.d.ts"],
     "paths": {
       "@vistta/js": ["./index"]

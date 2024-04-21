@@ -1,4 +1,4 @@
-import script from "./script.js";
+import { default as transformJSX } from "./jsx.js";
 
 const htmlToJSX = {
   class: "className",
@@ -23,7 +23,7 @@ export default async function (source) {
   const props = new Set();
   const matches = source.match(/(?<=[^{])\{(?=[^{}]*\})(?=[^"]*(?:"[^"]*"[^"]*)*$)[^}\s]*(?=[^{}]*\})\}/g);
   for (let i = 0, len = matches.length; i < len; i++) props.add(matches[i].slice(1, -1));
-  return script(
+  return transformJSX(
     `export default ({ ${Array.from(props).join(
       ", ",
     )} }) => (<>${source.trim()}</>);`,

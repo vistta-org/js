@@ -1,9 +1,69 @@
 /* eslint-disable no-undef */
-import { encode, decode, stringify, parse, isPromise, FunctionClass } from "../utils";
+import { system, encode, decode, stringify, parse, isPromise, FunctionClass } from "../utils";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
+export const Fragment = Symbol("Fragment");
+export const TextNode = Symbol("TextNode");
+const ComponentNode = Symbol("Component");
 
-const node = Symbol("Component");
+export class Element {
+  constructor(type, props, ...children) {
+    this.props = props || {};
+    this.children = children;
+    const typeOf = typeof type;
+    if (type?.prototype instanceof Component || typeOf === "function") {
+      this.type = Component.Node;
+      this.props.children = children;
+      this.component = type;
+    }
+    else if (typeOf !== "string" && typeOf !== "symbol") return null;
+    else {
+      if (props?.ref != null) (this.ref = props.ref), delete this.props.ref;
+      if (props?.key != null) {
+        if (props.key instanceof Mutation) props.key = props.key();
+        if (typeof props.key === "number") this.key = "" + props?.key;
+        else this.key = props?.key;
+        delete this.props.key;
+      }
+      this.type = type;
+    }
+  }
+
+  toString() {
+    const children = this.children?.reduce((acc, cur) => acc + cur, "");
+    if (typeof this.type !== "string") return children;
+    let attributes = "";
+    const attr = Object.keys(this.props || {});
+    for (let i = 0, len = attr.length; i < len; i++) {
+      const name = attr[i];
+      const value = name === "style" ? styleToString(this.props[name]) : this.props[name];
+      if (value == null || value === false || ["function", "object"].includes(typeof value)) continue;
+      if (value === true) attributes += ` ${name}`;
+      else attributes += ` ${name}="${value}"`;
+    }
+    return `<${this.type}${attributes}>${children}</${this.type}>`;
+  }
+
+  clone(props, children) {
+    if (props !== false) {
+      if (props) {
+        const { style, ...rest } = props || {};
+        props = Object.assign(cloneProps(this.props), rest);
+        props.style = Object.assign(props.style || {}, style || {});
+      }
+      else props = cloneProps(this.props);
+    }
+    if (children !== false) children = this?.children?.map((child) => child instanceof Element ? child.clone(undefined, true) : child);
+    return new Element(this.type, props, children);
+  }
+}
+
+export class Mutation extends FunctionClass {
+  constructor(callback) {
+    super(callback);
+    this.callback = callback;
+  }
+}
 
 export class Context extends FunctionClass {
   #key;
@@ -107,9 +167,7 @@ export class Ref {
 
 export class Component {
   children = [];
-  static get Node() {
-    return node;
-  }
+  static get Node() { return ComponentNode; }
 
   constructor() {
     const prototype = Object.getPrototypeOf(this);
@@ -146,12 +204,15 @@ export class Suspense extends Component {
 
 export class Profiler extends Component {
   callback;
+  idle = 250;
+  #total = 0;
+  #debounce;
 
   render() {
     if (!this.callback || process.env.IS_NODE || "production" === process.env.NODE_ENV) return this.children;
     let start = performance.now();
     const callback = this.callback;
-    return createElement(Fragment, null, ...this.children, createElement(class extends Component {
+    return new Element(Fragment, null, ...this.children, new Element(class extends Component {
       onConnect() {
         callback(performance.now() - start);
       }
@@ -160,6 +221,20 @@ export class Profiler extends Component {
         return null;
       }
     }));
+  }
+
+  record(callback) {
+    return () => {
+      let initial = performance.now();
+      callback();
+      this.#total = performance.now() - initial;
+      clearTimeout(this.#debounce);
+      this.#debounce = setTimeout(() => {
+        const total = this.#total;
+        this.#total = 0;
+        this.callback(total);
+      }, this.idle);
+    }
   }
 }
 
@@ -249,11 +324,11 @@ export class Form extends Component {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
         return null;
       }
-      if (this.className || this.style) return createElement("div", { className: this.className, style: this.style }, ...children);
-      return createElement(Fragment, {}, ...this.children);
+      if (this.className || this.style) return new Element("div", { className: this.className, style: this.style }, ...children);
+      return new Element(Fragment, {}, ...this.children);
     }
     this.#invalidEvent = typeof oninvalid === "function";
-    return createElement("form", {
+    return new Element("form", {
       ref: (element) => this.#node = element,
       className: this.className,
       autocomplete: this.autocomplete,
@@ -276,7 +351,7 @@ export class Form extends Component {
       return;
     }
 
-    const { type, props, node } = target || {};
+    const { element: { type, props }, node } = target || {};
     if (!node || type !== "input" && type !== "textarea" && type !== "select" && props.role !== "input" || props.type === "submit") return;
     if (!props.name) {
       if ("production" !== process.env.NODE_ENV) console.warn(`Missing "name" attribute on ${type} inside of form.`);
@@ -403,7 +478,51 @@ export class Form extends Component {
   }
 }
 
+// Global
+
+system.set("_Fragment", Fragment);
+system.set("_Prop", (caller) => new Mutation(caller));
+system.set("_Child", (caller) => new Mutation(caller));
+system.set("_Element", (id, ...args) => {
+  const element = new Element(...args);
+  element.id = id;
+  return element;
+});
+
 //
+
+function cloneProps(props) {
+  const clone = (value) => {
+    if (typeof value === "object") {
+      if (Array.isArray(value)) {
+        const cloned = [];
+        for (let i = 0, len = value.length; i < len; i++)
+          cloned[i] = clone(value[i]);
+        return cloned;
+      }
+      else {
+        const cloned = {};
+        const keys = Object.keys(value || {});
+        for (let i = 0, len = keys.length; i < len; i++)
+          cloned[keys[i]] = clone(value[keys[i]]);
+        return cloned;
+      }
+    }
+    else return value;
+  }
+  return clone(props);
+}
+
+function styleToString(style) {
+  const keys = Object.keys(style || {});
+  let result = "";
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const value = style[keys[i]];
+    if (typeof value === "string") result += ` ${camelCaseToKebabCase(keys[i])}: ${value};`;
+  }
+  result = result.trim();
+  return result === "" ? null : result;
+}
 
 function updateCache(key, value, type) {
   const storage = type === "session" ? sessionStorage : localStorage;

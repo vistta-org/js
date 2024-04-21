@@ -1,5 +1,5 @@
 import Dom from "../core/dom";
-import { createElement, createElementString } from "../core/element";
+import { Element } from "../core/classes";
 import { system } from "../utils";
 
 system.set("MutationObserver", class { });
@@ -22,7 +22,7 @@ function renderToString(element) {
   return dom.node.toString();
 }
 
-export { renderToString, createElement };
+export { renderToString, Element };
 
 //
 
@@ -41,7 +41,7 @@ function createServerElement(type) {
     children: children,
     toString: () => {
       const _children = children?.reduce((acc, cur) => acc + cur, "");
-      return type === "dom" ? _children : createElementString(type, props, _children);
+      return type === "dom" ? _children : (new Element(type, props, _children)).toString();
     },
     appendChild: (child) => children.push(child),
     setAttribute: (name, value) => (props[name] = value),

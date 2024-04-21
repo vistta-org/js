@@ -1,6 +1,15 @@
 type DropFirst<T extends unknown[]> = T extends [any, ...infer U] ? U : never;
 type Action<T> = (prev: T, ...args: any[]) => T | Promise<T> | void;
 
+export declare const Fragment: Symbol;
+export declare const TextNode: Symbol;
+
+export declare const Element: new <Props extends { [name: string]: any }>(
+  type: string,
+  props?: Props,
+  children?: JSX.Node,
+) => JSX.Element;
+
 export declare const Context: new <T, Actions extends { [key: string]: Action<T> }>(
   key: string,
   defaultValue?: T,

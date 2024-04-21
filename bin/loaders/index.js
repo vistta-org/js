@@ -6,24 +6,26 @@ import { compilerResolver } from "./typescript.js";
 export const TYPE_DEFAULT = "default";
 export const TYPE_BUFFER = "buffer";
 export const TYPE_BUNDLER = "bundler";
-export const TYPE_SCRIPT = "script";
 export const TYPE_JSON = "json";
+export const TYPE_JSX = "jsx";
 export const TYPE_STYLE = "style";
 export const TYPE_TEMPLATE = "template";
 export const TYPE_FILE = "file";
 export const TYPE_TEXT = "text";
+export const TYPE_TS = "ts";
 const EXTENSIONS = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"];
 const CONTEXT = {};
 const CWD = process.cwd();
 const LOADER = {
   [TYPE_BUFFER]: (await import("./types/buffer.js")).default,
   [TYPE_BUNDLER]: (await import("./types/bundler.js")).default,
-  [TYPE_SCRIPT]: (await import("./types/script.js")).default,
   [TYPE_JSON]: (await import("./types/json.js")).default,
+  [TYPE_JSX]: (await import("./types/jsx.js")).default,
   [TYPE_STYLE]: (await import("./types/style.js")).default,
   [TYPE_TEMPLATE]: (await import("./types/template.js")).default,
   [TYPE_FILE]: (await import("./types/file.js")).default,
   [TYPE_TEXT]: (await import("./types/text.js")).default,
+  [TYPE_TS]: (await import("./types/ts.js")).default,
 }
 const ACCEPTABLE_TYPES = Object.keys(LOADER);
 
@@ -121,11 +123,12 @@ function resolveLoader({ type, extension }) {
     case "cjs":
       return TYPE_DEFAULT;
     case "jsx":
+      return TYPE_JSX;
     case "tsx":
     case "ts":
     case "mts":
     case "cts":
-      return TYPE_SCRIPT;
+      return TYPE_TS;
     case "json":
       return TYPE_JSON;
     case "css":

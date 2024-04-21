@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { fs } from "@vistta/utils";
-import { createElement, renderToString } from "../../dom";
+import { Element, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
 import { system, stringify, FunctionClass, noCache } from "../../../utils";
 
@@ -146,7 +146,7 @@ class PageHandler extends FunctionClass {
 
   render(props) {
     system.set("route", this);
-    const body = renderToString(this.template ? createElement(this.template(), {}, createElement(this.app, props)) : createElement(this.app, props));
+    const body = renderToString(this.template ? new Element(this.template(), {}, new Element(this.app, props)) : new Element(this.app, props));
     system.set("route", null);
     let stylesheet;
     if (this.stylesheet().length > 0) {
@@ -156,53 +156,53 @@ class PageHandler extends FunctionClass {
     return (
       "<!doctype html>\n" +
       renderToString(
-        createElement(
+        new Element(
           "html",
           { lang: this.config?.lang || "en" },
-          createElement(
+          new Element(
             "head",
             null,
-            createElement("title", null, this.config.title),
-            createElement("base", { href: this.config.href }),
-            createElement("meta", { name: "referrer", content: this.config?.referrer || "origin" }),
-            createElement("meta", {
+            new Element("title", null, this.config.title),
+            new Element("base", { href: this.config.href }),
+            new Element("meta", { name: "referrer", content: this.config?.referrer || "origin" }),
+            new Element("meta", {
               name: "viewport",
               content: this.config?.viewport || "width=device-width,initial-scale=1,minimum-scale=1.0",
             }),
-            createElement("meta", {
+            new Element("meta", {
               "http-equiv": "Content-Type",
               content: this.config?.contentType || "text/html; charset=utf-8",
             }),
-            createElement("meta", { name: "description", content: this.config.description }),
-            createElement("meta", { name: "keywords", content: this.config.keywords }),
-            createElement("meta", { name: "theme-color", content: this.config.theme }),
-            createElement("meta", {
+            new Element("meta", { name: "description", content: this.config.description }),
+            new Element("meta", { name: "keywords", content: this.config.keywords }),
+            new Element("meta", { name: "theme-color", content: this.config.theme }),
+            new Element("meta", {
               httpEquiv: "Content-Security-Policy",
               content: `default-src 'self';script-src 'self';style-src 'self';`,
             }),
-            createElement("meta", { name: "color-scheme", content: this.config.colorScheme || "light dark" }),
-            createElement("meta", { name: "robots", content: this.config.robots }),
-            this.config?.author && createElement("meta", { name: "author", content: this.config.author }),
-            this.config?.language && createElement("meta", { name: "language", content: this.config.language }),
-            this.config?.refresh && createElement("meta", { "http-equiv": "refresh", content: this.config.refresh }),
-            this.config?.revisitAfter && createElement("meta", { name: "revisit-after", content: this.config.revisitAfter }),
+            new Element("meta", { name: "color-scheme", content: this.config.colorScheme || "light dark" }),
+            new Element("meta", { name: "robots", content: this.config.robots }),
+            this.config?.author && new Element("meta", { name: "author", content: this.config.author }),
+            this.config?.language && new Element("meta", { name: "language", content: this.config.language }),
+            this.config?.refresh && new Element("meta", { "http-equiv": "refresh", content: this.config.refresh }),
+            this.config?.revisitAfter && new Element("meta", { name: "revisit-after", content: this.config.revisitAfter }),
             this.pwa &&
-            createElement("link", {
+            new Element("link", {
               rel: "manifest",
               href: "/resources/manifest.json",
             }),
-            this.config?.icon && createElement("link", { rel: "shortcut icon", href: this.config.icon }),
-            this.config?.icon && createElement("link", { rel: "apple-touch-icon", href: this.config.icon }),
-            ...(this.config?.links?.map((props) => createElement("link", props)) || []),
-            createElement("script", { src: "./resources/client.js", defer: true }),
-            createElement("link", { rel: "stylesheet", href: "./resources/client.css" }),
-            stylesheet && createElement("link", { rel: "preload", href: stylesheet, as: "style" }),
-            stylesheet && createElement("link", { id: "app-style", rel: "stylesheet", href: stylesheet }),
-            ...(this.config?.scripts?.map((props) => createElement("script", props)) || []),
-            ...(this.config?.styles?.map(({ href }) => createElement("link", { rel: "preload", href, as: "style" })) || []),
-            ...(this.config?.styles?.map(({ href }) => createElement("link", { rel: "stylesheet", href })) || []),
+            this.config?.icon && new Element("link", { rel: "shortcut icon", href: this.config.icon }),
+            this.config?.icon && new Element("link", { rel: "apple-touch-icon", href: this.config.icon }),
+            ...(this.config?.links?.map((props) => new Element("link", props)) || []),
+            new Element("script", { src: "./resources/client.js", defer: true }),
+            new Element("link", { rel: "stylesheet", href: "./resources/client.css" }),
+            stylesheet && new Element("link", { rel: "preload", href: stylesheet, as: "style" }),
+            new Element("link", { id: "app-style", rel: "stylesheet", href: stylesheet }),
+            ...(this.config?.scripts?.map((props) => new Element("script", props)) || []),
+            ...(this.config?.styles?.map(({ href }) => new Element("link", { rel: "preload", href, as: "style" })) || []),
+            ...(this.config?.styles?.map(({ href }) => new Element("link", { rel: "stylesheet", href })) || []),
           ),
-          createElement("body", {}, body),
+          new Element("body", {}, body),
         ),
       )
     );

@@ -1,9 +1,10 @@
-declare function createElement<Props extends { [name: string]: any }>(
+declare function _Element<Props extends { [name: string]: any }>(
+  id: string | number,
   type: string | JSX.Component<Props>,
   props?: Props,
   children?: JSX.Node[],
 ): JSX.Element | null;
-declare const Fragment: symbol;
+declare const _Fragment: symbol;
 declare const React: object;
 
 interface Element {

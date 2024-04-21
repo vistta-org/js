@@ -1,5 +1,5 @@
 import VirtualDom from "./dom";
-import { createElement } from "./element";
+import { Element } from "./classes";
 import { socket } from "./socket";
 import { isValidUrl, noCache, system } from "../utils";
 
@@ -25,7 +25,7 @@ Object.defineProperties(route, {
         if (!initial) document.querySelector("link#app-style").href = noCache(appHref + ".css");
         const { default: app, config, template, props } = await import(noCache(appHref + ".js"));
         dom = new VirtualDom(pathname, route, config);
-        return dom.render(template ? createElement(template, {}, createElement(app, props)) : createElement(app, props), refresh, (config) => {
+        return dom.render(template ? new Element(template, {}, new Element(app, props)) : new Element(app, props), refresh, (config) => {
           updateConfig(config);
           routes[pathname] = dom;
           updateHash(hash);
