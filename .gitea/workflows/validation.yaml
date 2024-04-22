@@ -19,7 +19,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - 
         name: NPM Setup
-        run: npm ci
+        run: npm ci & npm link
       - 
         name: Validations
         run: npm run validation
