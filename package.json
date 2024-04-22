@@ -18,11 +18,12 @@
     "vistta": "./bin/cli.js"
   },
   "scripts": {
-    "validation": "node ./bin/cli.js validation",
+    "setup": "npm i & npm link",
+    "validation": "vistta validation",
     "dev": "nodemon ./bin/cli.js start ./docs/pages --dev",
-    "prod": "node ./bin/cli.js start ./docs/pages",
-    "build": "node ./bin/cli.js build ./docs/pages ./.build",
     "start": "vistta start ./docs/pages",
+    "build": "vistta build ./docs/pages ./.build",
+    "test": "vistta test",
     "lint": "eslint --fix .",
     "tsc": "tsc .",
     "fix": "npm link"
@@ -59,12 +60,13 @@
   "devDependencies": {
     "@types/http-proxy": "^1.17.14",
     "@types/node": "^20.12.7",
-    "eslint": "^9.0.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^8.0.0",
     "eslint-plugin-better-styled-components": "^1.1.2",
     "eslint-plugin-jsx": "^0.1.0",
     "eslint-plugin-sonarjs": "^0.25.1",
-    "prettier": "^3.2.5"
+    "prettier": "^3.2.5",
+    "puppeteer": "^22.6.5"
   },
   "engines": {
     "node": ">=21.5.0"

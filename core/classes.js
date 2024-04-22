@@ -18,7 +18,11 @@ export class Element {
     }
     else if (typeOf !== "string" && typeOf !== "symbol") return null;
     else {
-      if (props?.ref != null) (this.ref = props.ref), delete this.props.ref;
+      if (props?.ref != null) {
+        if (props.ref instanceof Mutation) props.ref = props.ref();
+        this.ref = props.ref;
+        delete this.props.ref;
+      }
       if (props?.key != null) {
         if (props.key instanceof Mutation) props.key = props.key();
         if (typeof props.key === "number") this.key = "" + props?.key;

@@ -7,8 +7,9 @@ import { validate as _validate } from "./loaders/typescript.js";
 const dirname = fs.dirname(import.meta.url);
 const pkg = await loadPackage(fs.resolve(dirname, "../"));
 const { main, args, env } = await parse(process.argv.slice(2));
+const default_args = ["--no-warnings", "--loader", "@vistta/js/loader"];
 // eslint-disable-next-line no-global-assign
-console = new Console("", { persistent: env.CONSOLE_DEBUG });
+console = new Console("", { persistent: env.DEBUG });
 if (main !== "validation") console.announce("Starting VisttaJS...");
 Object.assign(process.env, env);
 
@@ -16,7 +17,9 @@ const isUpToDate = await validate("modules", null, env);
 if (!(await validate("typescript", main, env))) abort();
 
 if (env.VALIDATION !== "only") {
-  const child = spawn("node", ["--no-warnings", "--loader", "@vistta/js/loader", main, ...args], {
+  if (env.TEST_RUN) default_args.push("--test", ...args);
+  else default_args.push(main, ...args);
+  const child = await spawn("node", default_args, {
     stdio: 'inherit'
   });
   if (env.CUSTOM_SCRIPT && env.NODE_ENV === "development")
@@ -56,16 +59,17 @@ async function parse([main, ...args]) {
       return false;
     }
     if (arg.toLowerCase() === "--debug")
-      return (env.CONSOLE_DEBUG = true, false);
+      return (env.DEBUG = true, false);
     if (arg.toLowerCase() === "--trace")
       return (env.CONSOLE_TRACE = true, false);
-    if (arg.startsWith("--")) {
-      const value = arr?.[index + 1];
-      const key = transformFlag(arg);
-      if (!value.startsWith("-")) {
-        skipNext = true;
+    if (arg.toLowerCase() === "--validation")
+      return (env.VALIDATION = "all", false);
+    if (arg.toLowerCase() === "--env") {
+      skipNext = true;
+      if (arr?.[index + 1]) {
+        const [key, value] = arr[index + 1].split(/=(.*)/)
         env[key] = value;
-      } else env[key] = true;
+      }
       return false;
     }
     return true;
@@ -79,8 +83,11 @@ async function parse([main, ...args]) {
       env.NODE_ENV = "development";
       env.VALIDATION = "only";
       break;
+    case "test":
+      env.TEST_RUN = true;
+      break;
     default:
-      if (!fs.isFile(main)) return abort(`Invalid first argument, it can either be a main or a command`);
+      if (!fs.isFile(main)) return abort(`Invalid first argument, it can either be a file or a command`);
       env.CUSTOM_SCRIPT = true;
       break;
   }
@@ -124,11 +131,6 @@ async function validate(target, main, { NODE_ENV, VALIDATION }) {
     errors.forEach((error) => console.print(Console.red + error));
     return false;
   }
-}
-
-function transformFlag(flag) {
-  if (flag === "--validate") flag = "--validation";
-  return flag.slice(2).toUpperCase().replaceAll("-", "_");
 }
 
 async function loadPackage(dir) {
