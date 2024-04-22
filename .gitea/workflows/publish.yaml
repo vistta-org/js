@@ -17,6 +17,12 @@ jobs:
       with:
         ref: ${{ gitea.event.pull_request.base.ref }}
         token: ${{ secrets.GIT_TOKEN }}
+    - 
+      name: Node Setup
+      uses: actions/setup-node@v3
+      with:
+        node-version: '21.x'
+        registry-url: 'https://registry.npmjs.org'
     -
       name: Check Release
       id: release
@@ -33,7 +39,7 @@ jobs:
           echo "::set-output name=version::skip"
         fi
     -
-      name: Install
+      name: NPM Setup
       if: ${{ steps.release.outputs.version != 'skip' }}
       run: npm ci
     -

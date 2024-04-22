@@ -8,11 +8,21 @@ jobs:
   Validation-Actions:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - 
+        name: Checkout
+        uses: actions/checkout@v3
+      - 
+        name: Node Setup
+        uses: actions/setup-node@v3
         with:
-          node-version: '19.x'
+          node-version: '21.x'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run validation
-      - run: npm run test
+      - 
+        name: NPM Setup
+        run: npm ci
+      - 
+        name: Validations
+        run: npm run validation
+      - 
+        name: Unit Tests
+        run: npm run test
