@@ -6,6 +6,7 @@ on:
       - master
 jobs:
   Validation-Actions:
+    runs-on: ubuntu-latest
     container:
       image: git.vistta.me/vistta/vistta-runner:latest
     steps:
