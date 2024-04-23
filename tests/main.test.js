@@ -40,7 +40,10 @@ const page = await (async (browser) => {
       await _page.keyboard.press("Enter");
     }
   }
-})(await puppeteer.launch());
+})(await puppeteer.launch({
+  headless: true,
+  args: ['--no-sandbox']
+}));
 const unique = new Set();
 
 if (!process.env.DEBUG) describe("VisttaJS Unit Tests", () => {
