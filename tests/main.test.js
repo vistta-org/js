@@ -19,7 +19,8 @@ const app = await (new Promise((resolve, reject) => {
   });
 }));
 const page = await (async (browser) => {
-  const _page = await browser.newPage();
+  const _page = (await browser.pages())?.[0] || await browser.newPage();
+  await _page.goto(BASE_URL);
   return {
     navigate: (url) => _page.goto(url),
     sleep: (delay) => sleep(delay),
@@ -41,8 +42,8 @@ const page = await (async (browser) => {
     }
   }
 })(await puppeteer.launch({
-  headless: true,
-  args: ['--no-sandbox']
+  headless: !process.env.DEBUG,
+  args: ["--no-sandbox", "--disable-setuid-sandbox"]
 }));
 const unique = new Set();
 
