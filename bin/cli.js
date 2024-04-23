@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 "use strict";
 import "./loaders/env.js";
-import { Console, fs, spawn, exec } from "@vistta/utils";
+import { Console } from "@vistta/utils/console";
+import { fs } from "@vistta/utils/fs";
+import { spawn, exec } from "@vistta/utils/process";
 import { flatten, parse as _parse, sleep } from "../utils/index.js";
 import { validate as _validate } from "./loaders/typescript.js";
 const dirname = fs.dirname(import.meta.url);

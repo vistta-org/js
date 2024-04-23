@@ -2,7 +2,7 @@ import Server from "../server/index.js";
 import puppeteer from 'puppeteer';
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert';
-import { sleep } from "@vistta/utils";
+import { sleep } from "@vistta/utils/core";
 import * as specs from "./specs";
 
 const PORT = 3000;

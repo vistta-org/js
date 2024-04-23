@@ -1,5 +1,6 @@
 import Server from "../server/index.js";
-import { Console, fs } from "@vistta/utils";
+import { Console } from "@vistta/utils/console";
+import { fs } from "@vistta/utils/fs";
 import { trim, capitalize } from "../utils/index.js";
 // eslint-disable-next-line no-global-assign
 console = new Console("");

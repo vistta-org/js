@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
-import { fs, hash } from "@vistta/utils";
+import { fs } from "@vistta/utils/fs";
+import { hash } from "@vistta/utils/crypto";
 import { extractImports } from "../../../bin/loaders";
 import { convertToEventName, FunctionClass, noCache } from "../../../utils";
 import PageHandler from "./page";

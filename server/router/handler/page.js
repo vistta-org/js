@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { fs } from "@vistta/utils";
+import { fs } from "@vistta/utils/fs";
 import { Element, renderToString } from "../../dom";
 import { validate } from "../../../bin/loaders/typescript";
 import { system, stringify, FunctionClass, noCache } from "../../../utils";
