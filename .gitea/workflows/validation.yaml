@@ -20,5 +20,8 @@ jobs:
         name: Validations
         run: npm run validation
       - 
+        name: Unit Tests Setup
+        run: npx puppeteer browsers install chrome
+      - 
         name: Unit Tests
         run: npm run test
