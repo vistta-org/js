@@ -18,19 +18,12 @@ if (!(await validate("typescript", main, env))) abort();
 
 if (env.VALIDATION !== "only") {
   if (env.TEST_RUN) default_args.push("--test", ...args);
+  else if (env.NODE_ENV === "development") default_args.push("--watch", main, ...args);
   else default_args.push(main, ...args);
   const child = await spawn("node", default_args, {
     stdio: 'inherit'
   });
-  if (env.CUSTOM_SCRIPT && env.NODE_ENV === "development")
-    fs.watchFile(main, async () => {
-      console.clear();
-      console.announce("Restarting VisttaJS...");
-      await child.stop();
-      console.clear();
-      if (await validate("typescript", main, env)) abort("");
-      await child.start();
-    });
+  child.on("exit", (code) => process.exit(code));
 } else if (!isUpToDate) abort();
 
 //
