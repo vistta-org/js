@@ -23,4 +23,4 @@ jobs:
         name: Unit Tests
         run: |
           npx puppeteer browsers install chrome
-          npm run test
+          npm run test -- --ci
