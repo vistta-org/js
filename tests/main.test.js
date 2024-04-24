@@ -64,7 +64,8 @@ const page = await (async (browser) => {
     }
   }
 })(await puppeteer.launch({
-  headless: !!process.env.CI
+  headless: !!process.env.CI,
+  args: ["--no-sandbox", "--disable-setuid-sandbox"]
 }));
 const unique = new Set();
 
