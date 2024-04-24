@@ -57,6 +57,8 @@ async function parse([main, ...args]) {
       return (env.DEBUG = true, false);
     if (arg.toLowerCase() === "--trace")
       return (env.CONSOLE_TRACE = true, false);
+    if (arg.toLowerCase() === "--ci")
+      return (env.CI = true, false);
     if (arg.toLowerCase() === "--validation")
       return (env.VALIDATION = "all", false);
     if (arg.toLowerCase() === "--env") {
