@@ -128,7 +128,7 @@ function transformProps(code) {
     if (!done) throw new Error("Error while parsing JSX. [Code: 3]");
     return [code.slice(0, end), end, true];
   }
-  else return transformJSExpression(code);
+  return transformJSExpression(code);
 }
 
 function transformJSExpression(code) {
@@ -153,7 +153,9 @@ function transformJSExpression(code) {
     i++;
   }
   if (!done) throw new Error("Error while parsing JSX. [Code: 4]");
-  return [transform(code.slice(1, end - 1)), end];
+  const value = transform(code.slice(1, end - 1));
+  if (value[0] === "{" && value[value.length - 1] === "}") return [`(${value})`, end];
+  return [value, end];
 }
 
 function format(str) {
