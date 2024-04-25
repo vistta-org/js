@@ -45,7 +45,7 @@ export declare const Render: {
   Each: typeof RenderEach;
 };
 
-export class Try extends Component<{ fallback: JSX.Node }> {}
+export class Safe extends Component<{ fallback: JSX.Node }> {}
 
 type FormRef = {
   node: HTMLFormElement;

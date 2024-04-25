@@ -1,4 +1,4 @@
-import { Fragment, TextNode, Element, Mutation, Context, Ref, Component, Profiler, Suspense, Form } from "./classes";
+import { Fragment, TextNode, Element, Mutation, Context, Ref, Component, Profiler, Suspense, Safe, Form } from "./classes";
 import { applyTransition } from "./transitions";
 import { isBrowser, capitalize } from "../utils";
 
@@ -151,6 +151,25 @@ function render(virtualDom, parent, element, context, referenceNode) {
 
   if (element.type === Component.Node) {
     virtualNode.component = element.component.prototype instanceof Component ? new element.component() : Object.assign(new Component(), element.component());
+    if (element.component === Safe) {
+      try {
+        const fragment = { node: virtualDom.createDocumentFragment(), children: [] };
+        for (let i = 0, len = element.props.children?.length || 0; i < len; i++)
+          fragment.children[i] = render(virtualDom, fragment, element.props.children[i], { ...context });
+        virtualNode.children = fragment.children;
+        referenceNode ||= findReferenceNode(virtualNode, -1);
+        let node = fragment.node.firstChild;
+        while (node != null) {
+          append(virtualNode, node, referenceNode);
+          node = fragment.node.firstChild;
+        }
+        return virtualNode;
+      }
+      catch {
+        virtualNode.children = [render(virtualDom, virtualNode, element.props.fallback, { ...context }, referenceNode)];
+        return virtualNode;
+      }
+    }
     if (element.component === Suspense) {
       if (element.props.fallback) {
         element.children = [element.props.fallback];
@@ -178,7 +197,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
               }
             }
 
-            const referenceNode = findReferenceNode(virtualNode, -1);
+            referenceNode ||= findReferenceNode(virtualNode, -1);
             let node = fragment.node.firstChild;
             while (node != null) {
               append(virtualNode, node, referenceNode);

@@ -275,16 +275,8 @@ export const Render = {
   }
 }
 
-export class Try extends Component {
+export class Safe extends Component {
   fallback;
-
-  render() {
-    try {
-      return this.children;
-    } catch {
-      return this.fallback;
-    }
-  }
 }
 
 export class Form extends Component {
