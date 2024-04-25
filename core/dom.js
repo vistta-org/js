@@ -11,25 +11,35 @@ export default class VirtualDom {
     active: false,
     queue(mutations) {
       const type = typeof mutations;
-      if (type === "function") return this.queue({ first: { callback: mutations }, last: { callback: mutations } });
+      let node = {};
+      if (type === "function") node.callback = mutations;
       else if (type !== "object") throw "Internal Error #003";
-      this.first ||= mutations.first;
-      if (this.last) this.last.next = mutations.first;
-      this.last = mutations.last;
+      else node.iterator = mutations[Symbol.iterator]();
+      this.first ||= node;
+      if (this.last) this.last.next = node;
+      this.last = node;
       if (!this.active) {
         this.active = true;
         this.next();
       }
     },
     next() {
-      const first = this.first;
-      if (!first) {
+      const cur = this.first;
+      if (!cur) {
         this.last = null;
         this.active = false;
         return;
       }
-      this.first = first.next;
-      first.callback();
+      this.first = cur.next;
+      if (cur.callback) cur.callback();
+      else {
+        const iterator = cur.iterator;
+        let mutation = iterator.next().value;
+        while (mutation) {
+          mutation?.update?.();
+          mutation = iterator.next().value;
+        }
+      }
       this.next();
     }
   }
@@ -192,7 +202,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
         if (virtualNode.component[property] instanceof Promise) {
           let value = null;
           let status = "pending";
-          const mutations = { unique: new Set() };
+          const mutations = new Set();
           virtualNode.component[property].then((result) => {
             value = result;
             status = "resolved";
@@ -205,21 +215,14 @@ function render(virtualDom, parent, element, context, referenceNode) {
               if (!isBrowser()) return value;
               if (status === "completed") { /* Do Nothing */ }
               else if (status === "pending") {
-                const mutation = virtualDom.mutation;
-                if (mutation) {
-                  mutation.context?.suspense?.wait();
-                  if (!mutations.unique.has(mutation)) {
-                    mutations.unique.add(mutation);
-                    const cur = { callback: () => mutation?.update?.() };
-                    mutations.first ||= cur;
-                    if (mutations.last) mutations.last.next = cur;
-                    mutations.last = cur;
-                  }
+                if (virtualDom.mutation) {
+                  virtualDom.mutation.context?.suspense?.wait();
+                  mutations.add(virtualDom.mutation);
                 }
               }
               else if (status === "resolved") {
                 status = "completed";
-                virtualDom.engine.queue(() => mutations.unique.forEach((mutation) => mutation.context?.suspense?.resolve()));
+                virtualDom.engine.queue(() => mutations.forEach((mutation) => mutation.context?.suspense?.resolve()));
               }
               return value;
             },
@@ -229,20 +232,14 @@ function render(virtualDom, parent, element, context, referenceNode) {
           const current = virtualNode.component[property];
           if (!context["#" + current.key]) {
             context["#" + current.key] = current;
-            current.mutations = { unique: new Set() };
+            current.mutations = new Set();
             current.register(() => virtualDom.engine.queue(current.mutations));
           }
           Object.defineProperty(virtualNode.component, property, {
             configurable: false,
             enumerable: false,
             get: () => {
-              const mutation = virtualDom.mutation;
-              if (mutation && !current.mutations.unique.has(mutation)) {
-                const cur = { callback: () => mutation?.update?.() };
-                current.mutations.first ||= cur;
-                if (current.mutations.last) current.mutations.last.next = cur;
-                current.mutations.last = cur;
-              }
+              if (virtualDom.mutation) current.mutations.add(virtualDom.mutation);
               return current.valueOf();
             },
             set: (value) => {
@@ -251,7 +248,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
           });
         }
         else if (!(virtualNode.component[property] instanceof Ref || typeof virtualNode.component[property] === "function")) {
-          const mutations = { unique: new Set() };
+          const mutations = new Set();
           let value = virtualNode.component[property];
           if (element.props[property] instanceof Mutation) {
             if (isBrowser()) {
@@ -266,14 +263,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
             configurable: false,
             enumerable: true,
             get: () => {
-              const mutation = virtualDom.mutation;
-              if (mutation && !mutations.unique.has(mutation)) {
-                mutations.unique.add(mutation);
-                const cur = { callback: () => mutation?.update?.() };
-                mutations.first ||= cur;
-                if (mutations.last) mutations.last.next = cur;
-                mutations.last = cur;
-              }
+              if (virtualDom.mutation) mutations.add(virtualDom.mutation);
               return value;
             },
             set: (v) => {
