@@ -107,7 +107,8 @@ async function processCoverage(reports, { url, ranges, text }) {
   if (!reports[file]) reports[file] = { total: text.length, coverage: new Set() };
   ranges.forEach(range => {
     for (let i = range.start; i <= range.end; i++) {
-      if (i <= reports[file].total) reports[file].coverage.add(i);
+      if (i <= reports[file].total)
+        reports[file].coverage.add(i);
     }
   });
 }

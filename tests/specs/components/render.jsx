@@ -2,7 +2,7 @@ import { Component, Render } from "@vistta/js";
 const DEFAULT_OUTPUT = "Hello World";
 
 const tests = {
-  "Component Render If: Conditional": {
+  "Component: Render If: Conditional": {
     Component: class extends Component {
       toggle = false;
       render() {
@@ -27,7 +27,7 @@ const tests = {
       equal(await (await page.querySelector("#output", { wait: true })).evaluate((el) => el.textContent), DEFAULT_OUTPUT);
     },
   },
-  "Component Render Each: List": {
+  "Component: Render Each: List": {
     Component: class extends Component {
       list = [1, 2, 3, 4, 5];
 
@@ -45,7 +45,7 @@ const tests = {
       equal(await (await page.querySelector("#container > input:last-child")).evaluate((el) => el.value), "5");
     },
   },
-  "Component Render Each: Object": {
+  "Component: Render Each: Object": {
     Component: class extends Component {
       object = { one: 1, two: 2, three: 3, four: 4, five: 5 };
 

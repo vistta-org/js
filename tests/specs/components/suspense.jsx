@@ -4,7 +4,7 @@ const LOADING_DEFAULT_VALUE = "loading";
 const LOADED_DEFAULT_VALUE = "loaded";
 
 const tests = {
-  "Component Suspense: No Promises": {
+  "Component: Suspense: No Promises": {
     Component: class extends Component {
       render() {
         return (
@@ -19,7 +19,7 @@ const tests = {
       equal(await output.evaluate((el) => el.textContent), LOADED_DEFAULT_VALUE);
     },
   },
-  "Component Suspense: Single Promise": {
+  "Component: Suspense: Single Promise": {
     Component: class extends Component {
       content = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), 100));
       render() {
@@ -37,7 +37,7 @@ const tests = {
       equal(await output.evaluate((el) => el.textContent), LOADED_DEFAULT_VALUE);
     },
   },
-  "Component Suspense: Multiple Promises": {
+  "Component: Suspense: Multiple Promises": {
     Component: class extends Component {
       content1 = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), 100));
       content2 = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), 200));
@@ -60,7 +60,7 @@ const tests = {
       equal(await output.evaluate((el) => el.textContent), LOADED_DEFAULT_VALUE + "/" + LOADED_DEFAULT_VALUE);
     },
   },
-  "Component Suspense: Toggle": {
+  "Component: Suspense: Toggle": {
     Component: class extends Component {
       toggle = true;
       content = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), 100));
