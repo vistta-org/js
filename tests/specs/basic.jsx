@@ -194,9 +194,9 @@ const tests = {
       equal(await target.evaluate((el) => el.value), INPUT_UPDATE_VALUE);
     },
   },
-  "Basic: Async": {
+  "Basic: Single Promise": {
     Component: class extends Component {
-      content = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), 500));
+      content = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), 100));
       render() {
         return <span id="output">{this.content}</span>;
       }
@@ -204,8 +204,29 @@ const tests = {
     test: async (page, { equal }) => {
       const output = await page.querySelector("#output", { wait: true });
       equal(await output.evaluate((el) => el.textContent), "");
-      await page.sleep(500);
+      await page.sleep(100);
       equal(await output.evaluate((el) => el.textContent), INPUT_UPDATE_VALUE);
+    },
+  },
+  "Basic: Multiple Promises": {
+    Component: class extends Component {
+      content1 = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), 100));
+      content2 = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), 200));
+      render() {
+        return (
+          <span id="output">
+            {this.content1}/{this.content2}
+          </span>
+        );
+      }
+    },
+    test: async (page, { equal }) => {
+      const output = await page.querySelector("#output", { wait: true });
+      equal(await output.evaluate((el) => el.textContent), "/");
+      await page.sleep(100);
+      equal(await output.evaluate((el) => el.textContent), INPUT_UPDATE_VALUE + "/");
+      await page.sleep(100);
+      equal(await output.evaluate((el) => el.textContent), INPUT_UPDATE_VALUE + "/" + INPUT_UPDATE_VALUE);
     },
   },
 };

@@ -22,13 +22,31 @@ const app = await (new Promise((resolve, reject) => {
 
 const page = await (async (browser) => {
   const _page = (await browser.pages())?.[0] || await browser.newPage();
-  await Promise.all([
-    _page.coverage.startJSCoverage(),
-    _page.coverage.startCSSCoverage(),
-  ]);
   await _page.goto(BASE_URL);
+  const coverage = { active: false, reports: {} };
   return {
-    navigate: (url) => _page.goto(url),
+    navigate: async (url, options) => {
+      if (coverage.active) {
+        const [jsCoverage, cssCoverage] = await Promise.all([
+          _page.coverage.stopJSCoverage(),
+          _page.coverage.stopCSSCoverage(),
+        ]);
+        for (let i = 0, len = jsCoverage.length; i < len; i++)
+          await processCoverage(coverage.reports, jsCoverage[i]);
+        for (let i = 0, len = cssCoverage.length; i < len; i++)
+          await processCoverage(coverage.reports, cssCoverage[i]);
+        coverage.active = false;
+      }
+      if (options?.coverage) {
+        await Promise.all([
+          _page.coverage.startJSCoverage(),
+          _page.coverage.startCSSCoverage(),
+        ]);
+        coverage.active = true;
+      }
+      else coverage.active = false;
+      await _page.goto(url);
+    },
     sleep: (delay) => sleep(delay),
     click: (selector, options) => _page.click(selector, options),
     querySelector: async (selector, options) => {
@@ -47,20 +65,17 @@ const page = await (async (browser) => {
       await _page.keyboard.press("Enter");
     },
     coverage: async () => {
-      const [jsCoverage, cssCoverage] = await Promise.all([
-        _page.coverage.stopJSCoverage(),
-        _page.coverage.stopCSSCoverage(),
-      ]);
       const total = { covered: 0, length: 0 }
-      const report = [...jsCoverage, ...cssCoverage].map(({ url, ranges, text }) => {
-        let coverage = 0;
-        for (const range of ranges) coverage += range.end - range.start - 1;
-        total.length += text.length;
-        total.covered += coverage;
-        return { name: new URL(url).pathname.replace(/.*\/resources/, "/resources"), coverage: `${(coverage / text.length) * 100}%` }
+      const report = Object.keys(coverage.reports).map((key) => {
+        const current = coverage.reports[key];
+        total.length += current.total;
+        total.covered += current.coverage.size;
+        return { file: key, coverage: `${((current.coverage.size / current.total) * 100).toFixed(2)}%` }
       });
-      report.push({ name: "total", coverage: `${(total.covered / total.length) * 100}%` })
-      console.table(report);
+      report.push({ file: "total", coverage: `${((total.covered / total.length) * 100).toFixed(2)}%` })
+      console.log("\nCode Coverage Report");
+      console.table(report)
+      console.log("");
     }
   }
 })(await puppeteer.launch({
@@ -71,16 +86,28 @@ const unique = new Set();
 
 if (!process.env.DEBUG) describe("VisttaJS Unit Tests", () => {
   after(async () => {
-    await page.coverage();
     await sleep(500);
+    await page.coverage();
     process.exit();
   });
   Object.keys(specs).forEach((spec) => Object.keys(specs[spec]).forEach((test) => {
     if (!unique.has(test)) unique.add(test);
     else throw "Duplicated Test Key";
     it(test, async () => {
-      await page.navigate(BASE_URL + encodeURIComponent(test));
+      await page.navigate(BASE_URL + encodeURIComponent(test), { coverage: true });
       await specs[spec][test].test(page, assert, app);
     })
   }));
 });
+
+//
+
+async function processCoverage(reports, { url, ranges, text }) {
+  const file = new URL(url).pathname.split("/").pop();
+  if (!reports[file]) reports[file] = { total: text.length, coverage: new Set() };
+  ranges.forEach(range => {
+    for (let i = range.start; i <= range.end; i++) {
+      if (i <= reports[file].total) reports[file].coverage.add(i);
+    }
+  });
+}
