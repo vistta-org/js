@@ -203,7 +203,6 @@ export class Suspense extends Component {
   resolve(dequeued) {
     if (dequeued) this.#dequeued = true;
     else this.#count--;
-    console.log("resolve", dequeued, this.#count);
     if (this.#count == 0 && this.#dequeued) this.#callback();
   }
 }
