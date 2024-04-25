@@ -209,9 +209,7 @@ export class Suspense extends Component {
 
 export class Profiler extends Component {
   callback;
-  idle = 250;
   #total = 0;
-  #debounce;
 
   render() {
     if (!this.callback || process.env.IS_NODE || "production" === process.env.NODE_ENV) return this.children;
@@ -228,18 +226,19 @@ export class Profiler extends Component {
     }));
   }
 
-  record(callback) {
+  record(engine, callback) {
     return () => {
       let initial = performance.now();
       callback();
       this.#total = performance.now() - initial;
-      clearTimeout(this.#debounce);
-      this.#debounce = setTimeout(() => {
-        const total = this.#total;
-        this.#total = 0;
-        this.callback(total);
-      }, this.idle);
+      engine.profilers.add(this);
     }
+  }
+
+  end() {
+    const total = this.#total;
+    this.#total = 0;
+    this.callback(total);
   }
 }
 

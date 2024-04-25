@@ -9,6 +9,7 @@ export default class VirtualDom {
   node = document.body;
   engine = {
     active: false,
+    profilers: new Set(),
     queue(mutations) {
       const type = typeof mutations;
       let node = {};
@@ -28,6 +29,8 @@ export default class VirtualDom {
       if (!cur) {
         this.last = null;
         this.active = false;
+        this.profilers.forEach((profiler) => profiler.end());
+        this.profilers.clear();
         return;
       }
       this.first = cur.next;
@@ -100,7 +103,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
       virtualNode.mutation = element;
       element = new Element(Fragment);
       if (isBrowser()) {
-        if (context.profiler) virtualNode.mutation.update = context.profiler.record(() => update(virtualDom, virtualNode, null, ensureArray(virtualNode.mutation())));
+        if (context.profiler) virtualNode.mutation.update = context.profiler.record(virtualDom.engine, () => update(virtualDom, virtualNode, null, ensureArray(virtualNode.mutation())));
         else virtualNode.mutation.update = () => update(virtualDom, virtualNode, null, ensureArray(virtualNode.mutation()));
         virtualDom.mutation = (virtualNode.mutation.context = context, virtualNode.mutation);
       }
@@ -131,7 +134,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
       const prop = element.props[keys[i]];
       if (prop instanceof Mutation) {
         if (isBrowser()) {
-          if (context.profiler) prop.update = context.profiler.record(() => setAttribute(virtualNode.node, keys[i], prop()));
+          if (context.profiler) prop.update = context.profiler.record(virtualDom.engine, () => setAttribute(virtualNode.node, keys[i], prop()));
           else prop.update = () => setAttribute(virtualNode.node, keys[i], prop());
           virtualDom.mutation = (prop.context = context, prop);
         }
@@ -271,7 +274,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
           let value = virtualNode.component[property];
           if (element.props[property] instanceof Mutation) {
             if (isBrowser()) {
-              if (context.profiler) element.props[property].update = context.profiler.record(() => virtualNode.component[property] = element.props[property]());
+              if (context.profiler) element.props[property].update = context.profiler.record(virtualDom.engine, () => virtualNode.component[property] = element.props[property]());
               else element.props[property].update = () => virtualNode.component[property] = element.props[property]();
               virtualDom.mutation = (element.props[property].context = context, element.props[property]);
             }
@@ -295,7 +298,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
       }
       virtualNode.mutation = new Mutation(() => virtualNode.component.render());
       if (isBrowser()) {
-        if (context.profiler) virtualNode.mutation.update = context.profiler.record(() => update(virtualDom, virtualNode, null, ensureArray(virtualNode.component.render())));
+        if (context.profiler) virtualNode.mutation.update = context.profiler.record(virtualDom.engine, () => update(virtualDom, virtualNode, null, ensureArray(virtualNode.component.render())));
         else virtualNode.mutation.update = () => update(virtualDom, virtualNode, null, ensureArray(virtualNode.component.render()));
         virtualDom.mutation = (virtualNode.mutation.context = context, virtualNode.mutation);
       }
