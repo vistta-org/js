@@ -10,6 +10,9 @@ export default class VirtualDom {
   engine = {
     active: false,
     queue(mutations) {
+      const type = typeof mutations;
+      if (type === "function") return this.queue({ first: { callback: mutations }, last: { callback: mutations } });
+      else if (type !== "object") throw "Internal Error #003";
       this.first ||= mutations.first;
       if (this.last) this.last.next = mutations.first;
       this.last = mutations.last;
@@ -50,7 +53,7 @@ export default class VirtualDom {
     this.content = render(this, this, content, {});
     this.mutation = null;
     const resolve = () => {
-      this.children = [...this.node.children];
+      this.children = [...this.node.childNodes];
       callback?.(this.config);
       this.engine.next();
     };
@@ -126,7 +129,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
       }
       else setAttribute(virtualNode.node, keys[i], prop);
     }
-    if (element.ref instanceof Mutation) throw "Internal Error #1";
+    if (element.ref instanceof Mutation) throw "Internal Error #001";
     if (typeof element.ref === "function") element.ref(virtualNode.node);
     else if (element.ref instanceof Ref) element.ref.node = virtualNode.node;
     virtualNode.children = [];
@@ -146,9 +149,10 @@ function render(virtualDom, parent, element, context, referenceNode) {
           const fragment = { node: virtualDom.createDocumentFragment(), children: [] };
           for (let i = 0, len = element.props.children?.length || 0; i < len; i++)
             fragment.children[i] = render(virtualDom, fragment, element.props.children[i], { ...context });
-          virtualNode.component.resolve(() => {
+          virtualNode.component.register(() => {
             virtualNode.children = fragment.children;
-
+            for (let i = 0, len = virtualNode.children.length; i < len; i++)
+              virtualNode.children[i].parent = virtualNode;
             const fallbackFirstNode = virtualNode.firstNode;
             if (fallbackFirstNode) {
               const fallbackLastNode = virtualNode.lastNode;
@@ -164,10 +168,14 @@ function render(virtualDom, parent, element, context, referenceNode) {
               }
             }
 
-            const referenceNode = findPreviousSibling(virtualNode, -1)?.nextSibling;
-            for (let i = 0, len = fragment.node.children.length; i < len; i++)
-              append(virtualNode, fragment.node.children[i], referenceNode);
+            const referenceNode = findReferenceNode(virtualNode, -1);
+            let node = fragment.node.firstChild;
+            while (node != null) {
+              append(virtualNode, node, referenceNode);
+              node = fragment.node.firstChild;
+            }
           });
+          virtualDom.engine.queue(() => virtualNode.component.resolve(true));
         }
       }
       else element.children = element.props.children;
@@ -183,11 +191,11 @@ function render(virtualDom, parent, element, context, referenceNode) {
         const property = properties[i];
         if (virtualNode.component[property] instanceof Promise) {
           let value = null;
-          let resolved = false;
+          let status = "pending";
           const mutations = { unique: new Set() };
           virtualNode.component[property].then((result) => {
             value = result;
-            resolved = true;
+            status = "resolved";
             virtualDom.engine.queue(mutations);
           });
           Object.defineProperty(virtualNode.component, property, {
@@ -195,7 +203,8 @@ function render(virtualDom, parent, element, context, referenceNode) {
             enumerable: true,
             get: () => {
               if (!isBrowser()) return value;
-              if (!resolved) {
+              if (status === "completed") { /* Do Nothing */ }
+              else if (status === "pending") {
                 const mutation = virtualDom.mutation;
                 if (mutation) {
                   mutation.context?.suspense?.wait();
@@ -208,7 +217,10 @@ function render(virtualDom, parent, element, context, referenceNode) {
                   }
                 }
               }
-              else mutations.unique.forEach((mutation) => mutation.context?.suspense?.resolve());
+              else if (status === "resolved") {
+                status = "completed";
+                virtualDom.engine.queue(() => mutations.unique.forEach((mutation) => mutation.context?.suspense?.resolve()));
+              }
               return value;
             },
           });
@@ -301,7 +313,7 @@ function update(virtualDom, virtualNode, props, children) {
       for (let i = 0, len = keys.length; i < len; i++)
         setAttribute(virtualNode.node, keys[i], props[keys[i]]);
     }
-    else throw "Internal Error #2";
+    else throw "Internal Error #002";
   }
 
   const previousChildren = [...virtualNode.children];
@@ -341,17 +353,15 @@ function update(virtualDom, virtualNode, props, children) {
     if (!changes[i]) continue;
     if (changes[i].skip != null) virtualNode.children[i] = changes[i].skip;
     else if (changes[i].insert != null)
-      virtualNode.children[i] = render(virtualDom, virtualNode, changes[i].insert, { ...virtualNode.context }, findPreviousSibling(virtualNode, i)?.nextSibling);
+      virtualNode.children[i] = render(virtualDom, virtualNode, changes[i].insert, { ...virtualNode.context }, findReferenceNode(virtualNode, i));
     else {
-      const previousSibling = findPreviousSibling(virtualNode, i);
+      let referenceNode = findReferenceNode(virtualNode, i);
       virtualNode.children[i] = changes[i].update;
       update(virtualDom, virtualNode.children[i], changes[i].props, changes[i].children);
       const firstNode = virtualNode.children[i].node || virtualNode.children[i].firstNode;
       if (!firstNode) continue;
-      let referenceNode = null;
-      if (previousSibling) {
-        if (previousSibling.nextSibling !== firstNode) referenceNode = previousSibling.nextSibling;
-        else continue;
+      if (referenceNode) {
+        if (referenceNode === firstNode) continue;
       }
       else if (firstNode.parentNode.firstChild !== firstNode) referenceNode = firstNode.parentNode.firstChild;
       else continue;
@@ -490,14 +500,14 @@ function setAttribute(node, name, value) {
   } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
 }
 
-function findPreviousSibling(parent, index) {
+function findReferenceNode(parent, index) {
   for (let i = (index - 1); i >= 0; i--) {
-    if (parent.children[i]?.node) return parent.children[i]?.node;
-    if (parent.children[i]?.lastNode) return parent.children[i]?.lastNode;
+    if (parent.children[i]?.node) return parent.children[i]?.node?.nextSibling;
+    if (parent.children[i]?.lastNode) return parent.children[i]?.lastNode?.nextSibling;
   }
-  if (parent.node) return null;
+  if (parent.node) return parent.node.firstChild;
   const parentIndex = parent.parent.children.indexOf(parent);
-  return findPreviousSibling(parent.parent, parentIndex != -1 ? parentIndex : parent.parent.children.length);
+  return findReferenceNode(parent.parent, parentIndex != -1 ? parentIndex : parent.parent.children.length);
 }
 
 function traverseVirtualNodes(node, callback) {

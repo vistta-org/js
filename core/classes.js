@@ -188,21 +188,23 @@ export class Component {
 export class Suspense extends Component {
   #count = 0;
   #callback;
+  #dequeued = false;
   fallback;
+
+  register(callback) {
+    if (this.#callback != null) throw "Internal Error #004";
+    this.#callback = callback;
+  }
 
   wait() {
     this.#count++;
   }
 
-  resolve(callback) {
-    if (!callback) {
-      this.#count--;
-      if (this.#count == 0) this.#callback();
-    }
-    else {
-      if (this.#count == 0) callback();
-      else this.#callback = callback;
-    }
+  resolve(dequeued) {
+    if (dequeued) this.#dequeued = true;
+    else this.#count--;
+    console.log("resolve", dequeued, this.#count);
+    if (this.#count == 0 && this.#dequeued) this.#callback();
   }
 }
 

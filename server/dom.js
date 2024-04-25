@@ -39,6 +39,7 @@ function createServerElement(type) {
     type: type,
     style: props.style,
     children: children,
+    childNodes: children,
     toString: () => {
       const _children = children?.reduce((acc, cur) => acc + cur, "");
       return type === "dom" ? _children : (new Element(type, props, _children)).toString();
