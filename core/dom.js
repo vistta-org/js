@@ -29,8 +29,9 @@ export default class VirtualDom {
       if (!cur) {
         this.last = null;
         this.active = false;
-        this.profilers.forEach((profiler) => profiler.end());
-        this.profilers.clear();
+        const profilers = this.profilers;
+        this.profilers = new Set();
+        setTimeout(() => profilers.forEach((profiler) => profiler.end()), 0);
         return;
       }
       this.first = cur.next;

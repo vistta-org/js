@@ -1,4 +1,6 @@
 import { Component } from "@vistta/js";
+
+const DEFAULT_TIMEOUT = 200;
 const INPUT_DEFAULT_VALUE = "Hello";
 const INPUT_UPDATE_VALUE = "Hello world";
 
@@ -196,7 +198,7 @@ const tests = {
   },
   "Basic: Single Promise": {
     Component: class extends Component {
-      content = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), 100));
+      content = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), DEFAULT_TIMEOUT));
       render() {
         return <span id="output">{this.content}</span>;
       }
@@ -204,14 +206,14 @@ const tests = {
     test: async (page, { equal }) => {
       const output = await page.querySelector("#output", { wait: true });
       equal(await output.evaluate((el) => el.textContent), "");
-      await page.sleep(100);
+      await page.sleep(DEFAULT_TIMEOUT);
       equal(await output.evaluate((el) => el.textContent), INPUT_UPDATE_VALUE);
     },
   },
   "Basic: Multiple Promises": {
     Component: class extends Component {
-      content1 = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), 100));
-      content2 = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), 200));
+      content1 = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), DEFAULT_TIMEOUT));
+      content2 = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), DEFAULT_TIMEOUT * 2));
       render() {
         return (
           <span id="output">
@@ -223,9 +225,9 @@ const tests = {
     test: async (page, { equal }) => {
       const output = await page.querySelector("#output", { wait: true });
       equal(await output.evaluate((el) => el.textContent), "/");
-      await page.sleep(100);
+      await page.sleep(DEFAULT_TIMEOUT * 1.05);
       equal(await output.evaluate((el) => el.textContent), INPUT_UPDATE_VALUE + "/");
-      await page.sleep(100);
+      await page.sleep(DEFAULT_TIMEOUT * 1.05);
       equal(await output.evaluate((el) => el.textContent), INPUT_UPDATE_VALUE + "/" + INPUT_UPDATE_VALUE);
     },
   },

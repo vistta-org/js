@@ -1,5 +1,6 @@
 import { Component, Suspense } from "@vistta/js";
 
+const DEFAULT_TIMEOUT = 200;
 const LOADING_DEFAULT_VALUE = "loading";
 const LOADED_DEFAULT_VALUE = "loaded";
 
@@ -21,7 +22,7 @@ const tests = {
   },
   "Component: Suspense: Single Promise": {
     Component: class extends Component {
-      content = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), 100));
+      content = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), DEFAULT_TIMEOUT));
       render() {
         return (
           <span id="output">
@@ -33,14 +34,14 @@ const tests = {
     test: async (page, { equal }) => {
       const output = await page.querySelector("#output", { wait: true });
       equal(await output.evaluate((el) => el.textContent), LOADING_DEFAULT_VALUE);
-      await page.sleep(100);
+      await page.sleep(DEFAULT_TIMEOUT);
       equal(await output.evaluate((el) => el.textContent), LOADED_DEFAULT_VALUE);
     },
   },
   "Component: Suspense: Multiple Promises": {
     Component: class extends Component {
-      content1 = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), 100));
-      content2 = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), 200));
+      content1 = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), DEFAULT_TIMEOUT));
+      content2 = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), DEFAULT_TIMEOUT * 2));
       render() {
         return (
           <span id="output">
@@ -54,16 +55,16 @@ const tests = {
     test: async (page, { equal }) => {
       const output = await page.querySelector("#output", { wait: true });
       equal(await output.evaluate((el) => el.textContent), LOADING_DEFAULT_VALUE);
-      await page.sleep(100);
+      await page.sleep(DEFAULT_TIMEOUT * 1.05);
       equal(await output.evaluate((el) => el.textContent), LOADING_DEFAULT_VALUE);
-      await page.sleep(100);
+      await page.sleep(DEFAULT_TIMEOUT * 1.05);
       equal(await output.evaluate((el) => el.textContent), LOADED_DEFAULT_VALUE + "/" + LOADED_DEFAULT_VALUE);
     },
   },
   "Component: Suspense: Toggle": {
     Component: class extends Component {
       toggle = true;
-      content = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), 100));
+      content = new Promise((resolve) => setTimeout(() => resolve(LOADED_DEFAULT_VALUE), DEFAULT_TIMEOUT));
       render() {
         return (
           <>
@@ -78,7 +79,7 @@ const tests = {
     test: async (page, { equal }) => {
       const output = await page.querySelector("#output", { wait: true });
       equal(await output.evaluate((el) => el.textContent), LOADING_DEFAULT_VALUE);
-      await page.sleep(100);
+      await page.sleep(DEFAULT_TIMEOUT * 1.05);
       equal(await output.evaluate((el) => el.textContent), LOADED_DEFAULT_VALUE);
       await page.click("#toggle");
       await page.click("#toggle");

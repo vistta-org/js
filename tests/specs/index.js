@@ -5,3 +5,4 @@ export { default as component } from "./components/core.jsx";
 export { default as render } from "./components/render.jsx";
 export { default as suspense } from "./components/suspense.jsx";
 export { default as safe } from "./components/safe.jsx";
+export { default as profiler } from "./components/profiler.jsx";
