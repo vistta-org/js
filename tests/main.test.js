@@ -27,21 +27,21 @@ const page = await (async (browser) => {
   return {
     navigate: async (url, options) => {
       if (coverage.active) {
-        const [jsCoverage, cssCoverage] = await Promise.all([
-          _page.coverage.stopJSCoverage(),
-          _page.coverage.stopCSSCoverage(),
-        ]);
+        const jsCoverage = await _page.coverage.stopJSCoverage();
         for (let i = 0, len = jsCoverage.length; i < len; i++)
           await processCoverage(coverage.reports, jsCoverage[i]);
-        for (let i = 0, len = cssCoverage.length; i < len; i++)
-          await processCoverage(coverage.reports, cssCoverage[i]);
+        if (coverage.css) {
+          const cssCoverage = await _page.coverage.stopCSSCoverage();
+          for (let i = 0, len = cssCoverage.length; i < len; i++)
+            await processCoverage(coverage.reports, cssCoverage[i]);
+          coverage.css = false;
+        }
         coverage.active = false;
       }
       if (options?.coverage) {
-        await Promise.all([
-          _page.coverage.startJSCoverage(),
-          _page.coverage.startCSSCoverage(),
-        ]);
+        await _page.coverage.startJSCoverage();
+        coverage.css = options?.cssCoverage;
+        if (coverage.css) _page.coverage.startCSSCoverage();
         coverage.active = true;
       }
       else coverage.active = false;
@@ -76,7 +76,8 @@ const page = await (async (browser) => {
       console.log("\nCode Coverage Report");
       console.table(report)
       console.log("");
-    }
+    },
+    location: async () => new URL(await _page.url())
   }
 })(await puppeteer.launch({
   headless: !!process.env.CI,

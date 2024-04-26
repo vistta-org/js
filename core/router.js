@@ -41,15 +41,13 @@ Object.defineProperties(route, {
     },
   },
   refresh: {
-    value: (href) => {
-      if (routes?.[href]) delete routes[href];
-      if (href !== dom.pathname) return;
+    value: (_href) => {
+      if (!_href) _href = dom.pathname;
+      if (routes?.[_href]) delete routes[_href];
+      if (_href !== dom.pathname) return;
       route.classList.toggle("loading", true);
       route.navigate({ refresh: true, callback: () => route.classList.toggle("loading", false) });
     },
-  },
-  pathname: {
-    get: () => dom.pathname,
   },
   location: {
     get: () => {

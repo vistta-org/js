@@ -7,10 +7,10 @@ type NavigateOptions = {
 
 interface Route {
   navigate: (href: string | NavigateOptions) => void;
+  refresh: () => void;
   emit: (event: string, details?: any) => void;
   on: (event: string, callback: (event: any) => void) => void;
   location: Location;
-  active: boolean;
 }
 
 export const route: Route;
