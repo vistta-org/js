@@ -1,6 +1,5 @@
 import VirtualDom from "./dom";
 import { Element } from "./classes";
-import { socket } from "./socket";
 import { isValidUrl, noCache, system } from "../utils";
 
 let dom;
@@ -72,7 +71,7 @@ Object.defineProperties(route, {
 
 system.addEventListener("click", handleClick);
 system.addEventListener("popstate", () => route.navigate({ pushState: false }));
-system.addEventListener("load", () => (handlerServiceWorker(), handleSocket(), route.navigate({ initial: true })));
+system.addEventListener("load", () => (handlerServiceWorker(), route.navigate({ initial: true })));
 
 export default route;
 
@@ -109,11 +108,6 @@ function handleClick(event) {
   const hash = href.replace(location.origin + "/", "");
   if (hash?.startsWith("#")) updateHash(hash);
   else route.navigate(href);
-}
-
-function handleSocket() {
-  if (socket.active === false) return setTimeout(handleSocket, 250);
-  socket.register(route);
 }
 
 function handlerServiceWorker() {

@@ -20,7 +20,6 @@ if (!(await validate("typescript", main, env))) abort();
 
 if (env.VALIDATION !== "only") {
   if (env.TEST_RUN) default_args.push("--test", ...args);
-  else if (env.NODE_ENV === "development") default_args.push("--watch", main, ...args);
   else default_args.push(main, ...args);
   const child = await spawn("node", default_args, {
     stdio: 'inherit'

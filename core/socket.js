@@ -1,8 +1,8 @@
+import { route } from "./router";
 import { INVALID_EVENT_NAME, convertToEventName } from "../utils";
 
 class Socket {
   #active = false;
-  #route;
   #instance;
 
   get href() {
@@ -13,40 +13,31 @@ class Socket {
     return this.#active;
   }
 
-  get route() {
-    return this.#route;
-  }
-
   constructor() {
-    if (process.env.IS_NODE) return this;
-    import("@socket")
-      .then(({ io }) => this.#connect(io))
-      .catch((e) => (console.error(e), this.#active = false));
-  }
-
-  #connect(io) {
-    if (!io || this.#instance) return;
-    this.#instance = io({ reconnectionDelay: 10000 });
-    this.#instance.on("connect", () => (this.#active = true));
-    this.#instance.io.on("reconnect", () => location.reload());
-  }
-
-  register(route) {
-    this.#route = route;
-    if ("production" !== process.env.NODE_ENV) this.#instance.on(`@app/refresh`, (href) => route.refresh(href));
+    if (!process.env.IS_NODE) import("@socket").then(({ io }) => {
+      if (!io || this.#instance) return;
+      this.#active = true;
+      this.#instance = io({ reconnectionDelay: 10000 });
+      this.#instance.on("connect_error", (error) => console.error(`Socket Internal Error: ${error.message}`));
+      this.#instance.io.on("reconnect", () => location.reload());
+      if ("production" !== process.env.NODE_ENV) this.#instance.on(`@app/refresh`, (href) => route.refresh(href));
+    }).catch((error) => {
+      this.#active = false;
+      console.error(`Socket Internal Error: ${error.message}`);
+    });
   }
 
   emit(event, ...args) {
     event = convertToEventName(event);
-    if ("production" !== process.env.NODE_ENV && !event) console.warn(INVALID_EVENT_NAME);
-    if (this.#active === false || !event) return;
+    if (!event) return console.warn(INVALID_EVENT_NAME);
+    if (this.#active === false) return console.warn("Socket Internal Error");
     this.#instance.emit(event, ...args);
   }
 
   on(event, callback) {
     event = convertToEventName(event);
-    if ("production" !== process.env.NODE_ENV && !event) console.warn(INVALID_EVENT_NAME);
-    if (this.#active === false || !event) return;
+    if (!event) return console.warn(INVALID_EVENT_NAME);
+    if (this.#active === false) return console.error("Socket Internal Error");
     this.#instance.on(event, callback);
   }
 }

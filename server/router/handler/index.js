@@ -1,6 +1,5 @@
 import { EventEmitter } from "node:events";
 import { fs } from "@vistta/utils/fs";
-import { hash } from "@vistta/utils/crypto";
 import { extractImports } from "../../../bin/loaders";
 import { convertToEventName, FunctionClass, noCache } from "../../../utils";
 import PageHandler from "./page";
@@ -16,7 +15,7 @@ class Handler extends FunctionClass {
     super((...args) => this.handler && this.handler(...args));
     if (type === "app" || type === "page" || type === "error")
       return new PageHandler({ filepath, pathname, type, callback, ...config });
-    this.id = hash(filepath);
+    this.id = fs.fileId(filepath);
     this.filepath = fs.resolve(filepath);
     this.pathname = pathname;
     this.type = type;
