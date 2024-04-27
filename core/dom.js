@@ -252,22 +252,30 @@ function render(virtualDom, parent, element, context, referenceNode) {
           });
         }
         else if (virtualNode.component[property] instanceof Context) {
-          const current = virtualNode.component[property];
-          if (!context["#" + current.key]) {
-            context["#" + current.key] = current;
-            current.mutations = new Set();
-            current.register(() => virtualDom.engine.queue(current.mutations));
+          const instance = virtualNode.component[property];
+          let mutations = {};
+          if (!context["#" + instance.key]) {
+            context["#" + instance.key] = { instance, mutations };
+            instance.register((path) => {
+              const keys = Object.keys(mutations);
+              for (let i = 0, len = keys.length; i < len; i++) {
+                const key = keys[i];
+                if ((key === path || key.startsWith(path + ".")) && mutations[key]) virtualDom.engine.queue(mutations[key]);
+              }
+            });
           }
+          else mutations = context["#" + instance.key].mutations;
           Object.defineProperty(virtualNode.component, property, {
             configurable: false,
             enumerable: false,
             get: () => {
-              if (virtualDom.mutation) current.mutations.add(virtualDom.mutation);
-              return current.valueOf();
-            },
-            set: (value) => {
-              current.setValue(value);
-            },
+              const mutation = virtualDom.mutation;
+              return instance.proxy((path) => {
+                if (!mutation) return;
+                if (!mutations[path]) mutations[path] = new Set();
+                mutations[path].add(mutation);
+              });
+            }
           });
         }
         else if (!(virtualNode.component[property] instanceof Ref || typeof virtualNode.component[property] === "function")) {

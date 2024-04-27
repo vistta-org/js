@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-import { system, encode, decode, stringify, camelCaseToKebabCase, parse, isPromise, FunctionClass } from "../utils";
+import { system, encode, decode, stringify, parse, clone, camelCaseToKebabCase, isPromise, FunctionClass } from "../utils";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
 export const Fragment = Symbol("Fragment");
@@ -73,64 +73,67 @@ export class Context extends FunctionClass {
   #key;
   #value;
   #cache;
-  #writable;
-  #callback
+  #callback;
 
-  constructor(key, defaultValue, cache, actions, controllers) {
-    if (typeof key !== "string" || key.length == 0) return null;
+  constructor(key, value, cache, actions, controllers) {
+    if (typeof key !== "string" || key.length == 0) throw new Error("TypeError: Invalid context key.");
+    if (typeof value !== "object") throw new Error("TypeError: Cannot create context with a non-object value.");
     super(() => this);
     this.#key = key;
-    this.#value = (cache !== "none" ? getCacheValue(key) : undefined) ?? defaultValue;
+    try {
+      this.#value = (cache !== "none" ? getCacheValue(key) ?? clone(value) : clone(value));
+    }
+    catch {
+      throw new Error("TypeError: Cannot create context with a non serializable object as default value.");
+    }
     this.#cache = cache || "none";
-    if (!actions || typeof actions === "boolean") this.#writable = actions !== false;
-    else {
-      this.#writable = false;
-      const actionsNames = Object.keys(actions || {});
-      if (actionsNames.length > 0) {
-        const controllerFn = (target, ...args) => typeof controllers === "function" ? controllers.call(this, target, ...args) : controllers?.[target]?.call(this, ...args);
-        const updateValue = (value) => {
-          if (this.#value === value) return;
-          this.#value = value;
-          if (this.#cache !== "none") updateCache(this.#key, value, this.#cache);
-          this.#callback?.();
-        }
-        for (let i = 0, len = actionsNames.length; i < len; i++) {
-          const actionName = actionsNames[i];
-          if (["valueOf", "toString", "setValue", "register"].includes(actionName)) throw new Error(`Invalid action name "${actionName}".`);
-          const action = actions[actionName];
-          this[actionName] = ((...args) => {
-            controllerFn(actionName, "pending", this.valueOf());
-            const controller = new AbortController();
-            const promise = new Promise((resolve) => {
-              controller.signal.onabort = () => {
-                controllerFn(actionName, "rejected", controller.signal.reason);
-                resolve(null);
-              };
-              try {
-                let value = action(this.valueOf(), ...args);
-                if (isPromise(value)) value.then((result) => {
-                  if (controller.signal?.aborted) return;
-                  updateValue(result);
-                  resolve(this.valueOf());
-                  controllerFn(actionName, "completed", this.valueOf());
-                }).catch((e) => {
-                  controllerFn(actionName, "rejected", e);
-                  resolve(null);
-                });
-                else if (!controller.signal?.aborted) {
-                  updateValue(value);
-                  resolve(this.valueOf());
-                  controllerFn(actionName, "completed", this.valueOf());
-                }
-              } catch (e) {
-                controllerFn(actionName, "rejected", e);
-                resolve(null);
+    const actionsNames = Object.keys(actions || {});
+    if (actionsNames.length > 0) {
+      const controllerFn = (target, status) => {
+        const typeOfControllers = typeof controllers;
+        if (typeOfControllers === "function") controllers.call(this, target, status, this.proxy());
+        else if (typeOfControllers === "object") controllers?.[target]?.call(this, status, this.proxy());
+      };
+      for (let i = 0, len = actionsNames.length; i < len; i++) {
+        const actionName = actionsNames[i];
+        if (["valueOf", "toString", "setValue", "register", "proxy"].includes(actionName)) throw new Error(`Invalid action name "${actionName}".`);
+        const action = actions[actionName];
+        this[actionName] = ((...args) => {
+          controllerFn(actionName, "pending");
+          const controller = new AbortController();
+          const promise = new Promise((resolve) => {
+            controller.signal.onabort = () => {
+              controllerFn(actionName, "rejected");
+              resolve();
+            };
+            try {
+              let value = action(this.value, ...args);
+              if (isPromise(value)) value.then((result) => {
+                if (controller.signal?.aborted) return;
+                let updateCache = false;
+                updateContext(this.#value, result, (path) => (updateCache = true, this.#callback?.(path)));
+                if (this.#cache !== "none" && updateCache) updateCache(this.#key, this.#value, this.#cache);
+                resolve();
+                controllerFn(actionName, "completed");
+              }).catch(() => {
+                controllerFn(actionName, "rejected");
+                resolve();
+              });
+              else if (!controller.signal?.aborted) {
+                let updateCache = false;
+                updateContext(this.#value, value, (path) => (updateCache = true, this.#callback?.(path)));
+                if (this.#cache !== "none" && updateCache) updateCache(this.#key, this.#value, this.#cache);
+                resolve();
+                controllerFn(actionName, "completed");
               }
-            });
-            promise.abort = (...args) => controller.abort(...args);
-            return promise;
-          }).bind(this);
-        }
+            } catch (e) {
+              controllerFn(actionName, "rejected");
+              resolve();
+            }
+          });
+          promise.abort = (...args) => controller.abort(...args);
+          return promise;
+        }).bind(this);
       }
     }
   }
@@ -139,23 +142,39 @@ export class Context extends FunctionClass {
     return this.#key;
   }
 
-  get writable() {
-    return this.#writable;
+  get value() {
+    return clone(this.#value);
   }
 
   valueOf() {
-    return this.#value;
+    return clone(this.#value);
   }
 
   toString() {
-    return "" + this.#value;
+    return JSON.stringify(this.#value);
   }
 
-  setValue(value) {
-    if (!this.#writable || this.#value === value) return;
-    this.#value = value;
-    if (this.#cache !== "none") updateCache(this.#key, value, this.#cache);
-    this.#callback?.();
+  proxy(callback) {
+    const update = (path) => {
+      this.#callback?.(path);
+      if (this.#cache !== "none" && updateCache) updateCache(this.#key, this.#value, this.#cache);
+    };
+    const handler = {
+      get(target, key) {
+        const path = this.path ? `${this.path}.${key}` : key;
+        if (typeof target[key] === 'object' && target[key] !== null)
+          return new Proxy(target[key], { path, ...handler });
+        if (callback) callback(path);
+        return target[key];
+      },
+      set(target, key, value) {
+        if (target[key] === value) return true;
+        target[key] = value;
+        update(this.path ? `${this.path}.${key}` : key);
+        return true;
+      }
+    }
+    return new Proxy(this.#value, handler);
   }
 
   register(callback) {
@@ -518,6 +537,19 @@ function styleToString(style) {
   }
   result = result.trim();
   return result === "" ? null : result;
+}
+
+function updateContext(original, updated, callback, path) {
+  const keys = Object.keys(updated);
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i];
+    if (typeof updated[key] === "object" && typeof original[key] === "object")
+      updateContext(original[key], updated[key], callback, path ? `${path}.key` : key);
+    else if (updated[key] !== original[key]) {
+      original[key] = updated[key];
+      callback(path ? `${path}.${key}` : key);
+    }
+  }
 }
 
 function updateCache(key, value, type) {

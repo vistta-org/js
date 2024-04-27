@@ -19,7 +19,7 @@ export declare const Context: new <T, Actions extends { [key: string]: Action<T>
     | { [K in keyof Actions]: (status: string, controllerOrValue: any) => void }
     | ((action: keyof Actions, status: string, controllerOrValue: any) => void),
 ) => {
-  [K in keyof Actions]: Actions[K] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => Promise<T> : never;
+  [K in keyof Actions]: Actions[K] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => Promise<void> : never;
 } & { (): T };
 
 export class Ref<T extends HTMLElement> {
