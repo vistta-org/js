@@ -20,7 +20,7 @@ const app = await (new Promise((resolve, reject) => {
   });
 }));
 
-const page = await (async (browser) => {
+const page = !process.env.DEBUG && await (async (browser) => {
   const _page = (await browser.pages())?.[0] || await browser.newPage();
   await _page.goto(BASE_URL);
   const coverage = { active: false, reports: {} };
@@ -47,6 +47,7 @@ const page = await (async (browser) => {
       else coverage.active = false;
       await _page.goto(url);
     },
+    reload: async () => await _page.goto(await _page.url()),
     sleep: (delay) => sleep(delay),
     click: (selector, options) => _page.click(selector, options),
     querySelector: async (selector, options) => {
@@ -100,6 +101,7 @@ if (!process.env.DEBUG) describe("VisttaJS Unit Tests", () => {
     })
   }));
 });
+else console.log("Debug Test Server Ready", BASE_URL)
 
 //
 
