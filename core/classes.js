@@ -389,7 +389,7 @@ export class Form extends Component {
       for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++) this.#listeners[props.name][i](e);
       for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
     });
-    node.addEventListener("keydown", (e) => e.key === 'Enter' && this.#node?.requestSubmit());
+    // node.addEventListener("keydown", (e) => e.key === 'Enter' && this.#node?.requestSubmit());
   }
 
   watch(...args) {
