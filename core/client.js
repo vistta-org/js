@@ -2,10 +2,10 @@
 import { Fragment, Element, Context, Ref, Component, Suspense, Profiler, Render, Safe, Form } from "./classes";
 import { route } from "./router";
 import { socket } from "./socket";
-import { system, isBrowser, apply } from "../utils";
+import { system, isBrowser } from "../utils";
 
 system.set("vistta", {
   Fragment, Element, Context, Ref, Component, Suspense, Profiler, Render, Safe, Form,
   route, socket,
-  isBrowser, apply
+  isBrowser
 });

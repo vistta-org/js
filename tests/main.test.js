@@ -78,6 +78,10 @@ const page = !process.env.DEBUG && await (async (browser) => {
       console.table(report)
       console.log("");
     },
+    dimensions: () => _page.evaluate(() => ({
+      width: document.documentElement.clientWidth,
+      height: document.documentElement.clientHeight,
+    })),
     location: async () => new URL(await _page.url())
   }
 })(await puppeteer.launch({

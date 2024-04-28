@@ -48,8 +48,8 @@ npm i @vistta/js
 
 Benchmark #1: 0.0005999999940395355ms (No keys)
 Benchmark #2: 0.003199999988079071ms (No keys)
-Benchmark #3: 8.399999998509884ms (No keys)
-Benchmark #3: 9.872ms (With keys)
+Benchmark #3: 4.490799999996089ms (No keys)
+Benchmark #3: 5.250200000032782ms (With keys)
 Benchmark #4: 0.0493999999165535ms (No keys)
 
 #React Equivalent (Incognito)
