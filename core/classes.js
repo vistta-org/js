@@ -303,6 +303,7 @@ export class Form extends Component {
   #path = [];
   #parent;
   #fields = {};
+  #defaultValues = {};
   #required = {};
   #validators = {};
   #listeners = {};
@@ -380,7 +381,7 @@ export class Form extends Component {
       this.#fields[props.name].push(node);
     }
     else this.#fields[props.name] = node;
-    if (type === "select") node.defaultValue = node.value;
+    this.#defaultValues[props.name] = getFieldValue(node);
     if (this.#parent) return this.#parent.register({ type, props: { name: [...this.path, props.name].join("."), ...props }, node });
     this.#required[props.name] = props.required;
     this.#validators[props.name] = props.validator;
@@ -389,7 +390,6 @@ export class Form extends Component {
       for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++) this.#listeners[props.name][i](e);
       for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
     });
-    // node.addEventListener("keydown", (e) => e.key === 'Enter' && this.#node?.requestSubmit());
   }
 
   watch(...args) {
@@ -422,12 +422,21 @@ export class Form extends Component {
     if (name === "*") {
       const inputs = Object.keys(this.#fields);
       for (let i = 0, len = inputs.length; i < len; i++) {
-        this.#fields[inputs[i]].value = getFieldDefaultValue(this.#fields[inputs[i]]);
-        if (!this.#invalidEvent) this.#fields[inputs[i]].setCustomValidity?.("");
+        const field = this.#fields[inputs[i]];
+        const defaultValue = this.#defaultValues[inputs[i]];
+        if (field.value === defaultValue) continue;
+        field.value = defaultValue;
+        field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
+        if (!this.#invalidEvent) field.setCustomValidity?.("");
       }
       return;
     }
-    this.#fields[name].value = getFieldDefaultValue(this.#fields[name]);
+    const field = this.#fields[name];
+    const defaultValue = this.#defaultValues[name];
+    if (field.value === defaultValue) return;
+    field.value = defaultValue
+    field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
+    if (!this.#invalidEvent) field.setCustomValidity?.("");
   }
 
   validate(name) {
@@ -465,11 +474,18 @@ export class Form extends Component {
   clear(name = "*") {
     if (name === "*") {
       const inputs = Object.keys(this.#fields);
-      for (let i = 0, len = inputs.length; i < len; i++)
-        this.#fields[inputs[i]].value = "";
+      for (let i = 0, len = inputs.length; i < len; i++) {
+        const field = this.#fields[inputs[i]];
+        if (field.value === "") continue;
+        field.value = "";
+        field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
+      }
       return;
     }
-    this.#fields[name].value = "";
+    const field = this.#fields[name];
+    if (field.value === "") return;
+    field.value = "";
+    field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
   }
 
   submit() {
@@ -577,15 +593,4 @@ function getFieldValue(element) {
   }
   if (element.type === "checkbox") return element.checked;
   return element.value;
-}
-
-function getFieldDefaultValue(element) {
-  if (Array.isArray(element)) {
-    for (let i = 0, len = element.length; i < len; i++) {
-      if (element[i].defaultChecked) return element[i].value;
-    }
-    return null;
-  }
-  if (element.type === "checkbox") return element.defaultChecked;
-  return element.defaultValue;
 }
