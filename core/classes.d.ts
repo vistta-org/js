@@ -63,8 +63,8 @@ export class Form extends Component<
       ref?: FormRef;
       className?: string;
       autocomplete?: boolean;
-      onsubmit: (event: any) => any;
-      oninvalid?: (event: any) => any;
+      onSubmit: (event: any) => any;
+      onInvalid?: (event: any) => any;
       style?: Partial<CSSStyleDeclaration>;
     }
   | { name: string; className?: string; style?: Partial<CSSStyleDeclaration> }

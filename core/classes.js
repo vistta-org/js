@@ -313,7 +313,9 @@ export class Form extends Component {
   autocomplete;
   style;
   onsubmit;
+  onSubmit;
   oninvalid;
+  onInvalid;
 
   get path() {
     return this.#path;
@@ -342,18 +344,19 @@ export class Form extends Component {
       if (this.className || this.style) return new Element("div", { className: this.className, style: this.style }, ...children);
       return new Element(Fragment, {}, ...this.children);
     }
-    this.#invalidEvent = typeof oninvalid === "function";
+    this.#invalidEvent = typeof this.oninvalid === "function" || typeof this.onInvalid === "function";
     return new Element("form", {
       ref: (element) => this.#node = element,
       className: this.className,
       autocomplete: this.autocomplete,
       onreset: () => this.reset(),
-      oninvalid: this.oninvalid,
+      oninvalid: this.oninvalid || this.onInvalid,
       onsubmit: (event) => {
         event.preventDefault();
         if (!this.validate()) return;
         event.values = this.values();
-        this.onsubmit?.(event);
+        if (typeof this.onsubmit === "function") this.onsubmit?.(event);
+        else if (typeof this.onSubmit === "function") this.onSubmit?.(event);
       },
       style: this.style,
     }, ...this.children);

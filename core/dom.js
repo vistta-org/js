@@ -110,8 +110,9 @@ function render(virtualDom, parent, element, context, referenceNode) {
       }
       element.children = ensureArray(virtualNode.mutation());
     }
+    else if (typeof element === "function") element = new Element(element);
     else if (typeof element === "object" || element instanceof Promise)
-      throw new Error(`${capitalize(typeof element)} is not a valid Element`);
+      throw new Error(`TypeError: ${capitalize(typeof element)} is not a valid Element`);
     else element = new Element(TextNode, null, "" + element);
     virtualNode.element = element;
   }
@@ -154,7 +155,12 @@ function render(virtualDom, parent, element, context, referenceNode) {
   }
 
   if (element.type === Component.Node) {
-    virtualNode.component = element.component.prototype instanceof Component ? new element.component() : Object.assign(new Component(), element.component());
+    if (element.component.prototype instanceof Component) virtualNode.component = new element.component();
+    else {
+      const component = element.component();
+      if (typeof component !== "object" || typeof component.render !== "function") throw new Error("TypeError: Invalid Function Component format.");
+      virtualNode.component = Object.assign(new Component(), component);
+    }
     if (element.component === Safe) {
       try {
         const fragment = { node: virtualDom.createDocumentFragment(), children: [] };
