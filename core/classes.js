@@ -1,10 +1,17 @@
 /* eslint-disable no-undef */
-import { system, encode, decode, stringify, parse, clone, camelCaseToKebabCase, isPromise, FunctionClass } from "../utils";
+import { system, encode, decode, stringify, parse, clone, camelCaseToKebabCase, isPromise, FunctionClass, isBrowser } from "../utils";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
 export const Fragment = Symbol("Fragment");
 export const TextNode = Symbol("TextNode");
 const ComponentNode = Symbol("Component");
+const DEFAULT_ERROR_MESSAGE = (() => {
+  if (!isBrowser()) return;
+  const inputElement = document.createElement('input');
+  inputElement.type = 'text';
+  inputElement.required = true;
+  return inputElement.validationMessage;
+})();
 
 export class Element {
   constructor(type, props, ...children) {
@@ -384,7 +391,7 @@ export class Form extends Component {
     this.#defaultValues[props.name] = getFieldValue(node);
     if (this.#parent) return this.#parent.register({ type, props: { name: [...this.path, props.name].join("."), ...props }, node });
     this.#required[props.name] = props.required;
-    this.#validators[props.name] = props.validator;
+    this.#validators[props.name] = props.validator instanceof Mutation ? props.validator() : props.validator;
     node.addEventListener(type === "select" ? "change" : "input", (e) => {
       if (!this.#invalidEvent) node.setCustomValidity?.("");
       for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++) this.#listeners[props.name][i](e);

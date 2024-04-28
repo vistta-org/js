@@ -63,7 +63,7 @@ function transformElement(code) {
       }
       else if (isWhitespace(code[i])) {
         if (context.prop !== "") {
-          props += `"${context.prop}": true,`;
+          props += `"${context.prop}": true, `;
           context.prop = "";
         }
       }

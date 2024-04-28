@@ -63,7 +63,11 @@ const page = !process.env.DEBUG && await (async (browser) => {
         await _page.keyboard.press("Backspace");
       }
       await _page.keyboard.type(value);
-      await _page.keyboard.press("Enter");
+      if (options?.submit !== false) await _page.keyboard.press("Enter");
+    },
+    press: async (selector, value) => {
+      await _page.click(selector);
+      await _page.keyboard.press(value);
     },
     coverage: async () => {
       const total = { covered: 0, length: 0 }
