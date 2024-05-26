@@ -3,33 +3,51 @@ import { Element } from "./classes";
 import { isValidUrl, noCache, system } from "../utils";
 
 let dom;
-const route = !process.env.IS_NODE ? document.body : {};
-const routes = {}
+const route = typeof process === "undefined" ? document.body : {};
+const routes = {};
 
 Object.defineProperties(route, {
   navigate: {
     value: async (arg) => {
-      let { href, pushState, callback, refresh, initial } = typeof arg === "object" ? arg : { href: arg };
+      let { href, pushState, callback, refresh, initial } =
+        typeof arg === "object" ? arg : { href: arg };
       if (href?.startsWith("#")) return updateHash(href);
       if (!refresh && !initial) refresh = href === true;
-      if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
+      if (!isValidUrl(href))
+        href = buildUrl(typeof href === "string" ? href : location.pathname);
       if (!isAppUrl(href)) return (location.href = href);
       const { pathname, hash } = new URL(href);
-      if (!refresh && !initial && dom.pathname === pathname) return updateHash(hash);
+      if (!refresh && !initial && dom.pathname === pathname)
+        return updateHash(hash);
       const cached = routes?.[pathname];
       if (pushState !== false) history.pushState({}, "", pathname);
       dom?.remove?.();
       if (initial || refresh || !cached) {
-        const appHref = pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
-        if (!initial) document.querySelector("link#app-style").href = noCache(appHref + ".css");
-        const { default: app, config, template, props } = await import(noCache(appHref + ".js"));
+        const appHref =
+          pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
+        if (!initial)
+          document.querySelector("link#app-style").href = noCache(
+            appHref + ".css",
+          );
+        const {
+          default: app,
+          config,
+          template,
+          props,
+        } = await import(noCache(appHref + ".js"));
         dom = new VirtualDom(pathname, route, config);
-        return dom.render(template ? new Element(template, {}, new Element(app, props)) : new Element(app, props), refresh, (config) => {
-          updateConfig(config);
-          routes[pathname] = dom;
-          updateHash(hash);
-          callback && callback();
-        });
+        return dom.render(
+          template
+            ? new Element(template, {}, new Element(app, props))
+            : new Element(app, props),
+          refresh,
+          (config) => {
+            updateConfig(config);
+            routes[pathname] = dom;
+            updateHash(hash);
+            callback && callback();
+          },
+        );
       }
       dom = cached;
       dom.refresh((config) => {
@@ -45,12 +63,15 @@ Object.defineProperties(route, {
       if (routes?.[_href]) delete routes[_href];
       if (_href !== dom.pathname) return;
       route.classList.toggle("loading", true);
-      route.navigate({ refresh: true, callback: () => route.classList.toggle("loading", false) });
+      route.navigate({
+        refresh: true,
+        callback: () => route.classList.toggle("loading", false),
+      });
     },
   },
   location: {
     get: () => {
-      if (process.env.IS_NODE) return system.get("route.location");
+      if (typeof process !== "undefined") return system.get("route.location");
       return window.location;
     },
   },
@@ -71,7 +92,10 @@ Object.defineProperties(route, {
 
 system.addEventListener("click", handleClick);
 system.addEventListener("popstate", () => route.navigate({ pushState: false }));
-system.addEventListener("load", () => (handlerServiceWorker(), route.navigate({ initial: true })));
+system.addEventListener(
+  "load",
+  () => (handlerServiceWorker(), route.navigate({ initial: true })),
+);
 
 export default route;
 
@@ -84,10 +108,12 @@ function updateConfig(config) {
   for (let i1 = 0, len1 = keys.length; i1 < len1; i1++) {
     switch (keys[i1]) {
       case "title":
-        document.title = config.title
+        document.title = config.title;
         break;
       case "href":
-        document.querySelector(`head > base`)?.setAttribute("href", config.href);
+        document
+          .querySelector(`head > base`)
+          ?.setAttribute("href", config.href);
         break;
       case "icon":
         var icons = document.querySelectorAll(`head > link[rel$="icon"]`);
@@ -95,7 +121,9 @@ function updateConfig(config) {
           icons[i2].setAttribute("href", config.icon);
         break;
       default:
-        document.querySelector(`head > meta[name="${keys[i1]}"]`)?.setAttribute("content", config[keys[i1]]);
+        document
+          .querySelector(`head > meta[name="${keys[i1]}"]`)
+          ?.setAttribute("content", config[keys[i1]]);
         break;
     }
   }
@@ -111,10 +139,16 @@ function handleClick(event) {
 }
 
 function handlerServiceWorker() {
-  if (!("serviceWorker" in navigator) || !document.querySelector(`head > link[rel="manifest"]`)) return;
+  if (
+    !("serviceWorker" in navigator) ||
+    !document.querySelector(`head > link[rel="manifest"]`)
+  )
+    return;
   navigator.serviceWorker
     .register("/resources/sw.js")
-    .then(undefined, (error) => console.log(`Service worker registration failed: ${error}`));
+    .then(undefined, (error) =>
+      console.log(`Service worker registration failed: ${error}`),
+    );
 }
 
 function updateHash(hash) {

@@ -9,7 +9,9 @@ const tests = {
       }
     },
     test: async (page, { equal }) => {
-      const target = await (await page.querySelector("#target", { wait: true })).boundingBox();
+      const target = await (
+        await page.querySelector("#target", { wait: true })
+      ).boundingBox();
       const { width, height } = await page.dimensions();
       equal(target.y * 2 + target.height, height);
       equal(target.x * 2 + target.width, width);

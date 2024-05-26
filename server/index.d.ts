@@ -9,13 +9,25 @@ type ServerOptions = {
   autoStart?: boolean;
   callback?: ListenCallback;
 };
-type ListenCallback = (info: { protocol: "http" | "https"; port: number }) => void;
+type ListenCallback = (info: {
+  protocol: "http" | "https";
+  port: number;
+}) => void;
 type RequestCallback = (request: Request, response: Response) => void;
-type Middleware = (request: Request, response: Response, next: () => void) => void;
+type Middleware = (
+  request: Request,
+  response: Response,
+  next: () => void,
+) => void;
 type RedirectOptions = {
   target: ProxyOptions["target"];
 };
-type UseOptionsCallback = (event: string, pathname: string, type: string, ...args: any) => void;
+type UseOptionsCallback = (
+  event: string,
+  pathname: string,
+  type: string,
+  ...args: any
+) => void;
 type UseOptions =
   | {
       callback?: UseOptionsCallback;
@@ -29,23 +41,96 @@ export default class Server {
 
   listen(callback?: ListenCallback): void;
   listen(protocol: "http" | "https", callback?: ListenCallback): void;
+  stop(): void;
 
-  copy(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  copy(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  delete(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  delete(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  get(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  get(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  move(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  move(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  patch(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  patch(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  post(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  post(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  put(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  put(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  error(pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
-  error(subdomain: string, pathname: string, callback: RequestCallback, ...callbacks: RequestCallback[]): void;
+  copy(
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  copy(
+    subdomain: string,
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  delete(
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  delete(
+    subdomain: string,
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  get(
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  get(
+    subdomain: string,
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  move(
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  move(
+    subdomain: string,
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  patch(
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  patch(
+    subdomain: string,
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  post(
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  post(
+    subdomain: string,
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  put(
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  put(
+    subdomain: string,
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  error(
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
+  error(
+    subdomain: string,
+    pathname: string,
+    callback: RequestCallback,
+    ...callbacks: RequestCallback[]
+  ): void;
 
   proxy(pathname: string, options: ProxyOptions): void;
   proxy(subdomain: string, pathname: string, options: ProxyOptions): void;
@@ -53,7 +138,12 @@ export default class Server {
   redirect(subdomain: string, pathname: string, options: RedirectOptions): void;
 
   use(folder: string, pathname: string, options?: UseOptions): void;
-  use(subdomain: string, folder: string, pathname: string, options?: UseOptions): void;
+  use(
+    subdomain: string,
+    folder: string,
+    pathname: string,
+    options?: UseOptions,
+  ): void;
   use(pathname: string, middleware: Middleware): void;
   use(subdomain: string, pathname: string, middleware: Middleware): void;
 

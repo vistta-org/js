@@ -7,7 +7,10 @@ const tests = {
       render() {
         return (
           <>
-            <Form onSubmit={({ values: { email } }) => (this.output = email)} autocomplete={true}>
+            <Form
+              onSubmit={({ values: { email } }) => (this.output = email)}
+              autocomplete={true}
+            >
               <input id="input" name="email" />
               <input id="submit" type="submit" />
             </Form>
@@ -44,13 +47,22 @@ const tests = {
             <button id="toggle" onClick={() => (this.toggle = !this.toggle)}>
               toggle
             </button>
-            <button id="values" onClick={() => (this.value = this.form?.values?.()?.number)}>
+            <button
+              id="values"
+              onClick={() => (this.value = this.form?.values?.()?.number)}
+            >
               values
             </button>
-            <button id="watch" onClick={() => this.form?.watch?.("number", this.update)}>
+            <button
+              id="watch"
+              onClick={() => this.form?.watch?.("number", this.update)}
+            >
               watch
             </button>
-            <button id="unwatch" onClick={() => this.form?.unwatch?.("number", this.update)}>
+            <button
+              id="unwatch"
+              onClick={() => this.form?.unwatch?.("number", this.update)}
+            >
               unwatch
             </button>
             <button id="clear" onClick={() => this.form?.clear?.()}>
@@ -59,15 +71,26 @@ const tests = {
             <button id="reset" onClick={() => this.form?.reset?.()}>
               reset
             </button>
-            <button id="validate" onClick={() => (this.validation = this.form?.validate?.())}>
+            <button
+              id="validate"
+              onClick={() => (this.validation = this.form?.validate?.())}
+            >
               validate
             </button>
             <button id="submit" onClick={() => this.form?.submit?.()}>
               submit
             </button>
             {this.toggle && (
-              <Form ref={this.form} onSubmit={({ values: { number } }) => (this.submitted = number)}>
-                <input id="input" name="number" type="number" value={this.output} />
+              <Form
+                ref={this.form}
+                onSubmit={({ values: { number } }) => (this.submitted = number)}
+              >
+                <input
+                  id="input"
+                  name="number"
+                  type="number"
+                  value={this.output}
+                />
               </Form>
             )}
             <p id="output">{this.output}</p>
@@ -86,7 +109,12 @@ const tests = {
       await page.press("#input", "ArrowUp");
       equal(await output.evaluate((el) => el.textContent), "0");
       await page.click("#values");
-      equal(await (await page.querySelector("#value", { wait: true })).evaluate((el) => el.textContent), "1");
+      equal(
+        await (
+          await page.querySelector("#value", { wait: true })
+        ).evaluate((el) => el.textContent),
+        "1",
+      );
 
       await page.click("#watch");
       await page.press("#input", "ArrowUp");
@@ -109,7 +137,12 @@ const tests = {
       equal(await output.evaluate((el) => el.textContent), "0");
 
       await page.click("#validate");
-      equal(await (await page.querySelector("#validation", { wait: true })).evaluate((el) => el.textContent), "valid");
+      equal(
+        await (
+          await page.querySelector("#validation", { wait: true })
+        ).evaluate((el) => el.textContent),
+        "valid",
+      );
 
       await page.press("#input", "ArrowUp");
       const submitted = await page.querySelector("#submitted", { wait: true });
@@ -124,10 +157,24 @@ const tests = {
       render() {
         return (
           <>
-            <Form onSubmit={() => (this.output = "valid")} onInvalid={() => (this.output = "invalid")}>
+            <Form
+              onSubmit={() => (this.output = "valid")}
+              onInvalid={() => (this.output = "invalid")}
+            >
               <input id="name" name="name" required />
-              <input id="email" name="email" validator={(value) => /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(value)} />
-              <input id="password" name="password" type="password" validator={(value) => value.length > 7} />
+              <input
+                id="email"
+                name="email"
+                validator={(value) =>
+                  /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(value)
+                }
+              />
+              <input
+                id="password"
+                name="password"
+                type="password"
+                validator={(value) => value.length > 7}
+              />
               <input id="submit" type="submit" />
             </Form>
             <p id="output">{this.output}</p>
@@ -156,10 +203,5 @@ const tests = {
     },
   },
 };
-
-/**
- * oninvalid?: (event: any) => any;
- *
- */
 
 export default tests;

@@ -17,7 +17,10 @@ const tests = {
     Component: class extends Component {
       render() {
         return (
-          <button id="navigate" onClick={() => route.navigate(DEFAULT_PATHNAME)}>
+          <button
+            id="navigate"
+            onClick={() => route.navigate(DEFAULT_PATHNAME)}
+          >
             navigate
           </button>
         );
@@ -26,7 +29,10 @@ const tests = {
     test: async (page, { equal }) => {
       await page.querySelector("#navigate", { wait: true });
 
-      equal((await page.location()).pathname, "/" + encodeURIComponent("Router: Navigation"));
+      equal(
+        (await page.location()).pathname,
+        "/" + encodeURIComponent("Router: Navigation"),
+      );
 
       await page.click("#navigate");
       equal((await page.location()).pathname, DEFAULT_PATHNAME);

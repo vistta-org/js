@@ -1,62 +1,31 @@
-<div align="center">
-  <a href="https://vistta.me">
-    <picture>
-      <img src="https://git.vistta.me/Vistta/JS/raw/branch/master/logo.png" height="128">
-    </picture>
-  </a>
-  <h1 align="center">Vistta.JS</h1>
-</div>
+# **[Project Name]**
 
-A Nodejs Javascript Component Integration Framework with the objective of simplifying web development.
+[Project Name] description
 
-[Section]: #
+## **Getting Started**
 
-# Getting Started
+### **Install**
 
-This is a Node.js module available through this gitea instance private npm registry. Node.js and npm are required.
-
-On you project folder create a `.npmrc` file with the following content:
-
-```
-@vistta:registry=https://git.vistta.me/api/packages/Vistta/npm/
-//git.vistta.me/api/packages/Vistta/npm/:_authToken=<<token>>
+```sh
+npm install @vistta/
 ```
 
-After that you can install the module
+### **Usage**
 
-```console
-npm i @vistta/js
-```
+Usage
 
-[Section]: #
+## **API**
 
-# Server API
+API
 
-[Section]: #
+## **License**
 
-# Client API
+Attribution-NonCommercial-NoDerivatives 4.0 International
 
-[Section]: #
+## **Contributing**
 
----
+Thank you for your interest in contributing to this project! Please ensure that any contributions respect the licensing terms specified. If you encounter any issues or have suggestions, feel free to report them. All issues will be well received and addressed to the best of our ability. We appreciate your support and contributions!
 
-## Authors
+### **Authors**
 
-- Tiago Almeida ([@TiagoShadow](https://git.vistta.me/Tiago))
-
-## Benchmarks Latest Results (Incognito)
-
-Benchmark #1: 0.0005999999940395355ms (No keys)
-Benchmark #2: 0.003199999988079071ms (No keys)
-Benchmark #3: 4.490799999996089ms (No keys)
-Benchmark #3: 5.250200000032782ms (With keys)
-Benchmark #4: 0.0493999999165535ms (No keys)
-
-#React Equivalent (Incognito)
-
-Benchmark #1: 4.896000000007451ms (Mandatory keys)
-Benchmark #2: 4.793999999672175ms (Mandatory keys)
-Benchmark #3: 14.330000000268221ms (Mandatory keys)
-Benchmark #4: 21.95400000009127ms (Mandatory keys)
-
-Build Size: 293KB
+- [Tiago Terenas Almeida](https://github.com/tiagomta)

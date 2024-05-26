@@ -1,5 +1,15 @@
-/* eslint-disable no-undef */
-import { system, encode, decode, stringify, parse, clone, camelCaseToKebabCase, isPromise, FunctionClass, isBrowser } from "../utils";
+import {
+  system,
+  encode,
+  decode,
+  stringify,
+  parse,
+  clone,
+  camelCaseToKebabCase,
+  isPromise,
+  FunctionClass,
+  isBrowser,
+} from "../utils";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
 export const Fragment = Symbol("Fragment");
@@ -7,8 +17,8 @@ export const TextNode = Symbol("TextNode");
 const ComponentNode = Symbol("Component");
 const DEFAULT_ERROR_MESSAGE = (() => {
   if (!isBrowser()) return;
-  const inputElement = document.createElement('input');
-  inputElement.type = 'text';
+  const inputElement = document.createElement("input");
+  inputElement.type = "text";
   inputElement.required = true;
   return inputElement.validationMessage;
 })();
@@ -22,8 +32,7 @@ export class Element {
       this.type = Component.Node;
       this.props.children = children;
       this.component = type;
-    }
-    else if (typeOf !== "string" && typeOf !== "symbol") return null;
+    } else if (typeOf !== "string" && typeOf !== "symbol") return null;
     else {
       if (props?.ref != null) {
         if (props.ref instanceof Mutation) props.ref = props.ref();
@@ -47,8 +56,14 @@ export class Element {
     const attr = Object.keys(this.props || {});
     for (let i = 0, len = attr.length; i < len; i++) {
       const name = attr[i];
-      const value = name === "style" ? styleToString(this.props[name]) : this.props[name];
-      if (value == null || value === false || ["function", "object"].includes(typeof value)) continue;
+      const value =
+        name === "style" ? styleToString(this.props[name]) : this.props[name];
+      if (
+        value == null ||
+        value === false ||
+        ["function", "object"].includes(typeof value)
+      )
+        continue;
       if (value === true) attributes += ` ${name}`;
       else attributes += ` ${name}="${value}"`;
     }
@@ -61,10 +76,12 @@ export class Element {
         const { style, ...rest } = props || {};
         props = Object.assign(cloneProps(this.props), rest);
         props.style = Object.assign(props.style || {}, style || {});
-      }
-      else props = cloneProps(this.props);
+      } else props = cloneProps(this.props);
     }
-    if (children !== false) children = this?.children?.map((child) => child instanceof Element ? child.clone(undefined, true) : child);
+    if (children !== false)
+      children = this?.children?.map((child) =>
+        child instanceof Element ? child.clone(undefined, true) : child,
+      );
     return new Element(this.type, props, children);
   }
 }
@@ -83,27 +100,40 @@ export class Context extends FunctionClass {
   #callback;
 
   constructor(key, value, cache, actions, controllers) {
-    if (typeof key !== "string" || key.length == 0) throw new Error("TypeError: Invalid context key.");
-    if (typeof value !== "object") throw new Error("TypeError: Cannot create context with a non-object value.");
+    if (typeof key !== "string" || key.length == 0)
+      throw new Error("TypeError: Invalid context key.");
+    if (typeof value !== "object")
+      throw new Error(
+        "TypeError: Cannot create context with a non-object value.",
+      );
     super(() => this);
     this.#key = key;
     try {
-      this.#value = (cache !== "none" ? getCacheValue(key) ?? clone(value) : clone(value));
-    }
-    catch {
-      throw new Error("TypeError: Cannot create context with a non serializable object as default value.");
+      this.#value =
+        cache !== "none" ? getCacheValue(key) ?? clone(value) : clone(value);
+    } catch {
+      throw new Error(
+        "TypeError: Cannot create context with a non serializable object as default value.",
+      );
     }
     this.#cache = cache || "none";
     const actionsNames = Object.keys(actions || {});
     if (actionsNames.length > 0) {
       const controllerFn = (target, status) => {
         const typeOfControllers = typeof controllers;
-        if (typeOfControllers === "function") controllers.call(this, target, status, this.proxy());
-        else if (typeOfControllers === "object") controllers?.[target]?.call(this, status, this.proxy());
+        if (typeOfControllers === "function")
+          controllers.call(this, target, status, this.proxy());
+        else if (typeOfControllers === "object")
+          controllers?.[target]?.call(this, status, this.proxy());
       };
       for (let i = 0, len = actionsNames.length; i < len; i++) {
         const actionName = actionsNames[i];
-        if (["valueOf", "toString", "setValue", "register", "proxy"].includes(actionName)) throw new Error(`Invalid action name "${actionName}".`);
+        if (
+          ["valueOf", "toString", "setValue", "register", "proxy"].includes(
+            actionName,
+          )
+        )
+          throw new Error(`Invalid action name "${actionName}".`);
         const action = actions[actionName];
         this[actionName] = ((...args) => {
           controllerFn(actionName, "pending");
@@ -115,25 +145,38 @@ export class Context extends FunctionClass {
             };
             try {
               let value = action(this.value, ...args);
-              if (isPromise(value)) value.then((result) => {
-                if (controller.signal?.aborted) return;
-                let updateCache = false;
-                updateContext(this.#value, result, (path) => (updateCache = true, this.#callback?.(path)));
-                if (this.#cache !== "none" && updateCache) updateCache(this.#key, this.#value, this.#cache);
-                resolve();
-                controllerFn(actionName, "completed");
-              }).catch(() => {
-                controllerFn(actionName, "rejected");
-                resolve();
-              });
+              if (isPromise(value))
+                value
+                  .then((result) => {
+                    if (controller.signal?.aborted) return;
+                    let updateCache = false;
+                    updateContext(
+                      this.#value,
+                      result,
+                      (path) => ((updateCache = true), this.#callback?.(path)),
+                    );
+                    if (this.#cache !== "none" && updateCache)
+                      updateCache(this.#key, this.#value, this.#cache);
+                    resolve();
+                    controllerFn(actionName, "completed");
+                  })
+                  .catch(() => {
+                    controllerFn(actionName, "rejected");
+                    resolve();
+                  });
               else if (!controller.signal?.aborted) {
                 let updateCache = false;
-                updateContext(this.#value, value, (path) => (updateCache = true, this.#callback?.(path)));
-                if (this.#cache !== "none" && updateCache) updateCache(this.#key, this.#value, this.#cache);
+                updateContext(
+                  this.#value,
+                  value,
+                  (path) => ((updateCache = true), this.#callback?.(path)),
+                );
+                if (this.#cache !== "none" && updateCache)
+                  updateCache(this.#key, this.#value, this.#cache);
                 resolve();
                 controllerFn(actionName, "completed");
               }
-            } catch (e) {
+            } catch {
               controllerFn(actionName, "rejected");
               resolve();
             }
@@ -164,12 +207,13 @@ export class Context extends FunctionClass {
   proxy(callback) {
     const update = (path) => {
       this.#callback?.(path);
-      if (this.#cache !== "none" && updateCache) updateCache(this.#key, this.#value, this.#cache);
+      if (this.#cache !== "none" && updateCache)
+        updateCache(this.#key, this.#value, this.#cache);
     };
     const handler = {
       get(target, key) {
         const path = this.path ? `${this.path}.${key}` : key;
-        if (typeof target[key] === 'object' && target[key] !== null)
+        if (typeof target[key] === "object" && target[key] !== null)
           return new Proxy(target[key], { path, ...handler });
         if (callback) callback(path);
         return target[key];
@@ -179,8 +223,8 @@ export class Context extends FunctionClass {
         target[key] = value;
         update(this.path ? `${this.path}.${key}` : key);
         return true;
-      }
-    }
+      },
+    };
     return new Proxy(this.#value, handler);
   }
 
@@ -197,15 +241,23 @@ export class Ref {
 
 export class Component {
   children = [];
-  static get Node() { return ComponentNode; }
+  static get Node() {
+    return ComponentNode;
+  }
 
   constructor() {
     const prototype = Object.getPrototypeOf(this);
     const functions = Object.getOwnPropertyNames(prototype);
     for (let i = 0, len = functions.length; i < len; i++) {
       if (functions[i] === "constructor") continue;
-      const descriptor = Object.getOwnPropertyDescriptor(prototype, functions[i]);
-      if (typeof descriptor.get === 'undefined' && typeof descriptor.set === 'undefined')
+      const descriptor = Object.getOwnPropertyDescriptor(
+        prototype,
+        functions[i],
+      );
+      if (
+        typeof descriptor.get === "undefined" &&
+        typeof descriptor.set === "undefined"
+      )
         this[functions[i]] = this[functions[i]].bind(this);
     }
   }
@@ -238,18 +290,30 @@ export class Profiler extends Component {
   #total = 0;
 
   render() {
-    if (!this.callback || process.env.IS_NODE || "production" === process.env.NODE_ENV) return this.children;
+    if (
+      !this.callback ||
+      typeof process !== "undefined" ||
+      "production" === process.env.NODE_ENV
+    )
+      return this.children;
     let start = performance.now();
     const callback = this.callback;
-    return new Element(Fragment, null, ...this.children, new Element(class extends Component {
-      onConnect() {
-        callback(performance.now() - start);
-      }
+    return new Element(
+      Fragment,
+      null,
+      ...this.children,
+      new Element(
+        class extends Component {
+          onConnect() {
+            callback(performance.now() - start);
+          }
 
-      render() {
-        return null;
-      }
-    }));
+          render() {
+            return null;
+          }
+        },
+      ),
+    );
   }
 
   record(engine, callback) {
@@ -258,7 +322,7 @@ export class Profiler extends Component {
       callback();
       this.#total = performance.now() - initial;
       engine.profilers.add(this);
-    }
+    };
   }
 
   end() {
@@ -282,23 +346,29 @@ export const Render = {
 
     render() {
       if (typeof this.target !== "object") {
-        if ("production" !== process.env.NODE_ENV) console.warn("Render.Each in needs to be either an object or an array");
+        if ("production" !== process.env.NODE_ENV)
+          console.warn(
+            "Render.Each in needs to be either an object or an array",
+          );
         return null;
       }
       if (typeof this.callback !== "function") {
-        if ("production" !== process.env.NODE_ENV) console.warn("Render.Each callback needs to be a function");
+        if ("production" !== process.env.NODE_ENV)
+          console.warn("Render.Each callback needs to be a function");
         return null;
       }
       let result = [];
       if (!Array.isArray(this.target)) {
         const keys = Object.keys(this.target);
-        for (let i = 0, len = keys.length; i < len; i++) result.push(this.callback(this.target[keys[i]], keys[i]));
-      }
-      else for (let i = 0, len = this.target.length; i < len; i++) result.push(this.callback(this.target[i], i));
+        for (let i = 0, len = keys.length; i < len; i++)
+          result.push(this.callback(this.target[keys[i]], keys[i]));
+      } else
+        for (let i = 0, len = this.target.length; i < len; i++)
+          result.push(this.callback(this.target[i], i));
       return result;
     }
-  }
-}
+  },
+};
 
 export class Safe extends Component {
   fallback;
@@ -339,35 +409,49 @@ export class Form extends Component {
       clear: (name) => this.clear(name),
       submit: () => this.submit(),
       values: () => this.values(),
-      validate: (name) => this.validate(name)
+      validate: (name) => this.validate(name),
     });
   }
 
   render() {
     if (this.#parent) {
       if (!this.name) {
-        if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
+        if ("production" !== process.env.NODE_ENV)
+          console.warn(
+            "Nested Forms require a 'name' property to be specified.",
+          );
         return null;
       }
-      if (this.className || this.style) return new Element("div", { className: this.className, style: this.style }, ...children);
+      if (this.className || this.style)
+        return new Element(
+          "div",
+          { className: this.className, style: this.style },
+          ...this.children,
+        );
       return new Element(Fragment, {}, ...this.children);
     }
-    this.#invalidEvent = typeof this.oninvalid === "function" || typeof this.onInvalid === "function";
-    return new Element("form", {
-      ref: (element) => this.#node = element,
-      className: this.className,
-      autocomplete: this.autocomplete,
-      onreset: () => this.reset(),
-      oninvalid: this.oninvalid || this.onInvalid,
-      onsubmit: (event) => {
-        event.preventDefault();
-        if (!this.validate()) return;
-        event.values = this.values();
-        if (typeof this.onsubmit === "function") this.onsubmit?.(event);
-        else if (typeof this.onSubmit === "function") this.onSubmit?.(event);
+    this.#invalidEvent =
+      typeof this.oninvalid === "function" ||
+      typeof this.onInvalid === "function";
+    return new Element(
+      "form",
+      {
+        ref: (element) => (this.#node = element),
+        className: this.className,
+        autocomplete: this.autocomplete,
+        onreset: () => this.reset(),
+        oninvalid: this.oninvalid || this.onInvalid,
+        onsubmit: (event) => {
+          event.preventDefault();
+          if (!this.validate()) return;
+          event.values = this.values();
+          if (typeof this.onsubmit === "function") this.onsubmit?.(event);
+          else if (typeof this.onSubmit === "function") this.onSubmit?.(event);
+        },
+        style: this.style,
       },
-      style: this.style,
-    }, ...this.children);
+      ...this.children,
+    );
   }
 
   register(target) {
@@ -377,25 +461,44 @@ export class Form extends Component {
       return;
     }
 
-    const { element: { type, props }, node } = target || {};
-    if (!node || type !== "input" && type !== "textarea" && type !== "select" && props.role !== "input" || props.type === "submit") return;
+    const {
+      element: { type, props },
+      node,
+    } = target || {};
+    if (
+      !node ||
+      (type !== "input" &&
+        type !== "textarea" &&
+        type !== "select" &&
+        props.role !== "input") ||
+      props.type === "submit"
+    )
+      return;
     if (!props.name) {
-      if ("production" !== process.env.NODE_ENV) console.warn(`Missing "name" attribute on ${type} inside of form.`);
+      if ("production" !== process.env.NODE_ENV)
+        console.warn(`Missing "name" attribute on ${type} inside of form.`);
       return;
     }
     if (props.type === "radio") {
       if (!this.#fields[props.name]) this.fields[props.name] = [];
       this.#fields[props.name].push(node);
-    }
-    else this.#fields[props.name] = node;
+    } else this.#fields[props.name] = node;
     this.#defaultValues[props.name] = getFieldValue(node);
-    if (this.#parent) return this.#parent.register({ type, props: { name: [...this.path, props.name].join("."), ...props }, node });
+    if (this.#parent)
+      return this.#parent.register({
+        type,
+        props: { name: [...this.path, props.name].join("."), ...props },
+        node,
+      });
     this.#required[props.name] = props.required;
-    this.#validators[props.name] = props.validator instanceof Mutation ? props.validator() : props.validator;
+    this.#validators[props.name] =
+      props.validator instanceof Mutation ? props.validator() : props.validator;
     node.addEventListener(type === "select" ? "change" : "input", (e) => {
       if (!this.#invalidEvent) node.setCustomValidity?.("");
-      for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++) this.#listeners[props.name][i](e);
-      for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
+      for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++)
+        this.#listeners[props.name][i](e);
+      for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++)
+        this.#listeners["*"][i](e);
     });
   }
 
@@ -433,7 +536,9 @@ export class Form extends Component {
         const defaultValue = this.#defaultValues[inputs[i]];
         if (field.value === defaultValue) continue;
         field.value = defaultValue;
-        field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
+        field.dispatchEvent(
+          new Event(field.localName === "select" ? "change" : "input"),
+        );
         if (!this.#invalidEvent) field.setCustomValidity?.("");
       }
       return;
@@ -441,8 +546,10 @@ export class Form extends Component {
     const field = this.#fields[name];
     const defaultValue = this.#defaultValues[name];
     if (field.value === defaultValue) return;
-    field.value = defaultValue
-    field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
+    field.value = defaultValue;
+    field.dispatchEvent(
+      new Event(field.localName === "select" ? "change" : "input"),
+    );
     if (!this.#invalidEvent) field.setCustomValidity?.("");
   }
 
@@ -454,7 +561,8 @@ export class Form extends Component {
       const field = this.#fields[inputs[i]];
       const value = getFieldValue(field);
       if (this.#required[inputs[i]] === true && !value) {
-        if (this.#invalidEvent) errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
+        if (this.#invalidEvent)
+          errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
         else field.setCustomValidity?.(DEFAULT_ERROR_MESSAGE);
         continue;
       }
@@ -463,12 +571,11 @@ export class Form extends Component {
       if (typeof error === "string") {
         if (this.#invalidEvent) errors.push({ field, error });
         else field.setCustomValidity?.(error);
-      }
-      else if (error === false) {
-        if (this.#invalidEvent) errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
+      } else if (error === false) {
+        if (this.#invalidEvent)
+          errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
         else field.setCustomValidity?.(DEFAULT_ERROR_MESSAGE);
-      }
-      else if (!this.#invalidEvent) field.setCustomValidity?.("");
+      } else if (!this.#invalidEvent) field.setCustomValidity?.("");
     }
     if (!this.#invalidEvent) return this.#node.reportValidity();
     if (errors.length === 0) return true;
@@ -485,14 +592,18 @@ export class Form extends Component {
         const field = this.#fields[inputs[i]];
         if (field.value === "") continue;
         field.value = "";
-        field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
+        field.dispatchEvent(
+          new Event(field.localName === "select" ? "change" : "input"),
+        );
       }
       return;
     }
     const field = this.#fields[name];
     if (field.value === "") return;
     field.value = "";
-    field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
+    field.dispatchEvent(
+      new Event(field.localName === "select" ? "change" : "input"),
+    );
   }
 
   submit() {
@@ -510,10 +621,9 @@ export class Form extends Component {
         for (let n = 0, pathsLen = paths.length; n < pathsLen; n++) {
           const key = paths[n];
           if (n === pathsLen - 1) temp[key] = getFieldValue(this.#fields[cur]);
-          else (temp[key] = temp[key] || {}, temp = temp[key])
+          else (temp[key] = temp[key] || {}), (temp = temp[key]);
         }
-      }
-      else values[cur] = getFieldValue(this.#fields[cur]);
+      } else values[cur] = getFieldValue(this.#fields[cur]);
     }
     return values;
   }
@@ -540,17 +650,15 @@ function cloneProps(props) {
         for (let i = 0, len = value.length; i < len; i++)
           cloned[i] = clone(value[i]);
         return cloned;
-      }
-      else {
+      } else {
         const cloned = {};
         const keys = Object.keys(value || {});
         for (let i = 0, len = keys.length; i < len; i++)
           cloned[keys[i]] = clone(value[keys[i]]);
         return cloned;
       }
-    }
-    else return value;
-  }
+    } else return value;
+  };
   return clone(props);
 }
 
@@ -559,7 +667,8 @@ function styleToString(style) {
   let result = "";
   for (let i = 0, len = keys.length; i < len; i++) {
     const value = style[keys[i]];
-    if (typeof value === "string") result += ` ${camelCaseToKebabCase(keys[i])}: ${value};`;
+    if (typeof value === "string")
+      result += ` ${camelCaseToKebabCase(keys[i])}: ${value};`;
   }
   result = result.trim();
   return result === "" ? null : result;
@@ -570,7 +679,12 @@ function updateContext(original, updated, callback, path) {
   for (let i = 0, len = keys.length; i < len; i++) {
     const key = keys[i];
     if (typeof updated[key] === "object" && typeof original[key] === "object")
-      updateContext(original[key], updated[key], callback, path ? `${path}.key` : key);
+      updateContext(
+        original[key],
+        updated[key],
+        callback,
+        path ? `${path}.key` : key,
+      );
     else if (updated[key] !== original[key]) {
       original[key] = updated[key];
       callback(path ? `${path}.${key}` : key);
@@ -585,7 +699,10 @@ function updateCache(key, value, type) {
 
 function getCacheValue(key) {
   try {
-    return parse(decode(localStorage.getItem(encode(CONTEXT_CACHE_KEY + key)))) || undefined;
+    return (
+      parse(decode(localStorage.getItem(encode(CONTEXT_CACHE_KEY + key)))) ||
+      undefined
+    );
   } catch {
     return undefined;
   }

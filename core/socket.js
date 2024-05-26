@@ -1,4 +1,3 @@
-import { route } from "./router";
 import { INVALID_EVENT_NAME, convertToEventName } from "../utils";
 
 class Socket {
@@ -14,17 +13,21 @@ class Socket {
   }
 
   constructor() {
-    if (!process.env.IS_NODE) import("@socket").then(({ io }) => {
-      if (!io || this.#instance) return;
-      this.#active = true;
-      this.#instance = io({ reconnectionDelay: 10000 });
-      this.#instance.on("connect_error", (error) => console.error(`Socket Internal Error: ${error.message}`));
-      this.#instance.io.on("reconnect", () => location.reload());
-      if ("production" !== process.env.NODE_ENV) this.#instance.on(`@app/refresh`, (href) => route.refresh(href));
-    }).catch((error) => {
-      this.#active = false;
-      console.error(`Socket Internal Error: ${error.message}`);
-    });
+    if (typeof process === "undefined")
+      import("@socket")
+        .then(({ io }) => {
+          if (!io || this.#instance) return;
+          this.#active = true;
+          this.#instance = io({ reconnectionDelay: 10000 });
+          this.#instance.on("connect_error", (error) =>
+            console.error(`Socket Internal Error: ${error.message}`),
+          );
+          this.#instance.io.on("reconnect", () => location.reload());
+        })
+        .catch((error) => {
+          this.#active = false;
+          console.error(`Socket Internal Error: ${error.message}`);
+        });
   }
 
   emit(event, ...args) {

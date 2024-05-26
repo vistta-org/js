@@ -1,10 +1,7 @@
 import { EventEmitter } from "node:events";
-import { fs } from "@vistta/utils/fs";
-import { extractImports } from "../../../bin/loaders";
-import { convertToEventName, FunctionClass, noCache } from "../../../utils";
+import { fs } from "@vistta/fs";
+import { importt, convertToEventName, FunctionClass } from "../../../utils";
 import PageHandler from "./page";
-
-const IS_DEV = process.env.NODE_ENV === "development";
 
 class Handler extends FunctionClass {
   events = new EventEmitter();
@@ -25,9 +22,9 @@ class Handler extends FunctionClass {
     };
   }
 
-  async import(isRefresh) {
+  async import() {
     try {
-      let exports = await import(isRefresh ? noCache(this.filepath) : this.filepath);
+      let exports = await import(this.filepath);
       switch (this.type) {
         case "middleware":
           this.handler = exports?.default;
@@ -49,18 +46,17 @@ class Handler extends FunctionClass {
           break;
         case "template":
           this.code = (
-            await import(this.filepath, {
+            await importt(this.filepath, {
               with: {
-                type: 'bundler',
+                type: "bundler",
                 globalName: "__app_" + this.type,
                 exports: "default",
-              }
+              },
             })
           )?.code;
           this.handler = () => exports?.default;
           break;
       }
-      if (IS_DEV) this.watch([this.filepath, ...(await extractImports(this.filepath))]);
       this.emit("ready");
     } catch (e) {
       this.emit("error", e.stack);
@@ -71,17 +67,7 @@ class Handler extends FunctionClass {
   on(event, callback) {
     this.events.on(event, callback);
   }
-
-  watch(files) {
-    for (let i = 0, len = files.length; i < len; i++) {
-      if (this.watchedFiles.includes(files[i])) return;
-      this.watchedFiles.push(files[i]);
-      fs.watchFile(files[i], () => {
-        this.emit("change");
-        this.import(true);
-      });
-    }
-  }
 }
 
-export const useHandler = async (...args) => await new Handler(...args).import();
+export const useHandler = async (...args) =>
+  await new Handler(...args).import();

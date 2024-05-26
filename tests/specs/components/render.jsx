@@ -24,7 +24,12 @@ const tests = {
       equal(await page.querySelector(id), null);
 
       await page.click("#toggle");
-      equal(await (await page.querySelector("#output", { wait: true })).evaluate((el) => el.textContent), DEFAULT_OUTPUT);
+      equal(
+        await (
+          await page.querySelector("#output", { wait: true })
+        ).evaluate((el) => el.textContent),
+        DEFAULT_OUTPUT,
+      );
     },
   },
   "Component: Render Each: List": {
@@ -34,15 +39,28 @@ const tests = {
       render() {
         return (
           <div id="container">
-            <Render.Each target={this.list} callback={(value) => <input value={value} />} />
+            <Render.Each
+              target={this.list}
+              callback={(value) => <input value={value} />}
+            />
           </div>
         );
       }
     },
     test: async (page, { equal }) => {
       await page.querySelector("#container", { wait: true });
-      equal(await (await page.querySelector("#container > input:first-child")).evaluate((el) => el.value), "1");
-      equal(await (await page.querySelector("#container > input:last-child")).evaluate((el) => el.value), "5");
+      equal(
+        await (
+          await page.querySelector("#container > input:first-child")
+        ).evaluate((el) => el.value),
+        "1",
+      );
+      equal(
+        await (
+          await page.querySelector("#container > input:last-child")
+        ).evaluate((el) => el.value),
+        "5",
+      );
     },
   },
   "Component: Render Each: Object": {
@@ -52,15 +70,28 @@ const tests = {
       render() {
         return (
           <div id="container">
-            <Render.Each target={this.object} callback={(v, k) => <input value={`${k}: ${v}`} />} />
+            <Render.Each
+              target={this.object}
+              callback={(v, k) => <input value={`${k}: ${v}`} />}
+            />
           </div>
         );
       }
     },
     test: async (page, { equal }) => {
       await page.querySelector("#container", { wait: true });
-      equal(await (await page.querySelector("#container > input:first-child")).evaluate((el) => el.value), "one: 1");
-      equal(await (await page.querySelector("#container > input:last-child")).evaluate((el) => el.value), "five: 5");
+      equal(
+        await (
+          await page.querySelector("#container > input:first-child")
+        ).evaluate((el) => el.value),
+        "one: 1",
+      );
+      equal(
+        await (
+          await page.querySelector("#container > input:last-child")
+        ).evaluate((el) => el.value),
+        "five: 5",
+      );
     },
   },
 };

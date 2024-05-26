@@ -11,12 +11,20 @@ class Test extends Component {
     if (this.run % 2 == 0) {
       for (let i = 0; i < this.iterations; i++)
         children.push(
-          <input key={"test3.even." + i} placeholder="even" style={{ position: "absolute", inset: "5px 50vw auto auto" }} />,
+          <input
+            key={"test3.even." + i}
+            placeholder="even"
+            style={{ position: "absolute", inset: "5px 50vw auto auto" }}
+          />,
         );
     } else {
       for (let i = 0; i < this.iterations; i++)
         children.push(
-          <input key={"test3.odd." + i} placeholder="odd" style={{ position: "absolute", inset: "5px 50vw auto auto" }} />,
+          <input
+            key={"test3.odd." + i}
+            placeholder="odd"
+            style={{ position: "absolute", inset: "5px 50vw auto auto" }}
+          />,
         );
     }
     return children;
@@ -43,13 +51,23 @@ const tests = {
       }
     },
     test: async (page, { equal }) => {
-      const performance = await page.querySelector("#performance", { wait: true });
+      const performance = await page.querySelector("#performance", {
+        wait: true,
+      });
 
       await page.click("#update");
-      equal(Number(await performance.evaluate((el) => el.textContent)) < PERFORMANCE_THRESHOLD, true);
+      equal(
+        Number(await performance.evaluate((el) => el.textContent)) <
+          PERFORMANCE_THRESHOLD,
+        true,
+      );
 
       await page.click("#update");
-      equal(Number(await performance.evaluate((el) => el.textContent)) < PERFORMANCE_THRESHOLD, true);
+      equal(
+        Number(await performance.evaluate((el) => el.textContent)) <
+          PERFORMANCE_THRESHOLD,
+        true,
+      );
     },
   },
 };

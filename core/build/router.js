@@ -3,7 +3,7 @@ import { Element } from "../classes";
 import { isValidUrl } from "../../utils";
 
 let dom;
-const route = !process.env.IS_NODE ? document.body : {};
+const route = typeof process === "undefined" ? document.body : {};
 
 window.addEventListener("click", handleClick.bind(route));
 window.addEventListener("load", build);
@@ -12,7 +12,8 @@ Object.defineProperties(route, {
   navigate: {
     value: async (arg) => {
       let { href } = typeof arg === "object" ? arg : { href: arg };
-      if (!isValidUrl(href)) href = buildUrl(typeof href === "string" ? href : location.pathname);
+      if (!isValidUrl(href))
+        href = buildUrl(typeof href === "string" ? href : location.pathname);
       window.location.href = href;
     },
   },
@@ -58,7 +59,11 @@ async function build() {
   let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
   const { default: app, config, template, props } = await import(resource);
   dom = new VirtualDom(pathname, route, config);
-  dom.render(template ? new Element(template, {}, new Element(app, props)) : new Element(app, props));
+  dom.render(
+    template
+      ? new Element(template, {}, new Element(app, props))
+      : new Element(app, props),
+  );
 }
 
 function buildUrl(href) {

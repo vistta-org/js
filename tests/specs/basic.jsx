@@ -38,7 +38,11 @@ const tests = {
       render() {
         return (
           <>
-            <input id="input" value={this.defaultValue} onChange={({ target: { value } }) => (this.outputValue = value)} />
+            <input
+              id="input"
+              value={this.defaultValue}
+              onChange={({ target: { value } }) => (this.outputValue = value)}
+            />
             <span id="output">{this.outputValue || this.defaultValue}</span>
           </>
         );
@@ -75,13 +79,19 @@ const tests = {
 
       await page.click("#toggle");
       await page.type(id, INPUT_UPDATE_VALUE, { clear: true });
-      equal(await (await page.querySelector(id)).evaluate((el) => el.value), INPUT_UPDATE_VALUE);
+      equal(
+        await (await page.querySelector(id)).evaluate((el) => el.value),
+        INPUT_UPDATE_VALUE,
+      );
 
       await page.click("#toggle");
       equal(await page.querySelector(id), null);
 
       await page.click("#toggle");
-      equal(await (await page.querySelector(id)).evaluate((el) => el.value), "");
+      equal(
+        await (await page.querySelector(id)).evaluate((el) => el.value),
+        "",
+      );
     },
   },
   "Basic: Conditional Render (With Key)": {
@@ -105,13 +115,19 @@ const tests = {
 
       await page.click("#toggle");
       await page.type(id, INPUT_UPDATE_VALUE, { clear: true });
-      equal(await (await page.querySelector(id)).evaluate((el) => el.value), INPUT_UPDATE_VALUE);
+      equal(
+        await (await page.querySelector(id)).evaluate((el) => el.value),
+        INPUT_UPDATE_VALUE,
+      );
 
       await page.click("#toggle");
       equal(await page.querySelector(id), null);
 
       await page.click("#toggle");
-      equal(await (await page.querySelector(id)).evaluate((el) => el.value), INPUT_UPDATE_VALUE);
+      equal(
+        await (await page.querySelector(id)).evaluate((el) => el.value),
+        INPUT_UPDATE_VALUE,
+      );
     },
   },
   "Basic: Render Order (Without Keys)": {
@@ -125,7 +141,9 @@ const tests = {
               id="sort"
               onClick={() => {
                 const reverse = this.list[0] == 1;
-                this.list = this.list.toSorted((a, b) => (reverse ? b - a : a - b));
+                this.list = this.list.toSorted((a, b) =>
+                  reverse ? b - a : a - b,
+                );
               }}
             >
               sort
@@ -165,7 +183,9 @@ const tests = {
               id="sort"
               onClick={() => {
                 const reverse = this.list[0] == 1;
-                this.list = this.list.toSorted((a, b) => (reverse ? b - a : a - b));
+                this.list = this.list.toSorted((a, b) =>
+                  reverse ? b - a : a - b,
+                );
               }}
             >
               sort
@@ -198,7 +218,9 @@ const tests = {
   },
   "Basic: Single Promise": {
     Component: class extends Component {
-      content = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), DEFAULT_TIMEOUT));
+      content = new Promise((resolve) =>
+        setTimeout(() => resolve(INPUT_UPDATE_VALUE), DEFAULT_TIMEOUT),
+      );
       render() {
         return <span id="output">{this.content}</span>;
       }
@@ -212,8 +234,12 @@ const tests = {
   },
   "Basic: Multiple Promises": {
     Component: class extends Component {
-      content1 = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), DEFAULT_TIMEOUT));
-      content2 = new Promise((resolve) => setTimeout(() => resolve(INPUT_UPDATE_VALUE), DEFAULT_TIMEOUT * 2));
+      content1 = new Promise((resolve) =>
+        setTimeout(() => resolve(INPUT_UPDATE_VALUE), DEFAULT_TIMEOUT),
+      );
+      content2 = new Promise((resolve) =>
+        setTimeout(() => resolve(INPUT_UPDATE_VALUE), DEFAULT_TIMEOUT * 2),
+      );
       render() {
         return (
           <span id="output">
@@ -226,9 +252,15 @@ const tests = {
       const output = await page.querySelector("#output", { wait: true });
       equal(await output.evaluate((el) => el.textContent), "/");
       await page.sleep(DEFAULT_TIMEOUT * 1.05);
-      equal(await output.evaluate((el) => el.textContent), INPUT_UPDATE_VALUE + "/");
+      equal(
+        await output.evaluate((el) => el.textContent),
+        INPUT_UPDATE_VALUE + "/",
+      );
       await page.sleep(DEFAULT_TIMEOUT * 1.05);
-      equal(await output.evaluate((el) => el.textContent), INPUT_UPDATE_VALUE + "/" + INPUT_UPDATE_VALUE);
+      equal(
+        await output.evaluate((el) => el.textContent),
+        INPUT_UPDATE_VALUE + "/" + INPUT_UPDATE_VALUE,
+      );
     },
   },
 };

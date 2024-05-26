@@ -1,4 +1,4 @@
-import { fs } from "@vistta/utils/fs";
+import { fs } from "@vistta/fs";
 import { isIPAddress, INVALID_EVENT_NAME, convertToEventName } from "../utils";
 import express from "express";
 import http from "http";
@@ -17,6 +17,7 @@ class Server {
   #socket;
   #router = {};
   #proxy = proxy.createProxyServer({});
+  #stop = [];
 
   get ports() {
     return this.#ports;
@@ -27,7 +28,8 @@ class Server {
   }
 
   constructor({ http, https, cert, key, autoStart, callback, build }) {
-    if (build === true) return { build: (folder, callback) => this.#build(folder, callback) };
+    if (build === true)
+      return { build: (folder, callback) => this.#build(folder, callback) };
     //
     if (http === true) http = 80;
     if (https === true) https = 443;
@@ -59,17 +61,18 @@ class Server {
         protocol === "http"
           ? http.createServer(this.#app)
           : http2.createSecureServer(
-            {
-              cert: fs.readFileSync(this.#certs.cert),
-              key: fs.readFileSync(this.#certs.key),
-              allowHTTP1: true,
-            },
-            this.#app,
-          );
+              {
+                cert: fs.readFileSync(this.#certs.cert),
+                key: fs.readFileSync(this.#certs.key),
+                allowHTTP1: true,
+              },
+              this.#app,
+            );
       server.listen(port, () => {
         this.#socket.attach(server);
         callback && callback({ protocol, port });
       });
+      this.#stop.push(() => server.close());
       return;
     }
     this.#socket = new SocketServer();
@@ -103,6 +106,10 @@ class Server {
       });
     });
     this.running = true;
+  }
+
+  stop() {
+    this.#stop.forEach((close) => close());
   }
 
   copy(...args) {
@@ -165,20 +172,24 @@ class Server {
     const [subdomain, pathname, options] = getMethodArgs(args, "object");
     if (!validateArgs("proxy", subdomain, pathname)) return;
     if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
-    this.#router[subdomain].set("any", pathname + (!pathname.endsWith("/*") ? (pathname.endsWith("/") ? "*" : "/*") : ""), (req, res, rej) =>
-      this.#proxy.web(
-        req,
-        res,
-        Object.assign(
-          {
-            ws: true,
-            xfwd: true,
-            secure: false,
-          },
-          options,
+    this.#router[subdomain].set(
+      "any",
+      pathname +
+        (!pathname.endsWith("/*") ? (pathname.endsWith("/") ? "*" : "/*") : ""),
+      (req, res, rej) =>
+        this.#proxy.web(
+          req,
+          res,
+          Object.assign(
+            {
+              ws: true,
+              xfwd: true,
+              secure: false,
+            },
+            options,
+          ),
+          rej,
         ),
-        rej,
-      ),
     );
   }
 
@@ -186,13 +197,16 @@ class Server {
     const [subdomain, pathname, options] = getMethodArgs(args, "object");
     if (!validateArgs("redirect", subdomain, pathname)) return;
     if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
-    this.#router[subdomain].set("any", pathname, (req, res) => res.redirect(options?.target));
+    this.#router[subdomain].set("any", pathname, (req, res) =>
+      res.redirect(options?.target),
+    );
   }
 
   async use(...args) {
     const [subdomain, folder, pathname, options] = (() => {
       if (typeof args[1] === "function") return ["", null, args[0], args[1]];
-      if (typeof args[2] === "object" || typeof args[2] === "undefined") return ["", ...args];
+      if (typeof args[2] === "object" || typeof args[2] === "undefined")
+        return ["", ...args];
       if (typeof args[2] === "function") {
         if (!fs.existsSync(args[0])) return [args[0], null, args[1], args[2]];
         return ["", ...args];
@@ -200,31 +214,47 @@ class Server {
       return args;
     })();
     if (!validateArgs("use", subdomain, pathname)) return;
-    const { callback, useApiRoute, useWildcards } = typeof options === "function" ? { callback: options } : options || {};
+    const { callback, useApiRoute, useWildcards } =
+      typeof options === "function" ? { callback: options } : options || {};
     if (!this.#router[subdomain]) this.#router[subdomain] = new Router();
-    if (typeof folder === "function") this.#router[subdomain].set("middleware", pathname, callback);
-    const files = Router.readFolder(folder, useApiRoute !== false, useWildcards !== false);
+    if (typeof folder === "function")
+      this.#router[subdomain].set("middleware", pathname, callback);
+    const files = Router.readFolder(
+      folder,
+      useApiRoute !== false,
+      useWildcards !== false,
+    );
     for (let i = 0, len = files.length; i < len; i++) {
       const { filepath, pathname, type } = files[i];
       if (this.build && (type === "socket" || type === "api")) continue;
-      await this.#router[subdomain].setComponent(filepath, pathname || "/", type, (event, href, ...args) => {
-        if (event === "change" && !this.build) this.#socket.to(subdomain).emit("@app/refresh", href);
-        if (callback) callback(event, href, ...args);
-      });
+      await this.#router[subdomain].setComponent(
+        filepath,
+        pathname || "/",
+        type,
+        callback,
+      );
     }
   }
 
   disable(...args) {
     if (args.length < 2) args.unshift("");
     const [subdomain, pathname] = args;
-    if (!validateArgs("disable", subdomain, pathname) || !this.#router[subdomain]) return;
+    if (
+      !validateArgs("disable", subdomain, pathname) ||
+      !this.#router[subdomain]
+    )
+      return;
     this.#router[subdomain].disable(pathname);
   }
 
   enable(...args) {
     if (args.length < 2) args.unshift("");
     const [subdomain, pathname] = args;
-    if (!validateArgs("enable", subdomain, pathname) || !this.#router[subdomain]) return;
+    if (
+      !validateArgs("enable", subdomain, pathname) ||
+      !this.#router[subdomain]
+    )
+      return;
     this.#router[subdomain].enable(pathname);
   }
 
@@ -241,10 +271,15 @@ class Server {
   on(subdomain, event, callback) {
     event = convertToEventName(event);
     if (!event) return console.warn(INVALID_EVENT_NAME), null;
-    if (subdomain && subdomain !== "*") return this.#router?.[subdomain]?.on(event, (socket, args) => callback(...args));
+    if (subdomain && subdomain !== "*")
+      return this.#router?.[subdomain]?.on(event, (socket, args) =>
+        callback(...args),
+      );
     const subdomains = Object.keys(this.#router);
     for (let i = 0, len = subdomains?.length; i < len; i++)
-      this.#router?.[subdomains[i]]?.on(event, (socket, args) => callback(...args));
+      this.#router?.[subdomains[i]]?.on(event, (socket, args) =>
+        callback(...args),
+      );
   }
 
   #appHandler() {
@@ -258,15 +293,24 @@ class Server {
         response.status(404);
         if (!error) response.send("not found");
         else error(request, response, () => response.send("not found"));
-      }
+      };
       const next = () => {
         const [pathname, resource] = path.split(/\/resources\/(.*)/);
         if (resource?.length > 0) request.resource = resource;
-        response.proxy = (options) => this.#proxy.web(request, response, Object.assign({ ws: true, xfwd: true, secure: false, }, options), reject);
-        const handler = this.#router?.[subdomain]?.get(method.toLowerCase(), pathname);
+        response.proxy = (options) =>
+          this.#proxy.web(
+            request,
+            response,
+            Object.assign({ ws: true, xfwd: true, secure: false }, options),
+            reject,
+          );
+        const handler = this.#router?.[subdomain]?.get(
+          method.toLowerCase(),
+          pathname,
+        );
         if (handler) return handler(request, response, reject);
         return reject();
-      }
+      };
       //
       if (middleware) middleware(request, response, next, reject);
       else next();
@@ -278,13 +322,26 @@ class Server {
     const subdomain = "build";
     const routes = [];
     const pages = {};
-    await this.use(subdomain, folder, "/", (event, pathname, type) => event === "ready" && routes.push({ pathname, type }));
+    await this.use(
+      subdomain,
+      folder,
+      "/",
+      (event, pathname, type) =>
+        event === "ready" && routes.push({ pathname, type }),
+    );
     for (let i = 0, len = routes.length; i < len; i++) {
       const { pathname, type } = routes[i];
       const wildcard = Router.isWildcard(pathname);
-      let route = pathname + (pathname.endsWith("/") ? "" : "/") + (type === "error" ? "error/" : "");
+      let route =
+        pathname +
+        (pathname.endsWith("/") ? "" : "/") +
+        (type === "error" ? "error/" : "");
       if (wildcard) route = route.replace(`/[${wildcard}]`, "");
-      pages[route] = this.#router[subdomain].get(type === "error" ? "error" : "get", pathname) || {};
+      pages[route] =
+        this.#router[subdomain].get(
+          type === "error" ? "error" : "get",
+          pathname,
+        ) || {};
     }
     return { pages, resources: this.#router[subdomain].resources.get() };
   }
@@ -295,10 +352,25 @@ export default Server;
 //
 
 function validateArgs(method, subdomain, pathname) {
-  if (subdomain !== "" && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain))
+  if (
+    subdomain !== "" &&
+    !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain)
+  )
     return console.warn(`Invalid subdomain for "${subdomain}"`), false;
-  if (!pathname) return console.warn(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`), false;
-  if (!pathname.startsWith("/")) return console.warn(`Invalid arguments for ${method.toUpperCase()} "${pathname}"`), false;
+  if (!pathname)
+    return (
+      console.warn(
+        `Invalid pathname for ${method.toUpperCase()} "${pathname}"`,
+      ),
+      false
+    );
+  if (!pathname.startsWith("/"))
+    return (
+      console.warn(
+        `Invalid arguments for ${method.toUpperCase()} "${pathname}"`,
+      ),
+      false
+    );
   return true;
 }
 
@@ -322,7 +394,12 @@ function getSubdomain(hostname) {
 function useSecure({ http, https }) {
   return function (request, response, next) {
     if (
-      !(process.env.NODE_ENV === "development" || process.env.ENV_TYPE === "development" || request.secure || https == null)
+      !(
+        process.env.NODE_ENV === "development" ||
+        process.env.ENV_TYPE === "development" ||
+        request.secure ||
+        https == null
+      )
     ) {
       let { host } = request.headers || {};
       if (host.endsWith(":" + http)) host = host.split(":")[0];
@@ -334,8 +411,8 @@ function useSecure({ http, https }) {
         directives: {
           scriptSrc: ["'self'", `'unsafe-inline'`],
           styleSrc: ["'self'", `'unsafe-inline'`],
-        }
-      }
+        },
+      },
     })(request, response, next);
   };
 }
@@ -343,11 +420,11 @@ function useSecure({ http, https }) {
 function parseCookies({ headers }) {
   const result = {};
   if (headers?.cookie) {
-    const cookies = headers?.cookie.split(';');
+    const cookies = headers?.cookie.split(";");
     for (let i = 0, len = cookies?.length; i < len; i++) {
-      const parts = cookies[i].split('=');
+      const parts = cookies[i].split("=");
       const name = parts.shift().trim();
-      result[name] = decodeURIComponent(parts.join('=').trim());
+      result[name] = decodeURIComponent(parts.join("=").trim());
     }
   }
   return result;

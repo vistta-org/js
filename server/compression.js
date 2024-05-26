@@ -31,7 +31,9 @@ function compression(options) {
     res.write = function write(chunk, encoding) {
       if (ended) return false;
       if (!this._header) this.writeHead(this.statusCode);
-      return stream ? stream.write(toBuffer(chunk, encoding)) : _write.call(this, chunk, encoding);
+      return stream
+        ? stream.write(toBuffer(chunk, encoding))
+        : _write.call(this, chunk, encoding);
     };
     res.end = function end(chunk, encoding) {
       if (ended) return false;
@@ -70,7 +72,10 @@ function compression(options) {
       // vary
       vary(res, "Accept-Encoding");
       // content-length below threshold
-      if (Number(res.getHeader(CONTENT_LENGTH)) < threshold || length < threshold) {
+      if (
+        Number(res.getHeader(CONTENT_LENGTH)) < threshold ||
+        length < threshold
+      ) {
         nocompress();
         return;
       }
@@ -92,7 +97,8 @@ function compression(options) {
         nocompress();
         return;
       }
-      stream = method === "gzip" ? zlib.createGzip(opts) : zlib.createDeflate(opts);
+      stream =
+        method === "gzip" ? zlib.createGzip(opts) : zlib.createDeflate(opts);
       addListeners(stream, stream.on, listeners);
       res.setHeader("Content-Encoding", method);
       res.removeHeader(CONTENT_LENGTH);
@@ -119,12 +125,17 @@ function addListeners(stream, on, listeners) {
 
 function chunkLength(chunk, encoding) {
   if (!chunk) return 0;
-  return !Buffer.isBuffer(chunk) ? Buffer.byteLength(chunk, encoding) : chunk.length;
+  return !Buffer.isBuffer(chunk)
+    ? Buffer.byteLength(chunk, encoding)
+    : chunk.length;
 }
 
 function filter(req, res) {
   let type = res.getHeader("Content-Type");
-  return !req.headers["x-no-compression"] && !(type === undefined || !compressible(type));
+  return (
+    !req.headers["x-no-compression"] &&
+    !(type === undefined || !compressible(type))
+  );
 }
 
 function shouldTransform(req, res) {

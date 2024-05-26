@@ -7,8 +7,14 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((cacheNames) => cacheNames.filter((cacheName) => !currentCaches.includes(cacheName)))
-      .then((cachesToDelete) => Promise.all(cachesToDelete.map((cacheToDelete) => caches.delete(cacheToDelete))))
+      .then((cacheNames) =>
+        cacheNames.filter((cacheName) => !currentCaches.includes(cacheName)),
+      )
+      .then((cachesToDelete) =>
+        Promise.all(
+          cachesToDelete.map((cacheToDelete) => caches.delete(cacheToDelete)),
+        ),
+      )
       .then(() => self.clients.claim()),
   );
 });
@@ -21,7 +27,9 @@ self.addEventListener("fetch", (event) => {
         return caches
           .open(CACHE.RUNTIME)
           .then((cache) =>
-            fetch(event.request).then((response) => cache.put(event.request, response.clone()).then(() => response)),
+            fetch(event.request).then((response) =>
+              cache.put(event.request, response.clone()).then(() => response),
+            ),
           );
       }),
     );

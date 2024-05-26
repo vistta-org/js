@@ -2,9 +2,9 @@ import Dom from "../core/dom";
 import { Element } from "../core/classes";
 import { system } from "../utils";
 
-system.set("MutationObserver", class { });
-system.set("IntersectionObserver", class { });
-system.set("ResizeObserver", class { });
+system.set("MutationObserver", class {});
+system.set("IntersectionObserver", class {});
+system.set("ResizeObserver", class {});
 
 class ServerDom extends Dom {
   constructor() {
@@ -42,7 +42,9 @@ function createServerElement(type) {
     childNodes: children,
     toString: () => {
       const _children = children?.reduce((acc, cur) => acc + cur, "");
-      return type === "dom" ? _children : (new Element(type, props, _children)).toString();
+      return type === "dom"
+        ? _children
+        : new Element(type, props, _children).toString();
     },
     appendChild: (child) => children.push(child),
     setAttribute: (name, value) => (props[name] = value),

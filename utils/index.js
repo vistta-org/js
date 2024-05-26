@@ -1,20 +1,21 @@
+/* eslint-disable */
 export const INVALID_EVENT_NAME = "Invalid socket event";
-export const isBrowser = () => !process.env.IS_NODE;
+export const isBrowser = () => typeof process === "undefined";
 
 export const noCache = (path) => path + `?noCache=${Date.now()}`;
+export const importt = (path, attributes) => import(path, attributes);
 
 export const system = {
   register(tagname, element) {
-    if (process.env.IS_NODE) return new element();
+    if (typeof process !== "undefined") return new element();
     if (customElements.get(tagname)) return null;
     customElements.define(tagname, element);
     return document.querySelector(tagname);
   },
   get(key) {
     let ref;
-    if (process.env.IS_NODE) ref = global;
-    else if (!process.env.IS_NODE) ref = window;
-    else return null;
+    if (typeof process !== "undefined") ref = global;
+    else ref = window;
     key = key.split(".");
     while (key.length > 1) {
       const cur = key.shift();
@@ -25,9 +26,8 @@ export const system = {
   },
   set(key, value) {
     let ref;
-    if (process.env.IS_NODE) ref = global;
-    else if (!process.env.IS_NODE) ref = window;
-    else return;
+    if (typeof process !== "undefined") ref = global;
+    else ref = window;
     key = key.split(".");
     while (key.length > 1) {
       const cur = key.shift();
@@ -37,13 +37,13 @@ export const system = {
     ref[key.shift()] = value;
   },
   addEventListener: (...args) => {
-    if (process.env.IS_NODE) return;
+    if (typeof process !== "undefined") return;
     window.addEventListener(...args);
   },
   removeEventListener: (...args) => {
-    if (process.env.IS_NODE) return;
+    if (typeof process !== "undefined") return;
     window.removeEventListener(...args);
-  }
+  },
 };
 
 export class FunctionClass extends Function {
@@ -53,4 +53,4 @@ export class FunctionClass extends Function {
 }
 
 export * from "./string.js";
-export * from "@vistta/utils/core";
+export * from "@vistta/utils";

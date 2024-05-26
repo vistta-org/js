@@ -71,16 +71,31 @@ const tests = {
       equal(await page.querySelector(id), null);
 
       await page.click("#toggle");
-      equal(await (await page.querySelector("#output", { wait: true })).evaluate((el) => el.textContent), "0");
+      equal(
+        await (
+          await page.querySelector("#output", { wait: true })
+        ).evaluate((el) => el.textContent),
+        "0",
+      );
 
       await page.click("#increment");
-      equal(await (await page.querySelector("#output", { wait: true })).evaluate((el) => el.textContent), "1");
+      equal(
+        await (
+          await page.querySelector("#output", { wait: true })
+        ).evaluate((el) => el.textContent),
+        "1",
+      );
 
       await page.click("#toggle");
       equal(await page.querySelector(id), null);
 
       await page.click("#toggle");
-      equal(await (await page.querySelector("#output", { wait: true })).evaluate((el) => el.textContent), "0");
+      equal(
+        await (
+          await page.querySelector("#output", { wait: true })
+        ).evaluate((el) => el.textContent),
+        "0",
+      );
     },
   },
   "Component: Lifecycle": {

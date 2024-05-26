@@ -1,4 +1,3 @@
-
 export const tag = (string) => {
   const tag = string.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
   if (tag.includes("-")) return tag.startsWith("-") ? "c" + tag : tag;

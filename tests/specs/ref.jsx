@@ -5,7 +5,9 @@ const tests = {
   "Ref: Function Ref": {
     Component: class extends Component {
       render() {
-        return <input id="output" ref={(e) => (e.value = INPUT_UPDATE_VALUE)} />;
+        return (
+          <input id="output" ref={(e) => (e.value = INPUT_UPDATE_VALUE)} />
+        );
       }
     },
     test: async (page, { equal }) => {
