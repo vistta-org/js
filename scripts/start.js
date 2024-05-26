@@ -1,5 +1,4 @@
 import Server from "../server/index.js";
-import { Console } from "@vistta/console";
 import { trim } from "../utils/index.js";
 system.clear();
 system.announce(`Vistta JS v${process.env.PACKAGE_VERSION}`);
@@ -34,7 +33,7 @@ const app = new Server({
     system.log(`${protocol}://localhost:${port}`),
 });
 
-const routes = new Console("routes", { index: 1 });
+const routes = new console.Console("routes", { index: 1 });
 routes.list = [];
 routes.time("routes");
 app.use(options.folder, "/", (event, pathname, type, ...args) => {

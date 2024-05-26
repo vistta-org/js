@@ -1,5 +1,4 @@
 import Server from "../server/index.js";
-import { Console } from "@vistta/console";
 import { fs } from "@vistta/fs";
 const HTML = "/index.html";
 const SCRIPT = "/script.js";
@@ -19,7 +18,7 @@ if (!output)
     `Missing output folder. Either define it as an argument or on the package json.`,
   );
 await createDirectory(output);
-const build = new Console("build", {
+const build = new console.Console("build", {
   date: false,
   trace: process.env.CONSOLE_TRACE,
 });

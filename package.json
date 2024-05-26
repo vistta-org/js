@@ -48,7 +48,7 @@
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
-    "puppeteer": "^22.8.0"
+    "puppeteer": "^22.10.0"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -64,7 +64,8 @@
           "jsx",
           "tsx"
         ],
-        "script": "./loaders/jsx.js"
+        "script": "./loaders/jsx.js",
+        "default": true
       },
       {
         "extensions": [
