@@ -1,4 +1,4 @@
-import { fs } from "@vistta/fs";
+import fs from "@vistta/fs";
 import { stringify, parse } from "../utils/index.js";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import * as sass from "sass";

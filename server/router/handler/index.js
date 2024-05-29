@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { fs } from "@vistta/fs";
+import fs from "@vistta/fs";
 import { importt, convertToEventName, FunctionClass } from "../../../utils";
 import PageHandler from "./page";
 

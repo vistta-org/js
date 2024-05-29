@@ -1,10 +1,10 @@
-import { fs } from "@vistta/fs";
+import fs from "@vistta/fs";
 import { EventEmitter } from "node:events";
 import { Element, renderToString } from "../../dom";
 import { importt, system, stringify, FunctionClass } from "../../../utils";
 
 system.set("document", { scripts: [] });
-system.set("HTMLElement", class {});
+system.set("HTMLElement", class { });
 system.set("localStorage", {
   setItem: () => null,
   getItem: () => undefined,
@@ -79,7 +79,7 @@ class PageHandler extends FunctionClass {
       this.location = new URL(
         request?.path,
         request?.headers?.referer ||
-          `${request?.protocol}://${request?.headers?.host}`,
+        `${request?.protocol}://${request?.headers?.host}`,
       );
       if (!this.app) await this.import();
       let resource = request?.resource;
@@ -225,40 +225,40 @@ class PageHandler extends FunctionClass {
               content: this.config.robots,
             }),
             this.config?.author &&
-              new Element("meta", {
-                name: "author",
-                content: this.config.author,
-              }),
+            new Element("meta", {
+              name: "author",
+              content: this.config.author,
+            }),
             this.config?.language &&
-              new Element("meta", {
-                name: "language",
-                content: this.config.language,
-              }),
+            new Element("meta", {
+              name: "language",
+              content: this.config.language,
+            }),
             this.config?.refresh &&
-              new Element("meta", {
-                "http-equiv": "refresh",
-                content: this.config.refresh,
-              }),
+            new Element("meta", {
+              "http-equiv": "refresh",
+              content: this.config.refresh,
+            }),
             this.config?.revisitAfter &&
-              new Element("meta", {
-                name: "revisit-after",
-                content: this.config.revisitAfter,
-              }),
+            new Element("meta", {
+              name: "revisit-after",
+              content: this.config.revisitAfter,
+            }),
             this.pwa &&
-              new Element("link", {
-                rel: "manifest",
-                href: "/resources/manifest.json",
-              }),
+            new Element("link", {
+              rel: "manifest",
+              href: "/resources/manifest.json",
+            }),
             this.config?.icon &&
-              new Element("link", {
-                rel: "shortcut icon",
-                href: this.config.icon,
-              }),
+            new Element("link", {
+              rel: "shortcut icon",
+              href: this.config.icon,
+            }),
             this.config?.icon &&
-              new Element("link", {
-                rel: "apple-touch-icon",
-                href: this.config.icon,
-              }),
+            new Element("link", {
+              rel: "apple-touch-icon",
+              href: this.config.icon,
+            }),
             ...(this.config?.links?.map(
               (props) => new Element("link", props),
             ) || []),
@@ -271,11 +271,11 @@ class PageHandler extends FunctionClass {
               href: "./resources/client.css",
             }),
             stylesheet &&
-              new Element("link", {
-                rel: "preload",
-                href: stylesheet,
-                as: "style",
-              }),
+            new Element("link", {
+              rel: "preload",
+              href: stylesheet,
+              as: "style",
+            }),
             new Element("link", {
               id: "app-style",
               rel: "stylesheet",

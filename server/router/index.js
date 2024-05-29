@@ -1,7 +1,7 @@
 // import { Route } from "./route";
 import { EventEmitter } from "node:events";
 import { useHandler } from "./handler";
-import { fs } from "@vistta/fs";
+import fs from "@vistta/fs";
 
 const WILDCARD = "/*";
 const TYPES = [
@@ -82,7 +82,7 @@ class Router {
     pathname = pathname.endsWith("/") ? pathname : pathname + "/";
     const routes =
       this.#routes[
-        method !== "error" && method !== "middleware" ? "default" : method
+      method !== "error" && method !== "middleware" ? "default" : method
       ];
     const handlers =
       method === "error"

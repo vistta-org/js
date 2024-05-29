@@ -1,5 +1,5 @@
 import Server from "../server/index.js";
-import { fs } from "@vistta/fs";
+import fs from "@vistta/fs";
 const HTML = "/index.html";
 const SCRIPT = "/script.js";
 const STYLESHEET = "/style.css";

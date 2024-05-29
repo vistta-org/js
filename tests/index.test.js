@@ -1,9 +1,7 @@
 import Server from "../server/index.js";
-import { fs } from "@vistta/fs";
+import fs from "@vistta/fs";
 import { sleep } from "@vistta/utils";
 import puppeteer from "puppeteer";
-import { describe, it } from "node:test";
-import assert from "node:assert";
 import { URL } from "node:url";
 import * as specs from "./specs";
 

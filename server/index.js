@@ -1,4 +1,4 @@
-import { fs } from "@vistta/fs";
+import fs from "@vistta/fs";
 import { isIPAddress, INVALID_EVENT_NAME, convertToEventName } from "../utils";
 import express from "express";
 import http from "http";
@@ -61,13 +61,13 @@ class Server {
         protocol === "http"
           ? http.createServer(this.#app)
           : http2.createSecureServer(
-              {
-                cert: fs.readFileSync(this.#certs.cert),
-                key: fs.readFileSync(this.#certs.key),
-                allowHTTP1: true,
-              },
-              this.#app,
-            );
+            {
+              cert: fs.readFileSync(this.#certs.cert),
+              key: fs.readFileSync(this.#certs.key),
+              allowHTTP1: true,
+            },
+            this.#app,
+          );
       server.listen(port, () => {
         this.#socket.attach(server);
         callback && callback({ protocol, port });
@@ -175,7 +175,7 @@ class Server {
     this.#router[subdomain].set(
       "any",
       pathname +
-        (!pathname.endsWith("/*") ? (pathname.endsWith("/") ? "*" : "/*") : ""),
+      (!pathname.endsWith("/*") ? (pathname.endsWith("/") ? "*" : "/*") : ""),
       (req, res, rej) =>
         this.#proxy.web(
           req,
