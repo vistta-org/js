@@ -7,7 +7,7 @@
 ### **Install**
 
 ```sh
-npm install @vistta/
+npm install @vistta/js
 ```
 
 ### **Usage**

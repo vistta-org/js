@@ -1,3 +1,4 @@
+process.env.BUILD = true;
 import Server from "../server/index.js";
 import fs from "@vistta/fs";
 const HTML = "/index.html";

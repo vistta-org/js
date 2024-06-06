@@ -18,7 +18,7 @@
     "postinstall": "",
     "dev": "vistta start ./docs/pages --dev --watch",
     "start": "vistta start ./docs/pages",
-    "build": "vistta build ./docs/pages ./.build"
+    "build": "vistta build ./docs/pages ./build"
   },
   "files": [
     "LICENSE",
@@ -44,7 +44,7 @@
     "http2-express-bridge": "^1.0.7",
     "on-headers": "^1.0.2",
     "postcss": "^8.4.38",
-    "sass": "^1.76.0",
+    "sass": "^1.77.4",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {

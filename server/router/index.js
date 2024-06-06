@@ -64,14 +64,10 @@ class Router {
       return console.warn(
         `Route for ${method === "error" || method === "middleware" ? method + " on " : ""}"${pathname}" already defined.`,
       );
-    handlers[route] = Object.assign(
-      Array.isArray(callback) ? transformCallback(callback) : callback,
-      {
-        pathname,
-        method,
-        wildcard,
-      },
-    );
+    handlers[route] = Array.isArray(callback) ? transformCallback(callback) : callback;
+    handlers[route].pathname ||= pathname;
+    handlers[route].method ||= method;
+    handlers[route].wildcard ||= wildcard;
     this.#routes[target] = Object.keys(handlers);
     this.#routes[target].sort(
       (a, b) => (a.match(/\//g) || []).length - (b.match(/\//g) || []).length,

@@ -1,7 +1,7 @@
 import fs from "@vistta/fs";
 import { EventEmitter } from "node:events";
 import { Element, renderToString } from "../../dom";
-import { importt, system, stringify, FunctionClass } from "../../../utils";
+import { system, stringify, FunctionClass } from "../../../utils";
 
 system.set("document", { scripts: [] });
 system.set("HTMLElement", class { });
@@ -18,8 +18,7 @@ system.set("sessionStorage", {
   clear: () => null,
 });
 const dirname = fs.dirname(import.meta.url);
-const { NODE_ENV, BUILD } = process.env;
-const IS_DEV = NODE_ENV === "development";
+const IS_DEV = process.env.NODE_ENV === "development";
 const CONFIG_DEFAULT = {
   title: "Vistta JS",
   description: "Page generated using VisttaJS",
@@ -30,15 +29,6 @@ const CONFIG_DEFAULT = {
   keywords: "visttajs",
   robots: "index, follow",
 };
-const CLIENT = `${process.env.NODE_ENV === "development" ? "\n" : ""}${(await importt(fs.resolve(dirname, BUILD ? "../../../core/build/client" : "../../../core/client"), { with: { type: "bundler" } }))?.code}`;
-const CLIENT_STYLE = (
-  await importt(fs.resolve(dirname, "page.css"), { with: { type: "reader" } })
-)?.default;
-const SERVICE_WORKER = (
-  await importt(fs.resolve(dirname, "../../../core/sw"), {
-    with: { type: "bundler" },
-  })
-)?.code;
 
 class PageHandler extends FunctionClass {
   events = new EventEmitter();
@@ -128,7 +118,7 @@ class PageHandler extends FunctionClass {
   async import() {
     try {
       const { default: app, config, gateway } = await import(this.filepath);
-      const { code, resources } = await importt(this.filepath, {
+      const { code, resources } = await system.import(this.filepath, {
         with: { type: "bundler", exports: "default" },
       });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
@@ -144,11 +134,17 @@ class PageHandler extends FunctionClass {
           this.styles[resource] = resources[resource];
         else this.resources.add(resource, resources[resource]);
       }
-      this.resources.add("client.js", CLIENT);
-      this.resources.add("client.css", CLIENT_STYLE);
+      this.resources.add("client.js", (process.env.NODE_ENV === "development" ? "\n" : "") + (await system.import(fs.resolve(dirname, process.env.BUILD ? "../../../core/build/client" : "../../../core/client"), { with: { type: "bundler" } }))?.code);
+      this.resources.add("client.css", (
+        await system.import(fs.resolve(dirname, "page.css"), { with: { type: "reader" } })
+      )?.default);
       if (this.type === "app") {
         this.resources.add("manifest.json", manifest(this.config));
-        this.resources.add("sw.js", SERVICE_WORKER);
+        this.resources.add("sw.js", (
+          await system.import(fs.resolve(dirname, "../../../core/sw"), {
+            with: { type: "bundler" },
+          })
+        )?.code);
       }
       this.emit("ready");
       return this;
@@ -172,8 +168,8 @@ class PageHandler extends FunctionClass {
     system.set("route", null);
     let stylesheet;
     if (this.stylesheet().length > 0) {
-      const { pathname } = BUILD ? this : this.location;
-      stylesheet = `.${pathname + (pathname.endsWith("/") ? "" : "/")}${BUILD ? "style.css" : "resources/app.css"}`;
+      const pathname = process.env.BUILD ? this.pathname : this.location?.pathname;
+      stylesheet = `.${pathname + (pathname.endsWith("/") ? "" : "/")}${process.env.BUILD ? "style.css" : "resources/app.css"}`;
     }
     return (
       "<!doctype html>\n" +
