@@ -104,7 +104,7 @@ const page =
   ));
 const unique = new Set();
 
-if (!process.env.DEBUG) {
+if (!process.env.NODE_DEBUG) {
   await describe("VisttaJS Unit Tests", async () => {
     Object.keys(specs).forEach((spec) =>
       Object.keys(specs[spec]).forEach((test) => {
