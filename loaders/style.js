@@ -5,9 +5,9 @@ import * as sass from "sass";
 import postcss from "postcss";
 import autoprefixer from "autoprefixer";
 
-export async function load(source, { path, as, bundler }) {
+export async function load(source, { path, type, bundler }) {
   try {
-    const config = as === "config";
+    const config = type === "config";
     const dirname = fs.dirname(path);
     const id = fs.fileId(path);
     const hash = id + (config ? ".css" : ".scoped.css");

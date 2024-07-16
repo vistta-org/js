@@ -44,11 +44,11 @@
     "http2-express-bridge": "^1.0.7",
     "on-headers": "^1.0.2",
     "postcss": "^8.4.38",
-    "sass": "^1.77.4",
+    "sass": "^1.77.5",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
-    "puppeteer": "^22.10.0"
+    "puppeteer": "^22.11.0"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -68,6 +68,10 @@
         "default": true
       },
       {
+        "types": [
+          "default",
+          "config"
+        ],
         "extensions": [
           "css",
           "sass",

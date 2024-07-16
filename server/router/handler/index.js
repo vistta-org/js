@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import fs from "@vistta/fs";
-import { system, convertToEventName, FunctionClass } from "../../../utils";
+import { convertToEventName, FunctionClass } from "../../../utils";
 import PageHandler from "./page";
 
 class Handler extends FunctionClass {
@@ -24,7 +24,7 @@ class Handler extends FunctionClass {
 
   async import() {
     try {
-      let exports = await system.import(this.filepath);
+      let exports = await import(this.filepath);
       switch (this.type) {
         case "middleware":
           this.handler = exports?.default;
@@ -46,7 +46,7 @@ class Handler extends FunctionClass {
           break;
         case "template":
           this.code = (
-            await system.import(this.filepath, {
+            await import(this.filepath, {
               with: {
                 type: "bundler",
                 globalName: "__app_" + this.type,

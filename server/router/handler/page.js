@@ -118,7 +118,7 @@ class PageHandler extends FunctionClass {
   async import() {
     try {
       const { default: app, config, gateway } = await import(this.filepath);
-      const { code, resources } = await system.import(this.filepath, {
+      const { code, resources } = await import(this.filepath, {
         with: { type: "bundler", exports: "default" },
       });
       if (!code || code === "") throw new Error("Unexpected Bundler Error");
@@ -134,14 +134,14 @@ class PageHandler extends FunctionClass {
           this.styles[resource] = resources[resource];
         else this.resources.add(resource, resources[resource]);
       }
-      this.resources.add("client.js", (process.env.NODE_ENV === "development" ? "\n" : "") + (await system.import(fs.resolve(dirname, process.env.BUILD ? "../../../core/build/client" : "../../../core/client"), { with: { type: "bundler" } }))?.code);
+      this.resources.add("client.js", (process.env.NODE_ENV === "development" ? "\n" : "") + (await import(fs.resolve(dirname, process.env.BUILD ? "../../../core/build/client" : "../../../core/client"), { with: { type: "bundler" } }))?.code);
       this.resources.add("client.css", (
-        await system.import(fs.resolve(dirname, "page.css"), { with: { type: "reader" } })
+        await import(fs.resolve(dirname, "page.css"), { with: { type: "reader" } })
       )?.default);
       if (this.type === "app") {
         this.resources.add("manifest.json", manifest(this.config));
         this.resources.add("sw.js", (
-          await system.import(fs.resolve(dirname, "../../../core/sw"), {
+          await import(fs.resolve(dirname, "../../../core/sw"), {
             with: { type: "bundler" },
           })
         )?.code);

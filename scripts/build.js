@@ -1,11 +1,12 @@
 process.env.BUILD = true;
+import pkg from "../package.json";
 import Server from "../server/index.js";
 import fs from "@vistta/fs";
 const HTML = "/index.html";
 const SCRIPT = "/script.js";
 const STYLESHEET = "/style.css";
 console.clear();
-console.announce(`\tVisttaJS v${process.env.APP_VERSION}`);
+console.announce(`\tVisttaJS v${pkg.version}`);
 const abort = (error) => (console.error(error), process.exit(0));
 const config = (await import(fs.resolve("./package.json"))).default || {};
 const main = process.argv?.slice(2)?.shift() || config.folder;

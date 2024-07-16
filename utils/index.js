@@ -4,7 +4,6 @@ export const isBrowser = () => typeof process === "undefined";
 export const noCache = (path) => path + `?noCache=${Date.now()}`;
 
 export const system = {
-  import: (path, attributes) => import(path, attributes),
   register(tagname, element) {
     if (typeof process !== "undefined") return new element();
     if (customElements.get(tagname)) return null;

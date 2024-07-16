@@ -1,7 +1,8 @@
+import pkg from "../package.json";
 import Server from "../server/index.js";
 import { trim } from "../utils/index.js";
 system.clear();
-system.announce(`Vistta JS v${process.env.PACKAGE_VERSION}`);
+system.announce(`Vistta JS v${pkg.version}`);
 console.println();
 const abort = (error) => (console.error(error), process.exit(0));
 const options = await (async (args) => {

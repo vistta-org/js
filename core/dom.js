@@ -385,15 +385,15 @@ function render(virtualDom, parent, element, context, referenceNode) {
                 element.props[property].update = context.profiler.record(
                   virtualDom.engine,
                   () =>
-                    (virtualNode.component[property] =
-                      element.props[property]()),
+                  (virtualNode.component[property] =
+                    element.props[property]()),
                 );
               else
                 element.props[property].update = () =>
                   (virtualNode.component[property] = element.props[property]());
               virtualDom.mutation =
                 ((element.props[property].context = context),
-                element.props[property]);
+                  element.props[property]);
             }
             value = element.props[property]();
           } else if (element.props[property] != null)
@@ -709,6 +709,8 @@ function setAttribute(node, name, value) {
     for (let i = 0, len = keys.length || 0; i < len; i++)
       node.style.setProperty(keys[i], value[keys[i]]);
   } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
+  if (name === "id") node.style.setProperty("anchor-name", `--${value}`);
+  if (name === "anchor") node.style.setProperty("position-anchor", `--${value}`);
 }
 
 function findReferenceNode(parent, index) {
