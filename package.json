@@ -31,24 +31,18 @@
   "author": "Tiago Terenas Almeida",
   "license": "CC BY-NC-ND 4.0 DEED",
   "dependencies": {
+    "@fastify/compress": "^7.0.3",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/http-proxy": "^9.5.0",
+    "@fastify/websocket": "^10.0.1",
     "@vistta/cli": "*",
     "@vistta/utils": "*",
-    "accepts": "^1.3.8",
-    "autoprefixer": "^10.4.19",
-    "bytes": "^3.1.2",
-    "compressible": "^2.0.18",
-    "express": "^4.19.2",
-    "follow-redirects": "^1.15.6",
-    "helmet": "^7.1.0",
-    "http-proxy": "^1.18.1",
-    "http2-express-bridge": "^1.0.7",
-    "on-headers": "^1.0.2",
+    "fastify": "^4.28.1",
     "postcss": "^8.4.38",
-    "sass": "^1.77.5",
-    "socket.io": "^4.7.5"
+    "sass": "^1.77.5"
   },
   "devDependencies": {
-    "puppeteer": "^22.11.0"
+    "puppeteer": "^23.0.1"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -62,10 +56,28 @@
       {
         "extensions": [
           "jsx",
-          "tsx"
+          "mjsx",
+          "cjsx",
+          "tsx",
+          "mtsx",
+          "ctsx"
         ],
         "script": "./loaders/jsx.js",
         "default": true
+      },
+      {
+        "types": [
+          "api"
+        ],
+        "extensions": [
+          "js",
+          "mjs",
+          "cjs",
+          "ts",
+          "mts",
+          "cts"
+        ],
+        "script": "./loaders/api.js"
       },
       {
         "types": [
