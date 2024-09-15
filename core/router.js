@@ -1,6 +1,6 @@
 import VirtualDom from "./dom";
 import { Element } from "./classes";
-import { isValidUrl, noCache, system } from "../utils";
+import { isValidUrl, system } from "../utils";
 
 let dom;
 const route = typeof process === "undefined" ? document.body : {};
@@ -23,22 +23,19 @@ Object.defineProperties(route, {
       if (pushState !== false) history.pushState({}, "", pathname);
       dom?.remove?.();
       if (initial || refresh || !cached) {
-        const appHref =
-          pathname + (pathname.endsWith("/") ? "" : "/") + "resources/app";
+        const appHref = pathname + (pathname.endsWith("/") ? "" : "/") + "page";
         if (!initial)
-          document.querySelector("link#app-style").href = noCache(
-            appHref + ".css",
-          );
+          document.querySelector("link#app-style").href = appHref + ".css";
         const {
           default: app,
           config,
-          template,
+          layout,
           props,
-        } = await import(noCache(appHref + ".js"));
+        } = await import(appHref + ".js");
         dom = new VirtualDom(pathname, route, config);
         return dom.render(
-          template
-            ? new Element(template, {}, new Element(app, props))
+          layout
+            ? new Element(layout.component, {}, new Element(app, props))
             : new Element(app, props),
           refresh,
           (config) => {
@@ -71,7 +68,7 @@ Object.defineProperties(route, {
   },
   location: {
     get: () => {
-      if (typeof process !== "undefined") return system.get("route.location");
+      if (typeof process !== "undefined") return system.get("page.location");
       return window.location;
     },
   },

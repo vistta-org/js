@@ -1,0 +1,74 @@
+import fs from "@vistta/fs";
+import { default as DefaultCLI } from "@vistta/cli/test";
+import puppeteer from 'puppeteer';
+import { randomBytes } from 'crypto';
+import { sleep } from "@vistta/utils";
+import { URL } from "node:url";
+import Server from "../server/index.js";
+
+const DEFAULT_PORT = 12345;
+const dirname = fs.dirname(import.meta.url);
+let server;
+
+export default class extends DefaultCLI {
+  constructor(options) {
+    super(options);
+    this.register(fs.resolve(dirname, "./loaders/file.js"), "*");
+    this.register(fs.resolve(dirname, "./loaders/file.js"), "reader");
+    this.register(fs.resolve(dirname, "./loaders/jsx.js"), "*", ["jsx", "mjsx", "cjsx", "tsx", "mtsx", "ctsx"], true);
+    this.register(fs.resolve(dirname, "./loaders/api.js"), "api", ["js", "mjs", "cjs", "ts", "mts", "cts"]);
+    this.register(fs.resolve(dirname, "./loaders/style.js"), "*", ["css", "sass", "scss"]);
+    this.register(fs.resolve(dirname, "./loaders/style.js"), "config", ["css", "sass", "scss"]);
+    this.register(fs.resolve(dirname, "./loaders/template.js"), "template");
+    this.define("browser", {
+      mount: async (filepath, options) => {
+        if (!server) server = new Server({ http: DEFAULT_PORT, strict: false, start: true });
+        const id = randomBytes(6).toString('hex');
+        await server.use(id, "/", fs.resolve(process.cwd(), filepath));
+        return await page(`http://${id}.localhost:${DEFAULT_PORT}/`, options);
+      },
+      open: async (url, options) => {
+        return await page(url, options);
+      }
+    });
+  }
+}
+
+async function page(url, options) {
+  const page = await (await puppeteer.launch({
+    headless: !process.env.NODE_DEBUG,
+    ignoreDefaultArgs: ["--disable-extensions"],
+    args: ["--no-sandbox"],
+    ...options
+  })).newPage();
+  await page.goto(url);
+  page.navigate = async (url) => await page.goto(url);
+  page.get = async (selector, arg1, arg2) => {
+    if (typeof arg1 === "string")
+      return await (await element(page, selector, arg2)).get(arg1);
+    else return await element(page, selector, arg1);
+  };
+  page.wait = async (delay) => await sleep(delay);
+  page.type = async (selector, text, options) =>
+    await (await element(page, selector)).type(text, options);
+  page.location = async () => new URL(await page.url());
+  page.dimensions = () => page.evaluate(() => ({
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
+  }));
+  return page;
+}
+
+async function element(page, selector, options) {
+  const element = options?.wait ? await page.waitForSelector(selector, options) : await page.$(selector);
+  if (!element) return null;
+  element.get = async (property) => await (await element.getProperty(property)).jsonValue();
+  element.wait = async (delay) => await sleep(delay);
+  const type = element.type.bind(element);
+  element.type = async (text, options) => {
+    if (options?.clear) await element.evaluate((e) => e.value = "");
+    await type(text, options);
+    if (options?.submit !== false) await element.press("Enter");
+  }
+  return element;
+}

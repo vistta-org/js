@@ -9,7 +9,7 @@ import {
   isPromise,
   FunctionClass,
   isBrowser,
-} from "../utils";
+} from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
 export const Fragment = Symbol("Fragment");

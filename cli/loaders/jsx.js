@@ -1,4 +1,4 @@
-import { load as loadTypescript } from "@vistta/cli/loaders/typescript.js";
+import { load as loadTypescript } from "@vistta/cli/loaders/typescript";
 let id = 0;
 
 export async function load(source, options) {
@@ -7,7 +7,7 @@ export async function load(source, options) {
       return loadTypescript(transform(source), options);
     return { code: transform(source) };
   } catch (e) {
-    return { errors: [`${options.path}(0,0): json error: ${e.message}.`] };
+    return { errors: [`${options.path}(0,0): jsx error: ${e.message}.`] };
   }
 }
 

@@ -6,19 +6,14 @@
   "types": "index.d.ts",
   "exports": {
     ".": "./index.js",
-    "./server": {
-      "default": "./server/index.js",
-      "types": "./server/index.d.ts"
-    },
+    "./server": "./server/index.js",
     "./loader": "./bin/loaders/index.js",
     "./tsconfig": "./tsconfig.json"
   },
   "type": "module",
   "scripts": {
     "postinstall": "",
-    "dev": "vistta start ./docs/pages --dev --watch",
-    "start": "vistta start ./docs/pages",
-    "build": "vistta build ./docs/pages ./build"
+    "tests": "vistta start ./tests --dev --watch"
   },
   "files": [
     "LICENSE",
@@ -32,12 +27,16 @@
   "license": "CC BY-NC-ND 4.0 DEED",
   "dependencies": {
     "@vistta/cli": "*",
+    "@vistta/fs": "*",
     "@vistta/utils": "*",
     "autoprefixer": "^10.4.20",
     "compressible": "^2.0.18",
+    "http-proxy": "^1.18.1",
     "mime": "^4.0.4",
     "postcss": "^8.4.38",
-    "sass": "^1.77.5"
+    "sass": "^1.77.5",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
     "puppeteer": "^23.0.2"
@@ -46,45 +45,23 @@
     "node": ">=22.0.0"
   },
   "vistta": {
-    "scripts": {
-      "start": "./scripts/start.js",
-      "build": "./scripts/build.js"
+    "cli": {
+      "default": "./cli/default.js",
+      "start": "./cli/start.js",
+      "build": "./cli/build.js",
+      "test": "./cli/test.js"
     },
-    "loaders": [
-      {
-        "types": "default,reader",
-        "extensions": "default",
-        "script": "./loaders/file.js"
-      },
-      {
-        "extensions": "jsx,mjsx,cjsx,tsx,mtsx,ctsx",
-        "script": "./loaders/jsx.js",
-        "default": true
-      },
-      {
-        "type": "api",
-        "extensions": "js,mjs,cjs,ts,mts,cts",
-        "script": "./loaders/api.js"
-      },
-      {
-        "types": "default,config",
-        "extensions": "css,sass,scss",
-        "script": "./loaders/style.js"
-      },
-      {
-        "type": "template",
-        "script": "./loaders/template.js"
-      }
-    ],
-    "bundlerOptions": {
-      "paths": {
-        "@vistta/js": {
-          "path": "vistta",
-          "namespace": "window"
-        },
-        "@socket": {
-          "path": "/socket.io/socket.io.esm.min.js",
-          "external": true
+    "options": {
+      "bundler": {
+        "paths": {
+          "@vistta/js": {
+            "path": "vistta",
+            "namespace": "window"
+          },
+          "@socket": {
+            "path": "/socket.io/socket.io.esm.min.js",
+            "external": true
+          }
         }
       }
     }

@@ -1,4 +1,5 @@
 export const INVALID_EVENT_NAME = "Invalid socket event";
+export const RESOURCES_PATH = "_resources";
 export const isBrowser = () => typeof process === "undefined";
 
 export const noCache = (path) => path + `?noCache=${Date.now()}`;

@@ -1,0 +1,6 @@
+.centered:scope {
+  position: absolute;
+  inset: 0;
+  height: var(--size);
+  width: var(--size);
+}

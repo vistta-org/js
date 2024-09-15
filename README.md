@@ -18,6 +18,20 @@ Usage
 
 API
 
+## Benchmarks
+
+### Simple GET
+
+Latency (ms): 27
+Req/Sec: 36 483
+Bytes/Sec (MB): 19
+
+### Simple Page
+
+Latency (ms): 36.57
+Req/Sec: 26 958
+Bytes/Sec (MB): 38.8
+
 ## **License**
 
 Attribution-NonCommercial-NoDerivatives 4.0 International

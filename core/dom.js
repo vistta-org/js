@@ -10,11 +10,9 @@ import {
   Suspense,
   Safe,
   Form,
-} from "./classes";
-import { applyTransition } from "./transitions";
-import { isBrowser, capitalize } from "../utils";
+} from "./classes.js";
+import { isBrowser, capitalize } from "../utils/index.js";
 
-const BUILD = process.env.BUILD;
 const STRICT_MODE = new Error("Event strict mode active");
 
 export default class VirtualDom {
@@ -78,13 +76,9 @@ export default class VirtualDom {
     this.node.innerHTML = "";
     this.content = render(this, this, content, {});
     this.mutation = null;
-    const resolve = () => {
-      this.children = [...this.node.childNodes];
-      callback?.(this.config);
-      this.engine.next();
-    };
-    if (BUILD || refresh) resolve();
-    else applyTransition(this, this.config?.transition, resolve);
+    this.children = [...this.node.childNodes];
+    callback?.(this.config);
+    this.engine.next();
   }
 
   remove() {
@@ -99,19 +93,15 @@ export default class VirtualDom {
 
   refresh(callback) {
     this.engine.active = true;
-    const resolve = () => {
-      this.node.replaceChildren(...this.children);
-      traverseVirtualNodes(
-        this.content,
-        (virtualNode) =>
-          virtualNode.element.type === Component.Node &&
-          virtualNode?.component?.onConnect?.(),
-      );
-      callback?.(this.config);
-      this.engine.next();
-    };
-    if (BUILD) return resolve();
-    else applyTransition(this, this.config?.transition, resolve);
+    this.node.replaceChildren(...this.children);
+    traverseVirtualNodes(
+      this.content,
+      (virtualNode) =>
+        virtualNode.element.type === Component.Node &&
+        virtualNode?.component?.onConnect?.(),
+    );
+    callback?.(this.config);
+    this.engine.next();
   }
 }
 
@@ -464,8 +454,11 @@ function update(virtualDom, virtualNode, props, children) {
   if (props && typeof props === "object") {
     if (typeof virtualNode.element.type === "string") {
       const keys = Object.keys(props);
-      for (let i = 0, len = keys.length; i < len; i++)
-        setAttribute(virtualNode.node, keys[i], props[keys[i]]);
+      for (let i = 0, len = keys.length; i < len; i++) {
+        const prop = props[keys[i]];
+        if (prop instanceof Mutation) setAttribute(virtualNode.node, keys[i], prop());
+        else setAttribute(virtualNode.node, keys[i], prop);
+      }
     } else throw "Internal Error #002";
   }
 

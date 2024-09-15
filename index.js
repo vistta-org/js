@@ -13,3 +13,4 @@ export {
 export { route } from "./core/router.js";
 export { socket } from "./core/socket.js";
 export { isBrowser } from "./utils/index.js";
+export { default as Controller, Copy, Delete, Get, Move, Patch, Post, Put } from "./server/controller.js";

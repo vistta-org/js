@@ -57,11 +57,11 @@ function handleClick(event) {
 async function build() {
   const pathname = route.location.pathname;
   let resource = pathname + (pathname.endsWith("/") ? "" : "/") + "script.js";
-  const { default: app, config, template, props } = await import(resource);
+  const { default: app, config, layout, props } = await import(resource);
   dom = new VirtualDom(pathname, route, config);
   dom.render(
-    template
-      ? new Element(template, {}, new Element(app, props))
+    layout
+      ? new Element(layout, {}, new Element(app, props))
       : new Element(app, props),
   );
 }

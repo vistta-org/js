@@ -1,5 +1,5 @@
 import fs from "@vistta/fs";
-import { stringify, parse } from "../utils/index.js";
+import { RESOURCES_PATH, stringify, parse } from "../../utils/index.js";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import * as sass from "sass";
 import postcss from "postcss";
@@ -31,7 +31,7 @@ export async function load(source, { path, type, bundler }) {
     );
     resources.push({ hash, code });
     return {
-      code: `export default (${stringify(config ? { hash, href: "./resources/" + hash } : { ["scope-" + id]: true })}); export const code = ${bundler ? '""' : JSON.stringify(code)};`,
+      code: `export default (${stringify(config ? { hash, href: RESOURCES_PATH + "/" + hash } : { ["scope-" + id]: true })}); export const code = ${bundler ? '""' : JSON.stringify(code)};`,
       resources,
       files,
     };
@@ -47,6 +47,7 @@ function transform(code, dirname, node_modules, params = {}) {
   const compiled = sass.compileString(loadResources(dirname, code, resources), {
     style: "compressed",
     loadPaths: [dirname, node_modules],
+    silenceDeprecations: ["mixed-decls"],
     functions: {
       "prop($name, $default)": (args) =>
         convertToSass(params[args[0].assertString("name").text], args[1]),
@@ -99,7 +100,7 @@ function loadResources(dirname, code, resources) {
     const resourcePath = fs.resolve(dirname, urls[i]);
     const hash = fs.fileId(resourcePath) + fs.extname(resourcePath);
     resources.push({ path: resourcePath, hash });
-    code = code.replace(urls[i], `/resources/${hash}`);
+    code = code.replace(urls[i], `/${RESOURCES_PATH}/${hash}`);
   }
   return code;
 }

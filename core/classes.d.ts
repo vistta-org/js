@@ -7,7 +7,7 @@ export declare const TextNode: Symbol;
 export declare const Element: new <Props extends { [name: string]: any }>(
   type: string,
   props?: Props,
-  children?: JSX.Node,
+  children?: JSX.Node
 ) => JSX.Element;
 
 export declare const Context: new <
@@ -20,7 +20,7 @@ export declare const Context: new <
   actions?: Actions,
   controllers?:
     | { [K in keyof Actions]: (status: string, controllerOrValue: any) => void }
-    | ((action: keyof Actions, status: string, controllerOrValue: any) => void),
+    | ((action: keyof Actions, status: string, controllerOrValue: any) => void)
 ) => {
   [K in keyof Actions]: Actions[K] extends (...args: infer A) => infer R
     ? (...args: DropFirst<A>) => Promise<void>
