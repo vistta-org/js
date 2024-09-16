@@ -87,7 +87,7 @@ export default class VirtualDom {
       this.content,
       (virtualNode) =>
         virtualNode.element.type === Component.Node &&
-        virtualNode?.component?.onDisconnect?.(),
+        virtualNode?.component?.onDisconnect?.()
     );
   }
 
@@ -98,7 +98,7 @@ export default class VirtualDom {
       this.content,
       (virtualNode) =>
         virtualNode.element.type === Component.Node &&
-        virtualNode?.component?.onConnect?.(),
+        virtualNode?.component?.onConnect?.()
     );
     callback?.(this.config);
     this.engine.next();
@@ -115,34 +115,19 @@ function render(virtualDom, parent, element, context, referenceNode) {
     else if (element instanceof Mutation) {
       virtualNode.mutation = element;
       element = new Element(Fragment);
-      if (isBrowser()) {
-        if (context.profiler)
-          virtualNode.mutation.update = context.profiler.record(
-            virtualDom.engine,
-            () =>
-              update(
-                virtualDom,
-                virtualNode,
-                null,
-                ensureArray(virtualNode.mutation()),
-              ),
-          );
-        else
-          virtualNode.mutation.update = () =>
-            update(
-              virtualDom,
-              virtualNode,
-              null,
-              ensureArray(virtualNode.mutation()),
-            );
-        virtualDom.mutation =
-          ((virtualNode.mutation.context = context), virtualNode.mutation);
-      }
+      setMutation(virtualDom, virtualNode.mutation, context, () =>
+        update(
+          virtualDom,
+          virtualNode,
+          null,
+          ensureArray(virtualNode.mutation())
+        )
+      );
       element.children = ensureArray(virtualNode.mutation());
     } else if (typeof element === "function") element = new Element(element);
     else if (typeof element === "object" || element instanceof Promise)
       throw new Error(
-        `TypeError: ${capitalize(typeof element)} is not a valid Element`,
+        `TypeError: ${capitalize(typeof element)} is not a valid Element`
       );
     else element = new Element(TextNode, null, "" + element);
     virtualNode.element = element;
@@ -168,15 +153,9 @@ function render(virtualDom, parent, element, context, referenceNode) {
     for (let i = 0, len = keys.length; i < len; i++) {
       const prop = element.props[keys[i]];
       if (prop instanceof Mutation) {
-        if (isBrowser()) {
-          if (context.profiler)
-            prop.update = context.profiler.record(virtualDom.engine, () =>
-              setAttribute(virtualNode.node, keys[i], prop()),
-            );
-          else
-            prop.update = () => setAttribute(virtualNode.node, keys[i], prop());
-          virtualDom.mutation = ((prop.context = context), prop);
-        }
+        setMutation(virtualDom, prop, context, () =>
+          setAttribute(virtualNode.node, keys[i], prop())
+        );
         setAttribute(virtualNode.node, keys[i], prop());
       } else setAttribute(virtualNode.node, keys[i], prop);
     }
@@ -189,7 +168,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
         virtualDom,
         virtualNode,
         element.children[i],
-        { ...context },
+        { ...context }
       );
     context.form?.register(virtualNode);
     return append(parent, virtualNode.node, referenceNode), virtualNode;
@@ -209,6 +188,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
     }
     if (element.component === Safe) {
       try {
+        context.safe = virtualNode.component;
         const fragment = {
           node: virtualDom.createDocumentFragment(),
           children: [],
@@ -218,7 +198,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
             virtualDom,
             fragment,
             element.props.children[i],
-            { ...context },
+            { ...context }
           );
         virtualNode.children = fragment.children;
         referenceNode ||= findReferenceNode(virtualNode, -1);
@@ -228,14 +208,15 @@ function render(virtualDom, parent, element, context, referenceNode) {
           node = fragment.node.firstChild;
         }
         return virtualNode;
-      } catch {
+      } catch (e) {
+        context.safe.error = e;
         virtualNode.children = [
           render(
             virtualDom,
             virtualNode,
             element.props.fallback,
             { ...context },
-            referenceNode,
+            referenceNode
           ),
         ];
         return virtualNode;
@@ -259,7 +240,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
               virtualDom,
               fragment,
               element.props.children[i],
-              { ...context },
+              { ...context }
             );
           virtualNode.component.register(() => {
             virtualNode.children = fragment.children;
@@ -295,7 +276,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
       if (element.component === Form) {
         if (context.form) virtualNode.component.register(context.form);
         else context.form = virtualNode.component;
-      } else if (element.component === Profiler)
+      } else if (element.component === Profiler && "production" !== process.env.NODE_ENV)
         context.profiler = virtualNode.component;
       const properties = Object.getOwnPropertyNames(virtualNode.component);
       for (let i = 0, len = properties.length; i < len; i++) {
@@ -325,8 +306,8 @@ function render(virtualDom, parent, element, context, referenceNode) {
                 status = "completed";
                 virtualDom.engine.queue(() =>
                   mutations.forEach((mutation) =>
-                    mutation.context?.suspense?.resolve(),
-                  ),
+                    mutation.context?.suspense?.resolve()
+                  )
                 );
               }
               return value;
@@ -370,21 +351,13 @@ function render(virtualDom, parent, element, context, referenceNode) {
           const mutations = new Set();
           let value = virtualNode.component[property];
           if (element.props[property] instanceof Mutation) {
-            if (isBrowser()) {
-              if (context.profiler)
-                element.props[property].update = context.profiler.record(
-                  virtualDom.engine,
-                  () =>
-                  (virtualNode.component[property] =
-                    element.props[property]()),
-                );
-              else
-                element.props[property].update = () =>
-                  (virtualNode.component[property] = element.props[property]());
-              virtualDom.mutation =
-                ((element.props[property].context = context),
-                  element.props[property]);
-            }
+            setMutation(
+              virtualDom,
+              element.props[property],
+              context,
+              () =>
+                (virtualNode.component[property] = element.props[property]())
+            );
             value = element.props[property]();
           } else if (element.props[property] != null)
             value = element.props[property];
@@ -403,30 +376,20 @@ function render(virtualDom, parent, element, context, referenceNode) {
           });
         }
       }
+      if (context?.safe?.error) Object.defineProperty(virtualNode.component, "error", {
+        configurable: false,
+        enumerable: true,
+        get: () => context.safe.error,
+      });
       virtualNode.mutation = new Mutation(() => virtualNode.component.render());
-      if (isBrowser()) {
-        if (context.profiler)
-          virtualNode.mutation.update = context.profiler.record(
-            virtualDom.engine,
-            () =>
-              update(
-                virtualDom,
-                virtualNode,
-                null,
-                ensureArray(virtualNode.component.render()),
-              ),
-          );
-        else
-          virtualNode.mutation.update = () =>
-            update(
-              virtualDom,
-              virtualNode,
-              null,
-              ensureArray(virtualNode.component.render()),
-            );
-        virtualDom.mutation =
-          ((virtualNode.mutation.context = context), virtualNode.mutation);
-      }
+      setMutation(virtualDom, virtualNode.mutation, context, () =>
+        update(
+          virtualDom,
+          virtualNode,
+          null,
+          ensureArray(virtualNode.component.render())
+        )
+      );
       element.children = ensureArray(virtualNode.component.render());
     }
   }
@@ -438,7 +401,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
       virtualNode,
       element.children[i],
       { ...context },
-      referenceNode,
+      referenceNode
     );
   if (element.type === Component.Node && isBrowser())
     virtualNode.component.onConnect?.();
@@ -456,13 +419,14 @@ function update(virtualDom, virtualNode, props, children) {
       const keys = Object.keys(props);
       for (let i = 0, len = keys.length; i < len; i++) {
         const prop = props[keys[i]];
-        if (prop instanceof Mutation) setAttribute(virtualNode.node, keys[i], prop());
+        if (prop instanceof Mutation)
+          setAttribute(virtualNode.node, keys[i], prop());
         else setAttribute(virtualNode.node, keys[i], prop);
       }
     } else throw "Internal Error #002";
   }
 
-  const previousChildren = [...virtualNode.children];
+  const previousChildren = virtualNode.children ? [...virtualNode.children] : [];
   const changes = [];
   for (let i = 0, len = children.length; i < len; i++)
     changes[i] = diff(children[i], i, previousChildren);
@@ -505,7 +469,7 @@ function update(virtualDom, virtualNode, props, children) {
         virtualNode,
         changes[i].insert,
         { ...virtualNode.context },
-        findReferenceNode(virtualNode, i),
+        findReferenceNode(virtualNode, i)
       );
     else {
       let referenceNode = findReferenceNode(virtualNode, i);
@@ -514,7 +478,7 @@ function update(virtualDom, virtualNode, props, children) {
         virtualDom,
         virtualNode.children[i],
         changes[i].props,
-        changes[i].children,
+        changes[i].children
       );
       const firstNode =
         virtualNode.children[i].node || virtualNode.children[i].firstNode;
@@ -675,6 +639,24 @@ function diff(element, index, previous) {
   return { insert: element };
 }
 
+function setMutation(virtualDom, mutation, context, callback) {
+  if (!isBrowser()) return;
+  if (context.safe) {
+    const originalCallback = callback;
+    callback = () => {
+      try {
+        originalCallback();
+      }
+      catch { /* Do Nothing */ }
+    }
+  }
+  if (context.profiler)
+    mutation.update = context.profiler.record(virtualDom.engine, callback);
+  else mutation.update = callback;
+  mutation.context = context;
+  virtualDom.mutation = mutation;
+}
+
 function ensureArray(children) {
   if (!Array.isArray(children)) return [children];
   return children;
@@ -703,7 +685,8 @@ function setAttribute(node, name, value) {
       node.style.setProperty(keys[i], value[keys[i]]);
   } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
   if (name === "id") node.style.setProperty("anchor-name", `--${value}`);
-  if (name === "anchor") node.style.setProperty("position-anchor", `--${value}`);
+  if (name === "anchor")
+    node.style.setProperty("position-anchor", `--${value}`);
 }
 
 function findReferenceNode(parent, index) {
@@ -716,7 +699,7 @@ function findReferenceNode(parent, index) {
   const parentIndex = parent.parent.children.indexOf(parent);
   return findReferenceNode(
     parent.parent,
-    parentIndex != -1 ? parentIndex : parent.parent.children.length,
+    parentIndex != -1 ? parentIndex : parent.parent.children.length
   );
 }
 

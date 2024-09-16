@@ -32,6 +32,13 @@ Latency (ms): 36.57
 Req/Sec: 26 958
 Bytes/Sec (MB): 38.8
 
+### Page Render Benchmarks
+
+Recursive Update: Total (runs/sec): 4169.025; Average Time (ms): 0.00007;
+Attribute Update: Total (runs/sec): 781.6; Average Time (ms): 0.00006;
+Content Update: Total (runs/sec): 248.675; Average Time (ms): 0.0003;
+Element Update: Total (runs/sec): 42.975; Average Time (ms): 1.81;
+
 ## **License**
 
 Attribution-NonCommercial-NoDerivatives 4.0 International

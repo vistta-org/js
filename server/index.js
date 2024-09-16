@@ -428,7 +428,6 @@ class Server {
         const page = await createPage(type, filepath, pathname, configs, get("middleware"), get("layout"));
         if (!this.#resources[subdomain]) this.#resources[subdomain] = await importCoreResources(this.#isBuild);
         const resourceKeys = Object.keys(page.resources);
-        console.log(resourceKeys)
         for (let i2 = 0, resourcesLen = resourceKeys.length; i2 < resourcesLen; i2++)
           this.#resources[subdomain]["/" + RESOURCES_PATH + "/" + resourceKeys[i2]] = page.resources[resourceKeys[i2]];
         this.#register("page", subdomain, ensureEndsWith(pathname, "/"), page);

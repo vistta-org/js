@@ -189,12 +189,40 @@ suite("VisttaJS Client Unit Tests", async () => {
   test("Safe", async () => {
     const page = await browser.mount("./components/safe.jsx");
     const output = await page.get("#output", { wait: true });
+    const counter = await page.get("#counter", { wait: true });
 
     expect(await output.get("innerText")).toEqual(TEXT_VALUE);
-    /*await page.click("#increment");
+    expect(await counter.get("innerText")).toEqual("0");
+    await page.click("#increment");
+    expect(await output.get("innerText")).toEqual(TEXT_VALUE);
+    expect(await counter.get("innerText")).toEqual("1");
+
+    await page.click("#toggle");
+    expect(await output.get("innerText")).toEqual("");
+    await page.click("#toggle");
     expect(await output.get("innerText")).toEqual(FALLBACK_VALUE);
     await page.click("#increment");
-    expect(await output.get("innerText")).toEqual(TEXT_VALUE);*/
+    expect(await output.get("innerText")).toEqual(FALLBACK_VALUE);
+    expect(await counter.get("innerText")).toEqual("2");
+
+    await page.click("#toggle");
+    expect(await output.get("innerText")).toEqual("");
+    await page.click("#toggle");
+    expect(await output.get("innerText")).toEqual(TEXT_VALUE);
+    await page.click("#increment");
+    expect(await output.get("innerText")).toEqual(TEXT_VALUE);
+    expect(await counter.get("innerText")).toEqual("3");
+  });
+
+  test("Profiler", async () => {
+    const page = await browser.mount("./components/profiler.jsx");
+    const output = await page.get("#output", { wait: true });
+
+    expect(parseFloat(await output.get("innerText")) > 0).toEqual(true);
+    await page.click("#update");
+    expect(parseFloat(await output.get("innerText")) > 0).toEqual(true);
+    await page.click("#update");
+    expect(parseFloat(await output.get("innerText")) > 0).toEqual(true);
   });
 
   test("Style", async () => {
