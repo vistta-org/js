@@ -632,6 +632,15 @@ export class Form extends Component {
 // Global
 
 system.set("_Fragment", Fragment);
+system.set("_Style", (id, code) => new Proxy({ ["scope-" + id]: true }, {
+  get(target, prop) {
+    if (prop === "id") return id;
+    if (prop === "code") return code;
+    if (!isBrowser() && prop.startsWith("scope-"))
+      system.get("page")?.styles?.push(id);
+    return target[prop];
+  }
+}));
 system.set("_Prop", (caller) => new Mutation(caller));
 system.set("_Child", (caller) => new Mutation(caller));
 system.set("_Element", (id, ...args) => {

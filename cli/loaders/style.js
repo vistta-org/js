@@ -5,25 +5,11 @@ import * as sass from "sass";
 import postcss from "postcss";
 import autoprefixer from "autoprefixer";
 
-export async function load(source, { path, type, bundler }) {
+export async function load(source, { path, bundler }) {
   try {
-    const config = type === "config";
     const dirname = fs.dirname(path);
     const id = fs.fileId(path);
-    const hash = id + (config ? ".css" : ".scoped.css");
-    if (!config) {
-      const matches = source.match(
-        /([^\s]+:root|[^\s]+:scope|[^\s]+:scoped)\b/g,
-      );
-      for (let i = 0, len = matches?.length || 0; i < len; i++) {
-        source = source.replace(
-          matches[i],
-          (match) =>
-            "@at-root " + match.replace(/:root|:scope|:scoped/g, "#{&}"),
-        );
-      }
-      source = `[scope-${id}] { ${source.replace(/:root|:scope|:scoped/g, "&").replace(/,\s+@at-root/g, ",")} }`;
-    }
+    const hash = id + ".css";
     const { code, resources, files } = transform(
       source,
       dirname,
@@ -31,7 +17,7 @@ export async function load(source, { path, type, bundler }) {
     );
     resources.push({ hash, code });
     return {
-      code: `export default (${stringify(config ? { hash, href: RESOURCES_PATH + "/" + hash } : { ["scope-" + id]: true })}); export const code = ${bundler ? '""' : JSON.stringify(code)};`,
+      code: `export default _Style(${stringify(id)}, ${JSON.stringify(bundler ? "" : code)});`,
       resources,
       files,
     };

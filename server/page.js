@@ -1,4 +1,5 @@
 import fs from "@vistta/fs";
+import * as sass from "sass";
 import { Element, renderToString } from "./dom.js";
 import { RESOURCES_PATH, system, stringify } from "../utils/index.js";
 
@@ -37,7 +38,7 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
     config,
     content,
     resources,
-    styles: {},
+    styles: [],
     cache: cache(),
     inherited: {
       configs: inheritedConfigs || [],
@@ -47,12 +48,6 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
   };
   if (errors?.length) throw new Error(errors[0]);
   if (!code || code === "") throw new Error("Unexpected Bundler Error");
-  const keys = Object.keys(resources);
-  for (let i = 0, len = keys.length; i < len; i++) {
-    const resource = keys[i];
-    if (!resource.endsWith(".scoped.css")) continue;
-    page.styles[resource] = resources[resource];
-  }
   page.html = (request, props, build) => {
     page.location = new URL(request.url, request.headers.referer || `http://${request.headers.host}/`)
     return html(page, props, build)
@@ -78,9 +73,7 @@ function html(page, props, build) {
   else body = renderToString(new Element(page.content, props));
   system.set("page", null);
   page.cache.reset("css");
-  let stylesheet;
-  if (cascadingStyleSheets(page).length > 0)
-    stylesheet = `.${pathname + (pathname.endsWith("/") ? "" : "/")}${build ? "style.css" : "page.css"}`;
+  const stylesheet = cascadingStyleSheets(page) ? `.${pathname + (pathname.endsWith("/") ? "" : "/")}${build ? "style.css" : "page.css"}` : null;
   const config = configs(page);
   return page.cache.set("html." + key,
     "<!doctype html>\n" +
@@ -191,11 +184,11 @@ function html(page, props, build) {
             (props) => new Element("script", props),
           ) || []),
           ...(config?.styles?.map(
-            ({ href }) =>
-              new Element("link", { rel: "preload", href, as: "style" }),
+            ({ id }) =>
+              new Element("link", { rel: "preload", href: `/${RESOURCES_PATH}/${id}.css`, as: "style" }),
           ) || []),
           ...(config?.styles?.map(
-            ({ href }) => new Element("link", { rel: "stylesheet", href }),
+            ({ id }) => new Element("link", { rel: "stylesheet", href: `/${RESOURCES_PATH}/${id}.css` }),
           ) || []),
         ),
         new Element("body", {}, body),
@@ -230,7 +223,18 @@ function javascript(page, code, props) {
 function cascadingStyleSheets(page) {
   const css = page.cache.get("css");
   if (css) return css;
-  return page.cache.set("css", Object.values(page.styles || {}).join(IS_DEV ? "\n" : " "));
+  const len = page.styles.length;
+  if (len == 0) return page.cache.set("css", null);
+  let stylesheet = "";
+  for (let i = 0; i < len; i++) stylesheet += `[scope-${page.styles[i]}] { ${page.resources[page.styles[i] + ".css"] || ""} }${IS_DEV ? "\n" : " "}`;
+  stylesheet = sass.compileString(stylesheet, { style: "compressed" }).css;
+  const matches = stylesheet.match(new RegExp(`\\[scope-[^\\]]*\\] [^\\s]+(:root|:scope|:scoped)\\b`, "g"));
+  for (let i = 0, len = matches?.length || 0; i < len; i++)
+    stylesheet = stylesheet.replace(matches[i], m => {
+      const [scope, query] = m.split(/ (.+)/);
+      return query.replace(/:root|:scope|:scoped/g, scope);
+    });
+  return page.cache.set("css", stylesheet);
 }
 
 function configs(page) {

@@ -18,7 +18,6 @@ export default class extends DefaultCLI {
     this.register(fs.resolve(dirname, "./loaders/jsx.js"), "*", ["jsx", "mjsx", "cjsx", "tsx", "mtsx", "ctsx"], true);
     this.register(fs.resolve(dirname, "./loaders/api.js"), "api", ["js", "mjs", "cjs", "ts", "mts", "cts"]);
     this.register(fs.resolve(dirname, "./loaders/style.js"), "*", ["css", "sass", "scss"]);
-    this.register(fs.resolve(dirname, "./loaders/style.js"), "config", ["css", "sass", "scss"]);
     this.register(fs.resolve(dirname, "./loaders/template.js"), "template");
     this.define("browser", {
       mount: async (filepath, options) => {
