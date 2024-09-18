@@ -34,7 +34,7 @@
     "http-proxy": "^1.18.1",
     "mime": "^4.0.4",
     "postcss": "^8.4.47",
-    "sass": "^1.78.0",
+    "sass": "^1.79.1",
     "socket.io": "^4.7.5",
     "socket.io-client": "^4.7.5"
   },
