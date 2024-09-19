@@ -656,7 +656,7 @@ class Server {
           return response.send(resource, mime.getType(request.url) || "application/octet-stream");
       }
       else {
-        const route = matchRoute(this.#subdomains[request.subdomain][method], request.url);
+        const route = matchRoute(this.#subdomains[request.subdomain]?.[method], request.url);
         if (route) {
           request.params = {};
           route.params.forEach((param, index) => request.params[param] = route.match[index + 1]);
@@ -777,6 +777,7 @@ function combinePathnames(basePathname, relativePathname) {
 }
 
 function send(request, response, code, content, type = "text/plain") {
+  if (fs.isAbsolute(content)) content = fs.readFileSync(content);
   const acceptEncoding = request.headers["accept-encoding"];
   const headers = {
     "X-DNS-Prefetch-Control": "off",
