@@ -15,7 +15,6 @@ export {
 } from "./core/classes";
 export { route } from "./core/router";
 export { socket } from "./core/socket";
-export { isBrowser } from "./utils/index";
 export {
   default as Controller,
   Copy,

@@ -11,9 +11,15 @@ import {
   Safe,
   Form,
 } from "./classes.js";
-import { isBrowser, capitalize } from "../utils/index.js";
+import { capitalize } from "../utils/index.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
+class VirtualDomError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "VirtualDomError";
+  }
+}
 
 export default class VirtualDom {
   node = document.body;
@@ -24,7 +30,7 @@ export default class VirtualDom {
       const type = typeof mutations;
       let node = {};
       if (type === "function") node.callback = mutations;
-      else if (type !== "object") throw "Internal Error #003";
+      else if (type !== "object") throw new VirtualDomError("Internal Error #003");
       else node.iterator = mutations[Symbol.iterator]();
       this.first ||= node;
       if (this.last) this.last.next = node;
@@ -159,7 +165,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
         setAttribute(virtualNode.node, keys[i], prop());
       } else setAttribute(virtualNode.node, keys[i], prop);
     }
-    if (element.ref instanceof Mutation) throw "Internal Error #001";
+    if (element.ref instanceof Mutation) throw new VirtualDomError("Internal Error #001");
     if (typeof element.ref === "function") element.ref(virtualNode.node);
     else if (element.ref instanceof Ref) element.ref.node = virtualNode.node;
     virtualNode.children = [];
@@ -225,7 +231,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
     if (element.component === Suspense) {
       if (element.props.fallback) {
         element.children = [element.props.fallback];
-        if (isBrowser()) {
+        if (!window.isServer) {
           context.suspense = virtualNode.component;
           const fragment = {
             node: virtualDom.createDocumentFragment(),
@@ -294,7 +300,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
             configurable: false,
             enumerable: true,
             get: () => {
-              if (!isBrowser()) return value;
+              if (window.isServer) return value;
               if (status === "completed") {
                 /* Do Nothing */
               } else if (status === "pending") {
@@ -403,7 +409,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
       { ...context },
       referenceNode
     );
-  if (element.type === Component.Node && isBrowser())
+  if (element.type === Component.Node && !window.isServer)
     virtualNode.component.onConnect?.();
 
   return virtualNode;
@@ -423,7 +429,7 @@ function update(virtualDom, virtualNode, props, children) {
           setAttribute(virtualNode.node, keys[i], prop());
         else setAttribute(virtualNode.node, keys[i], prop);
       }
-    } else throw "Internal Error #002";
+    } else throw new VirtualDomError("Internal Error #002");
   }
 
   const previousChildren = virtualNode.children ? [...virtualNode.children] : [];
@@ -640,7 +646,7 @@ function diff(element, index, previous) {
 }
 
 function setMutation(virtualDom, mutation, context, callback) {
-  if (!isBrowser()) return;
+  if (window.isServer) return;
   if (context.safe) {
     const originalCallback = callback;
     callback = () => {

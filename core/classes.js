@@ -1,5 +1,4 @@
 import {
-  system,
   encode,
   decode,
   stringify,
@@ -8,7 +7,7 @@ import {
   camelCaseToKebabCase,
   isPromise,
   FunctionClass,
-  isBrowser,
+  defineReadonly,
 } from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
@@ -16,7 +15,7 @@ export const Fragment = Symbol("Fragment");
 export const TextNode = Symbol("TextNode");
 const ComponentNode = Symbol("Component");
 const DEFAULT_ERROR_MESSAGE = (() => {
-  if (!isBrowser()) return;
+  if (window.isServer) return;
   const inputElement = document.createElement("input");
   inputElement.type = "text";
   inputElement.required = true;
@@ -631,19 +630,19 @@ export class Form extends Component {
 
 // Global
 
-system.set("_Fragment", Fragment);
-system.set("_Style", (id, code) => new Proxy({ ["scope-" + id]: true }, {
+defineReadonly(window, "_Fragment", Fragment);
+defineReadonly(window, "_Style", (id, code) => new Proxy({ ["scope-" + id]: true }, {
   get(target, prop) {
     if (prop === "id") return id;
     if (prop === "code") return code;
-    if (!isBrowser() && prop.startsWith("scope-"))
-      system.get("page")?.styles?.push(id);
+    if (window.isServer && prop.startsWith("scope-"))
+      window._page?.styles?.push(id);
     return target[prop];
   }
 }));
-system.set("_Prop", (caller) => new Mutation(caller));
-system.set("_Child", (caller) => new Mutation(caller));
-system.set("_Element", (id, ...args) => {
+defineReadonly(window, "_Prop", (caller) => new Mutation(caller));
+defineReadonly(window, "_Child", (caller) => new Mutation(caller));
+defineReadonly(window, "_Element", (id, ...args) => {
   const element = new Element(...args);
   element.id = id;
   return element;

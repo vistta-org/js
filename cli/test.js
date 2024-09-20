@@ -4,15 +4,16 @@ import puppeteer from 'puppeteer';
 import { randomBytes } from 'crypto';
 import { sleep } from "@vistta/utils";
 import { URL } from "node:url";
-import Server from "../server/index.js";
+import { setupServerEnvironment } from "../utils/index.js";
 
-const DEFAULT_PORT = 12345;
+const DEFAULT_PORT = 1246;
 const dirname = fs.dirname(import.meta.url);
-let server;
+const server = {};
 
 export default class extends DefaultCLI {
   constructor(options) {
     super(options);
+    this.define("window", setupServerEnvironment(global));
     this.register(fs.resolve(dirname, "./loaders/file.js"), "*");
     this.register(fs.resolve(dirname, "./loaders/file.js"), "reader");
     this.register(fs.resolve(dirname, "./loaders/jsx.js"), "*", ["jsx", "mjsx", "cjsx", "tsx", "mtsx", "ctsx"], true);
@@ -21,9 +22,9 @@ export default class extends DefaultCLI {
     this.register(fs.resolve(dirname, "./loaders/template.js"), "template");
     this.define("browser", {
       mount: async (filepath, options) => {
-        if (!server) server = new Server({ http: DEFAULT_PORT, strict: false, start: true });
+        await startServer();
         const id = randomBytes(6).toString('hex');
-        await server.use(id, "/", fs.resolve(process.cwd(), filepath));
+        await server.instance.use(id, "/", fs.resolve(process.cwd(), filepath));
         return await page(`http://${id}.localhost:${DEFAULT_PORT}/`, options);
       },
       open: async (url, options) => {
@@ -31,6 +32,21 @@ export default class extends DefaultCLI {
       }
     });
   }
+}
+
+async function startServer() {
+  if (server.status === "ready") return;
+  if (server.status === "loading") {
+    const awaitStatus = (resolve) => {
+      if (server.status === "ready") resolve();
+      else setTimeout(() => awaitStatus(resolve), 100);
+    }
+    return new Promise(awaitStatus);
+  }
+  server.status = "loading";
+  const Server = (await import(fs.resolve(dirname, "../server/index.js"))).default;
+  server.instance = new Server({ http: DEFAULT_PORT, strict: false, start: true });
+  server.status = "ready";
 }
 
 async function page(url, options) {
@@ -48,6 +64,7 @@ async function page(url, options) {
     else return await element(page, selector, arg1);
   };
   page.wait = async (delay) => await sleep(delay);
+  page.press = async (selector, key, options) => await (await element(page, selector)).press(key, options);
   page.type = async (selector, text, options) =>
     await (await element(page, selector)).type(text, options);
   page.location = async () => new URL(await page.url());

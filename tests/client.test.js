@@ -1,4 +1,4 @@
-import { TIMEOUT, TEXT_VALUE, TEXT_UPDATE_VALUE, FALLBACK_VALUE, LOADING_VALUE, LOADED_VALUE, SIZE } from "./defaults.js";
+import { TIMEOUT, TEXT_VALUE, TEXT_UPDATE_VALUE, FALLBACK_VALUE, LOADING_VALUE, LOADED_VALUE, URL, SIZE } from "./defaults.js";
 
 const TIMEOUT_WITH_DELAY = TIMEOUT * 1.1;
 
@@ -23,6 +23,18 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(await output.get("innerText")).toEqual(TEXT_VALUE);
     await input.type(TEXT_UPDATE_VALUE, { clear: true });
     expect(await output.get("innerText")).toEqual(TEXT_UPDATE_VALUE);
+  });
+
+  test("Basic: Function Component", async () => {
+    const page = await browser.mount("./components/basic/functionComponent.jsx");
+    const output = await page.get("#output", { wait: true });
+
+    expect(await page.get("#input", "value")).toEqual(TEXT_VALUE);
+    expect(await output.get("innerText")).toEqual("0");
+    await (await page.get("#increment")).click();
+    expect(await output.get("innerText")).toEqual("1");
+    await (await page.get("#decrement")).click();
+    expect(await output.get("innerText")).toEqual("0");
   });
 
   test("Basic: Conditional Render", async () => {
@@ -83,6 +95,43 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(await output.get("innerText")).toEqual(TEXT_UPDATE_VALUE + "/");
     await page.wait(TIMEOUT_WITH_DELAY);
     expect(await output.get("innerText")).toEqual(TEXT_UPDATE_VALUE + "/" + TEXT_UPDATE_VALUE);
+  });
+
+  test("Basic: Component Lifecycle", async () => {
+    const page = await browser.mount("./components/basic/componentLifecycle.jsx");
+    const output = await page.get("#output", { wait: true });
+
+    expect(await output.get("innerText")).toEqual("");
+    await page.click("#toggle");
+    expect(await output.get("innerText")).toEqual("connected");
+    await page.click("#toggle");
+    expect(await output.get("innerText")).toEqual("disconnected");
+    await page.click("#toggle");
+    expect(await output.get("innerText")).toEqual("connected");
+    await page.click("#toggle");
+    expect(await output.get("innerText")).toEqual("disconnected");
+  });
+
+  test("Style", async () => {
+    const page = await browser.mount("./components/style.jsx");
+    const target = await (await page.get("#target", { wait: true })).boundingBox();
+    expect(target.height).toEqual(SIZE);
+    expect(target.width).toEqual(SIZE);
+  });
+
+  test("Router", async () => {
+    const page = await browser.mount("./components/router.jsx");
+    const output = "#output";
+
+    expect(await page.get(output, "innerText")).toEqual((await page.location()).pathname);
+    await page.click("#update");
+    expect(await page.get(output, "innerText")).toEqual("1");
+    await page.click("#refresh");
+    expect(await page.get(output, "innerText")).toEqual((await page.location()).pathname);
+    await page.click("#update");
+    expect(await page.get(output, "innerText")).toEqual("1");
+    await page.click("#navigate");
+    expect(await page.url()).toEqual(URL);
   });
 
   test("Ref", async () => {
@@ -214,6 +263,37 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(await counter.get("innerText")).toEqual("3");
   });
 
+  test("Render.If", async () => {
+    const page = await browser.mount("./components/render/if.jsx");
+    await page.get("#toggle", { wait: true });
+
+    expect(await page.get("#output")).toEqual(null);
+    await page.click("#toggle");
+    expect(await page.get("#output", "innerText")).toEqual(TEXT_UPDATE_VALUE);
+    await page.click("#toggle");
+    expect(await page.get("#output")).toEqual(null);
+  });
+
+  test("Render.Each", async () => {
+    const page = await browser.mount("./components/render/each.jsx");
+    await page.get("#toggle", { wait: true });
+
+    expect(await page.get("#list > input:first-child", "value")).toEqual("1");
+    expect(await page.get("#list > input:last-child", "value")).toEqual("5");
+    expect(await page.get("#object > input:first-child", "value")).toEqual("1: " + TEXT_UPDATE_VALUE[1]);
+    expect(await page.get("#object > input:last-child", "value")).toEqual("5: " + TEXT_UPDATE_VALUE[5]);
+    await page.click("#toggle");
+    expect(await page.get("#list > input:first-child", "value")).toEqual("5");
+    expect(await page.get("#list > input:last-child", "value")).toEqual("1");
+    expect(await page.get("#object > input:first-child", "value")).toEqual("1: " + TEXT_UPDATE_VALUE[5]);
+    expect(await page.get("#object > input:last-child", "value")).toEqual("5: " + TEXT_UPDATE_VALUE[1]);
+    await page.click("#toggle");
+    expect(await page.get("#list > input:first-child", "value")).toEqual("1");
+    expect(await page.get("#list > input:last-child", "value")).toEqual("5");
+    expect(await page.get("#object > input:first-child", "value")).toEqual("1: " + TEXT_UPDATE_VALUE[1]);
+    expect(await page.get("#object > input:last-child", "value")).toEqual("5: " + TEXT_UPDATE_VALUE[5]);
+  });
+
   test("Profiler", async () => {
     const page = await browser.mount("./components/profiler.jsx");
     const output = await page.get("#output", { wait: true });
@@ -225,10 +305,76 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(parseFloat(await output.get("innerText")) > 0).toEqual(true);
   });
 
-  test("Style", async () => {
-    const page = await browser.mount("./components/style.jsx");
-    const target = await (await page.get("#target", { wait: true })).boundingBox();
-    expect(target.height).toEqual(SIZE);
-    expect(target.width).toEqual(SIZE);
+  test("Form: Basic", async () => {
+    const page = await browser.mount("./components/form/basic.jsx");
+    const output = await page.get("#output", { wait: true });
+
+    expect(await output.get("innerText")).toEqual("");
+    const email = "hello@world.com";
+    await page.type("#input", email, { clear: true, submit: false });
+    await page.click("#submit");
+    expect(await output.get("innerText")).toEqual(email);
+  });
+
+  test("Form: Actions", async () => {
+    const page = await browser.mount("./components/form/actions.jsx");
+    const output = await page.get("#output", { wait: true });
+    expect(await output.get("innerText")).toEqual("0");
+
+    await page.click("#toggle");
+    await page.press("#input", "ArrowUp");
+    expect(await output.get("innerText")).toEqual("0");
+    await page.click("#values");
+    expect(await page.get("#value", "innerText")).toEqual("1");
+
+    await page.click("#watch");
+    await page.press("#input", "ArrowUp");
+    expect(await output.get("innerText")).toEqual("2");
+    await page.click("#unwatch");
+    await page.press("#input", "ArrowUp");
+    expect(await output.get("innerText")).toEqual("2");
+
+    await page.click("#clear");
+    expect(await output.get("innerText")).toEqual("2");
+    await page.click("#reset");
+    expect(await output.get("innerText")).toEqual("2");
+
+    await page.click("#watch");
+    await page.press("#input", "ArrowUp");
+    expect(await output.get("innerText")).toEqual("1");
+    await page.click("#clear");
+    expect(await output.get("innerText")).toEqual("");
+    await page.click("#reset");
+    expect(await output.get("innerText")).toEqual("0");
+
+    await page.click("#validate");
+    expect(await page.get("#validation", "innerText")).toEqual("valid");
+
+    await page.press("#input", "ArrowUp");
+    const submitted = await page.get("#submitted", { wait: true });
+    expect(await submitted.get("innerText")).toEqual("");
+    await page.click("#submit");
+    expect(await submitted.get("innerText")).toEqual("1");
+  });
+
+  test("Form: Validation", async () => {
+    const page = await browser.mount("./components/form/validation.jsx");
+    const output = await page.get("#output", { wait: true });
+    expect(await output.get("innerText")).toEqual("");
+
+    await page.click("#submit");
+    expect(await output.get("innerText")).toEqual("");
+
+    await page.type("#name", "name");
+    await page.click("#submit");
+    expect(await output.get("innerText")).toEqual("invalid");
+
+    await page.type("#email", "email@mail.com");
+    await page.click("#submit");
+    expect(await output.get("innerText")).toEqual("invalid");
+
+    await page.type("#password", "987654321");
+    await page.click("#submit");
+    expect(await output.get("innerText")).toEqual("valid");
   });
 });

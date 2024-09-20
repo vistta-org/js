@@ -12,9 +12,9 @@ import {
   Form,
 } from "../classes";
 import { route } from "./router";
-import { system, isBrowser } from "../../utils";
+import { defineReadonly } from "../../utils";
 
-system.set("vistta", {
+defineReadonly(window, "vistta", {
   Fragment,
   Element,
   Context,
@@ -33,6 +33,5 @@ system.set("vistta", {
     on() {
       console.warn("Socket is not available on built apps.");
     },
-  },
-  isBrowser,
+  }
 });

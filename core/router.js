@@ -1,6 +1,6 @@
 import VirtualDom from "./dom";
 import { Element } from "./classes";
-import { isValidUrl, system } from "../utils";
+import { isValidUrl } from "../utils";
 
 let dom;
 const route = typeof process === "undefined" ? document.body : {};
@@ -24,8 +24,8 @@ Object.defineProperties(route, {
       dom?.remove?.();
       if (initial || refresh || !cached) {
         const appHref = pathname + (pathname.endsWith("/") ? "" : "/") + "page";
-        if (!initial)
-          document.querySelector("link#app-style").href = appHref + ".css";
+        const style = !initial && document.querySelector("link#page-style");
+        if (style) style.href = appHref + ".css";
         const {
           default: app,
           config,
@@ -67,10 +67,7 @@ Object.defineProperties(route, {
     },
   },
   location: {
-    get: () => {
-      if (typeof process !== "undefined") return system.get("page.location");
-      return window.location;
-    },
+    get: () => window._page?.location ?? window.location,
   },
   emit: {
     value: (event, details) =>
@@ -87,9 +84,9 @@ Object.defineProperties(route, {
   },
 });
 
-system.addEventListener("click", handleClick);
-system.addEventListener("popstate", () => route.navigate({ pushState: false }));
-system.addEventListener(
+window.addEventListener("click", handleClick);
+window.addEventListener("popstate", () => route.navigate({ pushState: false }));
+window.addEventListener(
   "load",
   () => (handlerServiceWorker(), route.navigate({ initial: true })),
 );

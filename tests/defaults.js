@@ -5,3 +5,4 @@ export const FALLBACK_VALUE = "Fallback!";
 export const LOADING_VALUE = "loading";
 export const LOADED_VALUE = "loaded";
 export const SIZE = 20;
+export const URL = "https://www.lipsum.com/";

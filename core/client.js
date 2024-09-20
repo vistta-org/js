@@ -13,9 +13,9 @@ import {
 } from "./classes";
 import { route } from "./router";
 import { socket } from "./socket";
-import { system, isBrowser } from "../utils";
+import { defineReadonly } from "../utils/index.js";
 
-system.set("vistta", {
+defineReadonly(window, "vistta", {
   Fragment,
   Element,
   Context,
@@ -28,5 +28,4 @@ system.set("vistta", {
   Form,
   route,
   socket,
-  isBrowser,
 });

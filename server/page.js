@@ -1,22 +1,8 @@
 import fs from "@vistta/fs";
-import * as sass from "sass";
+import { compileStringAsync as compileSassString } from 'sass-embedded';
 import { Element, renderToString } from "./dom.js";
-import { RESOURCES_PATH, system, stringify } from "../utils/index.js";
+import { RESOURCES_PATH, stringify } from "../utils/index.js";
 
-system.set("document", { scripts: [] });
-system.set("HTMLElement", class { });
-system.set("localStorage", {
-  setItem: () => null,
-  getItem: () => undefined,
-  removeItem: () => null,
-  clear: () => null,
-});
-system.set("sessionStorage", {
-  setItem: () => null,
-  getItem: () => undefined,
-  removeItem: () => null,
-  clear: () => null,
-});
 const dirname = fs.dirname(import.meta.url);
 const IS_DEV = process.env.NODE_ENV === "development";
 
@@ -48,12 +34,12 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
   };
   if (errors?.length) throw new Error(errors[0]);
   if (!code || code === "") throw new Error("Unexpected Bundler Error");
-  page.html = (request, props, build) => {
+  page.html = async (request, props, build) => {
     page.location = new URL(request.url, request.headers.referer || `http://${request.headers.host}/`)
-    return html(page, props, build)
+    return await html(page, props, build)
   };
-  page.js = (_, props) => javascript(page, code, props);
-  page.css = (_, props) => cascadingStyleSheets(page, props);
+  page.js = async (_, props) => await javascript(page, code, props);
+  page.css = async (_, props) => await cascadingStyleSheets(page, props);
   page.middleware = (next) => (request, response) => {
     if (middleware) return middleware(request, next.bind(null, request, response), response.reject);
     if (page.inherited.middleware) return page.inherited.middleware.middleware(request, next.bind(null, request, response), response.reject);
@@ -62,18 +48,18 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
   return page;
 }
 
-function html(page, props, build) {
+async function html(page, props, build) {
   const key = stringify(props);
   const html = page.cache.get("html." + key);
   const pathname = build ? page.pathname : page.location?.pathname;
   if (html) return html;
-  system.set("page", page);
+  window._page = page;
   let body;
   if (page.inherited.layout) body = renderToString(new Element(page.inherited.layout.layout.component, {}, new Element(page.content, props)));
   else body = renderToString(new Element(page.content, props));
-  system.set("page", null);
+  window._page = null;
   page.cache.reset("css");
-  const stylesheet = cascadingStyleSheets(page) ? `.${pathname + (pathname.endsWith("/") ? "" : "/")}${build ? "style.css" : "page.css"}` : null;
+  const stylesheet = await cascadingStyleSheets(page) ? `.${pathname + (pathname.endsWith("/") ? "" : "/")}${build ? "style.css" : "page.css"}` : null;
   const config = configs(page);
   return page.cache.set("html." + key,
     "<!doctype html>\n" +
@@ -197,7 +183,7 @@ function html(page, props, build) {
   );
 }
 
-function javascript(page, code, props) {
+async function javascript(page, code, props) {
   const key = stringify(props);
   const js = page.cache.get("js." + key);
   if (js) return js;
@@ -220,14 +206,14 @@ function javascript(page, code, props) {
   return page.cache.set("js." + key, script.join(IS_DEV ? "\n" : " "));
 }
 
-function cascadingStyleSheets(page) {
+async function cascadingStyleSheets(page) {
   const css = page.cache.get("css");
   if (css) return css;
   const len = page.styles.length;
   if (len == 0) return page.cache.set("css", null);
   let stylesheet = "";
   for (let i = 0; i < len; i++) stylesheet += `[scope-${page.styles[i]}] { ${page.resources[page.styles[i] + ".css"] || ""} }${IS_DEV ? "\n" : " "}`;
-  stylesheet = sass.compileString(stylesheet, { style: "compressed" }).css;
+  stylesheet = (await compileSassString(stylesheet, { style: "compressed" })).css;
   const matches = stylesheet.match(new RegExp(`\\[scope-[^\\]]*\\] [^\\s]+(:root|:scope|:scoped)\\b`, "g"));
   for (let i = 0, len = matches?.length || 0; i < len; i++)
     stylesheet = stylesheet.replace(matches[i], m => {

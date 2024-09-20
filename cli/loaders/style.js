@@ -1,7 +1,7 @@
 import fs from "@vistta/fs";
 import { RESOURCES_PATH, stringify, parse } from "../../utils/index.js";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import * as sass from "sass";
+import { compileStringAsync as compileSassString, SassBoolean, SassNumber, SassString, SassColor } from 'sass-embedded';
 import postcss from "postcss";
 import autoprefixer from "autoprefixer";
 
@@ -10,7 +10,7 @@ export async function load(source, { path, bundler }) {
     const dirname = fs.dirname(path);
     const id = fs.fileId(path);
     const hash = id + ".css";
-    const { code, resources, files } = transform(
+    const { code, resources, files } = await transform(
       source,
       dirname,
       fs.resolve(process.cwd(), "node_modules"),
@@ -28,9 +28,9 @@ export async function load(source, { path, bundler }) {
 
 //
 
-function transform(code, dirname, node_modules, params = {}) {
+async function transform(code, dirname, node_modules, params = {}) {
   const resources = [];
-  const compiled = sass.compileString(loadResources(dirname, code, resources), {
+  const compiled = await compileSassString(loadResources(dirname, code, resources), {
     style: "compressed",
     loadPaths: [dirname, node_modules],
     silenceDeprecations: ["mixed-decls"],
@@ -71,7 +71,7 @@ function transform(code, dirname, node_modules, params = {}) {
   });
   return {
     code:
-      postcss([autoprefixer()]).process(compiled?.css || "", {
+      postcss([autoprefixer()]).process(compiled.css || "", {
         from: undefined,
       })?.css || "",
     resources,
@@ -95,15 +95,15 @@ function convertToSass(input, fallback) {
   if (!input || input.length == 0) return fallback;
   switch (typeof input) {
     case "boolean":
-      return new sass.SassBoolean(input);
+      return new SassBoolean(input);
     case "number":
-      return new sass.SassNumber(input);
+      return new SassNumber(input);
     case "string":
       if (/^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(input)) {
         const color = [...input.matchAll(/([0-9A-Fa-f]{2})/g)].map(
           (match) => match[1],
         );
-        return new sass.SassColor({
+        return new SassColor({
           red: parseInt(color[0], 16),
           green: parseInt(color[1], 16),
           blue: parseInt(color[2], 16),
@@ -120,14 +120,14 @@ function convertToSass(input, fallback) {
             /rgba?\((\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*,?\s*(\d*\.?\d+)?\s*)\)/,
           )[1]
           .split(",");
-        return new sass.SassColor({
+        return new SassColor({
           red: parseInt(color[0] || 255),
           green: parseInt(color[1] || 255),
           blue: parseInt(color[2] || 255),
           alpha: parseInt(color[3] || 255),
         });
       }
-      return new sass.SassString(input);
+      return new SassString(input);
     default:
       return fallback;
   }

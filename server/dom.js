@@ -1,10 +1,5 @@
 import Dom from "../core/dom.js";
 import { Element } from "../core/classes.js";
-import { system } from "../utils/index.js";
-
-system.set("MutationObserver", class { });
-system.set("IntersectionObserver", class { });
-system.set("ResizeObserver", class { });
 
 class ServerDom extends Dom {
   constructor() {

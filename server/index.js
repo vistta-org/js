@@ -432,10 +432,10 @@ class Server {
           this.#resources[subdomain]["/" + RESOURCES_PATH + "/" + resourceKeys[i2]] = page.resources[resourceKeys[i2]];
         this.#register("page", subdomain, ensureEndsWith(pathname, "/"), page);
         if (page.config) set.config(pathname, filepath, page.config);
-        this.#register("get", subdomain, ensureEndsWith(pathname, "/") + "page.js", page.middleware((req, res, props = {}) => res.send(page.js(req, props), "text/javascript")));
-        this.#register("get", subdomain, ensureEndsWith(pathname, "/") + "page.css", page.middleware((req, res, props = {}) => res.send(page.css(req, props), "text/css")));
-        if (type === "error") return this.#register("error", subdomain, pathname, (req, res, message, code) => send(req, res, code, page.html(req, { message, code }), "text/html"));
-        this.#register("get", subdomain, pathname, page.middleware((req, res, props = {}) => res.send(page.html(req, props), "text/html")));
+        this.#register("get", subdomain, ensureEndsWith(pathname, "/") + "page.js", page.middleware((req, res, props = {}) => page.js(req, props).then(js => res.send(js, "text/javascript"))));
+        this.#register("get", subdomain, ensureEndsWith(pathname, "/") + "page.css", page.middleware((req, res, props = {}) => page.css(req, props).then(css => res.send(css, "text/css"))));
+        if (type === "error") return this.#register("error", subdomain, pathname, (req, res, message, code) => page.html(req, { message, code }).then(html => send(req, res, code, html, "text/html")));
+        this.#register("get", subdomain, pathname, page.middleware((req, res, props = {}) => page.html(req, props).then(html => res.send(html, "text/html"))));
         callback(null, { message: "page ready", subdomain, pathname });
       }
     }
@@ -777,8 +777,10 @@ function combinePathnames(basePathname, relativePathname) {
 }
 
 function send(request, response, code, content, type = "text/plain") {
-  if (fs.isAbsolute(content)) content = fs.readFileSync(content);
   const acceptEncoding = request.headers["accept-encoding"];
+  let useCache = false;
+  if (fs.isAbsolute(content)) content = fs.readFileSync(content), useCache = true;
+  else if (type === "text/javascript" && type === "text/css") useCache = true;
   const headers = {
     "X-DNS-Prefetch-Control": "off",
     "Expect-CT": "max-age=86400, enforce",
@@ -790,7 +792,8 @@ function send(request, response, code, content, type = "text/plain") {
     "X-Permitted-Cross-Domain-Policies": "none",
     "Referrer-Policy": "no-referrer",
     "X-XSS-Protection": "1; mode=block",
-    "Content-Type": type
+    "Content-Type": type,
+    "Cache-Control": process.env.NODE_ENV === "production" && useCache ? "public, max-age=31536000" : "no-cache, no-store, must-revalidate",
   };
 
   if (!request.headers["x-no-compression"] && acceptEncoding && compressible(type)) {
