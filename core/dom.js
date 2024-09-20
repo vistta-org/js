@@ -160,10 +160,10 @@ function render(virtualDom, parent, element, context, referenceNode) {
       const prop = element.props[keys[i]];
       if (prop instanceof Mutation) {
         setMutation(virtualDom, prop, context, () =>
-          setAttribute(virtualNode.node, keys[i], prop())
+          setAttribute(virtualNode.node, keys[i], prop(), getPropValue(element.props.disabled) || getPropValue(element.props.readOnly))
         );
-        setAttribute(virtualNode.node, keys[i], prop());
-      } else setAttribute(virtualNode.node, keys[i], prop);
+        setAttribute(virtualNode.node, keys[i], prop(), getPropValue(element.props.disabled) || getPropValue(element.props.readOnly));
+      } else setAttribute(virtualNode.node, keys[i], prop, getPropValue(element.props.disabled) || getPropValue(element.props.readOnly));
     }
     if (element.ref instanceof Mutation) throw new VirtualDomError("Internal Error #001");
     if (typeof element.ref === "function") element.ref(virtualNode.node);
@@ -426,8 +426,8 @@ function update(virtualDom, virtualNode, props, children) {
       for (let i = 0, len = keys.length; i < len; i++) {
         const prop = props[keys[i]];
         if (prop instanceof Mutation)
-          setAttribute(virtualNode.node, keys[i], prop());
-        else setAttribute(virtualNode.node, keys[i], prop);
+          setAttribute(virtualNode.node, keys[i], prop(), getPropValue(props.disabled) || getPropValue(props.readOnly));
+        else setAttribute(virtualNode.node, keys[i], prop, getPropValue(props.disabled) || getPropValue(props.readOnly));
       }
     } else throw new VirtualDomError("Internal Error #002");
   }
@@ -668,9 +668,9 @@ function ensureArray(children) {
   return children;
 }
 
-function setAttribute(node, name, value) {
+function setAttribute(node, name, value, disabledOrReadOnly) {
   if (name === "validator" && typeof value === "function") return;
-  if (/^on\w.*/.test(name) && typeof value === "function") {
+  if (!disabledOrReadOnly && /^on\w.*/.test(name) && typeof value === "function") {
     node[name.toLowerCase()] = (event, ...args) => {
       try {
         event.stritMode = () => {
@@ -714,4 +714,9 @@ function traverseVirtualNodes(node, callback) {
   for (let i = 0, len = node?.children?.length || 0; i < len; i++)
     traverseVirtualNodes(node.children[i], callback);
   callback(node);
+}
+
+function getPropValue(prop) {
+  if (prop instanceof Mutation) return prop();
+  return prop;
 }
