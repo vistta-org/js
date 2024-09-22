@@ -8,6 +8,7 @@ import {
   isPromise,
   FunctionClass,
   defineReadonly,
+  RESOURCES_PATH,
 } from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
@@ -23,6 +24,7 @@ const DEFAULT_ERROR_MESSAGE = (() => {
 })();
 
 export class Element {
+
   constructor(type, props, ...children) {
     this.props = props || {};
     this.children = children;
@@ -635,8 +637,16 @@ defineReadonly(window, "_Style", (id, code) => new Proxy({ ["scope-" + id]: true
   get(target, prop) {
     if (prop === "id") return id;
     if (prop === "code") return code;
-    if (window.isServer && prop.startsWith("scope-"))
-      window._page?.styles?.push(id);
+    if (prop.startsWith("scope-")) {
+      if (window.isServer) window._page?.styles?.push({ id });
+      else if (!document.querySelector(`link[scope-${id}]`)) {
+        const style = document.createElement("link");
+        style.setAttribute("rel", "stylesheet");
+        style.setAttribute("href", `/${RESOURCES_PATH}/${id}.scoped.css`);
+        style.setAttribute(`scope-${id}`, "");
+        document.head.appendChild(style);
+      }
+    }
     return target[prop];
   }
 }));

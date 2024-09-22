@@ -3,6 +3,10 @@ import { INVALID_EVENT_NAME, convertToEventName } from "../utils";
 class Socket {
   #instance;
 
+  /**
+   * Gets the current router pathname.
+   * @returns {string} The current pathname.
+   */
   get href() {
     return this.router.pathname;
   }
@@ -21,6 +25,11 @@ class Socket {
         });
   }
 
+  /**
+   * Emits an event to the socket.
+   * @param {string} event - The event name.
+   * @param {...any} args - The arguments to pass with the event.
+   */
   emit(event, ...args) {
     event = convertToEventName(event);
     if (!event) return console.warn(INVALID_EVENT_NAME);
@@ -28,6 +37,11 @@ class Socket {
     this.#instance.emit(event, ...args);
   }
 
+  /**
+   * Registers an event listener on the socket.
+   * @param {string} event - The event name.
+   * @param {Function} callback - The callback function to execute when the event is triggered.
+   */
   on(event, callback) {
     event = convertToEventName(event);
     if (!event) return console.warn(INVALID_EVENT_NAME);

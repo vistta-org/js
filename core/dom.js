@@ -690,7 +690,7 @@ function setAttribute(node, name, value, disabledOrReadOnly) {
     for (let i = 0, len = keys.length || 0; i < len; i++)
       node.style.setProperty(keys[i], value[keys[i]]);
   } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
-  if (name === "id") node.style.setProperty("anchor-name", `--${value}`);
+  if (!window.isServer && name === "id" && value) node.style.setProperty("anchor-name", `--${value}`);
   if (name === "anchor")
     node.style.setProperty("position-anchor", `--${value}`);
 }

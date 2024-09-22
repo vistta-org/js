@@ -5,9 +5,10 @@ import mime from "mime";
 import compressible from "compressible";
 import zlib from "zlib";
 import proxy from "http-proxy";
+import { URL } from "url";
 import { EventEmitter } from "node:events";
 import { Server as SocketIO } from "socket.io";
-import { createPage, importCoreResources } from "./page.js";
+import { createPage, importCoreResources, createScopeStyle } from "./page.js";
 import { default as Controller, Method } from "./controller.js";
 import { RESOURCES_PATH, INVALID_EVENT_NAME, convertToEventName, async, isIPAddress, stringify, ensureEndsWith, assign } from "../utils/index.js";
 
@@ -433,7 +434,6 @@ class Server {
         this.#register("page", subdomain, ensureEndsWith(pathname, "/"), page);
         if (page.config) set.config(pathname, filepath, page.config);
         this.#register("get", subdomain, ensureEndsWith(pathname, "/") + "page.js", page.middleware((req, res, props = {}) => page.js(req, props).then(js => res.send(js, "text/javascript"))));
-        this.#register("get", subdomain, ensureEndsWith(pathname, "/") + "page.css", page.middleware((req, res, props = {}) => page.css(req, props).then(css => res.send(css, "text/css"))));
         if (type === "error") return this.#register("error", subdomain, pathname, (req, res, message, code) => page.html(req, { message, code }).then(html => send(req, res, code, html, "text/html")));
         this.#register("get", subdomain, pathname, page.middleware((req, res, props = {}) => page.html(req, props).then(html => res.send(html, "text/html"))));
         callback(null, { message: "page ready", subdomain, pathname });
@@ -620,12 +620,12 @@ class Server {
     response.send = (content, type) => (
       typeof content === "object" ? send(request, response, response.code, stringify(content), type || "application/json") : send(request, response, response.code, content, type)
     );
-    const route = matchRoute(this.#subdomains[request.subdomain]?.error, request.url);
+    const route = matchRoute(this.#subdomains[request.subdomain]?.error, request.url.pathname);
     if (route) return route.handler(request, response);
     send(request, response, response?.code, response?.message);
   }
 
-  #handler(request, response) {
+  async #handler(request, response) {
     if (request.url.endsWith("/") && request.url !== "/") {
       response.writeHead(301, { Location: request.url.slice(0, -1) });
       response.end();
@@ -648,15 +648,24 @@ class Server {
     response.send = (content, type) => (
       typeof content === "object" ? send(request, response, 200, stringify(content), type || "application/json") : send(request, response, 200, content, type)
     );
+    response.sendFile = (filepath, type) => sendFile(request, response, filepath, type);
+    request.url = new URL(request.url, `http://${request.headers.referer || request.headers.host}`);
 
     try {
-      if (request.url.startsWith(`/${RESOURCES_PATH}/`) && request.resource) {
-        const resource = this.#resources?.[request.subdomain]?.[request.url];
-        if (method === "get" && resource)
-          return response.send(resource, mime.getType(request.url) || "application/octet-stream");
+      if (request.url.pathname.startsWith(`/${RESOURCES_PATH}/`) && request.resource) {
+        if (request.url.pathname.endsWith(".scoped.css")) {
+          const resource = this.#resources?.[request.subdomain]?.[request.url.pathname.replace(".scoped.css", ".css")];
+          return response.send(await createScopeStyle(fs.basename(request.url.pathname, ".scoped.css"), resource), "text/css");
+        }
+        const resource = this.#resources?.[request.subdomain]?.[request.url.pathname];
+        if (method === "get" && resource) {
+          const type = mime.getType(request.url.pathname) || "application/octet-stream";
+          if (fs.isAbsolute(resource)) return response.sendFile(resource, type);
+          return response.send(resource, type);
+        }
       }
       else {
-        const route = matchRoute(this.#subdomains[request.subdomain]?.[method], request.url);
+        const route = matchRoute(this.#subdomains[request.subdomain]?.[method], request.url.pathname);
         if (route) {
           request.params = {};
           route.params.forEach((param, index) => request.params[param] = route.match[index + 1]);
@@ -776,25 +785,20 @@ function combinePathnames(basePathname, relativePathname) {
   return new URL("." + relativePathname, new URL(basePathname + (basePathname.endsWith("/") ? "" : "/"), "file://")).pathname;
 }
 
+function sendFile(request, response, filepath, type) {
+  const stream = fs.createReadStream(filepath);
+  const headers = defaultHeaders(request, type);
+  response.writeHead(200, headers);
+  stream.pipe(response);
+  stream.on('error', () => {
+    response.writeHead(500, headers);
+    response.end('500 Internal Server Error');
+  });
+}
+
 function send(request, response, code, content, type = "text/plain") {
   const acceptEncoding = request.headers["accept-encoding"];
-  let useCache = false;
-  if (fs.isAbsolute(content)) content = fs.readFileSync(content), useCache = true;
-  else if (type === "text/javascript" && type === "text/css") useCache = true;
-  const headers = {
-    "X-DNS-Prefetch-Control": "off",
-    "Expect-CT": "max-age=86400, enforce",
-    "X-Frame-Options": "DENY",
-    "X-Powered-By": "",
-    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
-    "X-Download-Options": "noopen",
-    "X-Content-Type-Options": "nosniff",
-    "X-Permitted-Cross-Domain-Policies": "none",
-    "Referrer-Policy": "no-referrer",
-    "X-XSS-Protection": "1; mode=block",
-    "Content-Type": type,
-    "Cache-Control": process.env.NODE_ENV === "production" && useCache ? "public, max-age=31536000" : "no-cache, no-store, must-revalidate",
-  };
+  const headers = defaultHeaders(request, type);
 
   if (!request.headers["x-no-compression"] && acceptEncoding && compressible(type)) {
     if (acceptEncoding.includes("gzip"))
@@ -848,4 +852,21 @@ function checkIfMoreSpecific(segments, target) {
     }
   }
   return false;
+}
+
+function defaultHeaders(request, type) {
+  return {
+    "X-DNS-Prefetch-Control": "off",
+    "Expect-CT": "max-age=86400, enforce",
+    "X-Frame-Options": "DENY",
+    "X-Powered-By": "",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+    "X-Download-Options": "noopen",
+    "X-Content-Type-Options": "nosniff",
+    "X-Permitted-Cross-Domain-Policies": "none",
+    "Referrer-Policy": "no-referrer",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Type": type,
+    "Cache-Control": process.env.NODE_ENV === "production" && request.resource ? "public, max-age=31536000" : "no-cache, no-store, must-revalidate",
+  }
 }

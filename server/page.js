@@ -39,7 +39,6 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
     return await html(page, props, build)
   };
   page.js = async (_, props) => await javascript(page, code, props);
-  page.css = async (_, props) => await cascadingStyleSheets(page, props);
   page.middleware = (next) => (request, response) => {
     if (middleware) return middleware(request, next.bind(null, request, response), response.reject);
     if (page.inherited.middleware) return page.inherited.middleware.middleware(request, next.bind(null, request, response), response.reject);
@@ -58,8 +57,6 @@ async function html(page, props, build) {
   if (page.inherited.layout) body = renderToString(new Element(page.inherited.layout.layout.component, {}, new Element(page.content, props)));
   else body = renderToString(new Element(page.content, props));
   window._page = null;
-  page.cache.reset("css");
-  const stylesheet = await cascadingStyleSheets(page) ? `.${pathname + (pathname.endsWith("/") ? "" : "/")}${build ? "style.css" : "page.css"}` : null;
   const config = configs(page);
   return page.cache.set("html." + key,
     "<!doctype html>\n" +
@@ -155,26 +152,10 @@ async function html(page, props, build) {
             rel: "stylesheet",
             href: `/${RESOURCES_PATH}/client.css`,
           }),
-          stylesheet &&
-          new Element("link", {
-            rel: "preload",
-            href: stylesheet,
-            as: "style",
-          }),
-          stylesheet && new Element("link", {
-            id: "app-style",
-            rel: "stylesheet",
-            href: stylesheet,
-          }),
+          ...convertStyles(page.styles, true),
+          ...convertStyles(config?.styles),
           ...(config?.scripts?.map(
             (props) => new Element("script", props),
-          ) || []),
-          ...(config?.styles?.map(
-            ({ id }) =>
-              new Element("link", { rel: "preload", href: `/${RESOURCES_PATH}/${id}.css`, as: "style" }),
-          ) || []),
-          ...(config?.styles?.map(
-            ({ id }) => new Element("link", { rel: "stylesheet", href: `/${RESOURCES_PATH}/${id}.css` }),
           ) || []),
         ),
         new Element("body", {}, body),
@@ -206,23 +187,6 @@ async function javascript(page, code, props) {
   return page.cache.set("js." + key, script.join(IS_DEV ? "\n" : " "));
 }
 
-async function cascadingStyleSheets(page) {
-  const css = page.cache.get("css");
-  if (css) return css;
-  const len = page.styles.length;
-  if (len == 0) return page.cache.set("css", null);
-  let stylesheet = "";
-  for (let i = 0; i < len; i++) stylesheet += `[scope-${page.styles[i]}] { ${page.resources[page.styles[i] + ".css"] || ""} }${IS_DEV ? "\n" : " "}`;
-  stylesheet = (await compileSassString(stylesheet, { style: "compressed" })).css;
-  const matches = stylesheet.match(new RegExp(`\\[scope-[^\\]]*\\] [^\\s]+(:root|:scope|:scoped)\\b`, "g"));
-  for (let i = 0, len = matches?.length || 0; i < len; i++)
-    stylesheet = stylesheet.replace(matches[i], m => {
-      const [scope, query] = m.split(/ (.+)/);
-      return query.replace(/:root|:scope|:scoped/g, scope);
-    });
-  return page.cache.set("css", stylesheet);
-}
-
 function configs(page) {
   const config = page.cache.get("config");
   if (config) return config;
@@ -249,4 +213,26 @@ function cache() {
       else Object.keys(storage).forEach(k => delete storage[k]);
     },
   }
+}
+
+function convertStyles(styles, scoped) {
+  const elements = [];
+  for (let i = 0, len = styles.length || 0; i < len; i++) {
+    const id = styles[i].id;
+    const scope = scoped ? { ["scope-" + id]: true } : {};
+    elements.push(
+      new Element("link", { rel: "preload", href: `/${RESOURCES_PATH}/${id}${scoped ? ".scoped" : ""}.css`, as: "style" }),
+      new Element("link", { rel: "stylesheet", href: `/${RESOURCES_PATH}/${id}${scoped ? ".scoped" : ""}.css`, ...scope })
+    );
+  }
+  return elements;
+}
+
+export async function createScopeStyle(id, content) {
+  const scope = `scope-${id}`;
+  let stylesheet = (await compileSassString(`[${scope}] { ${content || ""} }`, { style: "compressed" })).css;
+  const matches = stylesheet.match(new RegExp(`\\[${scope}\\] [^\\s]+(:root|:scope|:scoped)\\b`, "g"));
+  for (let i = 0, len = matches?.length || 0; i < len; i++)
+    stylesheet = stylesheet.replace(matches[i], m => m.split(`[${scope}] `)[1].replace(/:root|:scope|:scoped/g, `[${scope}]`));
+  return stylesheet;
 }
