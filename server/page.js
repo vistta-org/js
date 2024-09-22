@@ -1,5 +1,4 @@
 import fs from "@vistta/fs";
-import { compileStringAsync as compileSassString } from 'sass-embedded';
 import { Element, renderToString } from "./dom.js";
 import { RESOURCES_PATH, stringify } from "../utils/index.js";
 
@@ -24,7 +23,7 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
     config,
     content,
     resources,
-    styles: [],
+    styles: getPageStyles(resources, config),
     cache: cache(),
     inherited: {
       configs: inheritedConfigs || [],
@@ -52,11 +51,11 @@ async function html(page, props, build) {
   const html = page.cache.get("html." + key);
   const pathname = build ? page.pathname : page.location?.pathname;
   if (html) return html;
-  window._page = page;
+  window.page = page;
   let body;
   if (page.inherited.layout) body = renderToString(new Element(page.inherited.layout.layout.component, {}, new Element(page.content, props)));
   else body = renderToString(new Element(page.content, props));
-  window._page = null;
+  window.page = null;
   const config = configs(page);
   return page.cache.set("html." + key,
     "<!doctype html>\n" +
@@ -152,7 +151,7 @@ async function html(page, props, build) {
             rel: "stylesheet",
             href: `/${RESOURCES_PATH}/client.css`,
           }),
-          ...convertStyles(page.styles, true),
+          ...convertStyles(page.styles.list, page.styles.preload, true),
           ...convertStyles(config?.styles),
           ...(config?.scripts?.map(
             (props) => new Element("script", props),
@@ -215,24 +214,29 @@ function cache() {
   }
 }
 
-function convertStyles(styles, scoped) {
+function getPageStyles(resources, { styles = [] } = {}) {
+  resources = Object.keys(resources);
+  const matchesConfigStyle = (id) => {
+    for (let i = 0, len = styles.length; i < len; i++)
+      if (styles[i].id === id) return true;
+    return false;
+  }
+  const result = { list: [], preload: {} };
+  for (let i = 0, len = resources.length; i < len; i++) {
+    if (!resources[i].endsWith(".css")) continue;
+    const id = resources[i].replace(/\.css$/, "");
+    if (!matchesConfigStyle(id)) result.list.push({ id });
+  }
+  return result;
+}
+
+function convertStyles(styles, preload, scoped) {
   const elements = [];
   for (let i = 0, len = styles.length || 0; i < len; i++) {
     const id = styles[i].id;
-    const scope = scoped ? { ["scope-" + id]: true } : {};
-    elements.push(
-      new Element("link", { rel: "preload", href: `/${RESOURCES_PATH}/${id}${scoped ? ".scoped" : ""}.css`, as: "style" }),
-      new Element("link", { rel: "stylesheet", href: `/${RESOURCES_PATH}/${id}${scoped ? ".scoped" : ""}.css`, ...scope })
-    );
+    const scope = scoped ? { ["style-" + id]: true } : {};
+    if (!scoped || preload[id]) elements.push(new Element("link", { rel: "preload", href: `/${RESOURCES_PATH}/${id}${scoped ? ".scoped" : ""}.css`, as: "style" }));
+    elements.push(new Element("link", { rel: "stylesheet", href: `/${RESOURCES_PATH}/${id}${scoped ? ".scoped" : ""}.css`, ...scope }));
   }
   return elements;
-}
-
-export async function createScopeStyle(id, content) {
-  const scope = `scope-${id}`;
-  let stylesheet = (await compileSassString(`[${scope}] { ${content || ""} }`, { style: "compressed" })).css;
-  const matches = stylesheet.match(new RegExp(`\\[${scope}\\] [^\\s]+(:root|:scope|:scoped)\\b`, "g"));
-  for (let i = 0, len = matches?.length || 0; i < len; i++)
-    stylesheet = stylesheet.replace(matches[i], m => m.split(`[${scope}] `)[1].replace(/:root|:scope|:scoped/g, `[${scope}]`));
-  return stylesheet;
 }

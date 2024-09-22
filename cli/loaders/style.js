@@ -17,13 +17,22 @@ export async function load(source, { path, bundler }) {
     );
     resources.push({ hash, code });
     return {
-      code: `export default _Style(${stringify(id)}, ${JSON.stringify(bundler ? "" : code)});`,
+      code: `export default style(${stringify(id)}, ${JSON.stringify(bundler ? "" : code)});`,
       resources,
       files,
     };
   } catch (e) {
     return { errors: [`${path}(0,0): style error: ${e.message}`] };
   }
+}
+
+export async function setScope(code, id) {
+  const scope = `style-${id}`;
+  let stylesheet = (await compileSassString(`[${scope}] { ${code || ""} }`, { style: "compressed" })).css;
+  const matches = stylesheet.match(new RegExp(`\\[${scope}\\] [^\\s]+(:root|:scope|:scoped)\\b`, "g"));
+  for (let i = 0, len = matches?.length || 0; i < len; i++)
+    stylesheet = stylesheet.replace(matches[i], m => m.split(`[${scope}] `)[1].replace(/:root|:scope|:scoped/g, `[${scope}]`));
+  return stylesheet;
 }
 
 //

@@ -67,7 +67,7 @@ Object.defineProperties(route, {
     },
   },
   location: {
-    get: () => window._page?.location ?? window.location,
+    get: () => window.page?.location ?? window.location,
   },
   emit: {
     value: (event, details) =>

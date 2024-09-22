@@ -53,7 +53,7 @@ function transformElement(code) {
           throw new Error("Error while parsing JSX. [Code: 2]");
         const [value, propsEnd, isQuote] = transformProps(code.slice(i + 1));
         if (isQuote) props += `"${context.prop}": ${value}, `;
-        else props += `"${context.prop}": _Prop(() => ${value}), `;
+        else props += `"${context.prop}": prop(() => ${value}), `;
         context.prop = "";
         i += propsEnd;
       } else if (code[i] === "{") {
@@ -92,7 +92,7 @@ function transformElement(code) {
           value[0] === value[value.length - 1]
         )
           children += `${value}, `;
-        else children += `_Child(() => ${value}), `;
+        else children += `child(() => ${value}), `;
         i += expressionEnd - 1;
       } else context.child += code[i];
     } else throw new Error("Error while parsing JSX. [Code: 0]");
@@ -100,13 +100,13 @@ function transformElement(code) {
     i++;
   }
   if (!done) throw new Error("Error while parsing JSX. [Code: 1] " + tagName);
-  if (tagName === "") tagName = "_Fragment";
+  if (tagName === "") tagName = "Fragment";
   else if (tagName[0] !== tagName[0].toUpperCase()) tagName = `"${tagName}"`;
   if (props.length == 0) props = "null";
   else props = `{ ${props.slice(0, -2)} }`;
   if (children.length > 0) children = ", " + children;
   return [
-    `_Element("#${id++}", ${tagName}, ${props}${children.slice(0, -2)})`,
+    `element("#${id++}", ${tagName}, ${props}${children.slice(0, -2)})`,
     end,
   ];
 }

@@ -8,7 +8,8 @@ import proxy from "http-proxy";
 import { URL } from "url";
 import { EventEmitter } from "node:events";
 import { Server as SocketIO } from "socket.io";
-import { createPage, importCoreResources, createScopeStyle } from "./page.js";
+import { createPage, importCoreResources } from "./page.js";
+import { setScope } from "../cli/loaders/style.js";
 import { default as Controller, Method } from "./controller.js";
 import { RESOURCES_PATH, INVALID_EVENT_NAME, convertToEventName, async, isIPAddress, stringify, ensureEndsWith, assign } from "../utils/index.js";
 
@@ -655,7 +656,7 @@ class Server {
       if (request.url.pathname.startsWith(`/${RESOURCES_PATH}/`) && request.resource) {
         if (request.url.pathname.endsWith(".scoped.css")) {
           const resource = this.#resources?.[request.subdomain]?.[request.url.pathname.replace(".scoped.css", ".css")];
-          return response.send(await createScopeStyle(fs.basename(request.url.pathname, ".scoped.css"), resource), "text/css");
+          return response.send(await setScope(resource, fs.basename(request.url.pathname, ".scoped.css")), "text/css");
         }
         const resource = this.#resources?.[request.subdomain]?.[request.url.pathname];
         if (method === "get" && resource) {

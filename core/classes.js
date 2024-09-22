@@ -7,8 +7,7 @@ import {
   camelCaseToKebabCase,
   isPromise,
   FunctionClass,
-  defineReadonly,
-  RESOURCES_PATH,
+  defineReadonly
 } from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
@@ -632,31 +631,25 @@ export class Form extends Component {
 
 // Global
 
-defineReadonly(window, "_Fragment", Fragment);
-defineReadonly(window, "_Style", (id, code) => new Proxy({ ["scope-" + id]: true }, {
-  get(target, prop) {
-    if (prop === "id") return id;
-    if (prop === "code") return code;
-    if (prop.startsWith("scope-")) {
-      if (window.isServer) window._page?.styles?.push({ id });
-      else if (!document.querySelector(`link[scope-${id}]`)) {
-        const style = document.createElement("link");
-        style.setAttribute("rel", "stylesheet");
-        style.setAttribute("href", `/${RESOURCES_PATH}/${id}.scoped.css`);
-        style.setAttribute(`scope-${id}`, "");
-        document.head.appendChild(style);
-      }
-    }
-    return target[prop];
-  }
-}));
-defineReadonly(window, "_Prop", (caller) => new Mutation(caller));
-defineReadonly(window, "_Child", (caller) => new Mutation(caller));
-defineReadonly(window, "_Element", (id, ...args) => {
+defineReadonly(window, "Fragment", Fragment);
+defineReadonly(window, "prop", (caller) => new Mutation(caller));
+defineReadonly(window, "child", (caller) => new Mutation(caller));
+defineReadonly(window, "element", (id, ...args) => {
   const element = new Element(...args);
   element.id = id;
   return element;
 });
+defineReadonly(window, "style", (id, code) => new Proxy({ ["style-" + id]: true }, {
+  get(_, prop) {
+    if (prop === "id") return id;
+    if (prop === "code") return code;
+    if (prop.startsWith("style-")) {
+      if (window.isServer && window.page?.preload) window.page.preload[id] = true;
+      return true;
+    }
+    return false;
+  }
+}));
 
 //
 
