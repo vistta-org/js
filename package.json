@@ -7,7 +7,8 @@
   "exports": {
     ".": "./index.js",
     "./server": "./server/index.js",
-    "./loader": "./bin/loaders/index.js",
+    "./app": "./app/index.js",
+    "./loader": "./cli/default.js",
     "./tsconfig": "./tsconfig.json"
   },
   "type": "module",
@@ -15,10 +16,6 @@
     "postinstall": "",
     "tests": "vistta start ./tests --dev --watch"
   },
-  "files": [
-    "LICENSE",
-    "tsconfig.json"
-  ],
   "repository": {
     "type": "git",
     "url": "https://git.vistta.org/vistta/js.git"
@@ -34,12 +31,12 @@
     "http-proxy": "^1.18.1",
     "mime": "^4.0.4",
     "postcss": "^8.4.47",
-    "sass-embedded": "^1.79.3",
+    "sass-embedded": "^1.79.5",
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0"
   },
   "devDependencies": {
-    "puppeteer": "^23.4.0"
+    "puppeteer": "^23.5.3"
   },
   "engines": {
     "node": ">=22.0.0"
