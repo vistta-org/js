@@ -15,12 +15,12 @@ Object.defineProperties(route, {
       if (!refresh && !initial) refresh = href === true;
       if (!isValidUrl(href))
         href = buildUrl(typeof href === "string" ? href : location.pathname);
-      if (!isAppUrl(href)) return (location.href = href);
-      const { pathname, hash } = new URL(href);
+      if (!isAppUrl(href)) return window.location.href = href;
+      const { pathname, hash, search } = new URL(href);
       if (!refresh && !initial && dom.pathname === pathname)
         return updateHash(hash);
       const cached = routes?.[pathname];
-      if (pushState !== false) history.pushState({}, "", pathname);
+      if (pushState !== false) history.pushState({}, "", pathname + search);
       dom?.remove?.();
       if (initial || refresh || !cached) {
         const appHref = pathname + (pathname.endsWith("/") ? "" : "/") + "page";

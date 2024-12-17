@@ -1,5 +1,6 @@
-import Dom from "../core/dom.js";
-import { Element } from "../core/classes.js";
+import "./adapter.js";
+import Dom from "../../core/dom.js";
+import { Element } from "../../core/classes.js";
 
 class ServerDom extends Dom {
   constructor() {

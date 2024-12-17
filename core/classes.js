@@ -14,13 +14,6 @@ const CONTEXT_CACHE_KEY = "Vistta_Context_";
 export const Fragment = Symbol("Fragment");
 export const TextNode = Symbol("TextNode");
 const ComponentNode = Symbol("Component");
-const DEFAULT_ERROR_MESSAGE = (() => {
-  if (window.isServer) return;
-  const inputElement = document.createElement("input");
-  inputElement.type = "text";
-  inputElement.required = true;
-  return inputElement.validationMessage;
-})();
 
 export class Element {
 
@@ -245,6 +238,20 @@ export class Component {
     return ComponentNode;
   }
 
+  get props() {
+    const props = {};
+    const keys = Object.keys(this);
+    for (let i = 0, len = keys.length; i < len; i++) {
+      const key = keys[i];
+      if (key === "render" || key === "children") continue;
+      props[key] = {
+        get: () => this[key],
+        set: (value) => (this[key] = value),
+      };
+    }
+    return props;
+  }
+
   constructor() {
     const prototype = Object.getPrototypeOf(this);
     const functions = Object.getOwnPropertyNames(prototype);
@@ -376,6 +383,18 @@ export class Safe extends Component {
 
 export class Form extends Component {
   static Ref = Ref;
+
+  static get DEFAULT_ERROR_MESSAGE() {
+    if (window.isServer) return "";
+    if (!this._defaultErrorMessage) {
+      const inputElement = document.createElement("input");
+      inputElement.type = "text";
+      inputElement.required = true;
+      this._defaultErrorMessage = inputElement.validationMessage
+    }
+    return this._defaultErrorMessage;
+  }
+
   #node;
   #path = [];
   #parent;
@@ -562,8 +581,8 @@ export class Form extends Component {
       const value = getFieldValue(field);
       if (this.#required[inputs[i]] === true && !value) {
         if (this.#invalidEvent)
-          errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
-        else field.setCustomValidity?.(DEFAULT_ERROR_MESSAGE);
+          errors.push({ field, error: Form.DEFAULT_ERROR_MESSAGE });
+        else field.setCustomValidity?.(Form.DEFAULT_ERROR_MESSAGE);
         continue;
       }
       const validator = this.#validators[inputs[i]];
@@ -573,8 +592,8 @@ export class Form extends Component {
         else field.setCustomValidity?.(error);
       } else if (error === false) {
         if (this.#invalidEvent)
-          errors.push({ field, error: DEFAULT_ERROR_MESSAGE });
-        else field.setCustomValidity?.(DEFAULT_ERROR_MESSAGE);
+          errors.push({ field, error: Form.DEFAULT_ERROR_MESSAGE });
+        else field.setCustomValidity?.(Form.DEFAULT_ERROR_MESSAGE);
       } else if (!this.#invalidEvent) field.setCustomValidity?.("");
     }
     if (!this.#invalidEvent) return this.#node.reportValidity();

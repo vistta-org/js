@@ -2,31 +2,6 @@ export const INVALID_EVENT_NAME = "Invalid socket event";
 export const RESOURCES_PATH = "_resources";
 
 export const defineReadonly = (obj, key, value) => Object.defineProperty(obj, key, { value, writable: false, configurable: false });
-
-export const setupServerEnvironment = (target) => {
-  defineReadonly(target, "isServer", true);
-  defineReadonly(target, "document", { scripts: [] });
-  defineReadonly(target, "HTMLElement", class { });
-  defineReadonly(target, "MutationObserver", class { });
-  defineReadonly(target, "IntersectionObserver", class { });
-  defineReadonly(target, "ResizeObserver", class { });
-  defineReadonly(target, "localStorage", {
-    setItem: () => null,
-    getItem: () => undefined,
-    removeItem: () => null,
-    clear: () => null,
-  });
-  defineReadonly(target, "sessionStorage", {
-    setItem: () => null,
-    getItem: () => undefined,
-    removeItem: () => null,
-    clear: () => null,
-  });
-  defineReadonly(target, "addEventListener", () => null);
-  defineReadonly(target, "removeEventListener", () => null);
-  return target;
-}
-
 export const noCache = (path) => path + `?noCache=${Date.now()}`;
 
 export class FunctionClass extends Function {

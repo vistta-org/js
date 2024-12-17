@@ -1,60 +1,100 @@
 import { default as DefaultCLI } from "./default.js";
 import fs from "@vistta/fs";
-import { trim } from "../utils/index.js";
 
-const dirname = fs.dirname(import.meta.url);
+const dirname = import.meta.dirname;
 
 export default class extends DefaultCLI {
-  routes = new console.Console("routes", { index: 1 });
-  counter = { page: [], api: [] };
+  #announcer;
 
-  async main(_, ...args) {
+  async main(_, ...argv) {
+    const [[entry], options] = this.parse(argv);
     if (process.env.NODE_ENV === "development") await this.outdated();
-    const Server = (await import(fs.resolve(dirname, "../server/index.js"))).default;
-    const jsPackage = (await import(fs.resolve(dirname, "../package.json"))).default;
-    system.clear();
-    system.announce(`Vistta JS v${jsPackage.version}`);
+    const { version } = (await import(fs.resolve(dirname, "../package.json"))).default;
+    console.clear();
+    this.#announcer = console.print(`Vistta JS v${version}`);
     console.println();
-    const options = {}; // TODO: Import options from package
-    const folder = args.shift() || options.folder;
-    if (!folder) throw new Error(`Missing main folder. Either define it as an argument or on the package json.`);
-    for (let i = 0, len = args?.length; i < len; i++) {
-      let [key, value] = args[i].split(/=(.*)/s, 2);
-      if (key.startsWith("--")) key = key.slice(2);
-      if (key.startsWith("-")) key = key.slice(1);
-      options[key] = trim(value);
-    }
+    if (!entry) throw new Error(`Missing main entry. Either define it as an argument.`);
+    if(options.app) await this.app(entry, options);
+    else await this.web(entry, options);
+  }
+
+  async web(entry, options) {
+    const Server = (await import(fs.resolve(dirname, "../server/index.js")))?.default;
     options.http ||= (process.env.NODE_ENV === "development" ? 3000 : 80);
     options.https ||= (process.env.NODE_ENV === "development" ? null : 443);
 
-    new Server(folder, options, (err, { message, pathname, port } = {}) => {
-      if (err) return console.error(err?.stack);
-      switch (message) {
-        case "http ready":
-          this.routes.time("routes");
-          return system.log(`http://localhost:${port}`);
-        case "https ready":
-          this.routes.time("routes");
-          return system.log(`https://localhost:${port}`);
-        case "page ready":
-          if (this.counter.page.includes(pathname)) break;
-          this.counter.page.push(pathname);
-          this.routes.clear();
-          this.routes.timeLog(
+    const counter = { page: [], api: [] };
+    const server = new Server(entry, options);
+    server.on("warning", console.warn);
+    server.on("error", ({ stack }) => console.error(stack));
+    server.on("ready", ({ type, port, pathname}) => {
+      switch (type) {
+        case "http":
+        case "https":
+          console.time("routes");
+          return this.#announcer.replace((_, data) => [...data, `\n${type}://localhost:${port}`]);
+        case "page":
+          if (counter.page.includes(pathname)) break;
+          counter.page.push(pathname);
+          if (counter.log) counter.log.replace(`Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
+          else counter.log = console.timeLog(
             "routes",
-            `Loaded ${this.counter.page.length} page(s), ${this.counter.api.length} API(s).`
+            `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`
           );
           break;
-        case "api ready":
-          if (this.counter.api.includes(pathname)) break;
-          this.counter.api.push(pathname);
-          this.routes.clear();
-          this.routes.timeLog(
+        case "api":
+          if (counter.api.includes(pathname)) break;
+          counter.api.push(pathname);
+          if (counter.log) counter.log.replace(`Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
+          else counter.log = console.timeLog(
             "routes",
-            `Loaded ${this.counter.page.length} page(s), ${this.counter.api.length} API(s).`
+            `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`
           );
           break;
       }
+
     });
+    /*new Server(entry, options, (err, { message, pathname, port } = {}) => {
+      if (err) return console.error(err?.stack);
+      switch (message) {
+      }
+    });*/
+  }
+
+  async app(entry, options) {
+    /*
+    const { Bundler } = await import("@vistta/cli");
+    const result = entry.replace(new RegExp(`${fs.extname(entry)}$`), ".app.js");
+    await fs.writeFile(result, (await new Bundler().run({
+      define: { "process.platform": JSON.stringify(process.platform) },
+      filename: fs.resolve(process.cwd(), entry),
+      platform: "node",
+      write: false,
+  }))?.code);
+    import { spawn } from "node:child_process";
+    import { tmpdir } from 'node:os';
+    import electron from "electron";
+    import fs from "@vistta/fs";
+    import { Bundler } from '@vistta/cli';
+    entry = fs.resolve(tmpdir(), `vistta_${Date.now()}.mjs`);
+    const child = spawn(electron, [fs.resolve(dirname, "../../electron/adapter.js"), entry], { stdio: 'inherit', windowsHide: false });
+    child.on("message", console.log);
+    child.on('close', async(code, signal) => {
+        await fs.unlink(entry);
+        if (code === null) {
+            console.error(electron, 'exited with signal', signal);
+            process.exit(1);
+        }
+        process.exit(code);
+    });
+    process.on('SIGINT', async() => {
+        await fs.unlink(entry);
+        if (!child.killed) child.kill('SIGINT');
+    });
+    process.on('SIGTERM', async() => {
+        await fs.unlink(entry);
+        if (!child.killed) child.kill('SIGTERM');
+    });*/
+
   }
 }

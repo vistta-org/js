@@ -1,6 +1,6 @@
 {
   "name": "@vistta/js",
-  "version": "0.16.0",
+  "version": "0.1.0",
   "description": "Vistta.js Javascript Framework",
   "main": "index.js",
   "types": "index.d.ts",
@@ -23,9 +23,9 @@
   "author": "Tiago Terenas Almeida",
   "license": "CC BY-NC-ND 4.0 DEED",
   "dependencies": {
-    "@vistta/cli": "*",
-    "@vistta/fs": "*",
-    "@vistta/utils": "*",
+    "@vistta/cli": "0.1.0-snapshot.1",
+    "@vistta/fs": "0.1.0",
+    "@vistta/utils": "0.1.1",
     "autoprefixer": "^10.4.20",
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
@@ -42,27 +42,25 @@
     "node": ">=22.0.0"
   },
   "vistta": {
-    "cli": {
+    "commands": {
       "default": "./cli/default.js",
       "start": "./cli/start.js",
       "build": "./cli/build.js",
       "test": "./cli/test.js"
     },
-    "options": {
-      "bundler": {
-        "paths": {
-          "@vistta/js": {
-            "path": "vistta",
-            "namespace": "window"
-          },
-          "@socket": {
-            "path": "/socket.io/socket.io.esm.min.js",
-            "external": true
-          }
+    "bundler": {
+      "paths": {
+        "@vistta/js": {
+          "path": "vistta",
+          "namespace": "window"
         },
-        "define": {
-          "window.isServer": "false"
+        "@socket": {
+          "path": "/socket.io/socket.io.esm.min.js",
+          "external": true
         }
+      },
+      "define": {
+        "window.isServer": "false"
       }
     }
   }

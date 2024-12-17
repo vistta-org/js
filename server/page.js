@@ -1,8 +1,8 @@
 import fs from "@vistta/fs";
-import { Element, renderToString } from "./dom.js";
+import { Element, renderToString } from "./dom/index.js";
 import { RESOURCES_PATH, stringify } from "../utils/index.js";
 
-const dirname = fs.dirname(import.meta.url);
+const dirname = import.meta.dirname;
 const IS_DEV = process.env.NODE_ENV === "development";
 
 export async function importCoreResources(build) {
@@ -12,8 +12,8 @@ export async function importCoreResources(build) {
   }
 }
 
-export async function createPage(type, filepath, pathname, inheritedConfigs, inheritedMiddleware, inheritedLayout) {
-  const { default: content, config, middleware } = await import(filepath);
+export async function createPage(type, filepath, pathname, inheritedConfigs, inheritedLayout) {
+  const { default: content, config } = await import(filepath);
   const { code, errors, resources } = await import(filepath, {
     with: { type: "bundler", exports: "default" },
   });
@@ -27,7 +27,6 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
     cache: cache(),
     inherited: {
       configs: inheritedConfigs || [],
-      middleware: inheritedMiddleware,
       layout: inheritedLayout
     }
   };
@@ -38,11 +37,6 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
     return await html(page, props, build)
   };
   page.js = async (_, props) => await javascript(page, code, props);
-  page.middleware = (next) => (request, response) => {
-    if (middleware) return middleware(request, next.bind(null, request, response), response.reject);
-    if (page.inherited.middleware) return page.inherited.middleware.middleware(request, next.bind(null, request, response), response.reject);
-    return next(request, response);
-  };
   return page;
 }
 
@@ -232,7 +226,7 @@ function getPageStyles(resources, { styles = [] } = {}) {
 
 function convertStyles(styles, preload, scoped) {
   const elements = [];
-  for (let i = 0, len = styles.length || 0; i < len; i++) {
+  for (let i = 0, len = styles?.length || 0; i < len; i++) {
     const id = styles[i].id;
     const scope = scoped ? { ["style-" + id]: true } : {};
     if (!scoped || preload[id]) elements.push(new Element("link", { rel: "preload", href: `/${RESOURCES_PATH}/${id}${scoped ? ".scoped" : ""}.css`, as: "style" }));

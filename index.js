@@ -1,3 +1,4 @@
+import "./server/dom/adapter.js";
 export {
   Fragment,
   Element,

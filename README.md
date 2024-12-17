@@ -34,10 +34,10 @@ Bytes/Sec (MB): 38.8
 
 ### Page Render Benchmarks
 
-Recursive Update: Total (runs/sec): 7049.375; Average Time (ms): 0.0001;
-Attribute Update: Total (runs/sec): 886.475; Average Time (ms): 0.0002;
-Content Update: Total (runs/sec): 248.675; Average Time (ms): 0.0003;
-Element Update: Total (runs/sec): 42.975; Average Time (ms): 1.81;
+Recursive Update: Total (runs/sec): 7419.975; Average Time (ms): 0.0001; Initial Time (ms): 26.9;
+Attribute Update: Total (runs/sec): 1010.825; Average Time (ms): 0.0002; Initial Time (ms): 12.3;
+Content Update: Total (runs/sec): 227.925; Average Time (ms): 0.0003; Initial Time (ms): 11.9;
+Element Update: Total (runs/sec): 39.6; Average Time (ms): 2.61; Initial Time (ms): 8.8;
 
 ## **License**
 

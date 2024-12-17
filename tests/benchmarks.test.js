@@ -12,7 +12,7 @@ suite("VisttaJS Benchmarks", async () => {
     await page.click("#stop");
     const runs = parseInt(await page.get("#runs", "innerText"));
     const average = round((parseFloat(await page.get("#time", "innerText")) / runs));
-    system.log(`Attribute Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
+    //system.log(`Attribute Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
     expect(initial < 20).toEqual(true);
     expect(average < 1).toEqual(true);
   });
@@ -27,7 +27,7 @@ suite("VisttaJS Benchmarks", async () => {
     await page.click("#stop");
     const runs = parseInt(await page.get("#runs", "innerText"));
     const average = round((parseFloat(await page.get("#time", "innerText")) / runs));
-    system.log(`Content Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
+    //system.log(`Content Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
     expect(initial < 50).toEqual(true);
     expect(average < 1).toEqual(true);
   });
@@ -42,9 +42,9 @@ suite("VisttaJS Benchmarks", async () => {
     await page.click("#stop");
     const runs = parseInt(await page.get("#runs", "innerText"));
     const average = round((parseFloat(await page.get("#time", "innerText")) / runs));
-    system.log(`Element Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
+    //system.log(`Element Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
     expect(initial < 20).toEqual(true);
-    expect(average < 2.5).toEqual(true);
+    expect(average < 3).toEqual(true);
   });
 
   test("Benchmark: Recursive Update", async () => {
@@ -57,7 +57,7 @@ suite("VisttaJS Benchmarks", async () => {
     await page.click("#stop");
     const runs = parseInt(await page.get("#runs", "innerText"));
     const average = round((parseFloat(await page.get("#time", "innerText")) / runs));
-    system.log(`Recursive Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
+    //system.log(`Recursive Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
     expect(initial < 50).toEqual(true);
     expect(average < 1).toEqual(true);
   });

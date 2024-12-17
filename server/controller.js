@@ -13,8 +13,25 @@ export class Method extends FunctionClass {
   }
 
   constructor(type, url, callback) {
-    if (typeof url === "function") callback = url, url = "/";
-    super(async (request) => await async(callback(request.params, request.body)));
+    if (typeof url === "function") (callback = url), (url = "/");
+    super(
+      async (request, response) =>
+        await async(
+          callback.call(
+            {
+              set: response.set,
+              get: (type) => {
+                if (type === "address") return request.connection.remoteAddress;
+                if (request.headers[type]) return request.headers[type];
+                else return request[type];
+              },
+              redirect: response.redirect,
+            },
+            request.params,
+            request.body
+          )
+        )
+    );
     this.#type = type;
     this.#url = url;
   }
@@ -22,7 +39,7 @@ export class Method extends FunctionClass {
 
 /**
  * Sets a controller COPY.
- * 
+ *
  * @param {Function} callback Options for the request.
  * @also
  * @param {string} url - The URL for the request.
@@ -33,7 +50,7 @@ export const Copy = (url, callback) => new Method("copy", url, callback);
 
 /**
  * Sets a controller DELETE.
- * 
+ *
  * @param {Function} callback Options for the request.
  * @also
  * @param {string} url - The URL for the request.
@@ -55,7 +72,7 @@ export const Get = (url, callback) => new Method("get", url, callback);
 
 /**
  * Sets a controller MOVE.
- * 
+ *
  * @param {Function} callback Options for the request.
  * @also
  * @param {string} url - The URL for the request.
@@ -66,7 +83,7 @@ export const Move = (url, callback) => new Method("move", url, callback);
 
 /**
  * Sets a controller PATCH.
- * 
+ *
  * @param {Function} callback Options for the request.
  * @also
  * @param {string} url - The URL for the request.
@@ -77,7 +94,7 @@ export const Patch = (url, callback) => new Method("patch", url, callback);
 
 /**
  * Sets a controller POST.
- * 
+ *
  * @param {Function} callback Options for the request.
  * @also
  * @param {string} url - The URL for the request.
@@ -88,7 +105,7 @@ export const Post = (url, callback) => new Method("post", url, callback);
 
 /**
  * Sets a controller PUT.
- * 
+ *
  * @param {Function} callback Options for the request.
  * @also
  * @param {string} url - The URL for the request.
@@ -99,7 +116,7 @@ export const Put = (url, callback) => new Method("put", url, callback);
 
 /**
  * Sets a controller for any request.
- * 
+ *
  * @param {Function} callback Options for the request.
  * @also
  * @param {string} url - The URL for the request.

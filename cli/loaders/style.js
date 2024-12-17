@@ -1,9 +1,13 @@
 import fs from "@vistta/fs";
-import { RESOURCES_PATH, stringify, parse } from "../../utils/index.js";
+import { RESOURCES_PATH, stringify } from "../../utils/index.js";
 import { pathToFileURL, fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { compileStringAsync as compileSassString, SassBoolean, SassNumber, SassString, SassColor } from 'sass-embedded';
 import postcss from "postcss";
 import autoprefixer from "autoprefixer";
+
+const EXT = [".sass", ".scss", ".css"];
+const require = createRequire(import.meta.url);
 
 export async function load(source, { path, bundler }) {
   try {
@@ -50,19 +54,7 @@ async function transform(code, dirname, node_modules, params = {}) {
     importers: [
       {
         canonicalize(url) {
-          const isURL = url.startsWith("file:");
-          if (isURL) url = fileURLToPath(new URL(url));
-          const files = getSassFiles(fs.resolve(dirname, url));
-          for (let i = 0, len = files.length; i < len; i++) {
-            if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
-          }
-          if (!isURL) {
-            const files = getSassFiles(fs.resolve(node_modules, url), true);
-            for (let i = 0, len = files.length; i < len; i++) {
-              if (fs.existsSync(files[i])) return pathToFileURL(files[i]);
-            }
-          }
-          return null;
+          return resolve(dirname, url);
         },
         load(canonicalUrl) {
           const path = fileURLToPath(canonicalUrl);
@@ -142,37 +134,25 @@ function convertToSass(input, fallback) {
   }
 }
 
-function getSassFiles(filepath, isModule) {
-  const result = [
-    fs.resolve(filepath, "index.sass"),
-    fs.resolve(filepath, "index.scss"),
-    fs.resolve(filepath, "index.css"),
-    fs.resolve(filepath, "_index.sass"),
-    fs.resolve(filepath, "_index.scss"),
-    fs.resolve(filepath, "_index.css"),
-  ];
-  if (isModule) {
-    const { main, style } = parse(
-      fs.readFileSync(fs.resolve(filepath, "package.json"), "utf8"),
-      true,
-    );
-    if (isStylesheet(style)) result.unshift(fs.resolve(filepath, style));
-    if (isStylesheet(main)) result.unshift(fs.resolve(filepath, main));
-  } else {
-    const dirname = fs.dirname(filepath);
-    const basename = fs.basename(filepath);
-    result.unshift(
-      fs.resolve(dirname, basename + ".sass"),
-      fs.resolve(dirname, basename + ".scss"),
-      fs.resolve(dirname, basename + ".css"),
-      fs.resolve(dirname, "_" + basename + ".sass"),
-      fs.resolve(dirname, "_" + basename + ".scss"),
-      fs.resolve(dirname, "_" + basename + ".css"),
-    );
+function resolve(dirname, path) {
+  if (path.startsWith("file:")) path = fileURLToPath(new URL(path));
+  else {
+    try {
+      return pathToFileURL(require.resolve(path));
+    }
+    catch {
+      path = fs.resolve(dirname, path);
+    }
   }
-  return result;
-}
-
-function isStylesheet(file) {
-  return [".sass", ".scss", ".css"].includes(fs.extname(file || ""));
+  dirname = fs.dirname(path);
+  const basename = fs.basename(path);
+  for (let i = 0, len = EXT.length; i < len; i++) {
+    const file = `${dirname}/${basename}${EXT[i]}`;
+    if (fs.existsSync(file)) return pathToFileURL(file);
+  }
+  for (let i = 0, len = EXT.length; i < len; i++) {
+    const file = `${dirname}/_${basename}${EXT[i]}`;
+    if (fs.existsSync(file)) return pathToFileURL(file);
+  }
+  return null;
 }

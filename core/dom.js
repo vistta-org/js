@@ -284,19 +284,29 @@ function render(virtualDom, parent, element, context, referenceNode) {
         else context.form = virtualNode.component;
       } else if (element.component === Profiler && "production" !== process.env.NODE_ENV)
         context.profiler = virtualNode.component;
-      const properties = Object.getOwnPropertyNames(virtualNode.component);
-      for (let i = 0, len = properties.length; i < len; i++) {
-        const property = properties[i];
-        if (virtualNode.component[property] instanceof Promise) {
+      // const props = {};
+      const keys = Object.keys(element.props);
+      for (let i = 0, len = keys.length; i < len; i++)
+        virtualNode.component[keys[i]] ??= true;
+      const propertyNames = Object.getOwnPropertyNames(virtualNode.component);
+      for (let i = 0, len = propertyNames.length; i < len; i++) {
+        const propertyName = propertyNames[i];
+        if (propertyName === "render")
+          Object.defineProperty(virtualNode.component, propertyName, {
+            configurable: false,
+            enumerable: false,
+            value: virtualNode.component[propertyName].bind(virtualNode.component),
+          });
+        else if (virtualNode.component[propertyName] instanceof Promise) {
           let value = null;
           let status = "pending";
           const mutations = new Set();
-          virtualNode.component[property].then((result) => {
+          virtualNode.component[propertyName].then((result) => {
             value = result;
             status = "resolved";
             virtualDom.engine.queue(mutations);
           });
-          Object.defineProperty(virtualNode.component, property, {
+          Object.defineProperty(virtualNode.component, propertyName, {
             configurable: false,
             enumerable: true,
             get: () => {
@@ -319,8 +329,8 @@ function render(virtualDom, parent, element, context, referenceNode) {
               return value;
             },
           });
-        } else if (virtualNode.component[property] instanceof Context) {
-          const instance = virtualNode.component[property];
+        } else if (virtualNode.component[propertyName] instanceof Context) {
+          const instance = virtualNode.component[propertyName];
           let mutations = {};
           if (!context["#" + instance.key]) {
             context["#" + instance.key] = { instance, mutations };
@@ -336,7 +346,7 @@ function render(virtualDom, parent, element, context, referenceNode) {
               }
             });
           } else mutations = context["#" + instance.key].mutations;
-          Object.defineProperty(virtualNode.component, property, {
+          Object.defineProperty(virtualNode.component, propertyName, {
             configurable: false,
             enumerable: false,
             get: () => {
@@ -348,28 +358,23 @@ function render(virtualDom, parent, element, context, referenceNode) {
               });
             },
           });
-        } else if (
-          !(
-            virtualNode.component[property] instanceof Ref ||
-            typeof virtualNode.component[property] === "function"
-          )
-        ) {
+        } else {
           const mutations = new Set();
-          let value = virtualNode.component[property];
-          if (element.props[property] instanceof Mutation) {
+          let value = virtualNode.component[propertyName];
+          if (element.props[propertyName] instanceof Mutation) {
             setMutation(
               virtualDom,
-              element.props[property],
+              element.props[propertyName],
               context,
               () =>
-                (virtualNode.component[property] = element.props[property]())
+                (virtualNode.component[propertyName] = element.props[propertyName]())
             );
-            value = element.props[property]();
-          } else if (element.props[property] != null)
-            value = element.props[property];
-          Object.defineProperty(virtualNode.component, property, {
+            value = element.props[propertyName]();
+          } else if (element.props[propertyName] != null)
+            value = element.props[propertyName];
+          Object.defineProperty(virtualNode.component, propertyName, {
             configurable: false,
-            enumerable: true,
+            enumerable: propertyName !== "children",
             get: () => {
               if (virtualDom.mutation) mutations.add(virtualDom.mutation);
               return value;
@@ -382,21 +387,22 @@ function render(virtualDom, parent, element, context, referenceNode) {
           });
         }
       }
+
       if (context?.safe?.error) Object.defineProperty(virtualNode.component, "error", {
         configurable: false,
         enumerable: true,
         get: () => context.safe.error,
       });
-      virtualNode.mutation = new Mutation(() => virtualNode.component.render());
+      virtualNode.mutation = new Mutation(() => virtualNode.component.render(virtualNode.component));
       setMutation(virtualDom, virtualNode.mutation, context, () =>
         update(
           virtualDom,
           virtualNode,
           null,
-          ensureArray(virtualNode.component.render())
+          ensureArray(virtualNode.component.render(virtualNode.component))
         )
       );
-      element.children = ensureArray(virtualNode.component.render());
+      element.children = ensureArray(virtualNode.component.render(virtualNode.component));
     }
   }
 

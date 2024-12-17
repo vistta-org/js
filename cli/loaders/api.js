@@ -1,8 +1,12 @@
+import fs from "@vistta/fs";
 import { default as Controller, Method } from "../../server/controller";
 
 export async function load(_, options) {
   try {
-    const baseUrl = options.path.replace(/.*\\api/, "\\api").replace(/\\/g, "/").split(".")[0];
+    if (!options.baseUrl) {
+      const { cwd, basepath } = global.main.shared?.use || {};
+      options.baseUrl = combinePathnames(fs.dirname(options.path).replace(cwd, "/"), basepath);
+    }
     let controller = (await import(options.path))?.default;
     let code = `import { request } from "@vistta/utils/request";`;
     if (Object.prototype.isPrototypeOf.call(Controller, controller)) {
@@ -12,12 +16,12 @@ export async function load(_, options) {
         const exportName = keys[i];
         const cur = controller[exportName];
         if (!(cur instanceof Method)) continue;
-        code += `export const ${exportName} = ${convertMethodToRequest(baseUrl, cur)};`;
+        code += `export const ${exportName} = ${convertMethodToRequest(options.baseUrl, cur)};`;
       }
       return { code };
     }
     else if (controller instanceof Method) {
-      code += `export default ${convertMethodToRequest(baseUrl, controller)};`
+      code += `export default ${convertMethodToRequest(options.baseUrl, controller)};`
       return { code };
     }
     else throw new Error(`Invalid api format. Export default must be either a Method or a class Controller from '@vistta/js'`);
@@ -29,5 +33,12 @@ export async function load(_, options) {
 //
 
 function convertMethodToRequest(baseUrl, method) {
-  return `(body) => request.${method.type}("${baseUrl + (method.url !== "/" ? method.url : "")}", { body })`
+  return `(body) => request.${method.type}("${combinePathnames(baseUrl, method.url)}", { body })`
+}
+
+function combinePathnames(...paths) {
+  return paths
+      .map(path => path.replace(/(^\/+|\/+$)/g, "")) // Remove leading and trailing slashes
+      .filter(Boolean) // Remove empty strings
+      .join("/");
 }
