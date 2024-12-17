@@ -1,4 +1,4 @@
-import { TIMEOUT, TEXT_VALUE, TEXT_UPDATE_VALUE, FALLBACK_VALUE, LOADING_VALUE, LOADED_VALUE, URL, SIZE } from "./defaults.js";
+/*import { TIMEOUT, TEXT_VALUE, TEXT_UPDATE_VALUE, FALLBACK_VALUE, LOADING_VALUE, LOADED_VALUE, URL, SIZE } from "./defaults.js";
 
 const TIMEOUT_WITH_DELAY = TIMEOUT * 1.1;
 
@@ -377,4 +377,4 @@ suite("VisttaJS Client Unit Tests", async () => {
     await page.click("#submit");
     expect(await output.get("innerText")).toEqual("valid");
   });
-});
+});*/

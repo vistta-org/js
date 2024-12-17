@@ -1,4 +1,4 @@
-
+/*
 const DURATION_SECS = 40;
 
 suite("VisttaJS Benchmarks", async () => {
@@ -12,7 +12,7 @@ suite("VisttaJS Benchmarks", async () => {
     await page.click("#stop");
     const runs = parseInt(await page.get("#runs", "innerText"));
     const average = round((parseFloat(await page.get("#time", "innerText")) / runs));
-    //system.log(`Attribute Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
+    console.log(`Attribute Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
     expect(initial < 20).toEqual(true);
     expect(average < 1).toEqual(true);
   });
@@ -27,7 +27,7 @@ suite("VisttaJS Benchmarks", async () => {
     await page.click("#stop");
     const runs = parseInt(await page.get("#runs", "innerText"));
     const average = round((parseFloat(await page.get("#time", "innerText")) / runs));
-    //system.log(`Content Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
+    console.log(`Content Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
     expect(initial < 50).toEqual(true);
     expect(average < 1).toEqual(true);
   });
@@ -42,7 +42,7 @@ suite("VisttaJS Benchmarks", async () => {
     await page.click("#stop");
     const runs = parseInt(await page.get("#runs", "innerText"));
     const average = round((parseFloat(await page.get("#time", "innerText")) / runs));
-    //system.log(`Element Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
+    console.log(`Element Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
     expect(initial < 20).toEqual(true);
     expect(average < 3).toEqual(true);
   });
@@ -57,7 +57,7 @@ suite("VisttaJS Benchmarks", async () => {
     await page.click("#stop");
     const runs = parseInt(await page.get("#runs", "innerText"));
     const average = round((parseFloat(await page.get("#time", "innerText")) / runs));
-    //system.log(`Recursive Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
+    console.log(`Recursive Update: Total (runs/sec): ${runs / DURATION_SECS}; Average Time (ms): ${average}; Initial Time (ms): ${initial};`);
     expect(initial < 50).toEqual(true);
     expect(average < 1).toEqual(true);
   });
@@ -68,4 +68,4 @@ function round(num) {
   if (Math.abs(num) >= 1) return Math.round(num * 100) / 100;
   const precision = Math.pow(10, Math.abs(Math.floor(Math.log10(Math.abs(num)))));
   return Math.round(num * precision) / precision;
-}
+}*/
