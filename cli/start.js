@@ -52,17 +52,11 @@ export default class extends DefaultCLI {
           );
           break;
       }
-
     });
-    /*new Server(entry, options, (err, { message, pathname, port } = {}) => {
-      if (err) return console.error(err?.stack);
-      switch (message) {
-      }
-    });*/
   }
 
-  async app(entry, options) {
     /*
+  async app(entry, options) {
     const { Bundler } = await import("@vistta/cli");
     const result = entry.replace(new RegExp(`${fs.extname(entry)}$`), ".app.js");
     await fs.writeFile(result, (await new Bundler().run({
@@ -94,7 +88,7 @@ export default class extends DefaultCLI {
     process.on('SIGTERM', async() => {
         await fs.unlink(entry);
         if (!child.killed) child.kill('SIGTERM');
-    });*/
+    });
 
-  }
+  }*/
 }

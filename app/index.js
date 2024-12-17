@@ -1,4 +1,4 @@
-import { EventEmitter } from "node:events";
+/*import { EventEmitter } from "node:events";
 import { Bundler } from "@vistta/cli";
 import { default as DefaultCLI } from "../cli/default.js";
 import fs from "@vistta/fs";
@@ -47,18 +47,18 @@ class App {
     }
     
     //(bundler.import(fs.resolve(process.cwd(), target), { platform: "node" })).then(console.log);
-  }/**/
+  }
 
   async on(...args) {
     return this.#events.on(...args);
   }
 
-  /*async createView(options = {}) {
+  async createView(options = {}) {
     if(!this.#ready) throw new Error('App not ready.');
     const view = new View(this, options);
     this.#instance.contentView.addChildView(view);
     return view;
-  }*/
+  }
 }
 
 /*class View extends WebContentsView {
@@ -91,7 +91,7 @@ class App {
   hide() {
     this.setVisible(false);
   }
-}*/
+}
 
 async function importElectron() {
   try {
@@ -114,4 +114,4 @@ function isUrl(url) {
   catch {
     return false;
   }
-}
+}*/
