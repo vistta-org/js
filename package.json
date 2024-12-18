@@ -23,20 +23,20 @@
   "author": "Tiago Terenas Almeida",
   "license": "CC BY-NC-ND 4.0 DEED",
   "dependencies": {
-    "@vistta/cli": "0.1.0-snapshot.1",
+    "@vistta/cli": "0.1.0-snapshot.2",
     "@vistta/fs": "0.1.0",
     "@vistta/utils": "0.1.1",
     "autoprefixer": "^10.4.20",
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
-    "mime": "^4.0.4",
+    "mime": "^4.0.6",
     "postcss": "^8.4.47",
     "sass-embedded": "^1.79.5",
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0"
   },
   "devDependencies": {
-    "puppeteer": "^23.5.3"
+    "puppeteer": "^23.11.0"
   },
   "engines": {
     "node": ">=22.0.0"
