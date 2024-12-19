@@ -23,7 +23,6 @@
   "author": "Tiago Terenas Almeida",
   "license": "CC BY-NC-ND 4.0 DEED",
   "dependencies": {
-    "@vistta/cli": "0.1.0-snapshot.2",
     "@vistta/fs": "0.1.0",
     "@vistta/utils": "0.1.1",
     "autoprefixer": "^10.4.20",
@@ -37,6 +36,9 @@
   },
   "devDependencies": {
     "puppeteer": "^23.11.0"
+  },
+  "peerDependencies": {
+    "@vistta/cli": "0.1.0-snapshot.2"
   },
   "engines": {
     "node": ">=22.0.0"
