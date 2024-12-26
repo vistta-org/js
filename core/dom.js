@@ -284,7 +284,6 @@ function render(virtualDom, parent, element, context, referenceNode) {
         else context.form = virtualNode.component;
       } else if (element.component === Profiler && "production" !== process.env.NODE_ENV)
         context.profiler = virtualNode.component;
-      // const props = {};
       const keys = Object.keys(element.props);
       for (let i = 0, len = keys.length; i < len; i++)
         virtualNode.component[keys[i]] ??= true;
@@ -331,32 +330,25 @@ function render(virtualDom, parent, element, context, referenceNode) {
           });
         } else if (virtualNode.component[propertyName] instanceof Context) {
           const instance = virtualNode.component[propertyName];
-          let mutations = {};
-          if (!context["#" + instance.key]) {
-            context["#" + instance.key] = { instance, mutations };
-            instance.register((path) => {
-              const keys = Object.keys(mutations);
-              for (let i = 0, len = keys.length; i < len; i++) {
-                const key = keys[i];
-                if (
-                  (key === path || key.startsWith(path + ".")) &&
-                  mutations[key]
-                )
-                  virtualDom.engine.queue(mutations[key]);
-              }
-            });
-          } else mutations = context["#" + instance.key].mutations;
+          if (!context["#" + instance.key]) context["#" + instance.key] = { instance, mutations: {}, previous: {} };
+          const { mutations, previous } = context["#" + instance.key];
           Object.defineProperty(virtualNode.component, propertyName, {
             configurable: false,
             enumerable: false,
-            get: () => {
-              const mutation = virtualDom.mutation;
-              return instance.proxy((path) => {
-                if (!mutation) return;
+            get: () => instance.proxy({
+              get: (path, value) => {
                 if (!mutations[path]) mutations[path] = new Set();
+                const mutation = virtualDom.mutation;
+                if (!mutation) return;
                 mutations[path].add(mutation);
-              });
-            },
+                previous[path] = value;
+              },
+              set: (path, value) => {
+                if (previous[path] == value) return;
+                virtualDom.engine.queue(mutations[path]);
+                previous[path] = value;
+              }
+            }),
           });
         } else {
           const mutations = new Set();

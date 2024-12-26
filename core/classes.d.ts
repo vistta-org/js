@@ -16,7 +16,7 @@ export declare const Context: new <
 >(
   key: string,
   defaultValue?: T,
-  cache?: "none" | "session" | "storage",
+  cache?: "none" | "session" | "local" | "storage",
   actions?: Actions,
   controllers?:
     | { [K in keyof Actions]: (status: string, controllerOrValue: any) => void }

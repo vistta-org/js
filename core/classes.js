@@ -90,7 +90,9 @@ export class Context extends FunctionClass {
   #key;
   #value;
   #cache;
-  #callback;
+  #readOnlyValue;
+  #proxy;
+  #listeners = [];
 
   constructor(key, value, cache, actions, controllers) {
     if (typeof key !== "string" || key.length == 0)
@@ -102,22 +104,28 @@ export class Context extends FunctionClass {
     super(() => this);
     this.#key = key;
     try {
-      this.#value =
-        cache !== "none" ? getCacheValue(key) ?? clone(value) : clone(value);
+      this.#value = clone(value);
     } catch {
       throw new Error(
         "TypeError: Cannot create context with a non serializable object as default value.",
       );
     }
-    this.#cache = cache || "none";
+    this.#cache = cache === "session" ? sessionStorage : (cache === "local" || cache === "storage") ? localStorage : null;
+    if (this.#cache) {
+      try {
+        this.#value = parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#value;
+      } catch {
+        /* Do nothing */
+      }
+    }
     const actionsNames = Object.keys(actions || {});
     if (actionsNames.length > 0) {
       const controllerFn = (target, status) => {
         const typeOfControllers = typeof controllers;
         if (typeOfControllers === "function")
-          controllers.call(this, target, status, this.proxy());
+          controllers.call(this, target, status, this.value);
         else if (typeOfControllers === "object")
-          controllers?.[target]?.call(this, status, this.proxy());
+          controllers?.[target]?.call(this, status, this.value);
       };
       for (let i = 0, len = actionsNames.length; i < len; i++) {
         const actionName = actionsNames[i];
@@ -137,19 +145,12 @@ export class Context extends FunctionClass {
               resolve();
             };
             try {
-              let value = action(this.value, ...args);
+              let value = action(this.proxy(), ...args);
               if (isPromise(value))
                 value
                   .then((result) => {
                     if (controller.signal?.aborted) return;
-                    let updateCache = false;
-                    updateContext(
-                      this.#value,
-                      result,
-                      (path) => ((updateCache = true), this.#callback?.(path)),
-                    );
-                    if (this.#cache !== "none" && updateCache)
-                      updateCache(this.#key, this.#value, this.#cache);
+                    Object.assign(this.proxy(), result);
                     resolve();
                     controllerFn(actionName, "completed");
                   })
@@ -158,14 +159,7 @@ export class Context extends FunctionClass {
                     resolve();
                   });
               else if (!controller.signal?.aborted) {
-                let updateCache = false;
-                updateContext(
-                  this.#value,
-                  value,
-                  (path) => ((updateCache = true), this.#callback?.(path)),
-                );
-                if (this.#cache !== "none" && updateCache)
-                  updateCache(this.#key, this.#value, this.#cache);
+                Object.assign(this.proxy(), value);
                 resolve();
                 controllerFn(actionName, "completed");
               }
@@ -186,43 +180,50 @@ export class Context extends FunctionClass {
   }
 
   get value() {
-    return clone(this.#value);
+    if (!this.#readOnlyValue) this.#readOnlyValue = new Proxy(this.#value, {
+      set: () => true,
+      deleteProperty: () => true,
+      defineProperty: () => true,
+    });
+    return this.#readOnlyValue;
   }
 
   valueOf() {
-    return clone(this.#value);
+    return this.value;
   }
 
   toString() {
     return JSON.stringify(this.#value);
   }
 
-  proxy(callback) {
-    const update = (path) => {
-      this.#callback?.(path);
-      if (this.#cache !== "none" && updateCache)
-        updateCache(this.#key, this.#value, this.#cache);
+  proxy(listener) {
+    const listeners = this.#listeners;
+    if (typeof listener?.set === "function") listeners.push(listener.set);
+    if (this.#proxy) return this.#proxy;
+    const updateCache = () => {
+      if (!this.#cache) return;
+      try {
+        this.#cache.setItem(encode(CONTEXT_CACHE_KEY + this.#key, "hex"), encode(stringify(this.#value), "hex"));
+      }
+      catch (e) {
+        console.error(e);
+      }
     };
-    const handler = {
+    this.#proxy = new Proxy(this.#value, {
       get(target, key) {
-        const path = this.path ? `${this.path}.${key}` : key;
-        if (typeof target[key] === "object" && target[key] !== null)
-          return new Proxy(target[key], { path, ...handler });
-        if (callback) callback(path);
+        if (typeof listener?.get === "function") listener.get(this.path ? `${this.path}.${key}` : key, target[key]);
         return target[key];
       },
       set(target, key, value) {
         if (target[key] === value) return true;
         target[key] = value;
-        update(this.path ? `${this.path}.${key}` : key);
+        for (let i = 0, len = listeners.length; i < len; i++)
+          listeners[i](this.path ? `${this.path}.${key}` : key, value);
+        updateCache();
         return true;
       },
-    };
-    return new Proxy(this.#value, handler);
-  }
-
-  register(callback) {
-    this.#callback = callback;
+    });
+    return this.#proxy;
   }
 }
 
@@ -702,40 +703,6 @@ function styleToString(style) {
   }
   result = result.trim();
   return result === "" ? null : result;
-}
-
-function updateContext(original, updated, callback, path) {
-  const keys = Object.keys(updated);
-  for (let i = 0, len = keys.length; i < len; i++) {
-    const key = keys[i];
-    if (typeof updated[key] === "object" && typeof original[key] === "object")
-      updateContext(
-        original[key],
-        updated[key],
-        callback,
-        path ? `${path}.key` : key,
-      );
-    else if (updated[key] !== original[key]) {
-      original[key] = updated[key];
-      callback(path ? `${path}.${key}` : key);
-    }
-  }
-}
-
-function updateCache(key, value, type) {
-  const storage = type === "session" ? sessionStorage : localStorage;
-  storage.setItem(encode(CONTEXT_CACHE_KEY + key), encode(stringify(value)));
-}
-
-function getCacheValue(key) {
-  try {
-    return (
-      parse(decode(localStorage.getItem(encode(CONTEXT_CACHE_KEY + key)))) ||
-      undefined
-    );
-  } catch {
-    return undefined;
-  }
 }
 
 function getFieldValue(element) {

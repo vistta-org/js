@@ -1,6 +1,6 @@
 import fs from "@vistta/fs";
 import http from "http";
-import http2 from "http2";
+import https from "https";
 import mime from "mime";
 import compressible from "compressible";
 import zlib from "zlib";
@@ -186,9 +186,8 @@ class Server {
     if (httpsPort)
       this.#https = {
         name: "https",
-        server: http2.createSecureServer(
+        server: https.createServer(
           {
-            allowHTTP1: true,
             key: fs.readFileSync(key),
             cert: fs.readFileSync(cert),
           },
@@ -219,6 +218,7 @@ class Server {
     const { server, port } = protocol;
     await async((resolve) => server.listen(port, resolve));
     this.#socket.server.attach(server);
+    global.loaders.shared.host = protocol.name + "://localhost:" + port;
     protocol.active = true;
     this.#events.emit("ready", { type: protocol.name, port });
     return port;

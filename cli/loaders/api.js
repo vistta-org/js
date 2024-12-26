@@ -16,12 +16,12 @@ export async function load(_, options) {
         const exportName = keys[i];
         const cur = controller[exportName];
         if (!(cur instanceof Method)) continue;
-        code += `export const ${exportName} = ${convertMethodToRequest(options.baseUrl, cur)};`;
+        code += `export const ${exportName} = ${convertMethodToRequest(options.baseUrl, cur, options)};`;
       }
       return { code };
     }
     else if (controller instanceof Method) {
-      code += `export default ${convertMethodToRequest(options.baseUrl, controller)};`
+      code += `export default ${convertMethodToRequest(options.baseUrl, controller, options)};`
       return { code };
     }
     else throw new Error(`Invalid api format. Export default must be either a Method or a class Controller from '@vistta/js'`);
@@ -32,8 +32,8 @@ export async function load(_, options) {
 
 //
 
-function convertMethodToRequest(baseUrl, method) {
-  return `(body) => request.${method.type}("${combinePathnames(baseUrl, method.url)}", { body })`
+function convertMethodToRequest(baseUrl, method, options) {
+  return `(body) => request.${method.type}("${combinePathnames((options.bundler ? "" : global.main.shared.host), baseUrl, method.url)}", { body })`;
 }
 
 function combinePathnames(...paths) {
