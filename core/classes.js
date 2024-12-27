@@ -349,30 +349,30 @@ export const Render = {
     }
   },
   Each: class extends Component {
-    target;
-    callback;
+    of;
+    as;
 
     render() {
-      if (typeof this.target !== "object") {
+      if (typeof this.of !== "object") {
         if ("production" !== process.env.NODE_ENV)
           console.warn(
-            "Render.Each in needs to be either an object or an array",
+            "Render.Each 'of' needs to be either an object or an array",
           );
         return null;
       }
-      if (typeof this.callback !== "function") {
+      if (typeof this.as !== "function") {
         if ("production" !== process.env.NODE_ENV)
-          console.warn("Render.Each callback needs to be a function");
+          console.warn("Render.Each 'as' needs to be a function");
         return null;
       }
       let result = [];
-      if (!Array.isArray(this.target)) {
-        const keys = Object.keys(this.target);
+      if (!Array.isArray(this.of)) {
+        const keys = Object.keys(this.of);
         for (let i = 0, len = keys.length; i < len; i++)
-          result.push(this.callback(this.target[keys[i]], keys[i]));
+          result.push(this.as(this.of[keys[i]], keys[i]));
       } else
-        for (let i = 0, len = this.target.length; i < len; i++)
-          result.push(this.callback(this.target[i], i));
+        for (let i = 0, len = this.of.length; i < len; i++)
+          result.push(this.as(this.of[i], i));
       return result;
     }
   },

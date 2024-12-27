@@ -41,8 +41,8 @@ export class Profiler extends Component<{
 }> {}
 
 declare class RenderEach<T> extends Component<{
-  target: T[] | { [key: string]: T };
-  callback: (value: T, index: number | string) => JSX.Node;
+  of: T[] | { [key: string]: T };
+  as: (value: T, index: number | string) => JSX.Node;
 }> {}
 
 export declare const Render: {
