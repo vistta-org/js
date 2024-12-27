@@ -595,7 +595,7 @@ class Server {
           if (type === "error") return routes.push(this.#register("error", subdomain, pathname, (req, res, message, code) => page.html(req, { message, code }).then(html => send(req, res, code, html, "text/html"))));
           routes.push(this.#register("get", subdomain, pathname, (req, res, props = {}) => page.html(req, props).then(html => res.send(html, "text/html"))));
         }
-        else routes.push(this.#register(type, subdomain, pathname, arg));
+        else routes.push(this.#register(type, subdomain, type === "api" || type === "controller" ? "/api" + pathname : pathname, arg));
         if (emit != false) this.#events.emit("ready", { type, subdomain, pathname });
       }
       catch (e) {
@@ -1154,7 +1154,7 @@ function defaultHeaders(request, response, type) {
     for (let i = 0, len = cookies.length; i < len; i++) {
       const cookie = response.cookies[cookies[i]];
       let value = `${cookies[i]}=${cookie.value}; SameSite=${cookie.options.sameSite || "Strict"}; Path=${cookie.options.path || "/"}; `;
-      if (cookie.options.expires) value += `; Expires=${cookie.options.expires.toUTCString()}`;
+      if (cookie.options.expires) value += `; Expires=${cookie.options.expires}`;
       if (cookie.options.maxAge) value += `; Max-Age=${cookie.options.maxAge}`;
       if (cookie.options.domain) value += `; Domain=${cookie.options.domain}`;
       if (cookie.options.secure) value += `; Secure`;

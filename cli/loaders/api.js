@@ -33,7 +33,7 @@ export async function load(_, options) {
 //
 
 function convertMethodToRequest(baseUrl, method, options) {
-  return `(body) => request.${method.type}("${combinePathnames((options.bundler ? "" : global.main.shared.host), baseUrl, method.url)}", { body })`;
+  return `(body) => request.${method.type}("${combinePathnames((options.bundler ? "" : global.main.shared.host), "/api", baseUrl, method.url)}", { body })`;
 }
 
 function combinePathnames(...paths) {
