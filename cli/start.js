@@ -68,38 +68,4 @@ export default class extends DefaultCLI {
       }
     });
   }
-
-  async app(entry) {
-    const { spawn } = await import("node:child_process");
-    const electron = (await import("electron"))?.default;
-    const { Bundler } = await import("@vistta/cli");
-    entry = fs.resolve(process.cwd(), entry);
-    const build = entry.replace(new RegExp(`${fs.extname(entry)}$`), ".build.js");
-    await fs.writeFile(build, (await new Bundler().run(entry, {
-      define: { "process.platform": JSON.stringify(process.platform) },
-      platform: "node",
-      write: false,
-    }))?.code);
-
-    const child = spawn(electron, [fs.resolve(dirname, "../app/index.js"), build], {
-      stdio: 'inherit',
-      windowsHide: false
-    });
-    
-    child.on('close', async(code, signal) => {
-        if (code === null) {
-            console.error(electron, 'exited with signal', signal);
-            process.exit(1);
-        }
-        process.exit(code);
-    });
-
-    process.on('SIGINT', async() => {
-        if (!child.killed) child.kill('SIGINT');
-    });
-
-    process.on('SIGTERM', async() => {
-        if (!child.killed) child.kill('SIGTERM');
-    });
-  }
 }

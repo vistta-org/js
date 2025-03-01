@@ -1,6 +1,6 @@
 {
   "name": "@vistta/js",
-  "version": "0.1.0-snapshot.3",
+  "version": "0.1.0",
   "description": "Vistta.js Javascript Framework",
   "main": "index.js",
   "types": "index.d.ts",
