@@ -13,14 +13,17 @@ class Router extends BoundClass {
     const initial = !this.#initialHref;
     let { href, pushState, callback, refresh } =
       typeof arg === "object" ? arg : { href: arg };
-    if (href?.startsWith("#")) return updateHash(href);
+    if (href?.startsWith("#")) {
+      document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
+      const { pathname, search } = window.location;
+      return window.history.replaceState({}, '', pathname + search + href);
+    }
     if (!refresh && !initial) refresh = href === true;
     if (!isValidUrl(href))
-      href = buildUrl(typeof href === "string" ? href : location.pathname);
+      href = buildUrl(typeof href === "string" ? href : window.location.pathname);
     if (!isAppUrl(href)) return (window.location.href = href);
     const { pathname, hash, search } = new URL(href);
-    if (!refresh && !initial && this.#virtualDom.pathname === pathname)
-      return updateHash(hash);
+    if (!refresh && !initial && this.#virtualDom.pathname === pathname) return;
     const cachedVirtualDom = this.#routes?.[pathname];
     if (pushState !== false) history.pushState({}, "", pathname + search);
     this.#virtualDom?.disable();
@@ -47,7 +50,7 @@ class Router extends BoundClass {
                 : new Element(app, props)
             );
             updateConfig(this.#virtualDom.config);
-            updateHash(hash);
+            window.history.replaceState({}, '', pathname + search + hash);
             callback?.();
           } catch (e) {
             console.error(e);
@@ -61,7 +64,7 @@ class Router extends BoundClass {
         try {
           this.#virtualDom = cachedVirtualDom.enable();
           updateConfig(this.#virtualDom.config);
-          updateHash(hash);
+          window.history.replaceState({}, '', pathname + search + hash);
           callback?.();
         } catch (e) {
           console.error(e);
@@ -151,14 +154,9 @@ function updateConfig(config) {
 function handleClick(event, router) {
   const { tagName, href, target } = event.target;
   if (tagName !== "A" || (target && target !== "___private") || !href) return;
-  event.preventDefault();
   const hash = href.replace(location.origin + "/", "");
-  if (hash?.startsWith("#")) updateHash(hash);
-  else router.navigate(href);
-}
-
-function updateHash(hash) {
-  if (hash !== location.hash) window.location.hash = hash;
+  event.preventDefault();
+  router.navigate(!hash?.startsWith("#") ? href : hash);
 }
 
 function buildUrl(href) {

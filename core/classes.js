@@ -115,7 +115,7 @@ export class Context extends FunctionClass {
     if (this.#cache) {
       try {
         this.#value = parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#value;
-      } catch(e) {
+      } catch {
         /* Do nothing */
       }
     }
@@ -388,7 +388,7 @@ export class Safe extends Component {
         updater();
       }
       catch (error) {
-        console.error(e)
+        console.error(error);
         this.error = error;
       }
     }
