@@ -12,11 +12,11 @@ export default class extends Component {
         <button id="toggle" onClick={() => (this.toggle = !this.toggle)}>
           toggle
         </button>
-        <span id="output">
+        <div id="output">
           {this.toggle && (
             <Suspense fallback={LOADING_VALUE}>{this.content}</Suspense>
           )}
-        </span>
+        </div>
       </>
     );
   }

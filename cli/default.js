@@ -8,6 +8,7 @@ export default class extends DefaultCLI {
     super(options);
     this.register(fs.resolve(dirname, "./loaders/file.js"), "File", "*");
     this.register(fs.resolve(dirname, "./loaders/file.js"), "File", "reader");
+    this.register(fs.resolve(dirname, "./loaders/file.js"), "File", "url");
     this.register(fs.resolve(dirname, "./loaders/jsx.js"), "JSX", "*", ["jsx", "mjsx", "cjsx", "tsx", "mtsx", "ctsx"], true);
     this.register(fs.resolve(dirname, "./loaders/api.js"), "API", "api", ["js", "mjs", "cjs", "ts", "mts", "cts"]);
     this.register(fs.resolve(dirname, "./loaders/style.js"), "Style", "*", ["css", "sass", "scss"]);

@@ -11,7 +11,7 @@ import {
   Safe,
   Form,
 } from "./classes";
-import { route } from "./router";
+import router from "./router";
 import { socket } from "./socket";
 import { defineReadonly } from "../utils/index.js";
 
@@ -26,6 +26,9 @@ defineReadonly(window, "vistta", {
   Render,
   Safe,
   Form,
-  route,
+  router,
   socket,
 });
+
+window.addEventListener("popstate", () => router.navigate({ pushState: false }));
+window.addEventListener("load", () => router.load());

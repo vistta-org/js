@@ -7,13 +7,15 @@ const IS_DEV = process.env.NODE_ENV === "development";
 
 export async function importCoreResources(build) {
   return {
-    [`/${RESOURCES_PATH}/client.js`]: (process.env.NODE_ENV === "development" ? "\n" : "") + (await import(fs.resolve(dirname, build ? "../core/build/client" : "../core/client"), { with: { type: "bundler" } }))?.code,
-    [`/${RESOURCES_PATH}/client.css`]: (await import(fs.resolve(dirname, "../core/client.css"), { with: { type: "reader" } }))?.default
+    [`/client.js`]: (await import(fs.resolve(dirname, build ? "../core/build/client" : "../core/client"), { with: { type: "bundler" } }))?.code,
+    [`/sw.js`]: (await import(fs.resolve(dirname, "../core/sw"), { with: { type: "bundler" } }))?.code,
+    [`/client.css`]: (await import(fs.resolve(dirname, "../core/client.css"), { with: { type: "reader" } }))?.default
   }
 }
 
 export async function createPage(type, filepath, pathname, inheritedConfigs, inheritedLayout) {
   const { default: content, config } = await import(filepath);
+  const pwa = config?.pwa;
   const { code, errors, resources } = await import(filepath, {
     with: { type: "bundler", exports: "default" },
   });
@@ -23,7 +25,8 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
     config,
     content,
     resources,
-    styles: getPageStyles(resources, config),
+    pwa,
+    styleSheets: [],
     cache: cache(),
     inherited: {
       configs: inheritedConfigs || [],
@@ -37,12 +40,13 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
     return await html(page, props, build)
   };
   page.js = async (_, props) => await javascript(page, code, props);
+  page.manifest = async () => manifest(page);
   return page;
 }
 
 async function html(page, props, build) {
-  const key = stringify(props);
-  const html = page.cache.get("html." + key);
+  const propsString = stringify(props);
+  const html = page.cache.get("html." + propsString);
   const pathname = build ? page.pathname : page.location?.pathname;
   if (html) return html;
   window.page = page;
@@ -51,7 +55,7 @@ async function html(page, props, build) {
   else body = renderToString(new Element(page.content, props));
   window.page = null;
   const config = configs(page);
-  return page.cache.set("html." + key,
+  return page.cache.set("html." + propsString,
     "<!doctype html>\n" +
     renderToString(
       new Element(
@@ -145,8 +149,8 @@ async function html(page, props, build) {
             rel: "stylesheet",
             href: `/${RESOURCES_PATH}/client.css`,
           }),
-          ...convertStyles(page.styles.list, page.styles.preload, true),
           ...convertStyles(config?.styles),
+          ...preload(page.styleSheets),
           ...(config?.scripts?.map(
             (props) => new Element("script", props),
           ) || []),
@@ -196,6 +200,44 @@ function configs(page) {
   });
 }
 
+function manifest(page) {
+  const config = configs(page);
+  if (typeof config.manifest === "object")
+    Object.assign(config, config.manifest);
+  return JSON.stringify({
+    id:
+      config.id ||
+      (config.name && config.version
+        ? config.name + "_" + config.version
+        : undefined),
+    theme_color: config.theme,
+    background_color: config.background,
+    display: config.display || "fullscreen",
+    scope: config.scope || config.href,
+    start_url: config.start_url || config.href,
+    name: config.name || config.title,
+    short_name: config.short_name || config.title,
+    description: config.description,
+    shortcuts: config.shortcuts,
+    icons: ((icon) => {
+      if (!icon) return [];
+      const type = fs.extname(icon).slice(1);
+      return [
+        {
+          src: icon,
+          type: "image/" + type,
+          sizes: "192x192",
+        },
+        {
+          src: icon,
+          type: "image/" + type,
+          sizes: "512x512",
+        },
+      ];
+    })(config.icon),
+  });
+}
+
 function cache() {
   const storage = {};
   return {
@@ -208,20 +250,11 @@ function cache() {
   }
 }
 
-function getPageStyles(resources, { styles = [] } = {}) {
-  resources = Object.keys(resources);
-  const matchesConfigStyle = (id) => {
-    for (let i = 0, len = styles.length; i < len; i++)
-      if (styles[i].id === id) return true;
-    return false;
-  }
-  const result = { list: [], preload: {} };
-  for (let i = 0, len = resources.length; i < len; i++) {
-    if (!resources[i].endsWith(".css")) continue;
-    const id = resources[i].replace(/\.css$/, "");
-    if (!matchesConfigStyle(id)) result.list.push({ id });
-  }
-  return result;
+function preload(styles) {
+  const elements = [];
+  for (let i = 0, len = styles?.length || 0; i < len; i++)
+    elements.push(new Element("link", { rel: "preload", href: styles[i], as: "style" }));
+  return elements;  
 }
 
 function convertStyles(styles, preload, scoped) {

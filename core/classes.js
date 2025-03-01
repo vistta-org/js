@@ -24,7 +24,7 @@ export class Element {
     if (type?.prototype instanceof Component || typeOf === "function") {
       this.type = Component.Node;
       this.props.children = children;
-      this.component = type;
+      this.Component = type;
     } else if (typeOf !== "string" && typeOf !== "symbol") return null;
     else {
       if (props?.ref != null) {
@@ -80,8 +80,9 @@ export class Element {
 }
 
 export class Mutation extends FunctionClass {
-  constructor(callback) {
+  constructor(id, callback) {
     super(callback);
+    this.id = id;
     this.callback = callback;
   }
 }
@@ -114,7 +115,7 @@ export class Context extends FunctionClass {
     if (this.#cache) {
       try {
         this.#value = parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#value;
-      } catch {
+      } catch(e) {
         /* Do nothing */
       }
     }
@@ -145,7 +146,7 @@ export class Context extends FunctionClass {
               resolve();
             };
             try {
-              let value = action(this.proxy(), ...args);
+              let value = action(clone(this.#value), ...args);
               if (isPromise(value))
                 value
                   .then((result) => {
@@ -163,9 +164,9 @@ export class Context extends FunctionClass {
                 resolve();
                 controllerFn(actionName, "completed");
               }
-            } catch {
+            } catch(e) {
               controllerFn(actionName, "rejected");
-              resolve();
+              throw e;
             }
           });
           promise.abort = (...args) => controller.abort(...args);
@@ -215,7 +216,7 @@ export class Context extends FunctionClass {
         return target[key];
       },
       set(target, key, value) {
-        if (target[key] === value) return true;
+        if (target[key] === value || JSON.stringify(target[key]) === JSON.stringify(value)) return true;
         target[key] = value;
         for (let i = 0, len = listeners.length; i < len; i++)
           listeners[i](this.path ? `${this.path}.${key}` : key, value);
@@ -274,28 +275,43 @@ export class Component {
 export class Suspense extends Component {
   #count = 0;
   #callback;
-  #dequeued = false;
-  fallback;
 
-  register(callback) {
-    if (this.#callback != null) throw "Internal Error #004";
-    this.#callback = callback;
+  get fulfilled() {
+    return this.#count == 0;
   }
 
-  wait() {
+  register() {
     this.#count++;
+    return this;
   }
 
-  resolve(dequeued) {
-    if (dequeued) this.#dequeued = true;
-    else this.#count--;
-    if (this.#count == 0 && this.#dequeued) this.#callback();
+  resolve() {
+    this.#count--;
+    if (this.#count == 0) this.#callback(true);
+  }
+
+  /*
+
+    if (this.#count == 0) return callback(true);
+    this.#callback = callback;
+    callback(false);
+  */
+
+  render(callback) {
+    if (callback) this.#callback = callback;
+    if (this.#count == 0) return this.children;
+    return this.fallback;
   }
 }
 
 export class Profiler extends Component {
   callback;
+  #start;
   #total = 0;
+
+  onConnect() {
+    this.callback(performance.now() - this.#start);
+  }
 
   render() {
     if (
@@ -304,32 +320,16 @@ export class Profiler extends Component {
       "production" === process.env.NODE_ENV
     )
       return this.children;
-    let start = performance.now();
-    const callback = this.callback;
-    return new Element(
-      Fragment,
-      null,
-      ...this.children,
-      new Element(
-        class extends Component {
-          onConnect() {
-            callback(performance.now() - start);
-          }
-
-          render() {
-            return null;
-          }
-        },
-      ),
-    );
+    this.#start = performance.now();
+    return this.children;
   }
 
-  record(engine, callback) {
+  record(updater, callback) {
     return () => {
       let initial = performance.now();
-      callback();
+      updater();
       this.#total = performance.now() - initial;
-      engine.profilers.add(this);
+      callback(this);
     };
   }
 
@@ -379,7 +379,25 @@ export const Render = {
 };
 
 export class Safe extends Component {
+  error;
   fallback;
+
+  catch(updater) {
+    return () => {
+      try {
+        updater();
+      }
+      catch (error) {
+        console.error(e)
+        this.error = error;
+      }
+    }
+  }
+
+  render() {
+    if (this.error) return this.fallback;
+    return this.children;
+  }
 }
 
 export class Form extends Component {
@@ -406,6 +424,7 @@ export class Form extends Component {
   #listeners = {};
   #invalidEvent;
   ref;
+  id;
   name;
   className;
   autocomplete;
@@ -477,46 +496,49 @@ export class Form extends Component {
   register(target) {
     if (target instanceof Form) {
       this.#parent = target;
-      this.#path = [...this.#parent.path, this.name];
+      this.#path = [...this.#parent.path, this.name || this.id];
       return;
     }
 
     const {
-      element: { type, props },
+      type,
+      attributes,
       node,
     } = target || {};
+    
     if (
       !node ||
       (type !== "input" &&
         type !== "textarea" &&
         type !== "select" &&
-        props.role !== "input") ||
-      props.type === "submit"
+        attributes.role !== "input") ||
+        attributes.type === "submit"
     )
       return;
-    if (!props.name) {
+    const path = attributes.name || attributes.id;
+    if (!path) {
       if ("production" !== process.env.NODE_ENV)
-        console.warn(`Missing "name" attribute on ${type} inside of form.`);
+        console.warn(`Missing either "id" or "name" attribute on ${type} inside of form.`);
       return;
     }
-    if (props.type === "radio") {
-      if (!this.#fields[props.name]) this.fields[props.name] = [];
-      this.#fields[props.name].push(node);
-    } else this.#fields[props.name] = node;
-    this.#defaultValues[props.name] = getFieldValue(node);
+    if (attributes.type === "radio") {
+      if (!this.#fields[path]) this.fields[path] = [];
+      this.#fields[path].push(node);
+    } else this.#fields[path] = node;
+    this.#defaultValues[path] = getFieldValue(node);
     if (this.#parent)
       return this.#parent.register({
         type,
-        props: { name: [...this.path, props.name].join("."), ...props },
+        props: { name: [...this.path, path].join("."), ...attributes },
         node,
       });
-    this.#required[props.name] = props.required;
-    this.#validators[props.name] =
-      props.validator instanceof Mutation ? props.validator() : props.validator;
+    this.#required[path] = attributes.required;
+    this.#validators[path] =
+    attributes.validator instanceof Mutation ? attributes.validator() : attributes.validator;
     node.addEventListener(type === "select" ? "change" : "input", (e) => {
       if (!this.#invalidEvent) node.setCustomValidity?.("");
-      for (let i = 0, len = this.#listeners[props.name]?.length; i < len; i++)
-        this.#listeners[props.name][i](e);
+      for (let i = 0, len = this.#listeners[path]?.length; i < len; i++)
+        this.#listeners[path][i](e);
       for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++)
         this.#listeners["*"][i](e);
     });
@@ -652,8 +674,8 @@ export class Form extends Component {
 // Global
 
 defineReadonly(window, "Fragment", Fragment);
-defineReadonly(window, "prop", (caller) => new Mutation(caller));
-defineReadonly(window, "child", (caller) => new Mutation(caller));
+defineReadonly(window, "prop", (id, caller) => new Mutation(id, caller));
+defineReadonly(window, "child", (id, caller) => new Mutation(id, caller));
 defineReadonly(window, "element", (id, ...args) => {
   const element = new Element(...args);
   element.id = id;

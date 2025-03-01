@@ -13,7 +13,7 @@ export {
   Safe,
   Form,
 } from "./core/classes";
-export { route } from "./core/router";
+export { router } from "./core/router";
 export { socket } from "./core/socket";
 export {
   default as Controller,

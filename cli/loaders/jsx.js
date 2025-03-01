@@ -53,7 +53,7 @@ function transformElement(code) {
           throw new Error("Error while parsing JSX. [Code: 2]");
         const [value, propsEnd, isQuote] = transformProps(code.slice(i + 1));
         if (isQuote) props += `"${context.prop}": ${value}, `;
-        else props += `"${context.prop}": prop(() => ${value}), `;
+        else props += `"${context.prop}": prop("#${id++}", () => ${value}), `;
         context.prop = "";
         i += propsEnd;
       } else if (code[i] === "{") {
@@ -92,7 +92,7 @@ function transformElement(code) {
           value[0] === value[value.length - 1]
         )
           children += `${value}, `;
-        else children += `child(() => ${value}), `;
+        else children += `child("#${id++}", () => ${value}), `;
         i += expressionEnd - 1;
       } else context.child += code[i];
     } else throw new Error("Error while parsing JSX. [Code: 0]");

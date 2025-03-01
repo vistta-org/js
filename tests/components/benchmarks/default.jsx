@@ -7,9 +7,9 @@ export class Runner extends Component {
   result = 0;
 
   start() {
-    this.result = 0;
-    this.run = 0;
-    this.running = true;
+    //this.result = 0;
+    this.run++;
+    //this.running = true;
   }
 
   stop() {
@@ -17,20 +17,22 @@ export class Runner extends Component {
   }
 
   next(time) {
-    this.result += time;
-    if (this.running) setTimeout(() => this.run++, 0);
+    console.log(time);
+    //this.result += time;
+    //if (this.running) setTimeout(() => this.run++, 0);
   }
 
-  render({ Test }) {
+  render() {
+    const Test = this.Test;
     return (
       <>
         <Profiler callback={(time) => this.next(time)}>
           <Test run={this.run} />
         </Profiler>
-        <button id="start" onClick={() => this.start()}>
+        <button id="start" onClick={this.start}>
           start
         </button>
-        <button id="stop" onClick={() => this.stop()}>
+        <button id="stop" onClick={this.stop}>
           stop
         </button>
         {!this.running && (

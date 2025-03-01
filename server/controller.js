@@ -27,8 +27,7 @@ export class Method extends FunctionClass {
               },
               redirect: response.redirect,
             },
-            request.params,
-            request.body
+            (type === "get" || type === "delete") ? request.params : request.body
           )
         )
     );
@@ -114,19 +113,13 @@ export const Post = (url, callback) => new Method("post", url, callback);
  */
 export const Put = (url, callback) => new Method("put", url, callback);
 
-/**
- * Sets a controller for any request.
- *
- * @param {Function} callback Options for the request.
- * @also
- * @param {string} url - The URL for the request.
- * @param {Function} callback Options for the request.
- * @returns {Function} A promise that resolves to the response data.
- */
-export const Any = (url, callback) => new Method("any", url, callback);
-
 export default class Controller {
   constructor(socket) {
     this.socket = socket;
   }
+}
+
+export function shareToLoader(filepath, value) {
+  if (global.loaders.shared[filepath]) return;
+  global.loaders.shared[filepath] = value;
 }

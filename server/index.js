@@ -1,6 +1,6 @@
 import fs from "@vistta/fs";
-import http from "http";
-import https from "https";
+import { createServer } from "http";
+import { createSecureServer } from "http2";
 import mime from "mime";
 import compressible from "compressible";
 import zlib from "zlib";
@@ -10,7 +10,7 @@ import { EventEmitter } from "node:events";
 import { Server as SocketIO } from "socket.io";
 import { createPage, importCoreResources } from "./page.js";
 import { setScope } from "../cli/loaders/style.js";
-import { default as Controller, Method } from "./controller.js";
+import { default as Controller, Method, shareToLoader } from "./controller.js";
 import {
   RESOURCES_PATH,
   INVALID_EVENT_NAME,
@@ -19,7 +19,6 @@ import {
   isIPAddress,
   stringify,
   ensureEndsWith,
-  assign,
 } from "../utils/index.js";
 
 const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [
@@ -37,8 +36,16 @@ const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [
   ".cts",
 ];
 
-const ANY_METHODS = ["copy", "delete", "get", "move", "patch", "post", "put"];
-const ACCEPTABLE_FILE_NAMES = ["page", "error", "api", "controller", "config", "middleware", "layout"];
+const ALL_METHODS = ["copy", "delete", "get", "move", "patch", "post", "put"];
+const ACCEPTABLE_FILE_NAMES = [
+  "page",
+  "error",
+  "api",
+  "controller",
+  "config",
+  "middleware",
+  "layout",
+];
 
 class Route {
   #subdomain;
@@ -46,6 +53,8 @@ class Route {
   #route;
   #params = [];
   #active = true;
+  #page;
+  #collection;
 
   get subdomain() {
     return this.#subdomain;
@@ -67,40 +76,70 @@ class Route {
     return this.#active;
   }
 
-  constructor(subdomain, pathname, type, handler) {
+  get isPage() {
+    return this.#page;
+  }
+
+  get isCollection() {
+    return !!this.#collection;
+  }
+
+  constructor(subdomain, pathname, type, handler, page = false) {
     this.#subdomain = subdomain;
     this.#pathname = pathname;
-    this.#route = pathname
-      .replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)"))
-      .replace(/\*$/, ".*");
-    this[[
-      "any",
-      "copy",
-      "delete",
-      "get",
-      "move",
-      "patch",
-      "post",
-      "put",
-      "error",
-      "middleware",
-    ].includes(type)
-      ? "handler"
-      : type] = handler;
+    if (type === "collection") this.#collection = [];
+    else {
+      this.#route = pathname
+        .replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)"))
+        .replace(/\*$/, ".*");
+      this[
+        [
+          "all",
+          "copy",
+          "delete",
+          "get",
+          "move",
+          "patch",
+          "post",
+          "put",
+          "error",
+          "middleware",
+        ].includes(type)
+          ? "handler"
+          : type
+      ] = handler;
+    }
+    this.#page = page;
   }
 
   /**
    * Enables the route
    */
   enable() {
-    this.#active = false;
+    if (!this.#collection) this.#active = true;
+    else
+      for (let i = 0, len = this.#collection.length; i < len; i++)
+        this.#collection[i].enable();
   }
 
   /**
    * Disables the route
    */
   disable() {
-    this.#active = false;
+    if (!this.#collection) this.#active = false;
+    else
+      for (let i = 0, len = this.#collection.length; i < len; i++)
+        this.#collection[i].disable();
+  }
+
+  /**
+   * Adds a route to a collection
+   *
+   * @param {Route} route The route to add to the collection
+   */
+  add(route) {
+    if (!this.#collection) throw new TypeError("Route is not a collection");
+    this.#collection.push(route);
   }
 }
 
@@ -110,7 +149,7 @@ class Server {
   #strict;
   #events = new EventEmitter();
   #subdomains = {};
-  #resources = {};
+  #resources;
   #proxy = proxy.createProxyServer({});
   #socket = {
     server: new SocketIO(),
@@ -174,28 +213,38 @@ class Server {
     if (httpsPort && !(cert || key)) {
       httpsPort = null;
       if (!httpPort) throw new Error("Missing certification for HTTPS");
-      else this.#https = { warning: "Disabled HTTPS due to missing certification" };
+      else
+        this.#https = {
+          warning: "Disabled HTTPS due to missing certification",
+        };
     }
     this.#strict = strict !== false;
     if (httpPort)
       this.#http = {
         name: "http",
-        server: http.createServer(this.#handler.bind(this, "http")),
+        server: createServer(this.#handler.bind(this, "http")),
         port: httpPort,
       };
-    if (httpsPort)
-      this.#https = {
-        name: "https",
-        server: https.createServer(
-          {
-            key: fs.readFileSync(key),
-            cert: fs.readFileSync(cert),
-          },
-          this.#handler.bind(this, "https")
-        ),
-        port: httpsPort,
-        certs: { cert, key },
-      };
+    if (httpsPort) {
+      if (!fs.existsSync(cert) || !fs.existsSync(key))
+        this.#https = {
+          warning: "Disabled HTTPS due to missing certification",
+        };
+      else
+        this.#https = {
+          name: "https",
+          server: createSecureServer(
+            {
+              allowHTTP1: true,
+              key: fs.readFileSync(key),
+              cert: fs.readFileSync(cert),
+            },
+            this.#handler.bind(this, "https")
+          ),
+          port: httpsPort,
+          certs: { cert, key },
+        };
+    }
     this.#socket.server.on("connection", this.#socketHandler.bind(this));
     if (start === false) return this;
     this.start().then(() => folder && this.use("/", folder));
@@ -218,7 +267,7 @@ class Server {
     const { server, port } = protocol;
     await async((resolve) => server.listen(port, resolve));
     this.#socket.server.attach(server);
-    global.loaders.shared.host = protocol.name + "://localhost:" + port;
+    shareToLoader("host", { protocol: protocol.name, port });
     protocol.active = true;
     this.#events.emit("ready", { type: protocol.name, port });
     return port;
@@ -382,14 +431,14 @@ class Server {
   }
 
   /**
-   * Routes any HTTP requests to the specified subdomain and pathname with the specified handler function.
+   * Routes all HTTP requests to the specified subdomain and pathname with the specified handler function.
    *
    * @param {string} arg1 - Route subdomain or pathname
    * @param {string | Function} arg2 - Route pathname or handler function
    * @param {Function} [arg3] - Route handler function
    * @returns {Route} The route object
    */
-  any(arg1, arg2, arg3) {
+  all(arg1, arg2, arg3) {
     const [subdomain, pathname, handler] = parseArguments(
       "put",
       arg1,
@@ -398,7 +447,7 @@ class Server {
     );
     if (typeof handler !== "function")
       throw new TypeError("Invalid argument type");
-    return this.#register("any", subdomain, pathname, handler);
+    return this.#register("all", subdomain, pathname, handler);
   }
 
   /**
@@ -419,6 +468,266 @@ class Server {
     if (typeof handler !== "function")
       throw new TypeError("Invalid argument type");
     return this.#register("error", subdomain, pathname, handler);
+  }
+
+  /**
+   * @typedef {"api" | "controller" | "config" | "middleware" | "layout" | "page" | "error"} FileType
+   * 
+   * Uses a folder structure, a file or a middleware as the basis for defining different types of routes
+   *
+   * @param {string} arg1 - Route subdomain or pathname
+   * @param {string | Function} arg2 - Route pathname, directory or handler function
+   * @param {string | UseType | Function} [arg3] - Directory, file, handler function or file type
+   * @param {FileType} [as] - File type
+   * @returns {Promise<Route>} The route object
+   */
+  async use(arg1, arg2, arg3, as) {
+    if (["api", "controller", "config", "middleware", "layout", "page", "error"].includes(arg3))
+      (as = arg3, arg3 = undefined);
+    const [subdomain, basepath, target] = parseArguments(
+      "use",
+      arg1,
+      arg2,
+      arg3
+    );
+    const typeOfTarget = typeof target;
+    if (typeOfTarget === "function")
+      return this.#register("middleware", subdomain, basepath, target);
+    else if (typeOfTarget !== "string")
+      throw new TypeError("Invalid argument type");
+    const collection = new Route(subdomain, basepath, "collection");
+    if (!fs.isDirectory(target)) {
+      if (!as) throw new TypeError("Path is not a directory");
+      await this.#use(as, subdomain, collection, basepath, target);
+      return collection;
+    }
+    const entries = await fs.readdir(target, { recursive: true });
+    for (let i = 0, len = entries.length; i < len; i++) {
+      const filepath = fs.resolve(target, entries[i]);
+      const extname = fs.extname(filepath);
+      if (
+        fs.isDirectory(filepath) ||
+        !JAVASCRIPT_TYPESCRIPT_EXTENSIONS.includes(extname)
+      )
+        continue;
+      const paths = entries[i].replace(/\.[^.]+$/, "").split("\\");
+      const pathsLen = paths.length;
+      if (pathsLen == 1) {
+        await this.#use(paths[0], collection, subdomain, combinePathnames(basepath, "/"), filepath);
+        continue;
+      }
+      let pathname = "";
+      for (let i2 = 0; i2 < pathsLen; i2++) {
+        const path = paths[i2];
+        if (i2 == pathsLen - 1) break;
+        if (!path.endsWith("]")) pathname += "/" + path;
+        else if (path.startsWith("[...")) {
+          pathname += "/*";
+          break;
+        } else if (path.startsWith("[")) pathname += "/:" + path.slice(1, -1);
+        else pathname += "/" + path.slice(0, -1);
+      }
+      await this.#use(paths[pathsLen - 1], collection, subdomain, 
+        combinePathnames(basepath, pathname),
+        filepath
+      );
+    }
+    return collection;
+  }
+
+  async #use(type, collection, subdomain, pathname, filepath, arg, emit) {
+    if (!ACCEPTABLE_FILE_NAMES.includes(type)) return;
+    try {
+      if (
+        !arg &&
+        ["api", "controller", "config", "middleware", "layout"].includes(type)
+      )
+        arg = (await import(filepath))?.default;
+      if (type === "config") {
+        if (typeof arg !== "object")
+          throw new TypeError("Invalid config type");
+        const config = this.#register(
+          "config",
+          subdomain,
+          ensureEndsWith(pathname, "/"),
+          arg
+        );
+        const segments = pathname.split("/");
+        matchRoutes(
+          this.#subdomains[subdomain]?.page || [],
+          pathname,
+          ({ page }) => {
+            const configs = page.inherited.configs;
+            for (let i = 0, len = configs.length; i < len; i++) {
+              if (checkIfMoreSpecific(segments, configs[i].pathname))
+                return configs.splice(i, 0, config);
+            }
+            collection.add(config);
+            configs.push(config);
+            page.cache.reset();
+          }
+        );
+      } else if (type === "layout") {
+        if (typeof arg !== "function")
+          throw new TypeError("Invalid layout type");
+        const layout = this.#register(
+          "layout",
+          subdomain,
+          ensureEndsWith(pathname, "/"),
+          {
+            pathname,
+            component: arg,
+            code: (
+              await import(filepath, {
+                with: {
+                  type: "bundler",
+                  globalName: "__app_layout_component",
+                  exports: "default",
+                },
+              })
+            )?.code,
+          }
+        );
+        const segments = pathname.split("/");
+        matchRoutes(
+          this.#subdomains[subdomain]?.page || [],
+          pathname,
+          ({ page }) => {
+            if (
+              page.inherited.layout &&
+              !checkIfMoreSpecific(segments, page.inherited.layout.pathname)
+            )
+              return;
+            page.inherited.layout = layout;
+            page.cache.reset();
+          }
+        );
+        collection.add(layout);
+      } else if (type === "page" || type === "error") {
+        const configs = [];
+        const segments = pathname.split("/");
+        for (
+          let i = 0, len = pathname === "/" ? 1 : segments.length;
+          i < len;
+          i++
+        ) {
+          const config = matchRoute(
+            this.#subdomains[subdomain]?.config || [],
+            segments.slice(0, i + 1).join("/") || "/"
+          );
+          if (config) configs.push(config);
+        }
+        const page = await createPage(
+          type,
+          filepath,
+          pathname,
+          configs,
+          matchRoute(this.#subdomains[subdomain]?.layout || [], pathname, {
+            exact: false,
+            filter: (route) => route.layout,
+          })
+        );
+        if (!this.#resources) this.#resources = await importCoreResources();
+        const resourceKeys = Object.keys(page.resources);
+        for (
+          let i2 = 0, resourcesLen = resourceKeys.length;
+          i2 < resourcesLen;
+          i2++
+        )
+          this.#resources["/" + resourceKeys[i2]] =
+            page.resources[resourceKeys[i2]];
+        if (type === "error") {
+          collection.add(
+            this.#register(
+              "page",
+              subdomain,
+              ensureEndsWith(pathname, "/❌"),
+              page
+            )
+          );
+          collection.add(
+            this.#register(
+              "error",
+              subdomain,
+              pathname,
+              (req, res, code, message) => {
+                if (req.resource === "page")
+                  page
+                    .js(req, { code, message })
+                    .then((js) => res.send(js, "text/javascript"));
+                else if (req.resource === "manifest")
+                  res.reject("Resource not found", 404);
+                else
+                  page
+                    .html(req, { code, message })
+                    .then((html) => res.send(html, "text/html"));
+              },
+              true
+            )
+          );
+        } else {
+          collection.add(
+            this.#register(
+              "page",
+              subdomain,
+              ensureEndsWith(pathname, "/"),
+              page
+            )
+          );
+          if (page.config)
+            this.#use("config", collection, subdomain, pathname, filepath, page.config, false);
+          collection.add(
+            this.#register(
+              "get",
+              subdomain,
+              pathname,
+              (req, res) => {
+                if (req.resource === "page")
+                  page
+                    .js(req, res.props)
+                    .then((js) => res.send(js, "text/javascript"));
+                else if (req.resource === "manifest") {
+                  if (page.pwa)
+                    page
+                      .manifest(req, req.props)
+                      .then((manifest) =>
+                        res.send(manifest, "text/json")
+                      );
+                  else res.reject("Resource not found", 404);
+                } else
+                  page
+                    .html(req, res.props)
+                    .then((html) => res.send(html, "text/html"));
+              },
+              true
+            )
+          );
+        }
+      } else if (type === "api" || type === "controller") {
+        shareToLoader(filepath, { subdomain, pathname: "/api" + pathname });
+        collection.add(
+          this.#register(
+            type,
+            subdomain,
+            "/api" + pathname,
+            arg
+          )
+        );
+      }
+      else
+        collection.add(
+          this.#register(
+            type,
+            subdomain,
+            pathname,
+            arg
+          )
+        );
+      if (emit != false)
+        this.#events.emit("ready", { type, subdomain, pathname });
+    } catch (e) {
+      this.#events.emit("error", e);
+    }
   }
 
   /**
@@ -468,7 +777,7 @@ class Server {
             ...targetOrOptions,
           };
     return this.#register(
-      "any",
+      "all",
       subdomain,
       ensureEndsWith(pathname, "/*"),
       (req, res) =>
@@ -502,167 +811,12 @@ class Server {
     const baseUrl =
       typeOfTarget === "string" ? typeOfTarget : typeOfTarget?.target;
     return this.#register(
-      "any",
+      "all",
       subdomain,
       ensureEndsWith(pathname, "/*"),
-      (req, res) => res.redirect(new URL(req.url || "/", baseUrl).toString(), true)
+      (req, res) =>
+        res.redirect(new URL(req.url || "/", baseUrl).toString(), true)
     );
-  }
-
-  /**
-   * Uses a folder structure, a single file or a middleware as the basis for defining different types of routes
-   *
-   * @param {string} arg1 - Route subdomain or pathname
-   * @param {string | Function} arg2 - Route pathname, directory or handler function
-   * @param {string | Function} [arg3] - Directory or handler function
-   * @returns {Route} The route object
-   */
-  async use(arg1, arg2, arg3) {
-    const [subdomain, basepath, target] = parseArguments(
-      "use",
-      arg1,
-      arg2,
-      arg3
-    );
-    const typeOfTarget = typeof target;
-    if (typeOfTarget === "function")
-      return this.#register("middleware", subdomain, basepath, target);
-    else if (typeOfTarget !== "string")
-      throw new TypeError("Invalid argument type");
-    if (!fs.isDirectory(target)) throw new TypeError("Path is not a directory");
-    const entries = await fs.readdir(target, { recursive: true });
-    const routes = [];
-    global.loaders.shared.use = { cwd: target, subdomain, basepath };
-    const use = async (type, pathname, filepath, arg, emit) => {
-      if (!ACCEPTABLE_FILE_NAMES.includes(type)) return;
-      try {
-        if (!arg && ["api", "controller", "config", "middleware", "layout"].includes(type))
-          arg = (await import(filepath))?.default;
-        if (type === "config") {
-          if (typeof arg !== "object") throw new TypeError("Invalid config type");
-          const config = this.#register("config", subdomain, ensureEndsWith(pathname, "/"), arg);
-          const segments = pathname.split("/");
-          matchRoutes(this.#subdomains[subdomain]?.page || [], pathname, ({ page }) => {
-            const configs = page.inherited.configs;
-            for (let i = 0, len = configs.length; i < len; i++) {
-              if (checkIfMoreSpecific(segments, configs[i].pathname))
-                return configs.splice(i, 0, config);
-            }
-            routes.push(config);
-            configs.push(config);
-            page.cache.reset();
-          });
-        }
-        else if (type === "layout") {
-          if (typeof arg !== "function") throw new TypeError("Invalid layout type");
-          const layout = this.#register("layout", subdomain, ensureEndsWith(pathname, "/"), {
-            pathname,
-            component: arg,
-            code: (
-              await import(filepath, {
-                with: {
-                  type: "bundler",
-                  globalName: "__app_layout_component",
-                  exports: "default"
-                },
-              })
-            )?.code
-          });
-          const segments = pathname.split("/");
-          matchRoutes(this.#subdomains[subdomain]?.page || [], pathname, ({ page }) => {
-            if (page.inherited.layout && !checkIfMoreSpecific(segments, page.inherited.layout.pathname)) return;
-            page.inherited.layout = layout;
-            page.cache.reset();
-          });
-          routes.push(layout);
-        }
-        else if (type === "page") {
-          const get = (type) => matchRoute(this.#subdomains[subdomain]?.[type] || [], pathname, { exact: false, filter: route => route[type] });
-          const configs = [];
-          const segments = pathname.split("/");
-          for (let i = 0, len = (pathname === "/" ? 1 : segments.length); i < len; i++) {
-            const config = matchRoute(this.#subdomains[subdomain]?.config || [], segments.slice(0, i + 1).join("/") || "/");
-            if (config) configs.push(config);
-          }
-          const page = await createPage(type, filepath, pathname, configs, get("layout"));
-          if (!this.#resources[subdomain]) this.#resources[subdomain] = await importCoreResources(this.#isBuild);
-          const resourceKeys = Object.keys(page.resources);
-          for (let i2 = 0, resourcesLen = resourceKeys.length; i2 < resourcesLen; i2++)
-            this.#resources[subdomain]["/" + RESOURCES_PATH + "/" + resourceKeys[i2]] = page.resources[resourceKeys[i2]];
-          routes.push(this.#register("page", subdomain, ensureEndsWith(pathname, "/"), page));
-          if (page.config) use("config", pathname, filepath, page.config, false);
-          routes.push(this.#register("get", subdomain, ensureEndsWith(pathname, "/") + "page.js", (req, res, props = {}) => page.js(req, props).then(js => res.send(js, "text/javascript"))));
-          if (type === "error") return routes.push(this.#register("error", subdomain, pathname, (req, res, message, code) => page.html(req, { message, code }).then(html => send(req, res, code, html, "text/html"))));
-          routes.push(this.#register("get", subdomain, pathname, (req, res, props = {}) => page.html(req, props).then(html => res.send(html, "text/html"))));
-        }
-        else routes.push(this.#register(type, subdomain, type === "api" || type === "controller" ? "/api" + pathname : pathname, arg));
-        if (emit != false) this.#events.emit("ready", { type, subdomain, pathname });
-      }
-      catch (e) {
-        this.#events.emit("error", e);
-      }
-    }
-    for (let i = 0, len = entries.length; i < len; i++) {
-      const filepath = fs.resolve(target, entries[i]);
-      const extname = fs.extname(filepath);
-      if (
-        fs.isDirectory(filepath) ||
-        !JAVASCRIPT_TYPESCRIPT_EXTENSIONS.includes(extname)
-      )
-        continue;
-      const paths = entries[i].replace(/\.[^.]+$/, "").split("\\");
-      const pathsLen = paths.length;
-      if (pathsLen == 1) {
-        await use(paths[0], combinePathnames(basepath, "/"), filepath);
-        continue;
-      }
-      let pathname = "";
-      for (let i2 = 0; i2 < pathsLen; i2++) {
-        const path = paths[i2];
-        if (i2 == pathsLen - 1) break;
-        if (!path.endsWith("]")) pathname += "/" + path;
-        else if (path.startsWith("[...")) {
-          pathname += "/*";
-          break;
-        } else if (path.startsWith("[")) pathname += "/:" + path.slice(1, -1);
-        else pathname += "/" + path.slice(0, -1);
-      }
-      await use(
-        paths[pathsLen - 1],
-        combinePathnames(basepath, pathname),
-        filepath
-      );
-    }
-    global.loaders.shared.use = null;
-    
-    let active = true;
-    return {
-      get subdomain() {
-        return subdomain;
-      },
-      get pathname() {
-        return basepath;
-      },
-      get route() {
-        return null;
-      },
-      get params() {
-        return [];
-      },
-      get active() {
-        return active;
-      },
-      disable() {
-        active = false;
-        for (let i = 0, len = routes.length; i < len; i++)
-          routes[i].disable();
-      },
-      enable() {
-        active = true;
-        for (let i = 0, len = entries.length; i < len; i++)
-          routes[i].enable();
-      },
-    }
   }
 
   /**
@@ -681,7 +835,8 @@ class Server {
         : [arg1, convertToEventName(arg2), arg3];
     if (!event) return this.#events.emit("warning", INVALID_EVENT_NAME), null;
     if (subdomain === "*") {
-      if (event === "ready" || event === "warning" || event === "error") return this.#events.on(event, callback);
+      if (event === "ready" || event === "warning" || event === "error")
+        return this.#events.on(event, callback);
 
       const subdomains = Object.keys(this.#socket.subdomains);
       for (let i = 0, len = subdomains?.length; i < len; i++) {
@@ -703,67 +858,82 @@ class Server {
    */
   emit(subdomain, event, ...args) {
     if (typeof event !== "string")
-      return this.#events.emit("warning","Cannot emit an empty event");
+      return this.#events.emit("warning", "Cannot emit an empty event");
     if (subdomain && subdomain !== "*")
       this.#socket.server.to(subdomain).emit(event, ...args);
     else this.#socket.server.emit(event, ...args);
   }
 
-  #register(type, subdomain, pathname, arg) {
+  #register(type, subdomain, pathname, arg, page) {
     if (type === "api") {
       if (Object.isPrototypeOf.call(Controller, arg))
         return this.#register("controller", subdomain, pathname, arg);
       else if (arg instanceof Method)
-        return this.#register(arg.type, subdomain, pathname, async (req, res) => {
-          try {
-            const value = await arg.handler(req, res);
-            if (!res.writableEnded) res.send(value);
+        return this.#register(
+          arg.type,
+          subdomain,
+          pathname,
+          async (req, res) => {
+            try {
+              const value = await arg.handler(req, res);
+              if (!res.writableEnded) res.send(value);
+            } catch (e) {
+              res.reject(e.message, 500);
+            }
           }
-          catch (e) {
-            res.reject(e.message, 500)
-          }
-        });
+        );
       else if (typeof handler === "function")
-        return this.#register("any", subdomain, pathname, arg);
+        return this.#register("all", subdomain, pathname, arg);
       else throw new TypeError("Invalid api type");
     }
     if (type === "controller") {
-      if (!Object.isPrototypeOf.call(Controller, arg)) throw new TypeError("Invalid controller type");
-      const socket = { emit: this.emit.bind(this, subdomain), on: this.on.bind(this, subdomain) };
+      if (!Object.isPrototypeOf.call(Controller, arg))
+        throw new TypeError("Invalid controller type");
+      const socket = {
+        emit: this.emit.bind(this, subdomain),
+        on: this.on.bind(this, subdomain),
+      };
       const handlers = Object.values(new arg(socket));
       for (let i = 0, len = handlers.length; i < len; i++) {
         const handler = handlers[i];
         if (!(handler instanceof Method)) continue;
         const handlerPathname = combinePathnames(pathname, handler.url);
-        this.#register(handler.type, subdomain, handlerPathname, async (req, res) => {
-          try {
-            const value = await handler(req, res);
-            if (!res.writableEnded) res.send(value);
+        this.#register(
+          handler.type,
+          subdomain,
+          handlerPathname,
+          async (req, res) => {
+            try {
+              const value = await handler(req, res);
+              if (!res.writableEnded) res.send(value);
+            } catch (e) {
+              res.reject(e.message, 500);
+            }
           }
-          catch (e) {
-            res.reject(e.message, 500)
-          }
-        });
+        );
       }
       return null;
     }
-    if (type === "any") {
+    if (type === "all") {
       const route = new Route(subdomain, pathname, type, arg);
-      for (let i = 0, len = ANY_METHODS.length; i < len; i++)
-        this.#register(ANY_METHODS[i], subdomain, pathname, route);
+      for (let i = 0, len = ALL_METHODS.length; i < len; i++)
+        this.#register(ALL_METHODS[i], subdomain, pathname, route);
       return route;
     }
 
     this.#subdomains[subdomain] ||= defaultSubdomain();
-    const route = arg instanceof Route ? arg : new Route(subdomain, pathname, type, arg);
+    const route =
+      arg instanceof Route
+        ? arg
+        : new Route(subdomain, pathname, type, arg, page);
     const routes = this.#subdomains[subdomain][type];
-    const existing = findRoute(routes, route.route);
+    const { route: existing, replace } = findRoute(routes, route.route) || {};
     if (existing) {
       if (this.#strict)
         throw new Error(
           `${type.toUpperCase()} ${subdomain !== "" ? 'for subdomain "' + subdomain + '"' : ""} path "${pathname}" already exists.`
         );
-      return assign(existing, route);
+      return replace(route);
     }
     const segments = pathname.split("/");
     for (let i = 0, len = routes.length; i < len; i++) {
@@ -779,11 +949,16 @@ class Server {
       response.end();
       return;
     }
+    if (protocol === "https" && request.headers[":authority"])
+      request.headers.host = request.headers[":authority"];
     if (!request.headers.host) throw new Error("Missing host header");
     request.protocol = protocol;
     request.subdomain = getSubdomain(request.headers.host);
     request.resource = fs.extname(request.url) !== "";
-    const url = new URL(request.url, `${request.protocol}://${request.headers.host}`);
+    const url = new URL(
+      request.url,
+      `${request.protocol}://${request.headers.host}`
+    );
     request.href = url.href;
     request.pathname = url.pathname;
     request.params = Object.fromEntries(url.searchParams.entries());
@@ -798,13 +973,20 @@ class Server {
       }
     }
     response.cookies = {};
+    response.props = {};
     response.set = (type, ...args) => {
       switch (type) {
         case "cookie":
-          response.cookies[args[0]] = { value: args[1] || "", options: args[2] || {} };
+          response.cookies[args[0]] = {
+            value: args[1] || "",
+            options: args[2] || {},
+          };
           break;
         case "cookies":
-          Object.assign(response.cookies, args[0]);
+          Object.assign(response.cookies, args[0] || {});
+          break;
+        case "props":
+          Object.assign(response.props, args[0] || {});
           break;
         default:
           break;
@@ -813,7 +995,8 @@ class Server {
     response.reject = (message, code) =>
       this.#reject(request, response, message, code);
     response.redirect = (url, permanent) => (
-      response.writeHead(permanent ? 301 : 302, { Location: url }), response.end()
+      response.writeHead(permanent ? 301 : 302, { Location: url }),
+      response.end()
     );
     response.send = (content, type) =>
       typeof content === "object"
@@ -845,11 +1028,10 @@ class Server {
         request.pathname.startsWith(`/${RESOURCES_PATH}/`) &&
         request.resource
       ) {
-        if (request.pathname.endsWith(".scoped.css")) {
+        const resourcePath = request.pathname.slice(RESOURCES_PATH.length + 1);
+        if (resourcePath.endsWith(".scoped.css")) {
           const resource =
-            this.#resources?.[request.subdomain]?.[
-              request.pathname.replace(".scoped.css", ".css")
-            ];
+            this.#resources?.[resourcePath.replace(".scoped.css", ".css")];
           return response.send(
             await setScope(
               resource,
@@ -858,15 +1040,22 @@ class Server {
             "text/css"
           );
         }
-        const resource =
-          this.#resources?.[request.subdomain]?.[request.pathname];
+        const resource = this.#resources?.[resourcePath];
         if (method === "get" && resource) {
-          const type =
-            mime.getType(request.pathname) || "application/octet-stream";
+          const type = mime.getType(resourcePath) || "application/octet-stream";
           if (fs.isAbsolute(resource)) return response.sendFile(resource, type);
           return response.send(resource, type);
         }
       } else {
+        if (request.pathname.endsWith("/page.js"))
+          (request.resource = "page"),
+            (request.pathname = removeFromPath(request.pathname, "/page.js"));
+        if (request.pathname.endsWith("manifest.json"))
+          (request.resource = "manifest"),
+            (request.pathname = removeFromPath(
+              request.pathname,
+              "/manifest.json"
+            ));
         const route = matchRoute(
           this.#subdomains[request.subdomain]?.[method],
           request.pathname
@@ -900,11 +1089,36 @@ class Server {
             type || "application/json"
           )
         : send(request, response, response.code, content, type);
-    const route = matchRoute(
+    const acceptsHtml =
+      request.headers.accept && request.headers.accept.includes("text/html");
+    let route = matchRoute(
       this.#subdomains[request.subdomain]?.error,
-      request.pathname
+      request.pathname,
+      {
+        exact: false,
+        filter: (route) => route.active && (acceptsHtml || !route.isPage),
+      }
     );
-    if (route) return route.handler(request, response);
+    if (route)
+      return route.handler(
+        request,
+        response,
+        response?.code,
+        response?.message
+      );
+    if (request.subdomain === "")
+      return send(request, response, response?.code, response?.message);
+    route = matchRoute(this.#subdomains[""]?.error, request.pathname, {
+      exact: false,
+      filter: (route) => route.active && (acceptsHtml || !route.isPage),
+    });
+    if (route)
+      return route.handler(
+        request,
+        response,
+        response?.code,
+        response?.message
+      );
     send(request, response, response?.code, response?.message);
   }
 
@@ -954,13 +1168,13 @@ class Server {
       await createFile(page.pathname + "/style.css", page.css());
     }
 
-    const resources = Object.keys(this.#resources.build);
+    const resources = Object.keys(this.#resources);
     for (let i = 0, len = resources.length; i < len; i++) {
       const filepath = resources[i];
       await fs.mkdir(fs.resolve(output, "./" + RESOURCES_PATH), {
         recursive: true,
       });
-      await createFile(filepath, this.#resources.build[filepath]);
+      await createFile(filepath, this.#resources[filepath]);
     }
 
     return options?.write === false ? files : true;
@@ -1035,7 +1249,11 @@ function matchRoutes(routes, pathname, callback) {
 
 function findRoute(routes, route) {
   for (let i = 0, len = routes.length; i < len; i++) {
-    if (routes[i].route === route) return routes[i];
+    if (routes[i].route === route)
+      return {
+        route: routes[i],
+        replace: (newRoute) => ((routes[i] = newRoute), newRoute),
+      };
   }
   return null;
 }
@@ -1045,19 +1263,29 @@ function combinePathnames(basePathname, relativePathname) {
     "." + relativePathname,
     new URL(basePathname + (basePathname.endsWith("/") ? "" : "/"), "file://")
   ).pathname;
-  return pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  return pathname.endsWith("/") && pathname !== "/"
+    ? pathname.slice(0, -1)
+    : pathname;
+}
+
+function removeFromPath(urlPath, target) {
+  if (urlPath === target) return "/";
+  return urlPath.replace(new RegExp(target + "$"), "");
 }
 
 function getRequestBody(request) {
   return new Promise((resolve, reject) => {
     let body = "";
     request.on("data", (data) => (body += data));
-    request.on('end', () => {
-      try { body = JSON.parse(body); } 
-      catch { /* Do Nothing */ }
+    request.on("end", () => {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        /* Do Nothing */
+      }
       resolve(body);
     });
-    request.on('error', (err) => reject(err));
+    request.on("error", (err) => reject(err));
   });
 }
 
@@ -1131,7 +1359,7 @@ function checkIfMoreSpecific(segments, target) {
 }
 
 function defaultHeaders(request, response, type) {
-  const headers ={
+  const headers = {
     "X-DNS-Prefetch-Control": "off",
     "Expect-CT": "max-age=86400, enforce",
     "X-Frame-Options": "DENY",
@@ -1149,12 +1377,13 @@ function defaultHeaders(request, response, type) {
         : "no-cache, no-store, must-revalidate",
   };
   const cookies = Object.keys(response.cookies);
-  if(cookies.length > 0) {
+  if (cookies.length > 0) {
     let setCookies = "";
     for (let i = 0, len = cookies.length; i < len; i++) {
       const cookie = response.cookies[cookies[i]];
       let value = `${cookies[i]}=${cookie.value}; SameSite=${cookie.options.sameSite || "Strict"}; Path=${cookie.options.path || "/"}; `;
-      if (cookie.options.expires) value += `; Expires=${cookie.options.expires}`;
+      if (cookie.options.expires)
+        value += `; Expires=${cookie.options.expires}`;
       if (cookie.options.maxAge) value += `; Max-Age=${cookie.options.maxAge}`;
       if (cookie.options.domain) value += `; Domain=${cookie.options.domain}`;
       if (cookie.options.secure) value += `; Secure`;

@@ -1,4 +1,4 @@
-import { INVALID_EVENT_NAME, convertToEventName } from "../utils";
+import { INVALID_EVENT_NAME, convertToEventName } from "../utils/index.js";
 
 class Socket {
   #instance;

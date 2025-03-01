@@ -1,21 +1,34 @@
 import "./adapter.js";
-import Dom from "../../core/dom.js";
+import { VirtualDom } from "../../core/dom.js";
 import { Element } from "../../core/classes.js";
+import { RESOURCES_PATH } from "../../utils/index.js";
 
-class ServerDom extends Dom {
+document.createDocumentFragment = () => createServerElement("fragment");
+document.createTextNode = (text) => ({ toString: () => "" + text });
+document.createElement = (tag) => createServerElement(tag);
+
+class ServerVirtualDom extends VirtualDom {
   constructor() {
-    super("", createServerElement("dom"));
+    super("server", createServerElement("dom"));
   }
 
-  createDocumentFragment = () => createServerElement("fragment");
-  createTextNode = (text) => ({ toString: () => "" + text });
-  createElement = (tag) => createServerElement(tag);
+  enqueue() {}
+
+  next() {}
+
+  addStyleSheet(style, scoped) {
+    style = `/${RESOURCES_PATH}/${style}${scoped ? ".scoped" : ""}.css`;
+    for (let i = 0, len = window.page.styleSheets.length; i < len; i++) {
+      if (window.page.styleSheets[i] === style) return;
+    }
+    window.page.styleSheets.push(style);
+  }
 }
 
 function renderToString(element) {
-  const dom = new ServerDom();
-  dom.render(element);
-  return dom.node.toString();
+  const virtualDom = new ServerVirtualDom();
+  virtualDom.render(element);
+  return virtualDom.host.toString();
 }
 
 export { renderToString, Element };

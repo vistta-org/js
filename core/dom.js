@@ -11,664 +11,682 @@ import {
   Safe,
   Form,
 } from "./classes.js";
-import { capitalize } from "../utils/index.js";
+import { RESOURCES_PATH, capitalize, ensureArray, addUnique } from "../utils/index.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
+let componentMutationCount = 0;
 class VirtualDomError extends Error {
   constructor(message) {
     super(message);
-    this.name = "VirtualDomError";
+    this.name = "Virtual Dom Error";
   }
 }
 
-export default class VirtualDom {
-  node = document.body;
-  engine = {
-    active: false,
-    profilers: new Set(),
-    queue(mutations) {
-      const type = typeof mutations;
-      let node = {};
-      if (type === "function") node.callback = mutations;
-      else if (type !== "object") throw new VirtualDomError("Internal Error #003");
-      else node.iterator = mutations[Symbol.iterator]();
-      this.first ||= node;
-      if (this.last) this.last.next = node;
-      this.last = node;
-      if (!this.active) {
-        this.active = true;
-        this.next();
-      }
-    },
-    next() {
-      const cur = this.first;
-      if (!cur) {
-        this.last = null;
-        this.active = false;
-        const profilers = this.profilers;
-        this.profilers = new Set();
-        setTimeout(() => profilers.forEach((profiler) => profiler.end()), 0);
-        return;
-      }
-      this.first = cur.next;
-      if (cur.callback) cur.callback();
+class VirtualDom {
+  active = false;
+  running = false;
+  queue = [];
+  keys = {};
+  affectedComponents = [];
+  profilers = [];
+  styleSheets = {};
+
+  constructor(pathname, host, config) {
+    this.pathname = pathname;
+    this.host = host;
+    this.config = config;
+  }
+
+  render(element) {
+    this.active = true;
+    this.running = true;
+    const host = {
+      type: VirtualDom,
+      node: document.createDocumentFragment(),
+    };
+    this.virtualTree = renderElement(this, host, element, {
+      depth: 0,
+      components: [],
+    });
+    if (!window.isServer) {
+      document.adoptedStyleSheets = [];
+      for (let i = 0, len = this.config?.styles?.length || 0; i < len; i++)
+        this.addStyleSheet(Object.keys(this.config.styles[i])[0].replace("style-", ""));
+    }
+    this.host.replaceChildren(host.node);
+    host.node = this.host;
+    if (!window.isServer) {
+      this.snapshot = createPageSnapshot();
+      requestAnimationFrame(() => this.update());
+    }
+    return this;
+  }
+
+  enqueue(mutations) {
+    if (!Array.isArray(mutations))
+      throw new VirtualDomError("Internal Error #001");
+    this.queue.push(...mutations);
+    if (!this.active || this.running) return;
+    this.running = true;
+    this.snapshot = createPageSnapshot();
+    requestAnimationFrame(() => this.update());
+  }
+
+  update() {
+    const startTime = performance.now();
+    while (this.queue.length > 0) {
+      const mutation = this.queue.shift();
+      mutation.update?.();
+      // Break to avoid exceeding frame budget
+      if (performance.now() - startTime > 16)
+        return requestAnimationFrame(() => this.update());
+    }
+
+    const affectedComponents = this.affectedComponents;
+    this.affectedComponents = [];
+    for (let i = 0, len = affectedComponents.length; i < len; i++)
+      affectedComponents[i].onUpdate?.();
+    const profilers = this.profilers;
+    this.profilers = [];
+    for (let i = 0, len = profilers.length; i < len; i++) profilers[i].end();
+    restorePageSnapshot(this.snapshot);
+    this.running = false;
+  }
+
+  disable() {
+    if (!this.virtualTree)
+      throw new VirtualDomError("Virtual Dom not rendered");
+    traverseVirtualTree(this.virtualTree, (element) => {
+      if (element.type === Component.Node) element.component?.onDisconnect?.();
+    });
+    this.active = false;
+    this.running = false;
+  }
+
+  enable() {
+    if (!this.virtualTree)
+      throw new VirtualDomError("Virtual Dom not rendered");
+    this.active = true;
+    this.running = true;
+    traverseVirtualTree(this.virtualTree, (element) => {
+      if (element.type === Component.Node) element.component?.onConnect?.();
+    });
+    const fragment = document.createDocumentFragment();
+    const firstNode = this.virtualTree.node || this.virtualTree.firstNode;
+    if (firstNode) {
+      const lastNode = this.virtualTree.lastNode;
+      if (!lastNode || firstNode === lastNode) fragment.appendChild(firstNode);
       else {
-        const iterator = cur.iterator;
-        let mutation = iterator.next().value;
-        while (mutation) {
-          mutation?.update?.();
-          mutation = iterator.next().value;
+        let currentNode = firstNode;
+        while (currentNode) {
+          const next = currentNode.nextSibling;
+          fragment.appendChild(currentNode);
+          if (currentNode === lastNode) currentNode = null;
+          else currentNode = next;
         }
       }
-      this.next();
-    },
-  };
-
-  querySelector = (query) => document.querySelector(query);
-  createDocumentFragment = () => document.createDocumentFragment();
-  createTextNode = (text) => document.createTextNode(text);
-  createElement = (tag) => document.createElement(tag);
-
-  constructor(pathname, node, config = {}) {
-    this.pathname = pathname;
-    if (node) this.node = node;
-    this.config = config;
-    this.keys = {};
-    this.children = [];
+    }
+    this.host.replaceChildren(fragment);
+    this.next();
+    return this;
   }
 
-  render(content, refresh, callback) {
-    this.engine.active = true;
-    this.node.innerHTML = "";
-    this.content = render(this, this, content, {});
-    this.mutation = null;
-    this.children = [...this.node.childNodes];
-    callback?.(this.config);
-    this.engine.next();
-  }
-
-  remove() {
-    this.engine.active = false;
-    traverseVirtualNodes(
-      this.content,
-      (virtualNode) =>
-        virtualNode.element.type === Component.Node &&
-        virtualNode?.component?.onDisconnect?.()
-    );
-  }
-
-  refresh(callback) {
-    this.engine.active = true;
-    this.node.replaceChildren(...this.children);
-    traverseVirtualNodes(
-      this.content,
-      (virtualNode) =>
-        virtualNode.element.type === Component.Node &&
-        virtualNode?.component?.onConnect?.()
-    );
-    callback?.(this.config);
-    this.engine.next();
+  async addStyleSheet(style, scoped) {
+    style = `/${RESOURCES_PATH}/${style}${scoped ? ".scoped" : ""}.css`;
+    if (this.styleSheets[style]) return;
+    try {
+      const sheet = new CSSStyleSheet();
+      await sheet.replace(await (await fetch(style))?.text());
+      this.styleSheets[style] = sheet;
+      document.adoptedStyleSheets = [sheet, ...document.adoptedStyleSheets];
+    } catch (error) {
+      console.error('Error loading stylesheet:', error);
+    }
   }
 }
 
-// VDOM Manipulators
+export { VirtualDom };
 
-function render(virtualDom, parent, element, context, referenceNode) {
+function renderElement(virtualDom, parent, element, context, referenceNode) {
   if (element == null || element === false) return null;
-  const virtualNode = { parent, context, element };
   if (!(element instanceof Element)) {
     if (Array.isArray(element)) element = new Element(Fragment, null, element);
     else if (element instanceof Mutation) {
-      virtualNode.mutation = element;
+      const mutation = element;
       element = new Element(Fragment);
-      setMutation(virtualDom, virtualNode.mutation, context, () =>
-        update(
-          virtualDom,
-          virtualNode,
-          null,
-          ensureArray(virtualNode.mutation())
-        )
+      element.id = mutation.id;
+      element.mutations = [];
+      element.mutation = setMutationUpdate(
+        virtualDom,
+        element,
+        mutation,
+        () => updateElement(virtualDom, element, null, ensureArray(mutation())),
+        () => (element.children = ensureArray(mutation()))
       );
-      element.children = ensureArray(virtualNode.mutation());
     } else if (typeof element === "function") element = new Element(element);
     else if (typeof element === "object" || element instanceof Promise)
-      throw new Error(
-        `TypeError: ${capitalize(typeof element)} is not a valid Element`
+      throw new VirtualDomError(
+        `${capitalize(typeof element)} is not a valid Element`
       );
     else element = new Element(TextNode, null, "" + element);
-    virtualNode.element = element;
-  }
+  } else if (element.type == null) return null;
+  else element.mutations = [];
+  element.parent = parent;
+  element.context = context;
 
+  // Text Node
   if (element.type === TextNode) {
-    virtualNode.node = virtualDom.createTextNode(element.children[0]);
-    return append(parent, virtualNode.node, referenceNode), virtualNode;
+    element.node = document.createTextNode(element.children[0]);
+    appendElement(parent, element, referenceNode);
+    return element;
   }
 
+  // Element Node
   if (typeof element.type === "string") {
     if (element.key?.length > 0) {
+      if (element.key instanceof Mutation)
+        throw new VirtualDomError("Internal Error #002");
       if (virtualDom.keys[element.key] == null)
         virtualDom.keys[element.key] = {
           type: element.type,
-          node: virtualDom.createElement(element.type),
+          node: document.createElement(element.type),
         };
       else if (virtualDom.keys[element.key].type !== element.type)
-        throw new Error(`Key ${element.key} already in use.`);
-      virtualNode.node = virtualDom.keys[element.key].node;
-    } else virtualNode.node = virtualDom.createElement(element.type);
+        throw new VirtualDomError(`Key ${element.key} already in use.`);
+      element.node = virtualDom.keys[element.key].node;
+    } else element.node = document.createElement(element.type);
+    if (element.ref instanceof Mutation)
+      throw new VirtualDomError("Internal Error #003");
+    if (typeof element.ref === "function") element.ref(element.node);
+    else if (element.ref instanceof Ref) element.ref.node = element.node;
+    element.node._element = element;
+
+    element.attributes = {};
     const keys = Object.keys(element.props);
+    const disabledOrReadOnly =
+      getPropValue(element.props.disabled) ||
+      getPropValue(element.props.readOnly);
     for (let i = 0, len = keys.length; i < len; i++) {
       const prop = element.props[keys[i]];
-      if (prop instanceof Mutation) {
-        setMutation(virtualDom, prop, context, () =>
-          setAttribute(virtualNode.node, keys[i], prop(), getPropValue(element.props.disabled) || getPropValue(element.props.readOnly))
+      if (prop instanceof Mutation)
+        setMutationUpdate(
+          virtualDom,
+          element,
+          prop,
+          () =>
+            setAttribute(
+              virtualDom,
+              element,
+              keys[i],
+              prop(),
+              getPropValue(element.props.disabled) ||
+                getPropValue(element.props.readOnly)
+            ),
+          () =>
+            setAttribute(
+              virtualDom,
+              element,
+              keys[i],
+              prop(),
+              disabledOrReadOnly
+            )
         );
-        setAttribute(virtualNode.node, keys[i], prop(), getPropValue(element.props.disabled) || getPropValue(element.props.readOnly));
-      } else setAttribute(virtualNode.node, keys[i], prop, getPropValue(element.props.disabled) || getPropValue(element.props.readOnly));
+      else setAttribute(virtualDom, element, keys[i], prop, disabledOrReadOnly);
     }
-    if (element.ref instanceof Mutation) throw new VirtualDomError("Internal Error #001");
-    if (typeof element.ref === "function") element.ref(virtualNode.node);
-    else if (element.ref instanceof Ref) element.ref.node = virtualNode.node;
-    virtualNode.children = [];
-    for (let i = 0, len = element.children.length; i < len; i++)
-      virtualNode.children[i] = render(
-        virtualDom,
-        virtualNode,
-        element.children[i],
-        { ...context }
-      );
-    context.form?.register(virtualNode);
-    return append(parent, virtualNode.node, referenceNode), virtualNode;
+    renderElementChildren(virtualDom, element, element.children, context);
+    appendElement(parent, element, referenceNode);
+    context.form?.register(element);
+    return element;
   }
 
+  // Fragment Node
+  if (element.type === Fragment)
+    return (
+      renderElementChildren(
+        virtualDom,
+        element,
+        element.children,
+        context,
+        referenceNode
+      ),
+      element
+    );
+
+  // Component Node
   if (element.type === Component.Node) {
-    if (element.component.prototype instanceof Component)
-      virtualNode.component = new element.component();
+    let component;
+    if (element.Component.prototype instanceof Component)
+      component = new element.Component();
     else {
-      const component = element.component();
+      component = element.Component();
       if (
         typeof component !== "object" ||
         typeof component.render !== "function"
       )
-        throw new Error("TypeError: Invalid Function Component format.");
-      virtualNode.component = Object.assign(new Component(), component);
+        throw new VirtualDomError("Invalid Function Component format");
+      component = Object.assign(new Component(), component);
     }
-    if (element.component === Safe) {
-      try {
-        context.safe = virtualNode.component;
-        const fragment = {
-          node: virtualDom.createDocumentFragment(),
-          children: [],
-        };
-        for (let i = 0, len = element.props.children?.length || 0; i < len; i++)
-          fragment.children[i] = render(
-            virtualDom,
-            fragment,
-            element.props.children[i],
-            { ...context }
-          );
-        virtualNode.children = fragment.children;
-        referenceNode ||= findReferenceNode(virtualNode, -1);
-        let node = fragment.node.firstChild;
-        while (node != null) {
-          append(virtualNode, node, referenceNode);
-          node = fragment.node.firstChild;
-        }
-        return virtualNode;
-      } catch (e) {
-        context.safe.error = e;
-        virtualNode.children = [
-          render(
-            virtualDom,
-            virtualNode,
-            element.props.fallback,
-            { ...context },
-            referenceNode
+    context.components.push(component);
+    element.attributes = {};
+    let changedProps = {};
+    //
+    if (element.component === Form) {
+      if (context.form) component.register(context.form);
+      else context.form = component;
+    } else if (
+      element.component === Profiler &&
+      "production" !== process.env.NODE_ENV
+    ) {
+      addUnique(virtualDom.profilers, component);
+      context.profiler = component;
+    } else if (element.component === Safe) context.safe = component;
+    const keys = Object.keys(element.props);
+    for (let i = 0, len = keys.length; i < len; i++)
+      component[keys[i]] ??= true;
+    const propertyNames = Object.getOwnPropertyNames(component);
+    for (let i = 0, len = propertyNames.length; i < len; i++) {
+      const propertyName = propertyNames[i];
+      if (
+        propertyName === "render" ||
+        propertyName === "onConnect" ||
+        propertyName === "onDisconnect"
+      )
+        Object.defineProperty(component, propertyName, {
+          configurable: false,
+          enumerable: false,
+          value: component[propertyName].bind(component),
+        });
+      else if (propertyName === "onUpdate") {
+        const original = component.onUpdate;
+        Object.defineProperty(component, "onUpdate", {
+          configurable: false,
+          enumerable: false,
+          value: () => (
+            original.call(component, changedProps), (changedProps = {})
           ),
-        ];
-        return virtualNode;
+        });
+      } else if (component[propertyName] instanceof Context) {
+        const instance = component[propertyName];
+        if (!context["#" + instance.key]) {
+          const mutations = {};
+          const previous = {};
+          context["#" + instance.key] = instance.proxy({
+            get: (path, value) => {
+              if (!mutations[path]) mutations[path] = [];
+              if (!virtualDom.mutation) return;
+              addUnique(mutations[path], virtualDom.mutation);
+              previous[path] = value;
+            },
+            set: (path, value) => {
+              if (previous[path] == value) return;
+              previous[path] = value;
+              changedProps[propertyName] = true;
+              if (mutations[path]) virtualDom.enqueue(mutations[path]);
+            },
+          });
+        }
+        Object.defineProperty(component, propertyName, {
+          configurable: false,
+          enumerable: false,
+          get: () => context["#" + instance.key],
+        });
+      } else if (component[propertyName] instanceof Promise) {
+        const mutations = [];
+        let fulfilled = false;
+        let suspense;
+        element.attributes[propertyName] = null;
+        if (!window.isServer)
+          component[propertyName].then((result) => {
+            element.attributes[propertyName] = result;
+            fulfilled = true;
+            suspense?.resolve?.();
+            virtualDom.enqueue(mutations);
+          });
+        Object.defineProperty(component, propertyName, {
+          configurable: false,
+          enumerable: true,
+          get: () => {
+            if (virtualDom.mutation) addUnique(mutations, virtualDom.mutation);
+            if (!fulfilled && virtualDom.suspense)
+              suspense = virtualDom.suspense.register();
+            return element.attributes[propertyName];
+          },
+          set: (v) => {
+            if (v === element.attributes[propertyName]) return;
+            element.attributes[propertyName] = v;
+            changedProps[propertyName] = true;
+            virtualDom.enqueue(mutations);
+          },
+        });
+      } else {
+        const mutations = [];
+        element.attributes[propertyName] = component[propertyName];
+        if (element.props[propertyName] instanceof Mutation) {
+          const mutation = element.props[propertyName];
+          mutation.context = { mutations };
+          setMutationUpdate(
+            virtualDom,
+            element,
+            mutation,
+            () => {
+              element.attributes[propertyName] = mutation();
+              virtualDom.enqueue(mutations);
+            },
+            () => {
+              element.attributes[propertyName] = mutation();
+            }
+          );
+        } else if (element.props[propertyName] != null)
+          element.attributes[propertyName] = element.props[propertyName];
+        Object.defineProperty(component, propertyName, {
+          configurable: false,
+          enumerable: propertyName !== "children",
+          get: () => {
+            if (virtualDom.mutation) addUnique(mutations, virtualDom.mutation);
+            return element.attributes[propertyName];
+          },
+          set: (v) => {
+            if (v === element.attributes[propertyName]) return;
+            element.attributes[propertyName] = v;
+            changedProps[propertyName] = true;
+            virtualDom.enqueue(mutations);
+          },
+        });
       }
     }
-    if (element.component === Suspense) {
-      if (element.props.fallback) {
-        element.children = [element.props.fallback];
-        if (!window.isServer) {
-          context.suspense = virtualNode.component;
-          const fragment = {
-            node: virtualDom.createDocumentFragment(),
-            children: [],
-          };
-          for (
-            let i = 0, len = element.props.children?.length || 0;
-            i < len;
-            i++
-          )
-            fragment.children[i] = render(
-              virtualDom,
-              fragment,
-              element.props.children[i],
-              { ...context }
-            );
-          virtualNode.component.register(() => {
-            virtualNode.children = fragment.children;
-            for (let i = 0, len = virtualNode.children.length; i < len; i++)
-              virtualNode.children[i].parent = virtualNode;
-            const fallbackFirstNode = virtualNode.firstNode;
-            if (fallbackFirstNode) {
-              const fallbackLastNode = virtualNode.lastNode;
-              if (!fallbackLastNode || fallbackFirstNode === fallbackLastNode)
-                remove(virtualNode, fallbackFirstNode);
-              else {
-                let currentNode = fallbackFirstNode;
-                while (currentNode) {
-                  const next = currentNode.nextSibling;
-                  remove(virtualNode, currentNode);
-                  if (currentNode === fallbackLastNode) currentNode = null;
-                  else currentNode = next;
-                }
-              }
-            }
-
-            referenceNode ||= findReferenceNode(virtualNode, -1);
-            let node = fragment.node.firstChild;
-            while (node != null) {
-              append(virtualNode, node, referenceNode);
-              node = fragment.node.firstChild;
-            }
-          });
-          virtualDom.engine.queue(() => virtualNode.component.resolve(true));
-        }
-      } else element.children = element.props.children;
-    } else {
-      if (element.component === Form) {
-        if (context.form) virtualNode.component.register(context.form);
-        else context.form = virtualNode.component;
-      } else if (element.component === Profiler && "production" !== process.env.NODE_ENV)
-        context.profiler = virtualNode.component;
-      const keys = Object.keys(element.props);
-      for (let i = 0, len = keys.length; i < len; i++)
-        virtualNode.component[keys[i]] ??= true;
-      const propertyNames = Object.getOwnPropertyNames(virtualNode.component);
-      for (let i = 0, len = propertyNames.length; i < len; i++) {
-        const propertyName = propertyNames[i];
-        if (propertyName === "render")
-          Object.defineProperty(virtualNode.component, propertyName, {
-            configurable: false,
-            enumerable: false,
-            value: virtualNode.component[propertyName].bind(virtualNode.component),
-          });
-        else if (virtualNode.component[propertyName] instanceof Promise) {
-          let value = null;
-          let status = "pending";
-          const mutations = new Set();
-          virtualNode.component[propertyName].then((result) => {
-            value = result;
-            status = "resolved";
-            virtualDom.engine.queue(mutations);
-          });
-          Object.defineProperty(virtualNode.component, propertyName, {
-            configurable: false,
-            enumerable: true,
-            get: () => {
-              if (window.isServer) return value;
-              if (status === "completed") {
-                /* Do Nothing */
-              } else if (status === "pending") {
-                if (virtualDom.mutation) {
-                  virtualDom.mutation.context?.suspense?.wait();
-                  mutations.add(virtualDom.mutation);
-                }
-              } else if (status === "resolved") {
-                status = "completed";
-                virtualDom.engine.queue(() =>
-                  mutations.forEach((mutation) =>
-                    mutation.context?.suspense?.resolve()
-                  )
-                );
-              }
-              return value;
-            },
-          });
-        } else if (virtualNode.component[propertyName] instanceof Context) {
-          const instance = virtualNode.component[propertyName];
-          if (!context["#" + instance.key]) context["#" + instance.key] = { instance, mutations: {}, previous: {} };
-          const { mutations, previous } = context["#" + instance.key];
-          Object.defineProperty(virtualNode.component, propertyName, {
-            configurable: false,
-            enumerable: false,
-            get: () => instance.proxy({
-              get: (path, value) => {
-                if (!mutations[path]) mutations[path] = new Set();
-                const mutation = virtualDom.mutation;
-                if (!mutation) return;
-                mutations[path].add(mutation);
-                previous[path] = value;
-              },
-              set: (path, value) => {
-                if (previous[path] == value) return;
-                virtualDom.engine.queue(mutations[path]);
-                previous[path] = value;
-              }
-            }),
-          });
-        } else {
-          const mutations = new Set();
-          let value = virtualNode.component[propertyName];
-          if (element.props[propertyName] instanceof Mutation) {
-            setMutation(
-              virtualDom,
-              element.props[propertyName],
-              context,
-              () =>
-                (virtualNode.component[propertyName] = element.props[propertyName]())
-            );
-            value = element.props[propertyName]();
-          } else if (element.props[propertyName] != null)
-            value = element.props[propertyName];
-          Object.defineProperty(virtualNode.component, propertyName, {
-            configurable: false,
-            enumerable: propertyName !== "children",
-            get: () => {
-              if (virtualDom.mutation) mutations.add(virtualDom.mutation);
-              return value;
-            },
-            set: (v) => {
-              if (v === value) return;
-              value = v;
-              virtualDom.engine.queue(mutations);
-            },
-          });
-        }
-      }
-
-      if (context?.safe?.error) Object.defineProperty(virtualNode.component, "error", {
+    if (context?.safe?.error)
+      Object.defineProperty(component, "error", {
         configurable: false,
         enumerable: true,
         get: () => context.safe.error,
       });
-      virtualNode.mutation = new Mutation(() => virtualNode.component.render(virtualNode.component));
-      setMutation(virtualDom, virtualNode.mutation, context, () =>
-        update(
-          virtualDom,
-          virtualNode,
-          null,
-          ensureArray(virtualNode.component.render(virtualNode.component))
-        )
+
+    const mutation = new Mutation(`##${componentMutationCount++}`, () =>
+      component.render()
+    );
+
+    if (element.component === Suspense) {
+      const fragment = {
+        type: "Fragment",
+        node: document.createDocumentFragment(),
+        children: [],
+      };
+      virtualDom.suspense = component;
+      const replaceChildren = () => {
+        for (let i = 0, len = element.children.length; i < len; i++) {
+          if (!element.children[i]) continue;
+          removeElement(element.children[i]);
+          traverseVirtualTree(element.children[i], (element) => {
+            if (element.type === Component.Node)
+              element.component?.onDisconnect?.();
+            for (let i = 0, len = element.mutations?.length || 0; i < len; i++)
+              element.mutations[i].update = null;
+          });
+        }
+        element.children = fragment.children;
+        for (let i = 0, len = element.children.length; i < len; i++)
+          element.children[i].parent = element;
+        const referenceNode = findReferenceNode(
+          parent,
+          parent.children.indexOf(element)
+        );
+        while (fragment.node.firstChild)
+          appendElement(
+            element,
+            { node: fragment.node.firstChild },
+            referenceNode
+          );
+      };
+      renderElementChildren(
+        virtualDom,
+        fragment,
+        ensureArray(mutation()),
+        context,
+        referenceNode
       );
-      element.children = ensureArray(virtualNode.component.render(virtualNode.component));
+      virtualDom.suspense = null;
+      element.mutation = setMutationUpdate(
+        virtualDom,
+        element,
+        mutation,
+        () => updateElement(virtualDom, element, null, ensureArray(mutation())),
+        () =>
+          component.fulfilled
+            ? replaceChildren()
+            : renderElementChildren(
+                virtualDom,
+                element,
+                ensureArray(component.render(replaceChildren)),
+                context,
+                referenceNode
+              )
+      );
+    } else
+      element.mutation = setMutationUpdate(
+        virtualDom,
+        element,
+        mutation,
+        () => updateElement(virtualDom, element, null, ensureArray(mutation())),
+        () =>
+          renderElementChildren(
+            virtualDom,
+            element,
+            ensureArray(mutation()),
+            context,
+            referenceNode
+          )
+      );
+
+    element.component = component;
+    if (!window.isServer && element.component.onConnect)
+      preventMutation(virtualDom, () => element.component.onConnect?.());
+    return element;
+  }
+
+  throw new VirtualDomError("Unknown Element type");
+}
+
+function updateElement(virtualDom, element, props, children) {
+  const context = element.context;
+  if (element.type === TextNode) {
+    if (children[0] !== element.node.textContent)
+      element.node.textContent = children[0];
+    return element;
+  }
+
+  if (element.type === Component.Node) {
+    let updateChildren = false;
+    const keys = Object.keys(props || {});
+    for (let i = 0, len = keys.length; i < len; i++) {
+      if (!(props[keys[i]] instanceof Mutation)) continue;
+      const mutation = props[keys[i]];
+      const mutations = element.props[keys[i]].context.mutations;
+      setMutationUpdate(
+        virtualDom,
+        element,
+        element.props[keys[i]],
+        () => {
+          element.attributes[keys[i]] = mutation();
+          virtualDom.enqueue(mutations);
+        },
+        () => {
+          const newValue = mutation();
+          if (newValue === element.attributes[keys[i]]) return;
+          element.attributes[keys[i]] = mutation();
+          updateChildren = true;
+        }
+      );
+    }
+    if (updateChildren) children = ensureArray(element.mutation());
+  } else if (element.type !== Fragment) {
+    const keys = Object.keys(props || {});
+    const disabledOrReadOnly =
+      getPropValue(element.props.disabled) ||
+      getPropValue(element.props.readOnly);
+    for (let i = 0, len = keys.length; i < len; i++) {
+      if (!(props[keys[i]] instanceof Mutation)) continue;
+      setMutationUpdate(
+        virtualDom,
+        element,
+        element.props[keys[i]],
+        () =>
+          setAttribute(
+            virtualDom,
+            element,
+            keys[i],
+            props[keys[i]](),
+            getPropValue(element.props.disabled) ||
+              getPropValue(element.props.readOnly)
+          ),
+        () => {
+          const newValue = props[keys[i]]();
+          if (newValue === element.attributes[keys[i]]) return;
+          setAttribute(
+            virtualDom,
+            element,
+            keys[i],
+            newValue,
+            disabledOrReadOnly
+          );
+        }
+      );
     }
   }
 
-  virtualNode.children = [];
-  for (let i = 0, len = element.children.length; i < len; i++)
-    virtualNode.children[i] = render(
+  if (children) {
+    const changes = [];
+    const previousChildren = [...element.children];
+    for (let i = 0, len = children.length; i < len; i++)
+      changes[i] = calculateChanges(children[i], i, previousChildren);
+
+    for (let i = 0, len = previousChildren.length; i < len; i++) {
+      if (!previousChildren[i]) continue;
+      removeElement(previousChildren[i]);
+      traverseVirtualTree(previousChildren[i], (element) => {
+        if (element.type === Component.Node)
+          element.component?.onDisconnect?.();
+        for (let i = 0, len = element.mutations?.length || 0; i < len; i++)
+          element.mutations[i].update = null;
+      });
+    }
+
+    element.children = [];
+    for (let i = 0, len = changes.length; i < len; i++) {
+      if (!changes[i]) continue;
+      const type = changes[i].type;
+      if (type === "insert")
+        element.children[i] = renderElement(
+          virtualDom,
+          element,
+          changes[i].element,
+          {
+            ...context,
+            components: [...context.components],
+            depth: context.depth + 1,
+          },
+          findReferenceNode(element, i)
+        );
+      else if (type === "update")
+        element.children[i] = updateElement(
+          virtualDom,
+          changes[i].element,
+          changes[i].props,
+          changes[i].children
+        );
+    }
+  } else {
+    for (let i = 0, len = element.children.length; i < len; i++) {
+      if (!element.children[i]) continue;
+      const type = element.children[i].type;
+      if (type === Fragment && element.children[i].mutation)
+        element.children[i] = updateElement(
+          virtualDom,
+          element.children[i],
+          null,
+          ensureArray(element.children[i].mutation())
+        );
+      else if (type === Component.Node)
+        element.children[i] = updateElement(virtualDom, element.children[i]);
+      else
+        element.children[i] = updateElement(
+          virtualDom,
+          element.children[i],
+          element.children[i].props,
+          element.children[i].children
+        );
+    }
+  }
+
+  return element;
+}
+
+function renderElementChildren(
+  virtualDom,
+  element,
+  children,
+  context,
+  referenceNode
+) {
+  element.children = [];
+  for (let i = 0, len = children.length; i < len; i++)
+    element.children[i] = renderElement(
       virtualDom,
-      virtualNode,
-      element.children[i],
-      { ...context },
+      element,
+      children[i],
+      {
+        ...context,
+        components: [...context.components],
+        depth: context.depth + 1,
+      },
       referenceNode
     );
-  if (element.type === Component.Node && !window.isServer)
-    virtualNode.component.onConnect?.();
-
-  return virtualNode;
 }
 
-function update(virtualDom, virtualNode, props, children) {
-  if (virtualNode.element.type === TextNode)
-    return (virtualNode.node.nodeValue = children[0]);
-  virtualDom.mutation = virtualNode.mutation;
-
-  if (props && typeof props === "object") {
-    if (typeof virtualNode.element.type === "string") {
-      const keys = Object.keys(props);
-      for (let i = 0, len = keys.length; i < len; i++) {
-        const prop = props[keys[i]];
-        if (prop instanceof Mutation)
-          setAttribute(virtualNode.node, keys[i], prop(), getPropValue(props.disabled) || getPropValue(props.readOnly));
-        else setAttribute(virtualNode.node, keys[i], prop, getPropValue(props.disabled) || getPropValue(props.readOnly));
-      }
-    } else throw new VirtualDomError("Internal Error #002");
-  }
-
-  const previousChildren = virtualNode.children ? [...virtualNode.children] : [];
-  const changes = [];
-  for (let i = 0, len = children.length; i < len; i++)
-    changes[i] = diff(children[i], i, previousChildren);
-
-  for (let i = 0, len = previousChildren.length; i < len; i++) {
-    if (!previousChildren[i]) continue;
-    const firstNode = previousChildren[i].node || previousChildren[i].firstNode;
-    if (firstNode) {
-      const lastNode = previousChildren[i].lastNode;
-      if (!lastNode || firstNode === lastNode) remove(virtualNode, firstNode);
-      else {
-        let currentNode = firstNode;
-        while (currentNode) {
-          const next = currentNode.nextSibling;
-          remove(virtualNode, currentNode);
-          if (currentNode === lastNode) currentNode = null;
-          else currentNode = next;
-        }
-      }
-    }
-    traverseVirtualNodes(previousChildren[i], (_virtualNode) => {
-      if (_virtualNode.element.type === Component.Node)
-        _virtualNode?.component?.onDisconnect?.();
-      if (_virtualNode.mutation) _virtualNode.mutation.update = null;
-      const keys = Object.keys(_virtualNode.element.props);
-      for (let i = 0, len = keys?.length || 0; i < len; i++) {
-        if (_virtualNode.element.props[keys[i]] instanceof Mutation)
-          _virtualNode.element.props[keys[i]].update = null;
-      }
-    });
-  }
-
-  virtualNode.children = [];
-  for (let i = 0, len = changes.length; i < len; i++) {
-    if (!changes[i]) continue;
-    if (changes[i].skip != null) virtualNode.children[i] = changes[i].skip;
-    else if (changes[i].insert != null)
-      virtualNode.children[i] = render(
-        virtualDom,
-        virtualNode,
-        changes[i].insert,
-        { ...virtualNode.context },
-        findReferenceNode(virtualNode, i)
-      );
-    else {
-      let referenceNode = findReferenceNode(virtualNode, i);
-      virtualNode.children[i] = changes[i].update;
-      update(
-        virtualDom,
-        virtualNode.children[i],
-        changes[i].props,
-        changes[i].children
-      );
-      const firstNode =
-        virtualNode.children[i].node || virtualNode.children[i].firstNode;
-      if (!firstNode) continue;
-      if (referenceNode) {
-        if (referenceNode === firstNode) continue;
-      } else if (firstNode.parentNode.firstChild !== firstNode)
-        referenceNode = firstNode.parentNode.firstChild;
-      else continue;
-      const lastNode = virtualNode.children[i].lastNode;
-      if (!lastNode || firstNode === lastNode)
-        append(virtualNode, firstNode, referenceNode);
-      else {
-        let currentNode = firstNode;
-        while (currentNode) {
-          const next = currentNode.nextSibling;
-          append(virtualNode, currentNode, referenceNode);
-          if (currentNode === lastNode) currentNode = null;
-          else currentNode = next;
-        }
-      }
-    }
-  }
-  virtualDom.mutation = null;
-}
-
-//
-
-function append(parent, node, referenceNode) {
-  if (
-    parent.element?.type === Fragment ||
-    parent.element?.type === Component.Node
-  ) {
-    if (referenceNode) {
-      let next = {};
-      if (parent.firstNode === node && parent.firstNode !== parent.lastNode)
-        next.firstNode = parent.firstNode.nextSibling;
-      if (parent.lastNode === node && parent.firstNode !== parent.lastNode)
-        next.lastNode = parent.lastNode.previousSibling;
-      append(parent.parent, node, referenceNode);
-      if (!parent.firstNode || parent.firstNode === node.nextSibling)
-        parent.firstNode = node;
-      else if (next.firstNode) parent.firstNode = next.firstNode;
-      if (!parent.lastNode || parent.lastNode === node.previousSibling)
-        parent.lastNode = node;
-      else if (next.lastNode) parent.lastNode = next.lastNode;
-    } else {
-      if (parent.firstNode === node && parent.firstNode !== parent.lastNode)
-        parent.firstNode = parent.firstNode.nextSibling;
-      else parent.firstNode ||= node;
-      parent.lastNode = node;
-      append(parent.parent, node);
-    }
-  } else if (parent.element?.type !== TextNode) {
-    if (referenceNode) parent.node.insertBefore(node, referenceNode);
-    else parent.node.appendChild(node);
-  }
-}
-
-function remove(parent, node) {
-  if (
-    parent.element?.type === Fragment ||
-    parent.element?.type === Component.Node
-  ) {
-    if (parent.firstNode === node) {
-      if (parent.firstNode === parent.lastNode)
-        (parent.firstNode = null), (parent.lastNode = null);
-      else parent.firstNode = parent.firstNode.nextSibling;
-    } else if (parent.lastNode === node)
-      parent.lastNode = parent.lastNode.previousSibling;
-    remove(parent.parent, node);
-  } else if (
-    parent.element?.type !== TextNode &&
-    parent.node === node.parentNode
-  )
-    parent.node.removeChild(node);
-}
-
-function diff(element, index, previous) {
-  if (element == null || element === false) return null;
-  if (!(element instanceof Element)) {
-    if (Array.isArray(element)) element = new Element(Fragment, {}, element);
-    else if (element instanceof Mutation) {
-      for (let i = index, len = previous.length; i < len; i++) {
-        const mutation = previous[i]?.mutation;
-        if (mutation && mutation.callback === element)
-          return { skip: previous.splice(index, 1, null)[0] };
-      }
-      for (let i = index - 1; i >= 0; i--) {
-        const mutation = previous[i]?.mutation;
-        if (mutation && mutation.callback === element)
-          return { skip: previous.splice(index, 1, null)[0] };
-      }
-      return { insert: element };
-    } else {
-      for (let i = index, len = previous.length; i < len; i++) {
-        const previousElement = previous[i]?.element;
-        if (
-          previousElement &&
-          previousElement.type === TextNode &&
-          previousElement.children[0] === element
-        )
-          return {
-            update: previous.splice(index, 1, null)[0],
-            children: [element],
-          };
-      }
-      for (let i = index - 1; i >= 0; i--) {
-        const previousElement = previous[i]?.element;
-        if (
-          previousElement &&
-          previousElement.type === TextNode &&
-          previousElement.children[0] === element
-        )
-          return {
-            update: previous.splice(index, 1, null)[0],
-            children: [element],
-          };
-      }
-      return { insert: element };
-    }
-  }
-
-  for (let i = index, len = previous.length; i < len; i++) {
-    const previousElement = previous[i]?.element;
-    if (
-      previousElement &&
-      element.id === previousElement.id &&
-      element.key != null &&
-      element.key === previousElement.key &&
-      element.type === previousElement.type &&
-      (element.type !== Component.Node ||
-        element.component === previousElement.component)
-    )
-      return {
-        update: previous.splice(i, 1, null)[0],
-        props: element.props,
-        children: element.children,
-      };
-  }
-  for (let i = index - 1; i >= 0; i--) {
-    const previousElement = previous[i]?.element;
-    if (
-      previousElement &&
-      element.id === previousElement.id &&
-      element.key != null &&
-      element.key === previousElement.key &&
-      element.type === previousElement.type &&
-      (element.type !== Component.Node ||
-        element.component === previousElement.component)
-    )
-      return {
-        update: previous.splice(i, 1, null)[0],
-        props: element.props,
-        children: element.children,
-      };
-  }
-  return { insert: element };
-}
-
-function setMutation(virtualDom, mutation, context, callback) {
-  if (window.isServer) return;
-  if (context.safe) {
-    const originalCallback = callback;
-    callback = () => {
-      try {
-        originalCallback();
-      }
-      catch { /* Do Nothing */ }
-    }
-  }
-  if (context.profiler)
-    mutation.update = context.profiler.record(virtualDom.engine, callback);
-  else mutation.update = callback;
-  mutation.context = context;
+function setMutationUpdate(virtualDom, element, mutation, updater, initial) {
+  if (!mutation.update && !updater)
+    throw new VirtualDomError("Internal Error #004");
+  const updaterLifeCycle = () => {
+    const components = element.context.components;
+    for (let i = 0, len = components.length; i < len; i++)
+      addUnique(virtualDom.affectedComponents, components[i]);
+    updater();
+  };
+  const safe = element?.context?.safe;
+  if (element?.context?.profiler)
+    mutation.update = element.context.profiler.record(
+      safe ? safe.catch(updaterLifeCycle) : updaterLifeCycle,
+      (profiler) => addUnique(virtualDom.profilers, profiler)
+    );
+  else mutation.update = safe ? safe.catch(updaterLifeCycle) : updaterLifeCycle;
+  addUnique(element.mutations, mutation);
+  const previousMutation = virtualDom.mutation;
   virtualDom.mutation = mutation;
+  if (safe) safe.catch(() => (initial ? initial() : mutation.update()))();
+  else initial ? initial() : mutation.update();
+  virtualDom.mutation = previousMutation;
+  return mutation;
 }
 
-function ensureArray(children) {
-  if (!Array.isArray(children)) return [children];
-  return children;
+function preventMutation(virtualDom, callback) {
+  const previousMutation = virtualDom.mutation;
+  virtualDom.mutation = null;
+  callback();
+  virtualDom.mutation = previousMutation;
 }
 
-function setAttribute(node, name, value, disabledOrReadOnly) {
-  if (name === "validator" && typeof value === "function") return;
-  if (!disabledOrReadOnly && /^on\w.*/.test(name) && typeof value === "function") {
+function setAttribute(virtualDom, element, name, value, disabledOrReadOnly) {
+  if (
+    (name === "validator" && typeof value === "function") ||
+    element.attributes[name] === value
+  )
+    return;
+  element.attributes[name] = value;
+  const node = element.node;
+  if (
+    !disabledOrReadOnly &&
+    /^on\w.*/.test(name) &&
+    typeof value === "function"
+  ) {
     node[name.toLowerCase()] = (event, ...args) => {
       try {
         event.stritMode = () => {
@@ -683,35 +701,377 @@ function setAttribute(node, name, value, disabledOrReadOnly) {
   }
   if (name === "className") name = "class";
   if (value == null || value === false) node.removeAttribute(name);
+  else if (name === "value") node.value = value;
   else if (name === "style" && typeof value === "object") {
     const keys = Object.keys(value);
     for (let i = 0, len = keys.length || 0; i < len; i++)
       node.style.setProperty(keys[i], value[keys[i]]);
-  } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
-  if (!window.isServer && name === "id" && value) node.style.setProperty("anchor-name", `--${value}`);
+  } else
+    node.setAttribute(
+      name,
+      typeof value === "boolean" ? "" : value
+    );
+  if (name.startsWith("style-") && value)
+    virtualDom.addStyleSheet(name.replace("style-", ""), true);
+  if (!window.isServer && name === "id" && value)
+    node.style.setProperty("anchor-name", `--a_${value.toLowerCase()}`);
   if (name === "anchor")
-    node.style.setProperty("position-anchor", `--${value}`);
+    node.style.setProperty("position-anchor", `--a_${value.toLowerCase()}`);
+}
+
+function appendElement(parent, element, referenceNode) {
+  if (parent.type === Fragment || parent.type === Component.Node) {
+    if (referenceNode) {
+      if (!parent.firstNode) parent.firstNode = element.node;
+      else if (referenceNode === parent.firstNode)
+        parent.firstNode = element.node;
+      if (!parent.lastNode) parent.lastNode = element.node;
+      else if (referenceNode.previousSibling === parent.lastNode)
+        parent.lastNode = element.node;
+      appendElement(parent.parent, element, referenceNode);
+    } else {
+      if (!parent.firstNode) parent.firstNode = element.node;
+      parent.lastNode = element.node;
+      appendElement(parent.parent, element);
+    }
+  } else if (referenceNode)
+    parent.node.insertBefore(element.node, referenceNode);
+  else parent.node.appendChild(element.node);
+}
+
+function removeElement(element) {
+  const firstNode = element.node || element.firstNode;
+  const remove = (parent, node) => {
+    while (parent.type === Fragment || parent.type === Component.Node) {
+      if (parent.firstNode === node) {
+        if (parent.firstNode === parent.lastNode)
+          (parent.firstNode = null), (parent.lastNode = null);
+        else parent.firstNode = parent.firstNode.nextSibling;
+      } else if (parent.lastNode === node)
+        parent.lastNode = parent.lastNode.previousSibling;
+      parent = parent.parent;
+    }
+    parent.node.removeChild(node);
+  };
+  if (firstNode) {
+    const lastNode = element.lastNode;
+    if (!lastNode || firstNode === lastNode) remove(element.parent, firstNode);
+    else {
+      let currentNode = firstNode;
+      while (currentNode) {
+        const next = currentNode.nextSibling;
+        remove(element.parent, currentNode);
+        if (currentNode === lastNode) currentNode = null;
+        else currentNode = next;
+      }
+    }
+  }
 }
 
 function findReferenceNode(parent, index) {
-  for (let i = index - 1; i >= 0; i--) {
-    if (parent.children[i]?.node) return parent.children[i]?.node?.nextSibling;
-    if (parent.children[i]?.lastNode)
-      return parent.children[i]?.lastNode?.nextSibling;
+  if (parent.type === VirtualDom || index == null) return null;
+  const max = parent.children.length - 1;
+  for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
+    let cur = index + i;
+    let child = cur <= max && parent.children[cur];
+    if (child?.node) return child.node;
+    if (child?.firstNode) return child.firstNode;
+    cur = index - i;
+    child = cur <= max && parent.children[cur];
+    if (child?.node) return child.node.nextSibling;
+    if (child?.lastNode) return child.lastNode.nextSibling;
   }
-  if (parent.node) return parent.node.firstChild;
-  const parentIndex = parent.parent.children.indexOf(parent);
-  return findReferenceNode(
-    parent.parent,
-    parentIndex != -1 ? parentIndex : parent.parent.children.length
-  );
+  if (parent.node) return null;
+  for (let i = 0, len = parent.parent?.children?.length || 0; i <= len; i++) {
+    if (parent.parent.children[i] === parent)
+      return findReferenceNode(parent.parent, i);
+  }
+  return null;
 }
 
-function traverseVirtualNodes(node, callback) {
-  if (!node) return;
-  for (let i = 0, len = node?.children?.length || 0; i < len; i++)
-    traverseVirtualNodes(node.children[i], callback);
-  callback(node);
+function calculateChanges(element, index, previous) {
+  if (element == null || element === false) return null;
+  if (!(element instanceof Element)) {
+    if (Array.isArray(element)) element = new Element(Fragment, {}, element);
+    else if (element instanceof Mutation) {
+      let prev = previous[index];
+      if (prev?.mutation && prev?.id === element.id)
+        return {
+          type: "update",
+          element: previous.splice(index, 1, null)[0],
+          children: ensureArray(element()),
+        };
+      else {
+        const max = previous.length - 1;
+        for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
+          let cur = index + i;
+          prev = cur <= max && previous[cur];
+          if (prev?.mutation && prev?.id === element.id)
+            return {
+              type: "update",
+              element: previous.splice(cur, 1, null)[0],
+              children: ensureArray(element()),
+            };
+          cur = index - i;
+          prev = cur <= max && previous[cur];
+          if (prev?.mutation && prev?.id === element.id)
+            return {
+              type: "update",
+              element: previous.splice(cur, 1, null)[0],
+              children: ensureArray(element()),
+            };
+        }
+      }
+      return { type: "insert", element };
+    } else if (typeof element === "function") element = new Element(element);
+    else if (typeof element === "object" || element instanceof Promise)
+      throw new VirtualDomError(
+        `${capitalize(typeof element)} is not a valid Element`
+      );
+    else element = new Element(TextNode, null, "" + element);
+  }
+
+  if (element.type === TextNode) {
+    let prev = previous[index];
+    if (prev?.type === TextNode)
+      return {
+        type: "update",
+        element: previous.splice(index, 1, null)[0],
+        children: element.children,
+      };
+    else {
+      const max = previous.length - 1;
+      for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
+        let cur = index + i;
+        prev = cur <= max && previous[cur];
+        if (prev?.type === TextNode)
+          return {
+            type: "update",
+            element: previous.splice(cur, 1, null)[0],
+            children: element.children,
+          };
+        cur = index - i;
+        prev = cur <= max && previous[cur];
+        if (prev?.type === TextNode)
+          return {
+            type: "update",
+            element: previous.splice(cur, 1, null)[0],
+            children: element.children,
+          };
+      }
+    }
+    return { type: "insert", element };
+  }
+
+  if (typeof element.type === "string") {
+    let prev = previous[index];
+    if (
+      prev?.type === element.type &&
+      prev?.id === element.id &&
+      prev?.key === element.key
+    )
+      return {
+        type: "update",
+        element: previous.splice(index, 1, null)[0],
+        props: element.props,
+        children: element.children,
+      };
+    else {
+      const max = previous.length - 1;
+      for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
+        let cur = index + i;
+        prev = cur <= max && previous[cur];
+        if (
+          prev?.type === element.type &&
+          prev?.id === element.id &&
+          prev?.key === element.key
+        )
+          return {
+            type: "update",
+            element: previous.splice(cur, 1, null)[0],
+            props: element.props,
+            children: element.children,
+          };
+        cur = index - i;
+        prev = cur <= max && previous[cur];
+        if (
+          prev?.type === element.type &&
+          prev?.id === element.id &&
+          prev?.key === element.key
+        )
+          return {
+            type: "update",
+            element: previous.splice(cur, 1, null)[0],
+            props: element.props,
+            children: element.children,
+          };
+      }
+    }
+    return { type: "insert", element };
+  }
+
+  if (element.type === Fragment) {
+    let prev = previous[index];
+    if (prev?.type === Fragment && prev?.id === element.id)
+      return {
+        type: "update",
+        element: previous.splice(index, 1, null)[0],
+        children: element.mutation
+          ? ensureArray(element.mutation())
+          : element.children,
+      };
+    else {
+      const max = previous.length - 1;
+      for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
+        let cur = index + i;
+        prev = cur <= max && previous[cur];
+        if (prev?.type === Fragment && prev?.id === element.id)
+          return {
+            type: "update",
+            element: previous.splice(cur, 1, null)[0],
+            children: element.mutation
+              ? ensureArray(element.mutation())
+              : element.children,
+          };
+        cur = index - i;
+        prev = cur <= max && previous[cur];
+        if (prev?.type === Fragment && prev?.id === element.id)
+          return {
+            type: "update",
+            element: previous.splice(cur, 1, null)[0],
+            children: element.mutation
+              ? ensureArray(element.mutation())
+              : element.children,
+          };
+      }
+    }
+    return { type: "insert", element };
+  }
+
+  if (element.type === Component.Node) {
+    let prev = previous[index];
+    if (
+      prev?.type === Component.Node &&
+      (typeof element.component === "function"
+        ? prev.component.constructor
+        : prev.component) === element.component &&
+      prev.id === element.id &&
+      prev.key === element.key
+    )
+      return {
+        type: "update",
+        element: previous.splice(index, 1, null)[0],
+        props: element.props,
+      };
+    else {
+      const max = previous.length - 1;
+      for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
+        let cur = index + i;
+        prev = cur <= max && previous[cur];
+        if (
+          prev?.type === Component.Node &&
+          (typeof element.component === "function"
+            ? prev.component.constructor
+            : prev.component) === element.component &&
+          prev.id === element.id &&
+          prev.key === element.key
+        )
+          return {
+            type: "update",
+            element: previous.splice(cur, 1, null)[0],
+            props: element.props,
+          };
+        cur = index - i;
+        prev = cur <= max && previous[cur];
+        if (
+          prev?.type === Component.Node &&
+          (typeof element.component === "function"
+            ? prev.component.constructor
+            : prev.component) === element.component &&
+          prev.id === element.id &&
+          prev.key === element.key
+        )
+          return {
+            type: "update",
+            element: previous.splice(cur, 1, null)[0],
+            props: element.props,
+          };
+      }
+    }
+    return { type: "insert", element };
+  }
+}
+
+function createPageSnapshot() {
+  const snapshot = {};
+  const activeElement = document.activeElement;
+  if (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA")
+    snapshot.caret = {
+      element: activeElement,
+      position: activeElement.selectionStart || 0,
+    };
+  else {
+    const selection = window.getSelection();
+    if (selection.rangeCount) {
+      const range = selection.getRangeAt(0);
+      const getElement = (element) => {
+        if (element?.nodeType === Node.TEXT_NODE)
+          return getElement(element.parentElement);
+        if (element?.isContentEditable)
+          return getElement(element.parentElement);
+        return element;
+      };
+      const element = getElement(range.commonAncestorContainer);
+      const preCaretRange = range.cloneRange();
+      preCaretRange.selectNodeContents(element);
+      preCaretRange.setEnd(range.endContainer, range.endOffset);
+      snapshot.caret = {
+        element: element,
+        position: preCaretRange.toString().length,
+      };
+    }
+  }
+  return snapshot;
+}
+
+function restorePageSnapshot(snapshot) {
+  if (snapshot.caret) {
+    const { element, position } = snapshot.caret;
+    if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
+      element.focus();
+      element.setSelectionRange(position, position);
+    } else {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      let charCount = 0;
+      (function traverseNodes(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          let textLength = node.textContent.length;
+          if (charCount + textLength >= position) {
+            range.setStart(node, position - charCount);
+            range.setEnd(node, position - charCount);
+            return true;
+          }
+          charCount += textLength;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          for (let child of node.childNodes) {
+            if (traverseNodes(child)) return true;
+          }
+        }
+        return false;
+      })(element);
+
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }
+}
+
+function traverseVirtualTree(element, callback) {
+  if (!element) return;
+  for (let i = 0, len = element?.children?.length || 0; i < len; i++)
+    traverseVirtualTree(element.children[i], callback);
+  callback(element);
 }
 
 function getPropValue(prop) {

@@ -10,11 +10,11 @@ export default class extends Component {
   );
   render() {
     return (
-      <span id="output">
+      <div id="output">
         <Suspense fallback={LOADING_VALUE}>
           {this.content1}/{this.content2}
         </Suspense>
-      </span>
+      </div>
     );
   }
 }

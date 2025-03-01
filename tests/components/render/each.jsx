@@ -19,14 +19,14 @@ export default class extends Component {
         </button>
         <div id="list">
           <Render.Each
-            target={this.list}
-            callback={(value) => <input value={value} />}
+            of={this.list}
+            as={(value) => <input value={value} />}
           />
         </div>
         <div id="object">
           <Render.Each
-            target={this.object}
-            callback={(v, k) => <input value={`${k}: ${v}`} />}
+            of={this.object}
+            as={(v, k) => <input value={`${k}: ${v}`} />}
           />
         </div>
       </>
