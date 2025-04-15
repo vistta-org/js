@@ -7,7 +7,6 @@
   "exports": {
     ".": "./index.js",
     "./server": "./server/index.js",
-    "./app": "./app/index.js",
     "./loader": "./cli/default.js",
     "./tsconfig": "./tsconfig.json"
   },
@@ -36,7 +35,7 @@
   },
   "peerDependencies": {
     "@vistta/cli": "*",
-    "electron": "^33.0.0"
+    "electron": "^35.0.0"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -44,8 +43,7 @@
   "vistta": {
     "commands": {
       "default": "./cli/default.js",
-      "start": "./cli/start.js",
-      "build": "./cli/build.js",
+      "server": "./cli/server.js",
       "test": "./cli/test.js"
     },
     "bundler": {

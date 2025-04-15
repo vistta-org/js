@@ -1,4 +1,3 @@
-import "./server/dom/adapter.js";
 export {
   Fragment,
   Element,
@@ -13,4 +12,13 @@ export {
 } from "./core/classes.js";
 export { default as router } from "./core/router.js";
 export { socket } from "./core/socket.js";
-export { default as Controller, Copy, Delete, Get, Move, Patch, Post, Put } from "./server/controller.js";
+export {
+  default as Controller,
+  Copy,
+  Delete,
+  Get,
+  Move,
+  Patch,
+  Post,
+  Put,
+} from "./server/controller.js";

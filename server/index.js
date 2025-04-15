@@ -8,8 +8,7 @@ import proxy from "http-proxy";
 import { URL } from "url";
 import { EventEmitter } from "node:events";
 import { Server as SocketIO } from "socket.io";
-import { createPage, importCoreResources } from "./page.js";
-import { setScope } from "../cli/loaders/style.js";
+import { createPage } from "./page.js";
 import { default as Controller, Method, shareToLoader } from "./controller.js";
 import {
   RESOURCES_PATH,
@@ -20,6 +19,8 @@ import {
   stringify,
   ensureEndsWith,
 } from "../utils/index.js";
+
+const dirname = import.meta.dirname;
 
 const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [
   ".jsx",
@@ -155,7 +156,6 @@ class Server {
     server: new SocketIO(),
     subdomains: {},
   };
-  #isBuild;
 
   get ports() {
     return {
@@ -173,38 +173,24 @@ class Server {
   }
 
   /**
-   *
-   * @typedef {Object} BuildOptions
-   * @property {string} [output] - Output Directory
-   * @property {boolean} [write] - Whether to write to the file system directly or return the files that would have been written as in-memory buffers  Default: true
-   *
-   * @typedef {Object} ServerOptions
-   * @property {string} [folder] - folder
+   * @typedef {Object} Options
    * @property {number | boolean} [http] - Use http or http port
    * @property {number | boolean} [https] - Use https or https port
    * @property {string} [cert] - Certificate filepath
    * @property {string} [key] - Private key filepath
+   * @property {boolean} [start] - Start server, default is true
    * @property {boolean} [strict] - Strict routing, default is true
-   * @property {boolean} [start] - Auto start, default is true
-   * @property {boolean | string | BuildOptions} [build] - Static build
    *
-   * @param {string | ServerOptions} arg1 - Directory or server options
-   * @param {ServerOptions} [arg2] - Server options or callback
+   * @param {Options} [options] - Server options or callback
    */
-  constructor(arg1, arg2) {
-    if (typeof arg1 === "string") arg2.folder = arg1;
-    else arg2 = arg1;
-    let {
-      folder,
-      http: httpPort,
-      https: httpsPort,
-      cert,
-      key,
-      strict,
-      start,
-      build,
-    } = arg2;
-    if (build) return this.#build(folder, build);
+  constructor({
+    http: httpPort,
+    https: httpsPort,
+    cert,
+    key,
+    start,
+    strict,
+  } = {}) {
     if (httpPort === true)
       httpPort = process.env.NODE_ENV === "development" ? 3000 : 80;
     if (httpsPort === true) httpsPort = 443;
@@ -246,8 +232,7 @@ class Server {
         };
     }
     this.#socket.server.on("connection", this.#socketHandler.bind(this));
-    if (start === false) return this;
-    this.start().then(() => folder && this.use("/", folder));
+    if (start !== false) this.start();
   }
 
   /**
@@ -471,19 +456,14 @@ class Server {
   }
 
   /**
-   * @typedef {"api" | "controller" | "config" | "middleware" | "layout" | "page" | "error"} FileType
-   * 
    * Uses a folder structure, a file or a middleware as the basis for defining different types of routes
    *
    * @param {string} arg1 - Route subdomain or pathname
-   * @param {string | Function} arg2 - Route pathname, directory or handler function
-   * @param {string | UseType | Function} [arg3] - Directory, file, handler function or file type
-   * @param {FileType} [as] - File type
+   * @param {string | Function} arg2 - Route pathname, directory or handler or function
+   * @param {string | Function} [arg3] - Directory, file, handler or function
    * @returns {Promise<Route>} The route object
    */
-  async use(arg1, arg2, arg3, as) {
-    if (["api", "controller", "config", "middleware", "layout", "page", "error"].includes(arg3))
-      (as = arg3, arg3 = undefined);
+  async use(arg1, arg2, arg3) {
     const [subdomain, basepath, target] = parseArguments(
       "use",
       arg1,
@@ -497,23 +477,30 @@ class Server {
       throw new TypeError("Invalid argument type");
     const collection = new Route(subdomain, basepath, "collection");
     if (!fs.isDirectory(target)) {
-      if (!as) throw new TypeError("Path is not a directory");
-      await this.#use(as, subdomain, collection, basepath, target);
+      await this.#use("page", collection, subdomain, basepath, target);
       return collection;
     }
     const entries = await fs.readdir(target, { recursive: true });
     for (let i = 0, len = entries.length; i < len; i++) {
-      const filepath = fs.resolve(target, entries[i]);
+      const entry = entries[i].replace(/\\/g, "/");
+      const filepath = fs.resolve(target, entry);
       const extname = fs.extname(filepath);
+      const isResource = fs.contains(filepath, RESOURCES_PATH);
       if (
         fs.isDirectory(filepath) ||
-        !JAVASCRIPT_TYPESCRIPT_EXTENSIONS.includes(extname)
+        !(JAVASCRIPT_TYPESCRIPT_EXTENSIONS.includes(extname) || isResource)
       )
         continue;
-      const paths = entries[i].replace(/\.[^.]+$/, "").split("\\");
+      const paths = entry.replace(/\.[^.]+$/, "").split("/");
       const pathsLen = paths.length;
-      if (pathsLen == 1) {
-        await this.#use(paths[0], collection, subdomain, combinePathnames(basepath, "/"), filepath);
+      if (pathsLen == 1 && !isResource) {
+        await this.#use(
+          paths[0],
+          collection,
+          subdomain,
+          combinePathnames(basepath, "/"),
+          filepath
+        );
         continue;
       }
       let pathname = "";
@@ -527,10 +514,18 @@ class Server {
         } else if (path.startsWith("[")) pathname += "/:" + path.slice(1, -1);
         else pathname += "/" + path.slice(0, -1);
       }
-      await this.#use(paths[pathsLen - 1], collection, subdomain, 
-        combinePathnames(basepath, pathname),
-        filepath
-      );
+      if (isResource)
+        this.#resources[
+          combinePathnames(basepath, pathname) + "/" + fs.basename(filepath)
+        ] = filepath;
+      else
+        await this.#use(
+          paths[pathsLen - 1],
+          collection,
+          subdomain,
+          combinePathnames(basepath, pathname),
+          filepath
+        );
     }
     return collection;
   }
@@ -544,8 +539,7 @@ class Server {
       )
         arg = (await import(filepath))?.default;
       if (type === "config") {
-        if (typeof arg !== "object")
-          throw new TypeError("Invalid config type");
+        if (typeof arg !== "object") throw new TypeError("Invalid config type");
         const config = this.#register(
           "config",
           subdomain,
@@ -627,14 +621,26 @@ class Server {
             filter: (route) => route.layout,
           })
         );
-        if (!this.#resources) this.#resources = await importCoreResources();
+        if (!this.#resources)
+          this.#resources = {
+            [`/${RESOURCES_PATH}/client.js`]: (
+              await import(fs.resolve(dirname, "./client.js"), {
+                with: { type: "bundler" },
+              })
+            )?.code,
+            [`/${RESOURCES_PATH}/worker.js`]: (
+              await import(fs.resolve(dirname, "./worker.js"), {
+                with: { type: "bundler" },
+              })
+            )?.code,
+          };
         const resourceKeys = Object.keys(page.resources);
         for (
           let i2 = 0, resourcesLen = resourceKeys.length;
           i2 < resourcesLen;
           i2++
         )
-          this.#resources["/" + resourceKeys[i2]] =
+          this.#resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] =
             page.resources[resourceKeys[i2]];
         if (type === "error") {
           collection.add(
@@ -675,7 +681,15 @@ class Server {
             )
           );
           if (page.config)
-            this.#use("config", collection, subdomain, pathname, filepath, page.config, false);
+            this.#use(
+              "config",
+              collection,
+              subdomain,
+              pathname,
+              filepath,
+              page.config,
+              false
+            );
           collection.add(
             this.#register(
               "get",
@@ -690,9 +704,7 @@ class Server {
                   if (page.pwa)
                     page
                       .manifest(req, req.props)
-                      .then((manifest) =>
-                        res.send(manifest, "text/json")
-                      );
+                      .then((manifest) => res.send(manifest, "text/json"));
                   else res.reject("Resource not found", 404);
                 } else
                   page
@@ -705,24 +717,8 @@ class Server {
         }
       } else if (type === "api" || type === "controller") {
         shareToLoader(filepath, { subdomain, pathname: "/api" + pathname });
-        collection.add(
-          this.#register(
-            type,
-            subdomain,
-            "/api" + pathname,
-            arg
-          )
-        );
-      }
-      else
-        collection.add(
-          this.#register(
-            type,
-            subdomain,
-            pathname,
-            arg
-          )
-        );
+        collection.add(this.#register(type, subdomain, "/api" + pathname, arg));
+      } else collection.add(this.#register(type, subdomain, pathname, arg));
       if (emit != false)
         this.#events.emit("ready", { type, subdomain, pathname });
     } catch (e) {
@@ -862,6 +858,54 @@ class Server {
     if (subdomain && subdomain !== "*")
       this.#socket.server.to(subdomain).emit(event, ...args);
     else this.#socket.server.emit(event, ...args);
+  }
+
+  /**
+   * Builds a static site from a subdomain or all of them to the specified output directory.
+   *
+   * @param {string} arg1 The subdomain to build from or the output directory.
+   * @param {string} [arg2] The output directory.
+   */
+  async build(arg1, arg2) {
+    const [subdomain, output] = arg2 ? [arg1, arg2] : ["", arg1];
+    const files = {};
+    const createFile = async (file, content) => {
+      const len = content.length;
+      if (len === 0) return;
+      const filepath = fs.resolve(output, "." + file);
+      file = filepath.replace(fs.resolve(output), "");
+      await fs.ensureDir(fs.dirname(filepath));
+      await fs.writeFile(filepath, content);
+      files[file] = { filepath, len };
+    };
+
+    const pages = this.#subdomains[subdomain]?.page || [];
+    for (let i = 0, len = pages.length; i < len; i++) {
+      const page = pages[i].page;
+      if (page.pathname.includes(":")) continue;
+      await fs.ensureDir(fs.resolve(output, "." + page.pathname));
+      await createFile(
+        page.pathname + "/index.html",
+        await page.html({ headers: { host: "localhost" } }, {}, true)
+      );
+      await createFile(page.pathname + "/page.js", await page.js({}, {}));
+    }
+
+    const resources = Object.keys(this.#resources || {});
+    await fs.ensureDir(fs.resolve(output, "./" + RESOURCES_PATH));
+    for (let i = 0, len = resources.length; i < len; i++) {
+      const filepath = resources[i];
+      let content = this.#resources[filepath];
+      if (filepath === `/${RESOURCES_PATH}/client.js`)
+        content = (
+          await import(fs.resolve(dirname, "./build/client.js"), {
+            with: { type: "bundler" },
+          })
+        )?.code;
+      else if (fs.isAbsolute(content)) content = await fs.readFile(content);
+      await createFile(filepath, content);
+    }
+    return files;
   }
 
   #register(type, subdomain, pathname, arg, page) {
@@ -1024,28 +1068,14 @@ class Server {
   async #resolve(request, response) {
     try {
       const method = request.method.toLowerCase();
-      if (
-        request.pathname.startsWith(`/${RESOURCES_PATH}/`) &&
-        request.resource
-      ) {
-        const resourcePath = request.pathname.slice(RESOURCES_PATH.length + 1);
-        if (resourcePath.endsWith(".scoped.css")) {
-          const resource =
-            this.#resources?.[resourcePath.replace(".scoped.css", ".css")];
-          return response.send(
-            await setScope(
-              resource,
-              fs.basename(request.pathname, ".scoped.css")
-            ),
-            "text/css"
-          );
-        }
-        const resource = this.#resources?.[resourcePath];
-        if (method === "get" && resource) {
-          const type = mime.getType(resourcePath) || "application/octet-stream";
-          if (fs.isAbsolute(resource)) return response.sendFile(resource, type);
-          return response.send(resource, type);
-        }
+      const resource = this.#resources?.[request.pathname];
+      if (request.resource && resource) {
+        if (method !== "get")
+          return this.#reject(request, response, "Method not allowed", 405);
+        const type =
+          mime.getType(request.pathname) || "application/octet-stream";
+        if (fs.isAbsolute(resource)) return response.sendFile(resource, type);
+        return response.send(resource, type);
       } else {
         if (request.pathname.endsWith("/page.js"))
           (request.resource = "page"),
@@ -1129,55 +1159,6 @@ class Server {
     socket.onAny((event, ...args) =>
       this.#socket.subdomains[subdomain].emit(event, args)
     );
-  }
-
-  async #build(folder, options, callback) {
-    this.#isBuild = true;
-    await this.use("build", "/", folder);
-    if (options === true || typeof options === "string")
-      options = { output: options };
-    if (options.output === true) options.output = ".build";
-    const output = ".build";
-    const files = {};
-    const createFile = async (file, content) => {
-      const len = content.length;
-      if (len === 0) return;
-      const filepath = fs.resolve(output, "." + file);
-      file = filepath.replace(fs.resolve(output), "");
-      if (options?.write === false) {
-        files[file] = content;
-        callback?.(null, file);
-        return;
-      }
-      await fs.writeFile(filepath, content);
-      callback?.(filepath, file, fs.statSync(filepath).size);
-    };
-
-    const pages = this.#subdomains.build.page;
-    for (let i = 0, len = pages.length; i < len; i++) {
-      const page = pages[i].page;
-      if (page.pathname.includes(":")) continue;
-      await fs.mkdir(fs.resolve(output, "." + page.pathname), {
-        recursive: true,
-      });
-      await createFile(
-        page.pathname + "/index.html",
-        page.html({}, {}, this.#isBuild)
-      );
-      await createFile(page.pathname + "/script.js", page.js());
-      await createFile(page.pathname + "/style.css", page.css());
-    }
-
-    const resources = Object.keys(this.#resources);
-    for (let i = 0, len = resources.length; i < len; i++) {
-      const filepath = resources[i];
-      await fs.mkdir(fs.resolve(output, "./" + RESOURCES_PATH), {
-        recursive: true,
-      });
-      await createFile(filepath, this.#resources[filepath]);
-    }
-
-    return options?.write === false ? files : true;
   }
 }
 

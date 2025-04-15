@@ -10,9 +10,10 @@ import {
   Render,
   Safe,
   Form,
-} from "../classes";
-import { route } from "./router";
-import { defineReadonly } from "../../utils";
+} from "../../core/classes.js";
+import router from "./router.js";
+import { Theme } from "../../core/utils.js";
+import { defineReadonly } from "../../utils/index.js";
 
 defineReadonly(window, "vistta", {
   Fragment,
@@ -25,7 +26,7 @@ defineReadonly(window, "vistta", {
   Render,
   Safe,
   Form,
-  route,
+  router,
   socket: {
     emit() {
       console.warn("Socket is not available on built apps.");
@@ -33,5 +34,11 @@ defineReadonly(window, "vistta", {
     on() {
       console.warn("Socket is not available on built apps.");
     },
-  }
+  },
+  Theme,
 });
+
+window.addEventListener("popstate", () =>
+  router.navigate({ pushState: false })
+);
+window.addEventListener("load", () => router.load());

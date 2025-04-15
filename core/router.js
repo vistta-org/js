@@ -1,99 +1,132 @@
 import { VirtualDom } from "./dom.js";
 import { Element } from "./classes.js";
-import { isValidUrl, BoundClass, RESOURCES_PATH } from "../utils/index.js";
+import {
+  isValidUrl,
+  buildUrl,
+  BoundClass,
+  RESOURCES_PATH,
+} from "../utils/index.js";
 
-// TODO: Replace styles and save initial ones into dom stylesheet
-
-class Router extends BoundClass {
+export class Router extends BoundClass {
   #routes = {};
   #virtualDom;
-  #initialHref;
-  
-  async navigate(arg) {
-    const initial = !this.#initialHref;
-    let { href, pushState, callback, refresh } =
-      typeof arg === "object" ? arg : { href: arg };
-    if (href?.startsWith("#")) {
-      document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
-      const { pathname, search } = window.location;
-      return window.history.replaceState({}, '', pathname + search + href);
-    }
-    if (!refresh && !initial) refresh = href === true;
-    if (!isValidUrl(href))
-      href = buildUrl(typeof href === "string" ? href : window.location.pathname);
-    if (!isAppUrl(href)) return (window.location.href = href);
-    const { pathname, hash, search } = new URL(href);
-    if (!refresh && !initial && this.#virtualDom.pathname === pathname) return;
-    const cachedVirtualDom = this.#routes?.[pathname];
-    if (pushState !== false) history.pushState({}, "", pathname + search);
-    this.#virtualDom?.disable();
-    if (initial || refresh || !cachedVirtualDom) {
-      try {
-        const {
-          default: app,
-          config,
-          layout,
-          props,
-        } = await import(
-          `${pathname}${pathname.endsWith("/") ? "" : "/"}page.js`
+  #loaded = false;
+
+  /**
+   *
+   *
+   * @typedef {Object} NavigateOptions
+   * @property {string} [href] -
+   * @property {boolean} [pushState] -
+   * @property {boolean} [refresh] -
+   *
+   * @param {string | NavigateOptions} [href]
+   */
+  navigate(arg) {
+    const initial = !this.#loaded;
+    this.#loaded = true;
+    // eslint-disable-next-line no-async-promise-executor
+    return new Promise(async (resolve) => {
+      let { href, pushState, refresh } =
+        typeof arg === "object" ? arg : { href: arg };
+      if (!refresh && !initial) refresh = href === true;
+      if (!isValidUrl(href))
+        href = buildUrl(
+          typeof href === "string" ? href : window.location.pathname
         );
-        this.#routes[pathname] = new VirtualDom(
-          pathname,
-          document.body,
-          config
-        );
+      console.log("navigate", arg, href);
+      if (href?.startsWith("#")) {
+        document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
+        const { pathname, search } = window.location;
+        return window.history.replaceState({}, "", pathname + search + href);
+      }
+      if (!isAppUrl(href)) return (window.location.href = href);
+      const { pathname, hash, search } = new URL(href);
+      if (!refresh && !initial && this.#virtualDom.pathname === pathname)
+        return;
+      const cachedVirtualDom = this.#routes?.[pathname];
+      if (pushState !== false) history.pushState({}, "", pathname + search);
+      this.#virtualDom?.disable();
+      if (initial || refresh || !cachedVirtualDom) {
+        try {
+          const {
+            default: app,
+            config,
+            layout,
+            props,
+          } = await import(
+            `${pathname}${pathname.endsWith("/") ? "" : "/"}page.js`
+          );
+          this.#routes[pathname] = new VirtualDom(
+            pathname,
+            document.body,
+            config
+          );
+          startViewTransition(() => {
+            try {
+              this.#virtualDom = this.#routes[pathname].render(
+                layout
+                  ? new Element(layout.component, {}, new Element(app, props))
+                  : new Element(app, props)
+              );
+              updateConfig(this.#virtualDom.config);
+              if (hash?.startsWith("#"))
+                ensureAnimation(() =>
+                  document
+                    .querySelector(hash)
+                    ?.scrollIntoView({ behavior: "smooth" })
+                );
+              window.history.replaceState({}, "", pathname + search + hash);
+              resolve();
+            } catch (e) {
+              console.error(e);
+            }
+          });
+        } catch {
+          window.location.href = href;
+        }
+      } else
         startViewTransition(() => {
           try {
-            this.#virtualDom = this.#routes[pathname].render(
-              layout
-                ? new Element(layout.component, {}, new Element(app, props))
-                : new Element(app, props)
-            );
+            this.#virtualDom = cachedVirtualDom.enable();
             updateConfig(this.#virtualDom.config);
-            window.history.replaceState({}, '', pathname + search + hash);
-            callback?.();
+            if (hash?.startsWith("#"))
+              ensureAnimation(() =>
+                document
+                  .querySelector(hash)
+                  ?.scrollIntoView({ behavior: "smooth" })
+              );
+            window.history.replaceState({}, "", pathname + search + hash);
+            resolve();
           } catch (e) {
             console.error(e);
           }
         });
-      } catch {
-        window.location.href = href;
-      }
-    } else
-      startViewTransition(() => {
-        try {
-          this.#virtualDom = cachedVirtualDom.enable();
-          updateConfig(this.#virtualDom.config);
-          window.history.replaceState({}, '', pathname + search + hash);
-          callback?.();
-        } catch (e) {
-          console.error(e);
-        }
-      });
-  }
-
-  refresh(href) {
-    if (!href) href = this.#virtualDom.pathname;
-    if (this.#routes?.[href]) delete this.#routes[href];
-    if (href !== this.#virtualDom.pathname) return;
-    document.body.classList.toggle("loading", true);
-    this.navigate({
-      refresh: true,
-      callback: () => document.body.classList.toggle("loading", false),
     });
   }
 
-  load() {
-    if (this.#initialHref) return;
-    this.navigate();
+  /**
+   *
+   *
+   */
+  async refresh(href) {
+    if (!href) href = this.#virtualDom.pathname;
+    if (this.#routes?.[href]) delete this.#routes[href];
+    if (href !== this.#virtualDom.pathname) return;
+    await this.navigate({ refresh: true });
+  }
+
+  async load() {
+    if (this.#loaded) return;
     window.addEventListener("click", (event) => handleClick(event, this));
+    await this.navigate();
     if (
       !("serviceWorker" in navigator) ||
       !document.querySelector(`head > link[rel="manifest"]`)
     )
       return;
     navigator.serviceWorker
-      .register(`/${RESOURCES_PATH}/sw.js`)
+      .register(`/${RESOURCES_PATH}/worker.js`)
       .then(undefined, (error) =>
         console.log(`Service worker registration failed: ${error}`)
       );
@@ -103,6 +136,13 @@ class Router extends BoundClass {
     return window.page?.location ?? window.location;
   }
 
+  /**
+   *
+   *
+   *
+   * @param {string} event
+   * @param {any} [details]
+   */
   emit(event, details) {
     document.body?.dispatchEvent(
       new CustomEvent(event.toLowerCase(), {
@@ -113,6 +153,13 @@ class Router extends BoundClass {
     );
   }
 
+  /**
+   *
+   *
+   *
+   * @param {string} event
+   * @param {(event: any) => void} callback
+   */
   on(event, callback) {
     document.body?.addEventListener(event, callback, false);
   }
@@ -121,7 +168,11 @@ class Router extends BoundClass {
 export default new Router();
 
 function startViewTransition(callback) {
-  if (document.startViewTransition) document.startViewTransition(callback);
+  if (
+    document.startViewTransition ||
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  )
+    document.startViewTransition(callback);
   else callback();
 }
 
@@ -159,14 +210,10 @@ function handleClick(event, router) {
   router.navigate(!hash?.startsWith("#") ? href : hash);
 }
 
-function buildUrl(href) {
-  const url = new URL(window.location.href);
-  const [pathname] = href?.includes("?") ? href.split(/\?(.*)/s) : [href];
-  if (pathname.startsWith(".")) url.pathname += "/" + pathname;
-  else url.pathname = pathname;
-  return url.href;
-}
-
 function isAppUrl(href) {
   return new URL(window.location.href).host === new URL(href).host;
+}
+
+function ensureAnimation(callback) {
+  requestAnimationFrame(() => setTimeout(callback, 100));
 }

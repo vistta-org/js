@@ -7,7 +7,7 @@ import {
   camelCaseToKebabCase,
   isPromise,
   FunctionClass,
-  defineReadonly
+  defineReadonly,
 } from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
@@ -16,7 +16,6 @@ export const TextNode = Symbol("TextNode");
 const ComponentNode = Symbol("Component");
 
 export class Element {
-
   constructor(type, props, ...children) {
     this.props = props || {};
     this.children = children;
@@ -73,7 +72,7 @@ export class Element {
     }
     if (children !== false)
       children = this?.children?.map((child) =>
-        child instanceof Element ? child.clone(undefined, true) : child,
+        child instanceof Element ? child.clone(undefined, true) : child
       );
     return new Element(this.type, props, children);
   }
@@ -100,7 +99,7 @@ export class Context extends FunctionClass {
       throw new Error("TypeError: Invalid context key.");
     if (typeof value !== "object")
       throw new Error(
-        "TypeError: Cannot create context with a non-object value.",
+        "TypeError: Cannot create context with a non-object value."
       );
     super(() => this);
     this.#key = key;
@@ -108,13 +107,24 @@ export class Context extends FunctionClass {
       this.#value = clone(value);
     } catch {
       throw new Error(
-        "TypeError: Cannot create context with a non serializable object as default value.",
+        "TypeError: Cannot create context with a non serializable object as default value."
       );
     }
-    this.#cache = cache === "session" ? sessionStorage : (cache === "local" || cache === "storage") ? localStorage : null;
+    this.#cache =
+      cache === "session"
+        ? sessionStorage
+        : cache === "local" || cache === "storage"
+          ? localStorage
+          : null;
     if (this.#cache) {
       try {
-        this.#value = parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#value;
+        this.#value =
+          parse(
+            decode(
+              this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")),
+              "hex"
+            )
+          ) ?? this.#value;
       } catch {
         /* Do nothing */
       }
@@ -132,7 +142,7 @@ export class Context extends FunctionClass {
         const actionName = actionsNames[i];
         if (
           ["valueOf", "toString", "setValue", "register", "proxy"].includes(
-            actionName,
+            actionName
           )
         )
           throw new Error(`Invalid action name "${actionName}".`);
@@ -164,7 +174,7 @@ export class Context extends FunctionClass {
                 resolve();
                 controllerFn(actionName, "completed");
               }
-            } catch(e) {
+            } catch (e) {
               controllerFn(actionName, "rejected");
               throw e;
             }
@@ -181,11 +191,12 @@ export class Context extends FunctionClass {
   }
 
   get value() {
-    if (!this.#readOnlyValue) this.#readOnlyValue = new Proxy(this.#value, {
-      set: () => true,
-      deleteProperty: () => true,
-      defineProperty: () => true,
-    });
+    if (!this.#readOnlyValue)
+      this.#readOnlyValue = new Proxy(this.#value, {
+        set: () => true,
+        deleteProperty: () => true,
+        defineProperty: () => true,
+      });
     return this.#readOnlyValue;
   }
 
@@ -204,19 +215,26 @@ export class Context extends FunctionClass {
     const updateCache = () => {
       if (!this.#cache) return;
       try {
-        this.#cache.setItem(encode(CONTEXT_CACHE_KEY + this.#key, "hex"), encode(stringify(this.#value), "hex"));
-      }
-      catch (e) {
+        this.#cache.setItem(
+          encode(CONTEXT_CACHE_KEY + this.#key, "hex"),
+          encode(stringify(this.#value), "hex")
+        );
+      } catch (e) {
         console.error(e);
       }
     };
     this.#proxy = new Proxy(this.#value, {
       get(target, key) {
-        if (typeof listener?.get === "function") listener.get(this.path ? `${this.path}.${key}` : key, target[key]);
+        if (typeof listener?.get === "function")
+          listener.get(this.path ? `${this.path}.${key}` : key, target[key]);
         return target[key];
       },
       set(target, key, value) {
-        if (target[key] === value || JSON.stringify(target[key]) === JSON.stringify(value)) return true;
+        if (
+          target[key] === value ||
+          JSON.stringify(target[key]) === JSON.stringify(value)
+        )
+          return true;
         target[key] = value;
         for (let i = 0, len = listeners.length; i < len; i++)
           listeners[i](this.path ? `${this.path}.${key}` : key, value);
@@ -261,7 +279,7 @@ export class Component {
       if (functions[i] === "constructor") continue;
       const descriptor = Object.getOwnPropertyDescriptor(
         prototype,
-        functions[i],
+        functions[i]
       );
       if (
         typeof descriptor.get === "undefined" &&
@@ -282,20 +300,15 @@ export class Suspense extends Component {
 
   register() {
     this.#count++;
+    console.log("register", this.#count);
     return this;
   }
 
   resolve() {
     this.#count--;
+    console.log("resolve", this.#count);
     if (this.#count == 0) this.#callback(true);
   }
-
-  /*
-
-    if (this.#count == 0) return callback(true);
-    this.#callback = callback;
-    callback(false);
-  */
 
   render(callback) {
     if (callback) this.#callback = callback;
@@ -356,7 +369,7 @@ export const Render = {
       if (typeof this.of !== "object") {
         if ("production" !== process.env.NODE_ENV)
           console.warn(
-            "Render.Each 'of' needs to be either an object or an array",
+            "Render.Each 'of' needs to be either an object or an array"
           );
         return null;
       }
@@ -386,12 +399,11 @@ export class Safe extends Component {
     return () => {
       try {
         updater();
-      }
-      catch (error) {
+      } catch (error) {
         console.error(error);
         this.error = error;
       }
-    }
+    };
   }
 
   render() {
@@ -409,7 +421,7 @@ export class Form extends Component {
       const inputElement = document.createElement("input");
       inputElement.type = "text";
       inputElement.required = true;
-      this._defaultErrorMessage = inputElement.validationMessage
+      this._defaultErrorMessage = inputElement.validationMessage;
     }
     return this._defaultErrorMessage;
   }
@@ -457,7 +469,7 @@ export class Form extends Component {
       if (!this.name) {
         if ("production" !== process.env.NODE_ENV)
           console.warn(
-            "Nested Forms require a 'name' property to be specified.",
+            "Nested Forms require a 'name' property to be specified."
           );
         return null;
       }
@@ -465,7 +477,7 @@ export class Form extends Component {
         return new Element(
           "div",
           { className: this.className, style: this.style },
-          ...this.children,
+          ...this.children
         );
       return new Element(Fragment, {}, ...this.children);
     }
@@ -489,7 +501,7 @@ export class Form extends Component {
         },
         style: this.style,
       },
-      ...this.children,
+      ...this.children
     );
   }
 
@@ -500,25 +512,23 @@ export class Form extends Component {
       return;
     }
 
-    const {
-      type,
-      attributes,
-      node,
-    } = target || {};
-    
+    const { type, attributes, node } = target || {};
+
     if (
       !node ||
       (type !== "input" &&
         type !== "textarea" &&
         type !== "select" &&
         attributes.role !== "input") ||
-        attributes.type === "submit"
+      attributes.type === "submit"
     )
       return;
     const path = attributes.name || attributes.id;
     if (!path) {
       if ("production" !== process.env.NODE_ENV)
-        console.warn(`Missing either "id" or "name" attribute on ${type} inside of form.`);
+        console.warn(
+          `Missing either "id" or "name" attribute on ${type} inside of form.`
+        );
       return;
     }
     if (attributes.type === "radio") {
@@ -534,7 +544,9 @@ export class Form extends Component {
       });
     this.#required[path] = attributes.required;
     this.#validators[path] =
-    attributes.validator instanceof Mutation ? attributes.validator() : attributes.validator;
+      attributes.validator instanceof Mutation
+        ? attributes.validator()
+        : attributes.validator;
     node.addEventListener(type === "select" ? "change" : "input", (e) => {
       if (!this.#invalidEvent) node.setCustomValidity?.("");
       for (let i = 0, len = this.#listeners[path]?.length; i < len; i++)
@@ -579,7 +591,7 @@ export class Form extends Component {
         if (field.value === defaultValue) continue;
         field.value = defaultValue;
         field.dispatchEvent(
-          new Event(field.localName === "select" ? "change" : "input"),
+          new Event(field.localName === "select" ? "change" : "input")
         );
         if (!this.#invalidEvent) field.setCustomValidity?.("");
       }
@@ -590,7 +602,7 @@ export class Form extends Component {
     if (field.value === defaultValue) return;
     field.value = defaultValue;
     field.dispatchEvent(
-      new Event(field.localName === "select" ? "change" : "input"),
+      new Event(field.localName === "select" ? "change" : "input")
     );
     if (!this.#invalidEvent) field.setCustomValidity?.("");
   }
@@ -635,7 +647,7 @@ export class Form extends Component {
         if (field.value === "") continue;
         field.value = "";
         field.dispatchEvent(
-          new Event(field.localName === "select" ? "change" : "input"),
+          new Event(field.localName === "select" ? "change" : "input")
         );
       }
       return;
@@ -644,7 +656,7 @@ export class Form extends Component {
     if (field.value === "") return;
     field.value = "";
     field.dispatchEvent(
-      new Event(field.localName === "select" ? "change" : "input"),
+      new Event(field.localName === "select" ? "change" : "input")
     );
   }
 
@@ -681,17 +693,6 @@ defineReadonly(window, "element", (id, ...args) => {
   element.id = id;
   return element;
 });
-defineReadonly(window, "style", (id, code) => new Proxy({ ["style-" + id]: true }, {
-  get(_, prop) {
-    if (prop === "id") return id;
-    if (prop === "code") return code;
-    if (prop.startsWith("style-")) {
-      if (window.isServer && window.page?.preload) window.page.preload[id] = true;
-      return true;
-    }
-    return false;
-  }
-}));
 
 //
 

@@ -27,7 +27,7 @@ export class Method extends FunctionClass {
               },
               redirect: response.redirect,
             },
-            (type === "get" || type === "delete") ? request.params : request.body
+            type === "get" || type === "delete" ? request.params : request.body
           )
         )
     );
