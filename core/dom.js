@@ -333,6 +333,35 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
   // Component Node
   if (element.type === Component.Node) {
     let component;
+    const hasKey = element.key?.length > 0;
+    if (hasKey) {
+      if (element.key instanceof Mutation)
+        throw new VirtualDomError("Internal Error #002");
+      if (virtualDom.keys[element.key] != null) {
+        if (virtualDom.keys[element.key].type !== element.Component)
+          throw new VirtualDomError(`Key ${element.key} already in use.`);
+        const previous = virtualDom.keys[element.key].element;
+        previous.parent = parent;
+        const appendChildren = (element) => {
+          for (let i = 0, len = element.children.length; i < len; i++) {
+            const child = element.children[i];
+            if (child.node) appendElement(child.parent, child, referenceNode);
+            else appendChildren(child);
+          }
+        };
+        appendChildren(previous);
+        traverseVirtualTree(
+          previous,
+          (element) =>
+            element.type === Component.Node && element.component?.onConnect?.()
+        );
+        return {
+          ...previous,
+          ...element,
+        };
+      }
+    }
+
     if (element.Component.prototype instanceof Component)
       component = new element.Component();
     else {
@@ -344,6 +373,9 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         throw new VirtualDomError("Invalid Function Component format");
       component = Object.assign(new Component(), component);
     }
+    if (hasKey)
+      virtualDom.keys[element.key] = { type: element.Component, element };
+
     context.components.push(component);
     element.attributes = {};
     let changedProps = {};
@@ -497,11 +529,11 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         for (let i = 0, len = element.children.length; i < len; i++) {
           if (!element.children[i]) continue;
           removeElement(element.children[i]);
-          traverseVirtualTree(element.children[i], (element) => {
-            if (element.type === Component.Node) component?.onDisconnect?.();
-            for (let i = 0, len = element.mutations?.length || 0; i < len; i++)
-              element.mutations[i].update = null;
-          });
+          traverseVirtualTree(
+            element.children[i],
+            (element) =>
+              element.type === Component.Node && component?.onDisconnect?.()
+          );
         }
         element.children = fragment.children;
         for (let i = 0, len = element.children.length; i < len; i++)
@@ -631,45 +663,29 @@ function updateElement(virtualDom, element, props, children) {
   }
 
   if (children) {
-    const changes = [];
-    const previousChildren = [...element.children];
-
-    for (let i = 0, len = children.length; i < len; i++)
-      changes[i] = calculateChanges(children[i], i, previousChildren);
-    for (let i = 0, len = previousChildren.length; i < len; i++) {
-      if (!previousChildren[i]) continue;
-      removeElement(previousChildren[i]);
-      traverseVirtualTree(previousChildren[i], (element) => {
-        if (element.type === Component.Node)
-          element.component?.onDisconnect?.();
-        for (let i = 0, len = element.mutations?.length || 0; i < len; i++)
-          element.mutations[i].update = null;
-      });
+    for (let i = 0, len = element.children.length; i < len; i++) {
+      if (!element.children[i]) continue;
+      removeElement(element.children[i]);
+      traverseVirtualTree(
+        element.children[i],
+        (element) =>
+          element.type === Component.Node && element.component?.onDisconnect?.()
+      );
     }
 
     element.children = [];
-    for (let i = 0, len = changes.length; i < len; i++) {
-      if (!changes[i]) continue;
-      const type = changes[i].type;
-      if (type === "insert")
-        element.children[i] = renderElement(
-          virtualDom,
-          element,
-          changes[i].element,
-          {
-            ...context,
-            components: [...context.components],
-            depth: context.depth + 1,
-          },
-          findReferenceNode(element, i)
-        );
-      else if (type === "update")
-        element.children[i] = updateElement(
-          virtualDom,
-          changes[i].element,
-          changes[i].props,
-          changes[i].children
-        );
+    for (let i = 0, len = children.length; i < len; i++) {
+      element.children[i] = renderElement(
+        virtualDom,
+        element,
+        children[i],
+        {
+          ...context,
+          components: [...context.components],
+          depth: context.depth + 1,
+        },
+        findReferenceNode(element, i)
+      );
     }
   } else {
     for (let i = 0, len = element.children.length; i < len; i++) {
@@ -835,225 +851,12 @@ function findReferenceNode(parent, index) {
     if (child?.node) return child.node.nextSibling;
     if (child?.lastNode) return child.lastNode.nextSibling;
   }
-  if (parent.node) return null;
-  for (let i = 0, len = parent.parent?.children?.length || 0; i <= len; i++) {
+  if (parent.node || parent.parent.type === VirtualDom) return null;
+  for (let i = 0, len = parent.parent?.children?.length || 0; i < len; i++) {
     if (parent.parent.children[i] === parent)
       return findReferenceNode(parent.parent, i);
   }
   return null;
-}
-
-function calculateChanges(element, index, previous) {
-  if (element == null || element === false) return null;
-  if (!(element instanceof Element)) {
-    if (Array.isArray(element)) element = new Element(Fragment, {}, element);
-    else if (element instanceof Mutation) {
-      let prev = previous[index];
-      if (prev?.mutation && prev?.id === element.id)
-        return {
-          type: "update",
-          element: previous.splice(index, 1, null)[0],
-          children: ensureArray(element()),
-        };
-      else {
-        const max = previous.length - 1;
-        for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
-          let cur = index + i;
-          prev = cur <= max && previous[cur];
-          if (prev?.mutation && prev?.id === element.id)
-            return {
-              type: "update",
-              element: previous.splice(cur, 1, null)[0],
-              children: ensureArray(element()),
-            };
-          cur = index - i;
-          prev = cur <= max && previous[cur];
-          if (prev?.mutation && prev?.id === element.id)
-            return {
-              type: "update",
-              element: previous.splice(cur, 1, null)[0],
-              children: ensureArray(element()),
-            };
-        }
-      }
-      return { type: "insert", element };
-    } else if (typeof element === "function") element = new Element(element);
-    else if (typeof element === "object" || element instanceof Promise)
-      throw new VirtualDomError(
-        `${capitalize(typeof element)} is not a valid Element`
-      );
-    else element = new Element(TextNode, null, "" + element);
-  }
-
-  if (element.type === TextNode) {
-    let prev = previous[index];
-    if (prev?.type === TextNode)
-      return {
-        type: "update",
-        element: previous.splice(index, 1, null)[0],
-        children: element.children,
-      };
-    else {
-      const max = previous.length - 1;
-      for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
-        let cur = index + i;
-        prev = cur <= max && previous[cur];
-        if (prev?.type === TextNode)
-          return {
-            type: "update",
-            element: previous.splice(cur, 1, null)[0],
-            children: element.children,
-          };
-        cur = index - i;
-        prev = cur <= max && previous[cur];
-        if (prev?.type === TextNode)
-          return {
-            type: "update",
-            element: previous.splice(cur, 1, null)[0],
-            children: element.children,
-          };
-      }
-    }
-    return { type: "insert", element };
-  }
-
-  if (typeof element.type === "string") {
-    let prev = previous[index];
-    if (
-      prev?.type === element.type &&
-      prev?.id === element.id &&
-      prev?.key === element.key
-    )
-      return {
-        type: "update",
-        element: previous.splice(index, 1, null)[0],
-        props: element.props,
-        children: element.children,
-      };
-    else {
-      const max = previous.length - 1;
-      for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
-        let cur = index + i;
-        prev = cur <= max && previous[cur];
-        if (
-          prev?.type === element.type &&
-          prev?.id === element.id &&
-          prev?.key === element.key
-        )
-          return {
-            type: "update",
-            element: previous.splice(cur, 1, null)[0],
-            props: element.props,
-            children: element.children,
-          };
-        cur = index - i;
-        prev = cur <= max && previous[cur];
-        if (
-          prev?.type === element.type &&
-          prev?.id === element.id &&
-          prev?.key === element.key
-        )
-          return {
-            type: "update",
-            element: previous.splice(cur, 1, null)[0],
-            props: element.props,
-            children: element.children,
-          };
-      }
-    }
-    return { type: "insert", element };
-  }
-
-  if (element.type === Fragment) {
-    let prev = previous[index];
-    if (prev?.type === Fragment && prev?.id === element.id)
-      return {
-        type: "update",
-        element: previous.splice(index, 1, null)[0],
-        children: element.mutation
-          ? ensureArray(element.mutation())
-          : element.children,
-      };
-    else {
-      const max = previous.length - 1;
-      for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
-        let cur = index + i;
-        prev = cur <= max && previous[cur];
-        if (prev?.type === Fragment && prev?.id === element.id)
-          return {
-            type: "update",
-            element: previous.splice(cur, 1, null)[0],
-            children: element.mutation
-              ? ensureArray(element.mutation())
-              : element.children,
-          };
-        cur = index - i;
-        prev = cur <= max && previous[cur];
-        if (prev?.type === Fragment && prev?.id === element.id)
-          return {
-            type: "update",
-            element: previous.splice(cur, 1, null)[0],
-            children: element.mutation
-              ? ensureArray(element.mutation())
-              : element.children,
-          };
-      }
-    }
-    return { type: "insert", element };
-  }
-
-  if (element.type === Component.Node) {
-    let prev = previous[index];
-    if (
-      prev?.type === Component.Node &&
-      (typeof element.component === "function"
-        ? prev.component.constructor
-        : prev.component) === element.component &&
-      prev.id === element.id &&
-      prev.key === element.key
-    )
-      return {
-        type: "update",
-        element: previous.splice(index, 1, null)[0],
-        props: element.props,
-      };
-    else {
-      const max = previous.length - 1;
-      for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
-        let cur = index + i;
-        prev = cur <= max && previous[cur];
-        if (
-          prev?.type === Component.Node &&
-          (typeof element.component === "function"
-            ? prev.component.constructor
-            : prev.component) === element.component &&
-          prev.id === element.id &&
-          prev.key === element.key
-        )
-          return {
-            type: "update",
-            element: previous.splice(cur, 1, null)[0],
-            props: element.props,
-          };
-        cur = index - i;
-        prev = cur <= max && previous[cur];
-        if (
-          prev?.type === Component.Node &&
-          (typeof element.component === "function"
-            ? prev.component.constructor
-            : prev.component) === element.component &&
-          prev.id === element.id &&
-          prev.key === element.key
-        )
-          return {
-            type: "update",
-            element: previous.splice(cur, 1, null)[0],
-            props: element.props,
-          };
-      }
-    }
-    return { type: "insert", element };
-  }
 }
 
 function createPageSnapshot() {

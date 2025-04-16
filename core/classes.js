@@ -31,13 +31,13 @@ export class Element {
         this.ref = props.ref;
         delete this.props.ref;
       }
-      if (props?.key != null) {
-        if (props.key instanceof Mutation) props.key = props.key();
-        if (typeof props.key === "number") this.key = "" + props?.key;
-        else this.key = props?.key;
-        delete this.props.key;
-      }
       this.type = type;
+    }
+    if (props?.key != null) {
+      if (props.key instanceof Mutation) props.key = props.key();
+      if (typeof props.key === "number") this.key = "" + props?.key;
+      else this.key = props?.key;
+      delete this.props.key;
     }
   }
 
