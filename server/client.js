@@ -32,5 +32,7 @@ defineReadonly(window, "vistta", {
   Theme,
 });
 
-window.addEventListener("popstate", console.log);
+window.addEventListener("popstate", () =>
+  router.navigate({ href: window.location.href, pushState: false })
+);
 window.addEventListener("load", () => router.load());

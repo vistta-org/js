@@ -2,15 +2,16 @@ import { VirtualDom } from "./dom.js";
 import { Element } from "./classes.js";
 import {
   isValidUrl,
-  buildUrl,
   BoundClass,
   RESOURCES_PATH,
+  async,
 } from "../utils/index.js";
 
 export class Router extends BoundClass {
   #routes = {};
   #virtualDom;
   #loaded = false;
+  #previous = null;
 
   /**
    *
@@ -22,33 +23,34 @@ export class Router extends BoundClass {
    *
    * @param {string | NavigateOptions} [href]
    */
-  navigate(arg) {
+  async navigate(arg) {
     const initial = !this.#loaded;
     this.#loaded = true;
-    // eslint-disable-next-line no-async-promise-executor
-    return new Promise(async (resolve) => {
-      let { href, pushState, refresh } =
-        typeof arg === "object" ? arg : { href: arg };
-      if (!refresh && !initial) refresh = href === true;
-      if (!isValidUrl(href))
-        href = buildUrl(
-          typeof href === "string" ? href : window.location.pathname
-        );
-      console.log("navigate", arg, href);
-      if (href?.startsWith("#")) {
-        document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
-        const { pathname, search } = window.location;
-        return window.history.replaceState({}, "", pathname + search + href);
-      }
-      if (!isAppUrl(href)) return (window.location.href = href);
-      const { pathname, hash, search } = new URL(href);
-      if (!refresh && !initial && this.#virtualDom.pathname === pathname)
-        return;
+    let { href, pushState, refresh } =
+      typeof arg === "object" ? arg : { href: arg };
+    if (!refresh && !initial) refresh = href === true;
+    const updateHistory =
+      pushState !== false
+        ? (url) => history.pushState({}, "", url)
+        : (url) => history.replaceState({}, "", url);
+
+    if (isValidUrl(href) && !isAppUrl(href))
+      return (window.location.href = href);
+    const { pathname, hash, search } = href
+      ? new URL(href, window.location.href)
+      : new URL(window.location.href);
+    if (
+      this.#previous?.pathname === pathname &&
+      this.#previous?.search === search &&
+      this.#previous?.hash === hash
+    )
+      return;
+
+    if (initial || refresh || pathname !== this.#virtualDom.pathname) {
       const cachedVirtualDom = this.#routes?.[pathname];
-      if (pushState !== false) history.pushState({}, "", pathname + search);
       this.#virtualDom?.disable();
-      if (initial || refresh || !cachedVirtualDom) {
-        try {
+      try {
+        if (initial || refresh || !cachedVirtualDom) {
           const {
             default: app,
             config,
@@ -62,47 +64,32 @@ export class Router extends BoundClass {
             document.body,
             config
           );
-          startViewTransition(() => {
-            try {
-              this.#virtualDom = this.#routes[pathname].render(
-                layout
-                  ? new Element(layout.component, {}, new Element(app, props))
-                  : new Element(app, props)
-              );
-              updateConfig(this.#virtualDom.config);
-              if (hash?.startsWith("#"))
-                ensureAnimation(() =>
-                  document
-                    .querySelector(hash)
-                    ?.scrollIntoView({ behavior: "smooth" })
-                );
-              window.history.replaceState({}, "", pathname + search + hash);
-              resolve();
-            } catch (e) {
-              console.error(e);
-            }
-          });
-        } catch {
-          window.location.href = href;
+          await async((resolve) => startViewTransition(resolve));
+          this.#virtualDom = this.#routes[pathname].render(
+            layout
+              ? new Element(layout.component, {}, new Element(app, props))
+              : new Element(app, props)
+          );
+          updateConfig(this.#virtualDom.config);
+        } else {
+          await async((resolve) => startViewTransition(resolve));
+          this.#virtualDom = cachedVirtualDom.enable();
+          updateConfig(this.#virtualDom.config);
         }
-      } else
-        startViewTransition(() => {
-          try {
-            this.#virtualDom = cachedVirtualDom.enable();
-            updateConfig(this.#virtualDom.config);
-            if (hash?.startsWith("#"))
-              ensureAnimation(() =>
-                document
-                  .querySelector(hash)
-                  ?.scrollIntoView({ behavior: "smooth" })
-              );
-            window.history.replaceState({}, "", pathname + search + hash);
-            resolve();
-          } catch (e) {
-            console.error(e);
-          }
-        });
-    });
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    if ((initial || this.#previous.hash !== hash) && hash?.startsWith("#"))
+      requestAnimationFrame(() =>
+        setTimeout(() => {
+          document.querySelector(hash)?.scrollIntoView({ behavior: "smooth" });
+        }, 100)
+      );
+
+    this.#previous = { pathname, hash, search };
+    updateHistory(pathname + search + hash);
   }
 
   /**
@@ -212,8 +199,4 @@ function handleClick(event, router) {
 
 function isAppUrl(href) {
   return new URL(window.location.href).host === new URL(href).host;
-}
-
-function ensureAnimation(callback) {
-  requestAnimationFrame(() => setTimeout(callback, 100));
 }

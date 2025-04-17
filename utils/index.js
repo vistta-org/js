@@ -9,14 +9,6 @@ export const defineReadonly = (obj, key, value) =>
   });
 export const noCache = (path) => path + `?noCache=${Date.now()}`;
 
-export function buildUrl(href) {
-  const url = new URL(window.location.href);
-  const [pathname] = href?.includes("?") ? href.split(/\?(.*)/s) : [href];
-  if (pathname.startsWith(".")) url.pathname += "/" + pathname;
-  else url.pathname = pathname;
-  return url.href;
-}
-
 export class FunctionClass extends Function {
   constructor(f) {
     return Object.setPrototypeOf(f, new.target.prototype);
