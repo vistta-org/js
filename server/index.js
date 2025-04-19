@@ -6,14 +6,11 @@ import compressible from "compressible";
 import zlib from "zlib";
 import proxy from "http-proxy";
 import { URL } from "url";
-import { EventEmitter } from "node:events";
 import { Server as SocketIO } from "socket.io";
 import { createPage } from "./page.js";
 import { default as Controller, Method, shareToLoader } from "./controller.js";
 import {
   RESOURCES_PATH,
-  INVALID_EVENT_NAME,
-  convertToEventName,
   async,
   isIPAddress,
   stringify,
@@ -148,14 +145,11 @@ class Server {
   #http;
   #https;
   #strict;
-  #events = new EventEmitter();
+  #events = {};
   #subdomains = {};
   #resources;
   #proxy = proxy.createProxyServer({});
-  #socket = {
-    server: new SocketIO(),
-    subdomains: {},
-  };
+  #socket = new SocketIO();
 
   get ports() {
     return {
@@ -231,7 +225,7 @@ class Server {
           certs: { cert, key },
         };
     }
-    this.#socket.server.on("connection", this.#socketHandler.bind(this));
+    this.#socket.on("connection", this.#socketHandler.bind(this));
     if (start !== false) this.start();
   }
 
@@ -245,16 +239,16 @@ class Server {
     if (protocol === "http") protocol = this.#http;
     else if (protocol === "https") protocol = this.#https;
     else return await this.start("http"), await this.start("https"), this.ports;
-    if (protocol?.warning) this.#events.emit("warning", protocol.warning);
+    if (protocol?.warning) this.emit("warning", protocol.warning);
     if (!protocol?.server) return null;
     if (protocol.active)
       throw new Error(protocol.name.toUpperCase() + " Server already running");
     const { server, port } = protocol;
     await async((resolve) => server.listen(port, resolve));
-    this.#socket.server.attach(server);
+    this.#socket.attach(server);
     shareToLoader("host", { protocol: protocol.name, port });
     protocol.active = true;
-    this.#events.emit("ready", { type: protocol.name, port });
+    this.emit("ready", { type: protocol.name, port });
     return port;
   }
 
@@ -719,10 +713,9 @@ class Server {
         shareToLoader(filepath, { subdomain, pathname: "/api" + pathname });
         collection.add(this.#register(type, subdomain, "/api" + pathname, arg));
       } else collection.add(this.#register(type, subdomain, pathname, arg));
-      if (emit != false)
-        this.#events.emit("ready", { type, subdomain, pathname });
+      if (emit != false) this.emit("ready", { type, subdomain, pathname });
     } catch (e) {
-      this.#events.emit("error", e);
+      this.emit("error", e);
     }
   }
 
@@ -826,23 +819,13 @@ class Server {
     if (!arg1 || !arg2)
       throw new TypeError("Invalid argument type, on and event and callback");
     const [subdomain, event, callback] =
-      typeof arg2 === "function"
-        ? ["*", convertToEventName(arg1), arg2]
-        : [arg1, convertToEventName(arg2), arg3];
-    if (!event) return this.#events.emit("warning", INVALID_EVENT_NAME), null;
-    if (subdomain === "*") {
-      if (event === "ready" || event === "warning" || event === "error")
-        return this.#events.on(event, callback);
-
-      const subdomains = Object.keys(this.#socket.subdomains);
-      for (let i = 0, len = subdomains?.length; i < len; i++) {
-        this.#socket.subdomains[subdomains[i]] ||= new EventEmitter();
-        this.#socket.subdomains.on(event, (args) => callback(...args));
-      }
-      return;
-    }
-    this.#socket.subdomains[subdomain] ||= new EventEmitter();
-    this.#socket.subdomains[subdomain].on(event, (args) => callback(...args));
+      typeof arg2 === "function" ? ["*", arg1, arg2] : [arg1, arg2, arg3];
+    if (typeof event !== "string") this.emit("warning", "Invalid event name");
+    if (!this.#events[event]) this.#events[event] = [];
+    this.#events[event].push((event) => {
+      if (event.subdomain !== subdomain && subdomain !== "*") return;
+      callback(...(event.args || []));
+    });
   }
 
   /**
@@ -853,11 +836,15 @@ class Server {
    * @param {...any} args Additional arguments to pass to the event listener.
    */
   emit(subdomain, event, ...args) {
-    if (typeof event !== "string")
-      return this.#events.emit("warning", "Cannot emit an empty event");
+    if (typeof event !== "string") {
+      const listeners = this.#events["warning"] || [];
+      for (let i = 0, len = listeners.length; i < len; i++)
+        listeners[i]("*", ["Cannot emit an empty event"]);
+      return;
+    }
     if (subdomain && subdomain !== "*")
-      this.#socket.server.to(subdomain).emit(event, ...args);
-    else this.#socket.server.emit(event, ...args);
+      this.#socket.to(subdomain).emit(event, ...args);
+    else this.#socket.emit(event, ...args);
   }
 
   /**
@@ -1099,7 +1086,7 @@ class Server {
       }
       this.#reject(request, response);
     } catch (e) {
-      this.#events.emit("error", e);
+      this.emit("error", e);
       this.#reject(request, response, e.message, 500);
     }
   }
@@ -1155,10 +1142,11 @@ class Server {
   async #socketHandler(socket) {
     const subdomain = getSubdomain(socket.handshake.headers.referer) || "";
     await socket.join(subdomain);
-    this.#socket.subdomains[subdomain] ||= new EventEmitter();
-    socket.onAny((event, ...args) =>
-      this.#socket.subdomains[subdomain].emit(event, args)
-    );
+    socket.onAny((event, ...args) => {
+      const listeners = this.#events[event] || [];
+      for (let i = 0, len = listeners.length; i < len; i++)
+        listeners[i](subdomain, args);
+    });
   }
 }
 

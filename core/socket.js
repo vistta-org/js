@@ -1,5 +1,3 @@
-import { INVALID_EVENT_NAME, convertToEventName } from "../utils/index.js";
-
 class Socket {
   #instance;
 
@@ -17,7 +15,9 @@ class Socket {
         .then(({ io }) => {
           if (!io || this.#instance) return;
           this.#instance = io({ reconnectionDelay: 10000 });
-          this.#instance.on("connect_error", (error) => console.error(`Socket Internal Error: ${error.message}`));
+          this.#instance.on("connect_error", (error) =>
+            console.error(`Socket Internal Error: ${error.message}`)
+          );
           this.#instance.io.on("reconnect", () => location.reload());
         })
         .catch((error) => {
@@ -31,8 +31,8 @@ class Socket {
    * @param {...any} args - The arguments to pass with the event.
    */
   emit(event, ...args) {
-    event = convertToEventName(event);
-    if (!event) return console.warn(INVALID_EVENT_NAME);
+    if (typeof event !== "string")
+      return console.warn("Cannot emit an empty event");
     if (!this.#instance) return console.warn("Socket Internal Error");
     this.#instance.emit(event, ...args);
   }
@@ -43,8 +43,6 @@ class Socket {
    * @param {Function} callback - The callback function to execute when the event is triggered.
    */
   on(event, callback) {
-    event = convertToEventName(event);
-    if (!event) return console.warn(INVALID_EVENT_NAME);
     if (!this.#instance) return console.warn("Socket Internal Error");
     this.#instance.on(event, callback);
   }
