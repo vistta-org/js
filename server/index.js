@@ -202,7 +202,17 @@ class Server {
     if (httpPort)
       this.#http = {
         name: "http",
-        server: createServer(this.#handler.bind(this, "http")),
+        server: createServer(
+          (request, response) => (
+            this.#handler("http", request, response),
+            this.#emit("request", {
+              protocol: "http",
+              method: request.method,
+              url: request.url,
+              status: response.statusCode,
+            })
+          )
+        ),
         port: httpPort,
       };
     if (httpsPort) {
@@ -219,7 +229,15 @@ class Server {
               key: fs.readFileSync(key),
               cert: fs.readFileSync(cert),
             },
-            this.#handler.bind(this, "https")
+            (request, response) => (
+              this.#handler("https", request, response),
+              this.#emit("request", {
+                protocol: "https",
+                method: request.method,
+                url: request.url,
+                status: response.statusCode,
+              })
+            )
           ),
           port: httpsPort,
           certs: { cert, key },
@@ -239,7 +257,7 @@ class Server {
     if (protocol === "http") protocol = this.#http;
     else if (protocol === "https") protocol = this.#https;
     else return await this.start("http"), await this.start("https"), this.ports;
-    if (protocol?.warning) this.emit("warning", protocol.warning);
+    if (protocol?.warning) this.#emit("warning", protocol.warning);
     if (!protocol?.server) return null;
     if (protocol.active)
       throw new Error(protocol.name.toUpperCase() + " Server already running");
@@ -248,7 +266,7 @@ class Server {
     this.#socket.attach(server);
     shareToLoader("host", { protocol: protocol.name, port });
     protocol.active = true;
-    this.emit("ready", { type: protocol.name, port });
+    this.#emit("ready", { type: protocol.name, port });
     return port;
   }
 
@@ -713,9 +731,9 @@ class Server {
         shareToLoader(filepath, { subdomain, pathname: "/api" + pathname });
         collection.add(this.#register(type, subdomain, "/api" + pathname, arg));
       } else collection.add(this.#register(type, subdomain, pathname, arg));
-      if (emit != false) this.emit("ready", { type, subdomain, pathname });
+      if (emit != false) this.#emit("ready", { type, subdomain, pathname });
     } catch (e) {
-      this.emit("error", e);
+      this.#emit("error", e);
     }
   }
 
@@ -820,11 +838,11 @@ class Server {
       throw new TypeError("Invalid argument type, on and event and callback");
     const [subdomain, event, callback] =
       typeof arg2 === "function" ? ["*", arg1, arg2] : [arg1, arg2, arg3];
-    if (typeof event !== "string") this.emit("warning", "Invalid event name");
+    if (typeof event !== "string") this.#emit("warning", "Invalid event name");
     if (!this.#events[event]) this.#events[event] = [];
-    this.#events[event].push((event) => {
+    this.#events[event].push((event, args) => {
       if (event.subdomain !== subdomain && subdomain !== "*") return;
-      callback(...(event.args || []));
+      callback(...(args || []));
     });
   }
 
@@ -836,15 +854,20 @@ class Server {
    * @param {...any} args Additional arguments to pass to the event listener.
    */
   emit(subdomain, event, ...args) {
-    if (typeof event !== "string") {
-      const listeners = this.#events["warning"] || [];
-      for (let i = 0, len = listeners.length; i < len; i++)
-        listeners[i]("*", ["Cannot emit an empty event"]);
-      return;
-    }
+    if (typeof event !== "string")
+      return this.#emit("warning", "Cannot emit an empty event");
     if (subdomain && subdomain !== "*")
       this.#socket.to(subdomain).emit(event, ...args);
     else this.#socket.emit(event, ...args);
+  }
+
+  /**
+   * Emit for internal events only
+   */
+  #emit(event, ...args) {
+    const listeners = this.#events[event] || [];
+    for (let i = 0, len = listeners.length; i < len; i++)
+      listeners[i]("*", args);
   }
 
   /**
@@ -976,6 +999,7 @@ class Server {
 
   async #handler(protocol, request, response) {
     if (request.url.endsWith("/") && request.url !== "/") {
+      response.statusCode = 301;
       response.writeHead(301, { Location: request.url.slice(0, -1) });
       response.end();
       return;
@@ -1026,6 +1050,7 @@ class Server {
     response.reject = (message, code) =>
       this.#reject(request, response, message, code);
     response.redirect = (url, permanent) => (
+      (response.statusCode = 301),
       response.writeHead(permanent ? 301 : 302, { Location: url }),
       response.end()
     );
@@ -1086,7 +1111,7 @@ class Server {
       }
       this.#reject(request, response);
     } catch (e) {
-      this.emit("error", e);
+      this.#emit("error", e);
       this.#reject(request, response, e.message, 500);
     }
   }
@@ -1261,15 +1286,18 @@ function getRequestBody(request) {
 function sendFile(request, response, filepath, type) {
   const stream = fs.createReadStream(filepath);
   const headers = defaultHeaders(request, response, type);
+  response.statusCode = 200;
   response.writeHead(200, headers);
   stream.pipe(response);
   stream.on("error", () => {
+    response.statusCode = 500;
     response.writeHead(500, headers);
     response.end("500 Internal Server Error");
   });
 }
 
 function send(request, response, code, content, type = "text/plain") {
+  response.statusCode = 200;
   const acceptEncoding = request.headers["accept-encoding"];
   const headers = defaultHeaders(request, response, type);
   if (

@@ -1,4 +1,3 @@
-export const INVALID_EVENT_NAME = "Invalid socket event";
 export const RESOURCES_PATH = "assets";
 
 export const defineReadonly = (obj, key, value) =>

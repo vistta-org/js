@@ -14,8 +14,8 @@ import {
 import {
   RESOURCES_PATH,
   capitalize,
-  ensureArray,
   addUnique,
+  ensureArray,
 } from "../utils/index.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
@@ -225,37 +225,18 @@ class VirtualDom {
 export { VirtualDom };
 
 function renderElement(virtualDom, parent, element, context, referenceNode) {
-  if (element == null || element === false) return null;
-  if (!(element instanceof Element)) {
-    if (Array.isArray(element)) element = new Element(Fragment, null, element);
-    else if (element instanceof Mutation) {
-      const mutation = element;
-      element = new Element(Fragment);
-      element.id = mutation.id;
-      element.mutations = [];
-      element.mutation = applyMutation(
-        virtualDom,
-        element,
-        mutation,
-        evalMutation(mutation, (value) =>
-          updateElement(virtualDom, element, null, ensureArray(value))
-        ),
-        evalMutationAsync(
-          virtualDom,
-          mutation,
-          (value) => (element.children = ensureArray(value))
-        )
-      );
-    } else if (typeof element === "function") element = new Element(element);
-    else if (typeof element === "object" || element instanceof Promise)
-      throw new VirtualDomError(
-        `${capitalize(typeof element)} is not a valid Element`
-      );
-    else element = new Element(TextNode, null, "" + element);
-  } else if (element.type == null) return null;
+  if (!(element instanceof Element))
+    element = convertToElement(virtualDom, element);
   element.mutations = [];
   element.parent = parent;
   element.context = context;
+
+  // Empty Node
+  if (element.type == null) {
+    element.node = virtualDom.createTextNode("");
+    appendElement(parent, element, referenceNode);
+    return element;
+  }
 
   // Text Node
   if (element.type === TextNode) {
@@ -526,6 +507,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
       };
       virtualDom.suspense = component;
       const replaceChildren = () => {
+        const referenceNode = element.lastNode?.nextSibling;
         for (let i = 0, len = element.children.length; i < len; i++) {
           if (!element.children[i]) continue;
           removeElement(element.children[i]);
@@ -538,10 +520,6 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         element.children = fragment.children;
         for (let i = 0, len = element.children.length; i < len; i++)
           element.children[i].parent = element;
-        const referenceNode = findReferenceNode(
-          parent,
-          parent.children.indexOf(element)
-        );
         while (fragment.node.firstChild)
           appendElement(
             element,
@@ -606,6 +584,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
 
 function updateElement(virtualDom, element, props, children) {
   const context = element.context;
+  if (element.type === null) return element;
   if (element.type === TextNode) {
     if (children[0] !== element.node.textContent)
       element.node.textContent = children[0];
@@ -616,22 +595,23 @@ function updateElement(virtualDom, element, props, children) {
     let updateChildren = false;
     const keys = Object.keys(props || {});
     for (let i = 0, len = keys.length; i < len; i++) {
-      if (!(props[keys[i]] instanceof Mutation)) continue;
-      const mutations = element.props[keys[i]].context.mutations;
-      applyMutation(
-        virtualDom,
-        element,
-        element.props[keys[i]],
-        evalMutation(props[keys[i]], (value) => {
-          element.attributes[keys[i]] = value;
-          virtualDom.enqueue(mutations);
-        }),
-        evalMutationAsync(virtualDom, props[keys[i]], (value) => {
-          if (value === element.attributes[keys[i]]) return;
-          element.attributes[keys[i]] = value;
-          updateChildren = true;
-        })
-      );
+      if (props[keys[i]] instanceof Mutation) {
+        const mutations = element.props[keys[i]].context.mutations;
+        applyMutation(
+          virtualDom,
+          element,
+          element.props[keys[i]],
+          evalMutation(props[keys[i]], (value) => {
+            element.attributes[keys[i]] = value;
+            virtualDom.enqueue(mutations);
+          }),
+          evalMutationAsync(virtualDom, props[keys[i]], (value) => {
+            if (value === element.attributes[keys[i]]) return;
+            element.attributes[keys[i]] = value;
+            updateChildren = true;
+          })
+        );
+      } else element.component[keys[i]] = props[keys[i]];
     }
     if (updateChildren) children = ensureArray(element.mutation());
   } else if (element.type !== Fragment) {
@@ -663,29 +643,77 @@ function updateElement(virtualDom, element, props, children) {
   }
 
   if (children) {
-    for (let i = 0, len = element.children.length; i < len; i++) {
-      if (!element.children[i]) continue;
-      removeElement(element.children[i]);
+    const previous = [...element.children];
+    const changes = [];
+    element.children = [];
+    for (let i = 0, len = children.length; i < len; i++) {
+      let child = children[i];
+      if (!(child instanceof Element))
+        child = convertToElement(virtualDom, child, true);
+      let matches = [];
+      for (let j = 0, len = previous.length; j < len; j++)
+        if (elementEquals(child, previous[j])) matches.push(j);
+      if (matches.length !== 1) changes[i] = { type: "insert", element: child };
+      else {
+        const match = matches[0];
+        changes[i] = {
+          type: "update",
+          element: child,
+          previous: previous[match],
+          move: match != i,
+        };
+        previous[match] = null;
+      }
+    }
+    let referenceNode = element.node ? null : element.lastNode?.nextSibling;
+
+    for (let i = 0, len = previous.length; i < len; i++) {
+      if (!previous[i]) continue;
+      removeElement(previous[i]);
       traverseVirtualTree(
-        element.children[i],
+        previous[i],
         (element) =>
           element.type === Component.Node && element.component?.onDisconnect?.()
       );
     }
 
-    element.children = [];
-    for (let i = 0, len = children.length; i < len; i++) {
-      element.children[i] = renderElement(
-        virtualDom,
-        element,
-        children[i],
-        {
-          ...context,
-          components: [...context.components],
-          depth: context.depth + 1,
-        },
-        findReferenceNode(element, i)
-      );
+    for (let i = changes.length - 1; i >= 0; i--) {
+      if (!changes[i]) continue;
+      if (changes[i].type === "insert") {
+        element.children[i] = renderElement(
+          virtualDom,
+          element,
+          changes[i].element,
+          {
+            ...context,
+            components: [...context.components],
+            depth: context.depth + 1,
+          },
+          referenceNode
+        );
+      } else if (changes[i].type === "update") {
+        if (
+          changes[i].previous.type === Component.Node ||
+          changes[i].previous.mutation
+        )
+          element.children[i] = updateElement(
+            virtualDom,
+            changes[i].previous,
+            changes[i].element.props
+          );
+        else
+          element.children[i] = updateElement(
+            virtualDom,
+            changes[i].previous,
+            changes[i].element.props,
+            changes[i].element.children.length > 0
+              ? changes[i].element.children
+              : [null]
+          );
+        if (changes[i].move)
+          appendElement(element, changes[i].previous, referenceNode);
+      }
+      referenceNode = element.children[i].node || element.children[i].firstNode;
     }
   } else {
     for (let i = 0, len = element.children.length; i < len; i++) {
@@ -711,6 +739,38 @@ function updateElement(virtualDom, element, props, children) {
   }
 
   return element;
+}
+
+function convertToElement(virtualDom, element, ignoreMutation = false) {
+  if (element === null || element === undefined || element === false)
+    return new Element(null);
+  if (Array.isArray(element)) return new Element(Fragment, null, element);
+  else if (element instanceof Mutation) {
+    const mutation = element;
+    element = new Element(Fragment);
+    element.id = mutation.id;
+    element.mutations = [];
+    if (!ignoreMutation)
+      element.mutation = applyMutation(
+        virtualDom,
+        element,
+        mutation,
+        evalMutation(mutation, (value) =>
+          updateElement(virtualDom, element, null, ensureArray(value))
+        ),
+        evalMutationAsync(
+          virtualDom,
+          mutation,
+          (value) => (element.children = ensureArray(value))
+        )
+      );
+    return element;
+  } else if (typeof element === "function") return new Element(element);
+  else if (typeof element === "object" || element instanceof Promise)
+    throw new VirtualDomError(
+      `${capitalize(typeof element)} is not a valid Element`
+    );
+  return new Element(TextNode, null, "" + element);
 }
 
 function renderElementChildren(
@@ -792,21 +852,38 @@ function preventMutation(virtualDom, callback) {
 function appendElement(parent, element, referenceNode) {
   if (parent.type === Fragment || parent.type === Component.Node) {
     if (referenceNode) {
-      if (!parent.firstNode) parent.firstNode = element.node;
+      if (!parent.firstNode)
+        parent.firstNode = element.node || element.firstNode;
       else if (referenceNode === parent.firstNode)
-        parent.firstNode = element.node;
-      if (!parent.lastNode) parent.lastNode = element.node;
+        parent.firstNode = element.node || element.firstNode;
+      if (!parent.lastNode) parent.lastNode = element.node || element.lastNode;
       else if (referenceNode.previousSibling === parent.lastNode)
-        parent.lastNode = element.node;
+        parent.lastNode = element.node || element.lastNode;
       appendElement(parent.parent, element, referenceNode);
     } else {
-      if (!parent.firstNode) parent.firstNode = element.node;
-      parent.lastNode = element.node;
+      if (!parent.firstNode)
+        parent.firstNode = element.node || element.firstNode;
+      parent.lastNode = element.node || element.lastNode;
       appendElement(parent.parent, element);
     }
-  } else if (referenceNode)
-    parent.node.insertBefore(element.node, referenceNode);
-  else parent.node.appendChild(element.node);
+    return;
+  }
+
+  const firstNode = element.node || element.firstNode;
+  const lastNode = element.lastNode;
+  if (!lastNode || firstNode === lastNode) {
+    if (referenceNode) parent.node.insertBefore(firstNode, referenceNode);
+    else parent.node.appendChild(firstNode);
+  } else {
+    let currentNode = firstNode;
+    while (currentNode) {
+      const next = currentNode.nextSibling;
+      if (referenceNode) parent.node.insertBefore(currentNode, referenceNode);
+      else parent.node.appendChild(currentNode);
+      if (currentNode === lastNode) currentNode = null;
+      else currentNode = next;
+    }
+  }
 }
 
 function removeElement(element) {
@@ -838,25 +915,16 @@ function removeElement(element) {
   }
 }
 
-function findReferenceNode(parent, index) {
-  if (parent.type === VirtualDom || index == null) return null;
-  const max = parent.children.length - 1;
-  for (let i = 1, len = Math.max(index, max - index); i <= len; i++) {
-    let cur = index + i;
-    let child = cur <= max && parent.children[cur];
-    if (child?.node) return child.node;
-    if (child?.firstNode) return child.firstNode;
-    cur = index - i;
-    child = cur <= max && parent.children[cur];
-    if (child?.node) return child.node.nextSibling;
-    if (child?.lastNode) return child.lastNode.nextSibling;
-  }
-  if (parent.node || parent.parent.type === VirtualDom) return null;
-  for (let i = 0, len = parent.parent?.children?.length || 0; i < len; i++) {
-    if (parent.parent.children[i] === parent)
-      return findReferenceNode(parent.parent, i);
-  }
-  return null;
+function elementEquals(a, b) {
+  return (
+    a?.type === b?.type &&
+    (a.type === null ||
+      a.type === TextNode ||
+      (a.key || b.key
+        ? a.key === b.key
+        : a.id === b.id &&
+          (a.type !== Component.Node || a.Component === b.Component)))
+  );
 }
 
 function createPageSnapshot() {
@@ -894,6 +962,7 @@ function createPageSnapshot() {
 function restorePageSnapshot(snapshot) {
   if (snapshot.caret) {
     const { element, position } = snapshot.caret;
+    if (!document.body.contains(element)) return;
     if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
       element.focus();
       element.setSelectionRange(position, position);

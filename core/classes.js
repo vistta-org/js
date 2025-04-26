@@ -24,7 +24,7 @@ export class Element {
       this.type = Component.Node;
       this.props.children = children;
       this.Component = type;
-    } else if (typeOf !== "string" && typeOf !== "symbol") return null;
+    } else if (typeOf !== "string" && typeOf !== "symbol") this.type = null;
     else {
       if (props?.ref != null) {
         if (props.ref instanceof Mutation) props.ref = props.ref();
@@ -42,6 +42,7 @@ export class Element {
   }
 
   toString() {
+    if (this.type == null) return "";
     const children = this.children?.reduce((acc, cur) => acc + cur, "");
     if (typeof this.type !== "string") return children;
     let attributes = "";
@@ -300,13 +301,11 @@ export class Suspense extends Component {
 
   register() {
     this.#count++;
-    console.log("register", this.#count);
     return this;
   }
 
   resolve() {
     this.#count--;
-    console.log("resolve", this.#count);
     if (this.#count == 0) this.#callback(true);
   }
 

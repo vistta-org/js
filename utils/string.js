@@ -29,13 +29,3 @@ export function escapeHtml(text) {
 export function camelCaseToKebabCase(string) {
   return string.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 }
-
-export function convertToEventName(string) {
-  if (typeof string !== "string") return null;
-  string = string
-    .replace(/([A-Z])/g, "_$1")
-    .toLowerCase()
-    .replace(/-/g, "_");
-  if (!/^[a-z][\w]*$/.test(string)) return null;
-  return string;
-}
