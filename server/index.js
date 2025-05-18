@@ -437,7 +437,7 @@ class Server {
    */
   all(arg1, arg2, arg3) {
     const [subdomain, pathname, handler] = parseArguments(
-      "put",
+      "all",
       arg1,
       arg2,
       arg3
@@ -457,7 +457,7 @@ class Server {
    */
   error(arg1, arg2, arg3) {
     const [subdomain, pathname, handler] = parseArguments(
-      "put",
+      "error",
       arg1,
       arg2,
       arg3

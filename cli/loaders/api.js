@@ -1,3 +1,4 @@
+import "../../core/adapter";
 import { default as Controller, Method } from "../../server/controller";
 
 export async function load(_, options) {
