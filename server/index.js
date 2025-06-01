@@ -1388,12 +1388,14 @@ function defaultHeaders(request, response, type) {
     "Referrer-Policy": "no-referrer",
     "X-XSS-Protection": "1; mode=block",
     "Content-Type": type,
-    "Cache-Control":
-      process.env.NODE_ENV === "production" && request.resource
-        ? "public, max-age=31536000"
-        : "no-cache, no-store, must-revalidate",
+    "Cache-Control": "public, max-age=31536000",
     "Set-Cookie": response.cookies,
   };
+  if (process.env.NODE_ENV !== "production") {
+    headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+    headers["Pragma"] = "no-cache";
+    headers["Expires"] = "0";
+  }
   return headers;
 }
 
