@@ -3,8 +3,9 @@ import { default as Controller, Method } from "../../server/controller";
 
 export async function load(_, options) {
   try {
-    const pathname =
-      options.pathname || global.main.shared?.[options.path]?.pathname || "";
+    if (!global.main.shared?.[options.path])
+      throw new Error("Controller not found in the server shared state");
+    const pathname = global.main.shared?.[options.path]?.pathname;
     let controller = (await import(options.path))?.default;
     let code = `import { request } from "@vistta/utils/request";const createUrl = (url) => [`;
     if (options.pathname || options.bundler) code += `"${pathname}",`;

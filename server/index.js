@@ -9,6 +9,7 @@ import { URL } from "url";
 import { Server as SocketIO } from "socket.io";
 import { createPage } from "./page.js";
 import { default as Controller, Method, shareToLoader } from "./controller.js";
+import { Component } from "../core/classes.js";
 import {
   RESOURCES_PATH,
   async,
@@ -35,16 +36,6 @@ const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [
 ];
 
 const ALL_METHODS = ["copy", "delete", "get", "move", "patch", "post", "put"];
-const ACCEPTABLE_FILE_NAMES = [
-  "page",
-  "error",
-  "api",
-  "controller",
-  "config",
-  "middleware",
-  "layout",
-];
-
 class Route {
   #subdomain;
   #pathname;
@@ -488,14 +479,229 @@ class Server {
     else if (typeOfTarget !== "string")
       throw new TypeError("Invalid argument type");
     const collection = new Route(subdomain, basepath, "collection");
+    const use = async (type, pathname, filepath, arg, emit) => {
+      try {
+        if (
+          !arg &&
+          ["api", "controller", "config", "middleware", "layout"].includes(type)
+        )
+          arg = (await import(filepath))?.default;
+        if (type === "config") {
+          if (typeof arg !== "object")
+            throw new TypeError("Invalid config type");
+          const config = this.#register(
+            "config",
+            subdomain,
+            ensureEndsWith(pathname, "/"),
+            arg
+          );
+          const segments = pathname.split("/");
+          matchRoutes(
+            this.#subdomains[subdomain]?.page || [],
+            pathname,
+            ({ page }) => {
+              const configs = page.inherited.configs;
+              for (let i = 0, len = configs.length; i < len; i++) {
+                if (checkIfMoreSpecific(segments, configs[i].pathname))
+                  return configs.splice(i, 0, config);
+              }
+              collection.add(config);
+              configs.push(config);
+              page.cache.reset();
+            }
+          );
+        } else if (type === "layout") {
+          if (typeof arg !== "function")
+            throw new TypeError("Invalid layout type");
+          const { code, resources } = await import(filepath, {
+            with: {
+              type: "bundler",
+              globalName: "__app_layout_component",
+              exports: "default",
+            },
+          });
+          const resourceKeys = Object.keys(resources);
+          for (
+            let i2 = 0, resourcesLen = resourceKeys.length;
+            i2 < resourcesLen;
+            i2++
+          )
+            this.#resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] =
+              resources[resourceKeys[i2]];
+          const layout = this.#register(
+            "layout",
+            subdomain,
+            ensureEndsWith(pathname, "/"),
+            {
+              pathname,
+              component: arg,
+              code: code,
+            }
+          );
+          const segments = pathname.split("/");
+          matchRoutes(
+            this.#subdomains[subdomain]?.page || [],
+            pathname,
+            ({ page }) => {
+              if (
+                page.inherited.layout &&
+                !checkIfMoreSpecific(segments, page.inherited.layout.pathname)
+              )
+                return;
+              page.inherited.layout = layout;
+              page.cache.reset();
+            }
+          );
+          collection.add(layout);
+        } else if (type === "page" || type === "error") {
+          const configs = [];
+          const segments = pathname.split("/");
+          for (
+            let i = 0, len = pathname === "/" ? 1 : segments.length;
+            i < len;
+            i++
+          ) {
+            const config = matchRoute(
+              this.#subdomains[subdomain]?.config || [],
+              segments.slice(0, i + 1).join("/") || "/"
+            );
+            if (config) configs.push(config);
+          }
+          const page = await createPage(
+            type,
+            filepath,
+            pathname,
+            configs,
+            matchRoute(this.#subdomains[subdomain]?.layout || [], pathname, {
+              exact: false,
+              filter: (route) => route.layout,
+            })
+          );
+          if (!this.#resources)
+            this.#resources = {
+              [`/${RESOURCES_PATH}/client.js`]: (
+                await import(fs.resolve(dirname, "./client.js"), {
+                  with: { type: "bundler" },
+                })
+              )?.code,
+              [`/${RESOURCES_PATH}/worker.js`]: (
+                await import(fs.resolve(dirname, "./worker.js"), {
+                  with: { type: "bundler" },
+                })
+              )?.code,
+            };
+          const resourceKeys = Object.keys(page.resources);
+          for (
+            let i2 = 0, resourcesLen = resourceKeys.length;
+            i2 < resourcesLen;
+            i2++
+          )
+            this.#resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] =
+              page.resources[resourceKeys[i2]];
+          if (type === "error") {
+            collection.add(
+              this.#register(
+                "page",
+                subdomain,
+                ensureEndsWith(pathname, "/❌"),
+                page
+              )
+            );
+            collection.add(
+              this.#register(
+                "error",
+                subdomain,
+                pathname,
+                (req, res, code, message) => {
+                  if (req.resource === "page")
+                    page
+                      .js(req, { code, message })
+                      .then((js) => res.send(js, "text/javascript"));
+                  else if (req.resource === "manifest")
+                    res.reject("Resource not found", 404);
+                  else
+                    page
+                      .html(req, { code, message })
+                      .then((html) => res.send(html, "text/html"));
+                },
+                true
+              )
+            );
+          } else {
+            collection.add(
+              this.#register(
+                "page",
+                subdomain,
+                ensureEndsWith(pathname, "/"),
+                page
+              )
+            );
+            if (page.config)
+              use("config", pathname, filepath, page.config, false);
+            collection.add(
+              this.#register(
+                "get",
+                subdomain,
+                pathname,
+                (req, res) => {
+                  if (req.resource === "page")
+                    page
+                      .js(req, res.props)
+                      .then((js) => res.send(js, "text/javascript"));
+                  else if (req.resource === "manifest") {
+                    if (page.pwa)
+                      page
+                        .manifest(req, req.props)
+                        .then((manifest) => res.send(manifest, "text/json"));
+                    else res.reject("Resource not found", 404);
+                  } else
+                    page
+                      .html(req, res.props)
+                      .then((html) => res.send(html, "text/html"));
+                },
+                true
+              )
+            );
+          }
+        } else if (type === "api" || type === "controller") {
+          shareToLoader(fs.resolve(filepath), {
+            subdomain,
+            pathname: "/api" + pathname,
+          });
+          collection.add(
+            this.#register(type, subdomain, "/api" + pathname, arg)
+          );
+        } else collection.add(this.#register(type, subdomain, pathname, arg));
+        if (emit != false) this.#emit("ready", { type, subdomain, pathname });
+      } catch (e) {
+        this.#emit("error", e.message);
+      }
+    };
+
     if (!fs.isDirectory(target)) {
-      await this.#use("page", collection, subdomain, basepath, target);
+      const DefaultClass = (await import(target))?.default;
+      if (Object.isPrototypeOf.call(Controller, DefaultClass))
+        await use("controller", basepath, target);
+      else if (Object.isPrototypeOf.call(Component, DefaultClass))
+        await use("page", basepath, target);
+      else throw new TypeError("Invalid file default export type");
       return collection;
     }
-    const entries = await fs.readdir(target, { recursive: true });
-    for (let i = 0, len = entries.length; i < len; i++) {
-      const entry = entries[i].replace(/\\/g, "/");
-      const filepath = fs.resolve(target, entry);
+    const files = await fs.readdir(target, { recursive: true });
+    const serverEntries = [];
+    const clientEntries = [];
+    const entries = {
+      api: serverEntries,
+      controller: serverEntries,
+      middleware: serverEntries,
+      page: clientEntries,
+      error: clientEntries,
+      config: clientEntries,
+      layout: clientEntries,
+    };
+    for (let i = 0, len = files.length; i < len; i++) {
+      const file = files[i].replace(/\\/g, "/");
+      const filepath = fs.resolve(target, file);
       const extname = fs.extname(filepath);
       const isResource = fs.contains(filepath, RESOURCES_PATH);
       if (
@@ -503,16 +709,15 @@ class Server {
         !(JAVASCRIPT_TYPESCRIPT_EXTENSIONS.includes(extname) || isResource)
       )
         continue;
-      const paths = entry.replace(/\.[^.]+$/, "").split("/");
+      const paths = file.replace(/\.[^.]+$/, "").split("/");
       const pathsLen = paths.length;
       if (pathsLen == 1 && !isResource) {
-        await this.#use(
-          paths[0],
-          collection,
-          subdomain,
-          combinePathnames(basepath, "/"),
-          filepath
-        );
+        if (entries[paths[0]])
+          entries[paths[0]].push([
+            paths[0],
+            combinePathnames(basepath, "/"),
+            filepath,
+          ]);
         continue;
       }
       let pathname = "";
@@ -530,211 +735,18 @@ class Server {
         this.#resources[
           combinePathnames(basepath, pathname) + "/" + fs.basename(filepath)
         ] = filepath;
-      else
-        await this.#use(
+      else if (entries[paths[pathsLen - 1]])
+        entries[paths[pathsLen - 1]].push([
           paths[pathsLen - 1],
-          collection,
-          subdomain,
           combinePathnames(basepath, pathname),
-          filepath
-        );
-    }
-    return collection;
-  }
-
-  async #use(type, collection, subdomain, pathname, filepath, arg, emit) {
-    if (!ACCEPTABLE_FILE_NAMES.includes(type)) return;
-    try {
-      if (
-        !arg &&
-        ["api", "controller", "config", "middleware", "layout"].includes(type)
-      )
-        arg = (await import(filepath))?.default;
-      if (type === "config") {
-        if (typeof arg !== "object") throw new TypeError("Invalid config type");
-        const config = this.#register(
-          "config",
-          subdomain,
-          ensureEndsWith(pathname, "/"),
-          arg
-        );
-        const segments = pathname.split("/");
-        matchRoutes(
-          this.#subdomains[subdomain]?.page || [],
-          pathname,
-          ({ page }) => {
-            const configs = page.inherited.configs;
-            for (let i = 0, len = configs.length; i < len; i++) {
-              if (checkIfMoreSpecific(segments, configs[i].pathname))
-                return configs.splice(i, 0, config);
-            }
-            collection.add(config);
-            configs.push(config);
-            page.cache.reset();
-          }
-        );
-      } else if (type === "layout") {
-        if (typeof arg !== "function")
-          throw new TypeError("Invalid layout type");
-        const layout = this.#register(
-          "layout",
-          subdomain,
-          ensureEndsWith(pathname, "/"),
-          {
-            pathname,
-            component: arg,
-            code: (
-              await import(filepath, {
-                with: {
-                  type: "bundler",
-                  globalName: "__app_layout_component",
-                  exports: "default",
-                },
-              })
-            )?.code,
-          }
-        );
-        const segments = pathname.split("/");
-        matchRoutes(
-          this.#subdomains[subdomain]?.page || [],
-          pathname,
-          ({ page }) => {
-            if (
-              page.inherited.layout &&
-              !checkIfMoreSpecific(segments, page.inherited.layout.pathname)
-            )
-              return;
-            page.inherited.layout = layout;
-            page.cache.reset();
-          }
-        );
-        collection.add(layout);
-      } else if (type === "page" || type === "error") {
-        const configs = [];
-        const segments = pathname.split("/");
-        for (
-          let i = 0, len = pathname === "/" ? 1 : segments.length;
-          i < len;
-          i++
-        ) {
-          const config = matchRoute(
-            this.#subdomains[subdomain]?.config || [],
-            segments.slice(0, i + 1).join("/") || "/"
-          );
-          if (config) configs.push(config);
-        }
-        const page = await createPage(
-          type,
           filepath,
-          pathname,
-          configs,
-          matchRoute(this.#subdomains[subdomain]?.layout || [], pathname, {
-            exact: false,
-            filter: (route) => route.layout,
-          })
-        );
-        if (!this.#resources)
-          this.#resources = {
-            [`/${RESOURCES_PATH}/client.js`]: (
-              await import(fs.resolve(dirname, "./client.js"), {
-                with: { type: "bundler" },
-              })
-            )?.code,
-            [`/${RESOURCES_PATH}/worker.js`]: (
-              await import(fs.resolve(dirname, "./worker.js"), {
-                with: { type: "bundler" },
-              })
-            )?.code,
-          };
-        const resourceKeys = Object.keys(page.resources);
-        for (
-          let i2 = 0, resourcesLen = resourceKeys.length;
-          i2 < resourcesLen;
-          i2++
-        )
-          this.#resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] =
-            page.resources[resourceKeys[i2]];
-        if (type === "error") {
-          collection.add(
-            this.#register(
-              "page",
-              subdomain,
-              ensureEndsWith(pathname, "/❌"),
-              page
-            )
-          );
-          collection.add(
-            this.#register(
-              "error",
-              subdomain,
-              pathname,
-              (req, res, code, message) => {
-                if (req.resource === "page")
-                  page
-                    .js(req, { code, message })
-                    .then((js) => res.send(js, "text/javascript"));
-                else if (req.resource === "manifest")
-                  res.reject("Resource not found", 404);
-                else
-                  page
-                    .html(req, { code, message })
-                    .then((html) => res.send(html, "text/html"));
-              },
-              true
-            )
-          );
-        } else {
-          collection.add(
-            this.#register(
-              "page",
-              subdomain,
-              ensureEndsWith(pathname, "/"),
-              page
-            )
-          );
-          if (page.config)
-            this.#use(
-              "config",
-              collection,
-              subdomain,
-              pathname,
-              filepath,
-              page.config,
-              false
-            );
-          collection.add(
-            this.#register(
-              "get",
-              subdomain,
-              pathname,
-              (req, res) => {
-                if (req.resource === "page")
-                  page
-                    .js(req, res.props)
-                    .then((js) => res.send(js, "text/javascript"));
-                else if (req.resource === "manifest") {
-                  if (page.pwa)
-                    page
-                      .manifest(req, req.props)
-                      .then((manifest) => res.send(manifest, "text/json"));
-                  else res.reject("Resource not found", 404);
-                } else
-                  page
-                    .html(req, res.props)
-                    .then((html) => res.send(html, "text/html"));
-              },
-              true
-            )
-          );
-        }
-      } else if (type === "api" || type === "controller") {
-        shareToLoader(filepath, { subdomain, pathname: "/api" + pathname });
-        collection.add(this.#register(type, subdomain, "/api" + pathname, arg));
-      } else collection.add(this.#register(type, subdomain, pathname, arg));
-      if (emit != false) this.#emit("ready", { type, subdomain, pathname });
-    } catch (e) {
-      this.#emit("error", e);
+        ]);
     }
+    for (let i = 0, len = serverEntries.length; i < len; i++)
+      await use(...serverEntries[i]);
+    for (let i = 0, len = clientEntries.length; i < len; i++)
+      await use(...clientEntries[i]);
+    return collection;
   }
 
   /**
@@ -1027,23 +1039,26 @@ class Server {
         request.cookies[name] = decodeURIComponent(parts.join("=").trim());
       }
     }
-    response.cookies = {};
+    response.cookies = [];
     response.props = {};
     response.set = (type, ...args) => {
       switch (type) {
         case "cookie":
-          response.cookies[args[0]] = {
-            value: args[1] || "",
-            options: args[2] || {},
-          };
+          setCookies(response, {
+            [args[0]]: {
+              value: args[1] || "",
+              options: args[2] || {},
+            },
+          });
           break;
         case "cookies":
-          Object.assign(response.cookies, args[0] || {});
+          setCookies(response, args[0] || {});
           break;
         case "props":
           Object.assign(response.props, args[0] || {});
           break;
         default:
+          request[type] = args[0];
           break;
       }
     };
@@ -1051,7 +1066,10 @@ class Server {
       this.#reject(request, response, message, code);
     response.redirect = (url, permanent) => (
       (response.statusCode = 301),
-      response.writeHead(permanent ? 301 : 302, { Location: url }),
+      response.writeHead(permanent ? 301 : 302, {
+        "Set-Cookie": response.cookies,
+        Location: url,
+      }),
       response.end()
     );
     response.send = (content, type) =>
@@ -1086,7 +1104,9 @@ class Server {
           return this.#reject(request, response, "Method not allowed", 405);
         const type =
           mime.getType(request.pathname) || "application/octet-stream";
-        if (fs.isAbsolute(resource)) return response.sendFile(resource, type);
+
+        if (fs.isAbsolute(resource) && fs.existsSync(resource))
+          return response.sendFile(resource, type);
         return response.send(resource, type);
       } else {
         if (request.pathname.endsWith("/page.js"))
@@ -1111,7 +1131,7 @@ class Server {
       }
       this.#reject(request, response);
     } catch (e) {
-      this.#emit("error", e);
+      this.#emit("error", e.message);
       this.#reject(request, response, e.message, 500);
     }
   }
@@ -1372,24 +1392,24 @@ function defaultHeaders(request, response, type) {
       process.env.NODE_ENV === "production" && request.resource
         ? "public, max-age=31536000"
         : "no-cache, no-store, must-revalidate",
+    "Set-Cookie": response.cookies,
   };
-  const cookies = Object.keys(response.cookies);
-  if (cookies.length > 0) {
-    let setCookies = "";
-    for (let i = 0, len = cookies.length; i < len; i++) {
-      const cookie = response.cookies[cookies[i]];
-      let value = `${cookies[i]}=${cookie.value}; SameSite=${cookie.options.sameSite || "Strict"}; Path=${cookie.options.path || "/"}; `;
-      if (cookie.options.expires)
-        value += `; Expires=${cookie.options.expires}`;
-      if (cookie.options.maxAge) value += `; Max-Age=${cookie.options.maxAge}`;
-      if (cookie.options.domain) value += `; Domain=${cookie.options.domain}`;
-      if (cookie.options.secure) value += `; Secure`;
-      if (cookie.options.httpOnly !== false) value += `; HttpOnly`;
-      setCookies += value + "; ";
-    }
-    headers["Set-Cookie"] = setCookies;
-  }
   return headers;
+}
+
+function setCookies(response, cookies) {
+  const cookieNames = Object.keys(cookies);
+  for (let i = 0, len = cookieNames.length; i < len; i++) {
+    const cookie = cookies[cookieNames[i]];
+    let value = `${cookieNames[i]}=${cookie.value}; SameSite=${cookie?.options?.sameSite || "Strict"}; Path=${cookie?.options?.path || "/"}; `;
+    if (cookie?.options?.expires)
+      value += `; Expires=${cookie.options.expires}`;
+    if (cookie?.options?.maxAge) value += `; Max-Age=${cookie.options.maxAge}`;
+    if (cookie?.options?.domain) value += `; Domain=${cookie.options.domain}`;
+    if (cookie?.options?.secure) value += `; Secure`;
+    if (cookie?.options?.httpOnly !== false) value += `; HttpOnly`;
+    response.cookies.push(value);
+  }
 }
 
 function defaultSubdomain() {

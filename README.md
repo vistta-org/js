@@ -32,12 +32,23 @@ Latency (ms): 36.57
 Req/Sec: 26 958
 Bytes/Sec (MB): 38.8
 
-### Page Render Benchmarks
+### Performance Tests
 
-Recursive Update: Total (runs/sec): 7419.975; Average Time (ms): 0.0001; Initial Time (ms): 4.9;
-Attribute Update: Total (runs/sec): 1010.825; Average Time (ms): 0.0002; Initial Time (ms): 1.7;
-Content Update: Total (runs/sec): 227.925; Average Time (ms): 0.0003; Initial Time (ms): 3.5;
-Element Update: Total (runs/sec): 39.6; Average Time (ms): 24; Initial Time (ms): 3;
+Attribute Update:
+
+- Total (runs/sec): 240.25; Average Time (ms): 0.0007; Initial Time (ms): 4.5;
+
+Content Update:
+
+- Total (runs/sec): 169.9; Average Time (ms): 0.007; Initial Time (ms): 5.4;
+
+Element Update:
+
+- Total (runs/sec): 34.525; Average Time (ms): 4.33; Initial Time (ms): 5.2;
+
+Recursive Update:
+
+- Total (runs/sec): 239.925; Average Time (ms): 0.003; Initial Time (ms): 11;
 
 ## **License**
 

@@ -1,4 +1,5 @@
 import { default as DefaultCLI } from "./default.js";
+import { COLORS } from "@vistta/console";
 import Server from "../server/index.js";
 import fs from "@vistta/fs";
 
@@ -96,6 +97,11 @@ export default class extends DefaultCLI {
           break;
       }
     });
+    server.on("request", ({ method, url, status }) =>
+      console.log(
+        `${status >= 400 ? COLORS.RED : status >= 300 ? COLORS.DIM : COLORS.GREEN}${status}${COLORS.RESET} ${method} ${url}`
+      )
+    );
   }
 
   async build(folder, output = "dist", options) {
