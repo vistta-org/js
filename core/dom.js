@@ -251,14 +251,21 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
       if (element.key instanceof Mutation)
         throw new VirtualDomError("Internal Error #002");
       if (virtualDom.keys[element.key] == null)
-        virtualDom.keys[element.key] = {
-          type: element.type,
-          node: virtualDom.createElement(element.type),
-        };
+        virtualDom.keys[element.key] = element;
       else if (virtualDom.keys[element.key].type !== element.type)
         throw new VirtualDomError(`Key ${element.key} already in use.`);
-      element.node = virtualDom.keys[element.key].node;
-    } else element.node = virtualDom.createElement(element.type);
+      else {
+        element = updateElement(
+          virtualDom,
+          virtualDom.keys[element.key],
+          element.props,
+          element.children
+        );
+        appendElement(parent, element, referenceNode);
+        return element;
+      }
+    }
+    element.node = virtualDom.createElement(element.type);
     if (element.ref instanceof Mutation)
       throw new VirtualDomError("Internal Error #003");
     if (typeof element.ref === "function") element.ref(element.node);
@@ -797,6 +804,7 @@ function renderElementChildren(
 
 function applyMutation(virtualDom, element, mutation, update, init) {
   const updateWrapper = () => {
+    if (!document.contains(element.node || element.firstNode)) return;
     const components = element.context.components;
     for (let i = 0, len = components.length; i < len; i++)
       addUnique(virtualDom.affectedComponents, components[i]);
