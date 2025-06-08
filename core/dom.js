@@ -15,6 +15,7 @@ import {
   RESOURCES_PATH,
   capitalize,
   addUnique,
+  assign,
   ensureArray,
 } from "../utils/index.js";
 
@@ -230,6 +231,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
   element.mutations = [];
   element.parent = parent;
   element.context = context;
+  element.active = true;
 
   // Empty Node
   if (element.type == null) {
@@ -261,6 +263,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
           element.props,
           element.children
         );
+        element.active = true;
         appendElement(parent, element, referenceNode);
         return element;
       }
@@ -366,7 +369,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
 
     context.components.push(component);
     element.attributes = {};
-    let changedProps = {};
+    const previous = {};
     //
     if (element.Component === Form) {
       if (context.form) component.register(context.form);
@@ -399,9 +402,10 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         Object.defineProperty(component, "onUpdate", {
           configurable: false,
           enumerable: false,
-          value: () => (
-            original.call(component, changedProps), (changedProps = {})
-          ),
+          value: () => {
+            original.call(component, previous);
+            assign(previous, element.attributes);
+          },
         });
       } else if (component[propertyName] instanceof Context) {
         const instance = component[propertyName];
@@ -418,7 +422,6 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
             set: (path, value) => {
               if (previous[path] == value) return;
               previous[path] = value;
-              changedProps[propertyName] = true;
               if (mutations[path]) virtualDom.enqueue(mutations[path]);
             },
           });
@@ -473,7 +476,6 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
             set: (v) => {
               if (v === element.attributes[propertyName]) return;
               element.attributes[propertyName] = v;
-              changedProps[propertyName] = true;
               virtualDom.enqueue(mutations);
             },
           });
@@ -489,12 +491,12 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
             set: (v) => {
               if (v === element.attributes[propertyName]) return;
               element.attributes[propertyName] = v;
-              changedProps[propertyName] = true;
               virtualDom.enqueue(mutations);
             },
           });
       }
     }
+    assign(previous, element.attributes);
     if (context?.safe?.error)
       Object.defineProperty(component, "error", {
         configurable: false,
@@ -677,11 +679,11 @@ function updateElement(virtualDom, element, props, children) {
     for (let i = 0, len = previous.length; i < len; i++) {
       if (!previous[i]) continue;
       removeElement(previous[i]);
-      traverseVirtualTree(
-        previous[i],
-        (element) =>
-          element.type === Component.Node && element.component?.onDisconnect?.()
-      );
+      traverseVirtualTree(previous[i], (element) => {
+        element.active = false;
+        if (element.type === Component.Node)
+          element.component?.onDisconnect?.();
+      });
     }
 
     for (let i = changes.length - 1; i >= 0; i--) {
@@ -804,7 +806,7 @@ function renderElementChildren(
 
 function applyMutation(virtualDom, element, mutation, update, init) {
   const updateWrapper = () => {
-    if (!document.contains(element.node || element.firstNode)) return;
+    if (!element.active) return;
     const components = element.context.components;
     for (let i = 0, len = components.length; i < len; i++)
       addUnique(virtualDom.affectedComponents, components[i]);

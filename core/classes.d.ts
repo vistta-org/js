@@ -32,18 +32,22 @@ export class Ref<T extends HTMLElement> {
   node?: T;
 }
 
-export class Component<T = {}> extends JSX.Component<T> {}
+export class Component extends JSX.Component {
+  children?: JSX.Node | JSX.Node[];
+}
 
-export class Suspense extends Component<{ fallback: JSX.Node }> {}
+export class Suspense extends Component {
+  fallback: JSX.Node;
+}
 
-export class Profiler extends Component<{
+export class Profiler extends Component {
   callback: (performance: number) => void;
-}> {}
+}
 
-declare class RenderEach<T> extends Component<{
+declare class RenderEach<T> extends Component {
   of: T[] | { [key: string]: T };
   as: (value: T, index: number | string) => JSX.Node;
-}> {}
+}
 
 export declare const Render: {
   If: typeof Component<{ condition: any }>;

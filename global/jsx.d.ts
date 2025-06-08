@@ -2,7 +2,7 @@ declare function _Element<Props extends { [name: string]: any }>(
   id: string | number,
   type: string | JSX.Component<Props>,
   props?: Props,
-  children?: JSX.Node[],
+  children?: JSX.Node[]
 ): JSX.Element | null;
 declare const _Fragment: symbol;
 declare const React: object;
@@ -205,6 +205,11 @@ interface CustomElement {
   validator: (target?: Element) => string | boolean;
 }
 
+interface HTMLElement {
+  achor?: string;
+  readonly?: boolean;
+}
+
 declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
   {
     [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K];
@@ -215,14 +220,43 @@ declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
 declare namespace JSX {
   type Element = {};
   type Node = Element | Element[] | null;
-  class Component<T extends { [name: string]: any }> {
+
+  class Component<T extends Record<string, any> = {}> {
     constructor(props?: T);
   }
+
   type Style = { scope: string };
 
   type IntrinsicElementMap = {
     [K in keyof HTMLElementTagNameMap]: HTMLProps<HTMLElementTagNameMap[K]>;
   };
 
-  interface IntrinsicElements extends IntrinsicElementMap {}
+  interface IntrinsicElements extends IntrinsicElementMap {
+    [componentName: string]: any;
+  }
+
+  type LibraryManagedAttributes<C, _> = C extends new (
+    ...args: any[]
+  ) => infer Instance
+    ? ComponentProps<Instance>
+    : never;
+
+  interface IntrinsicAttributes {
+    key?: string | number;
+  }
+
+  type ComponentProps<T> = Pick<
+    T,
+    {
+      [K in keyof T]: T[K] extends (...args: any[]) => any ? never : K;
+    }[keyof T]
+  > &
+    Partial<
+      Pick<
+        T,
+        {
+          [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
+        }[keyof T]
+      >
+    >;
 }
