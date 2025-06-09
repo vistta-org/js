@@ -6,6 +6,7 @@ import {
   Context,
   Ref,
   Component,
+  ScopedFragment,
   Profiler,
   Suspense,
   Safe,
@@ -276,6 +277,10 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
     element.node._element = element;
 
     element.attributes = {};
+    if (context.scoped) {
+      Object.assign(element.props, context.scoped);
+      context.scoped = null;
+    }
     const keys = Object.keys(element.props);
     const disabledOrReadOnly =
       getPropValue(element.props.disabled) ||
@@ -371,7 +376,9 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
     element.attributes = {};
     const previous = {};
     //
-    if (element.Component === Form) {
+    if (element.Component === ScopedFragment)
+      context.scoped = getPropValue(element.props.style);
+    else if (element.Component === Form) {
       if (context.form) component.register(context.form);
       else context.form = component;
     } else if (

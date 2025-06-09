@@ -291,6 +291,14 @@ export class Component {
   }
 }
 
+export class ScopedFragment extends Component {
+  style;
+
+  render() {
+    return this.children;
+  }
+}
+
 export class Suspense extends Component {
   #count = 0;
   #callback;

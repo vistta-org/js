@@ -7,6 +7,7 @@ export {
   Context,
   Ref,
   Component,
+  ScopedFragment,
   Suspense,
   Profiler,
   Render,

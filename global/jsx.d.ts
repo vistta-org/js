@@ -206,7 +206,7 @@ interface CustomElement {
 }
 
 interface HTMLElement {
-  achor?: string;
+  anchor?: string;
   readonly?: boolean;
 }
 

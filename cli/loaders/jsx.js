@@ -7,12 +7,12 @@ export async function load(source, options) {
       return loadTypescript(transform(source), options);
     return { code: transform(source) };
   } catch (e) {
-    return { errors: [`${options.path}(0,0): jsx error: ${e.message}.`] };
+    return { errors: [`${options.path}(0,0): jsx error: ${e.stack}`] };
   }
 }
 
 function transform(code) {
-  const start = code.search(/<(>|\w+)/g);
+  const start = code.search(/\B<(>|\w+)/g);
   if (start == -1) return code;
   const [element, end] = transformElement(code.slice(start));
   return code.slice(0, start) + element + transform(code.slice(start + end));

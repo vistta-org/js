@@ -9,9 +9,35 @@
     navigator: { value: { userAgent: "node.js" }, ...readonly },
     document: { value: { scripts: [] }, ...readonly },
     HTMLElement: { value: class {}, ...readonly },
-    MutationObserver: { value: class {}, ...readonly },
-    IntersectionObserver: { value: class {}, ...readonly },
-    ResizeObserver: { value: class {}, ...readonly },
+    MutationObserver: {
+      value: class {
+        constructor() {
+          this.observe = () => null;
+          this.disconnect = () => null;
+        }
+      },
+      ...readonly,
+    },
+    IntersectionObserver: {
+      value: class {
+        constructor() {
+          this.observe = () => null;
+          this.unobserve = () => null;
+          this.disconnect = () => null;
+        }
+      },
+      ...readonly,
+    },
+    ResizeObserver: {
+      value: class {
+        constructor() {
+          this.observe = () => null;
+          this.unobserve = () => null;
+          this.disconnect = () => null;
+        }
+      },
+      ...readonly,
+    },
     localStorage: {
       value: {
         setItem: (key, value) => (storage.local[key] = value),

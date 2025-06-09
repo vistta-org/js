@@ -36,6 +36,10 @@ export class Component extends JSX.Component {
   children?: JSX.Node | JSX.Node[];
 }
 
+export class ScopedFragment extends Component {
+  style: JSX.Style;
+}
+
 export class Suspense extends Component {
   fallback: JSX.Node;
 }
