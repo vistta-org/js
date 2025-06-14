@@ -12,10 +12,31 @@ export async function load(source, options) {
 }
 
 function transform(code) {
-  const start = code.search(/\B<(>|\w+)/g);
-  if (start == -1) return code;
-  const [element, end] = transformElement(code.slice(start));
-  return code.slice(0, start) + element + transform(code.slice(start + end));
+  let skip = null;
+  let i = 0;
+  while (i < code.length) {
+    if (!skip) {
+      if (code[i] === "/" && code[i + 1] === "*") skip = "block_comment";
+      else if (code[i] === "/" && code[i + 1] === "/") skip = "line_comment";
+      else if (code[i] === '"' || code[i] === "'" || code[i] === "`")
+        skip = code[i];
+      if (!skip) {
+        if (code[i] === "<" && />|\w/.test(code[i + 1])) {
+          const [element, end] = transformElement(code.slice(i));
+          if (element)
+            return code.slice(0, i) + element + transform(code.slice(i + end));
+        }
+      } else i++;
+    } else if (skip === "block_comment") {
+      if (code[i] === "*" && code[i + 1] === "/") (skip = null), i++;
+    } else if (skip === "line_comment") {
+      if (code[i] === "\n") skip = null;
+    } else if (skip === '"' || skip === "'" || skip === "`") {
+      if (isQuoteEnd(code, skip, i)) skip = null;
+    }
+    i++;
+  }
+  return code;
 }
 
 function transformElement(code) {
@@ -49,8 +70,7 @@ function transformElement(code) {
         context.child = "";
         if (context.prop !== "") props += `"${context.prop}": true, `;
       } else if (code[i] === "=") {
-        if (!context.prop || context.prop === "")
-          throw new Error("Error while parsing JSX. [Code: 2]");
+        if (!context.prop || context.prop === "") return [];
         const [value, propsEnd, isQuote] = transformProps(code.slice(i + 1));
         if (isQuote) props += `"${context.prop}": ${value}, `;
         else props += `"${context.prop}": prop("#${id++}", () => ${value}), `;
@@ -99,7 +119,7 @@ function transformElement(code) {
 
     i++;
   }
-  if (!done) throw new Error("Error while parsing JSX. [Code: 1] " + tagName);
+  if (!done) return [];
   if (tagName === "") tagName = "Fragment";
   else if (tagName[0] !== tagName[0].toUpperCase()) tagName = `"${tagName}"`;
   if (props.length == 0) props = "null";
