@@ -4,7 +4,6 @@ import {
   stringify,
   parse,
   clone,
-  camelCaseToKebabCase,
   isPromise,
   FunctionClass,
   defineReadonly,
@@ -39,28 +38,6 @@ export class Element {
       else this.key = props?.key;
       delete this.props.key;
     }
-  }
-
-  toString() {
-    if (this.type == null) return "";
-    const children = this.children?.reduce((acc, cur) => acc + cur, "");
-    if (typeof this.type !== "string") return children;
-    let attributes = "";
-    const attr = Object.keys(this.props || {});
-    for (let i = 0, len = attr.length; i < len; i++) {
-      const name = attr[i];
-      const value =
-        name === "style" ? styleToString(this.props[name]) : this.props[name];
-      if (
-        value == null ||
-        value === false ||
-        ["function", "object"].includes(typeof value)
-      )
-        continue;
-      if (value === true) attributes += ` ${name}`;
-      else attributes += ` ${name}="${value}"`;
-    }
-    return `<${this.type}${attributes}>${children}</${this.type}>`;
   }
 
   clone(props, children) {
@@ -721,18 +698,6 @@ function cloneProps(props) {
     } else return value;
   };
   return clone(props);
-}
-
-function styleToString(style) {
-  const keys = Object.keys(style || {});
-  let result = "";
-  for (let i = 0, len = keys.length; i < len; i++) {
-    const value = style[keys[i]];
-    if (typeof value === "string")
-      result += ` ${camelCaseToKebabCase(keys[i])}: ${value};`;
-  }
-  result = result.trim();
-  return result === "" ? null : result;
 }
 
 function getFieldValue(element) {

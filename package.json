@@ -24,18 +24,18 @@
   "dependencies": {
     "@vistta/fs": "*",
     "@vistta/utils": "*",
-    "autoprefixer": "^10.4.20",
+    "autoprefixer": "^10.4.21",
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
-    "mime": "^4.0.6",
-    "postcss": "^8.4.47",
-    "sass-embedded": "^1.79.5",
+    "mime": "^4.0.7",
+    "postcss": "^8.5.5",
+    "sass-embedded": "^1.89.2",
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0"
   },
   "peerDependencies": {
     "@vistta/cli": "*",
-    "electron": "^35.0.0"
+    "electron": "^36.0.0"
   },
   "engines": {
     "node": ">=22.0.0"

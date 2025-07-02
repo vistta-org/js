@@ -1,4 +1,4 @@
-import { VirtualDom } from "./dom.js";
+import { VirtualDom } from "./dom/index.js";
 import { Element } from "./classes.js";
 import {
   isValidUrl,

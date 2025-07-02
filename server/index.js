@@ -674,7 +674,7 @@ class Server {
         } else collection.add(this.#register(type, subdomain, pathname, arg));
         if (emit != false) this.#emit("ready", { type, subdomain, pathname });
       } catch (e) {
-        this.#emit("error", e.message);
+        this.#emit("error", e?.trace || e?.message || e);
       }
     };
 
@@ -1036,7 +1036,7 @@ class Server {
       for (let i = 0, len = cookies?.length; i < len; i++) {
         const parts = cookies[i].split("=");
         const name = parts.shift().trim();
-        request.cookies[name] = decodeURIComponent(parts.join("=").trim());
+        request.cookies[name] = parts.join("=").trim();
       }
     }
     response.cookies = [];
