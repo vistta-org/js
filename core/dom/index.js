@@ -705,14 +705,18 @@ function updateElement(virtualDom, element, props, children) {
           referenceNode
         );
       } else if (changes[i].type === "update") {
-        if (
-          changes[i].previous.type === Component.Node ||
-          changes[i].previous.mutation
-        )
+        if (changes[i].previous.type === Component.Node)
           element.children[i] = updateElement(
             virtualDom,
             changes[i].previous,
             changes[i].element.props
+          );
+        else if (changes[i].previous.mutation)
+          element.children[i] = updateElement(
+            virtualDom,
+            changes[i].previous,
+            changes[i].element.props,
+            ensureArray(changes[i].element.mutation())
           );
         else
           element.children[i] = updateElement(
@@ -777,6 +781,7 @@ function convertToElement(virtualDom, element, ignoreMutation = false) {
           (value) => (element.children = ensureArray(value))
         )
       );
+    else element.mutation = mutation;
     return element;
   } else if (typeof element === "function") return new Element(element);
   else if (typeof element === "object" || element instanceof Promise)
