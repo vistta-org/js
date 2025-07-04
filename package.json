@@ -22,8 +22,8 @@
   "author": "Tiago Terenas Almeida",
   "license": "CC BY-NC-ND 4.0 DEED",
   "dependencies": {
-    "@vistta/fs": "*",
-    "@vistta/utils": "*",
+    "@vistta/fs": "latest",
+    "@vistta/utils": "latest",
     "autoprefixer": "^10.4.21",
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
