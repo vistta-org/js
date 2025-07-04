@@ -193,11 +193,11 @@ class Server {
     if (httpPort)
       this.#http = {
         name: "http",
-        server: createServer(
-          (request, response) => (
-            this.#handler("http", request, response),
+        server: createServer((request, response) =>
+          this.#handler("http", request, response).then(() =>
             this.#emit("request", {
               protocol: "http",
+              subdomain: request.subdomain,
               method: request.method,
               url: request.url,
               status: response.statusCode,
@@ -220,15 +220,16 @@ class Server {
               key: fs.readFileSync(key),
               cert: fs.readFileSync(cert),
             },
-            (request, response) => (
-              this.#handler("https", request, response),
-              this.#emit("request", {
-                protocol: "https",
-                method: request.method,
-                url: request.url,
-                status: response.statusCode,
-              })
-            )
+            (request, response) =>
+              this.#handler("https", request, response).then(() =>
+                this.#emit("request", {
+                  protocol: "https",
+                  subdomain: request.subdomain,
+                  method: request.method,
+                  url: request.url,
+                  status: response.statusCode,
+                })
+              )
           ),
           port: httpsPort,
           certs: { cert, key },
@@ -247,7 +248,8 @@ class Server {
   async start(protocol) {
     if (protocol === "http") protocol = this.#http;
     else if (protocol === "https") protocol = this.#https;
-    else return await this.start("http"), await this.start("https"), this.ports;
+    else
+      return (await this.start("http"), await this.start("https"), this.ports);
     if (protocol?.warning) this.#emit("warning", protocol.warning);
     if (!protocol?.server) return null;
     if (protocol.active)
@@ -1004,9 +1006,9 @@ class Server {
     const segments = pathname.split("/");
     for (let i = 0, len = routes.length; i < len; i++) {
       if (checkIfMoreSpecific(segments, routes[i].pathname))
-        return routes.splice(i, 0, route), route;
+        return (routes.splice(i, 0, route), route);
     }
-    return routes.push(route), route;
+    return (routes.push(route), route);
   }
 
   async #handler(protocol, request, response) {
@@ -1110,14 +1112,14 @@ class Server {
         return response.send(resource, type);
       } else {
         if (request.pathname.endsWith("/page.js"))
-          (request.resource = "page"),
-            (request.pathname = removeFromPath(request.pathname, "/page.js"));
+          ((request.resource = "page"),
+            (request.pathname = removeFromPath(request.pathname, "/page.js")));
         if (request.pathname.endsWith("manifest.json"))
-          (request.resource = "manifest"),
+          ((request.resource = "manifest"),
             (request.pathname = removeFromPath(
               request.pathname,
               "/manifest.json"
-            ));
+            )));
         const route = matchRoute(
           this.#subdomains[request.subdomain]?.[method],
           request.pathname
@@ -1204,7 +1206,7 @@ function parseArguments(method, subdomain, pathname, arg) {
     throw new TypeError(
       `Invalid arguments for ${method.toUpperCase()} "${pathname}"`
     );
-  if (!arg) (arg = pathname), (pathname = subdomain), (subdomain = "");
+  if (!arg) ((arg = pathname), (pathname = subdomain), (subdomain = ""));
   if (!arg)
     throw new TypeError(
       `Invalid arguments for ${method.toUpperCase()} "${pathname}"`
@@ -1331,7 +1333,7 @@ function send(request, response, code, content, type = "text/plain") {
           headers["Content-Encoding"] = "gzip";
           response.writeHead(code, headers);
           response.end(buffer);
-        } else response.writeHead(code, headers), response.end(content);
+        } else (response.writeHead(code, headers), response.end(content));
       });
     else if (acceptEncoding.includes("deflate"))
       zlib.deflate(content, (err, buffer) => {
@@ -1339,10 +1341,10 @@ function send(request, response, code, content, type = "text/plain") {
           headers["Content-Encoding"] = "deflate";
           response.writeHead(code, headers);
           response.end(buffer);
-        } else response.writeHead(code, headers), response.end(content);
+        } else (response.writeHead(code, headers), response.end(content));
       });
-    else response.writeHead(code, headers), response.end(content);
-  } else response.writeHead(code, headers), response.end(content);
+    else (response.writeHead(code, headers), response.end(content));
+  } else (response.writeHead(code, headers), response.end(content));
 }
 
 function checkIfMoreSpecific(segments, target) {
