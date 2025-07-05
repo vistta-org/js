@@ -97,9 +97,9 @@ export default class extends DefaultCLI {
           break;
       }
     });
-    server.on("request", ({ method, url, status }) =>
+    server.on("request", ({ method, subdomain, url, status }) =>
       console.log(
-        `${status >= 400 ? COLORS.RED : status >= 300 ? COLORS.DIM : COLORS.GREEN}${status}${COLORS.RESET} ${method} ${url}`
+        `${status >= 400 ? COLORS.RED : status >= 300 ? COLORS.DIM : COLORS.GREEN}${status}${COLORS.RESET} ${method}${subdomain !== "" ? " " + subdomain : ""} ${url}`
       )
     );
   }
