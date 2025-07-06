@@ -1270,8 +1270,8 @@ class Server {
     emitRequestEvent(this.#emit.bind(this), request, response);
   }
 
-  #send(request, response, code, content, type = "text/plain") {
-    response.statusCode = code || 200;
+  #send(request, response, code = 200, content, type = "text/plain") {
+    response.statusCode = code;
     const acceptEncoding = request.headers["accept-encoding"];
     const headers = defaultHeaders(request, response, type);
     if (
