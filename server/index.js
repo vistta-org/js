@@ -1260,18 +1260,18 @@ class Server {
     const stream = fs.createReadStream(filepath);
     const headers = defaultHeaders(request, response, type);
     response.statusCode = 200;
-    response.writeHead(200, headers);
+    response.writeHead(response.statusCode, headers);
     stream.pipe(response);
     stream.on("error", () => {
       response.statusCode = 500;
-      response.writeHead(500, headers);
+      response.writeHead(response.statusCode, headers);
       response.end("500 Internal Server Error");
     });
     emitRequestEvent(this.#emit.bind(this), request, response);
   }
 
-  #send(request, response, code = 200, content, type = "text/plain") {
-    response.statusCode = code;
+  #send(request, response, code, content, type = "text/plain") {
+    response.statusCode = code || 200;
     const acceptEncoding = request.headers["accept-encoding"];
     const headers = defaultHeaders(request, response, type);
     if (
@@ -1283,20 +1283,27 @@ class Server {
         zlib.gzip(content, (err, buffer) => {
           if (!err) {
             headers["Content-Encoding"] = "gzip";
-            response.writeHead(code, headers);
+            response.writeHead(response.statusCode, headers);
             response.end(buffer);
-          } else (response.writeHead(code, headers), response.end(content));
+          } else
+            (response.writeHead(response.statusCode, headers),
+              response.end(content));
         });
       else if (acceptEncoding.includes("deflate"))
         zlib.deflate(content, (err, buffer) => {
           if (!err) {
             headers["Content-Encoding"] = "deflate";
-            response.writeHead(code, headers);
+            response.writeHead(response.statusCode, headers);
             response.end(buffer);
-          } else (response.writeHead(code, headers), response.end(content));
+          } else
+            (response.writeHead(response.statusCode, headers),
+              response.end(content));
         });
-      else (response.writeHead(code, headers), response.end(content));
-    } else (response.writeHead(code, headers), response.end(content));
+      else
+        (response.writeHead(response.statusCode, headers),
+          response.end(content));
+    } else
+      (response.writeHead(response.statusCode, headers), response.end(content));
     emitRequestEvent(this.#emit.bind(this), request, response);
   }
 }
