@@ -33,10 +33,6 @@ export async function createPage(
   if (errors?.length) throw new Error(errors[0]);
   if (!code || code === "") throw new Error("Unexpected Bundler Error");
   page.html = async (request, props, build) => {
-    console.log(
-      request.url,
-      request.headers.referer || `http://${request.headers.host}/`
-    );
     page.location = new URL(
       request.url,
       request.headers.referer || `http://${request.headers.host}/`

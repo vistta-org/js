@@ -204,15 +204,7 @@ class Server {
       this.#http = {
         name: "http",
         server: createServer((request, response) =>
-          this.#handler("http", request, response).then(() =>
-            this.#emit("request", {
-              protocol: "http",
-              subdomain: request.subdomain,
-              method: request.method,
-              url: request.url,
-              status: response.statusCode,
-            })
-          )
+          this.#handler("http", request, response)
         ),
         port: httpPort,
       };
@@ -230,16 +222,7 @@ class Server {
               key: fs.readFileSync(key),
               cert: fs.readFileSync(cert),
             },
-            (request, response) =>
-              this.#handler("https", request, response).then(() =>
-                this.#emit("request", {
-                  protocol: "https",
-                  subdomain: request.subdomain,
-                  method: request.method,
-                  url: request.url,
-                  status: response.statusCode,
-                })
-              )
+            (request, response) => this.#handler("https", request, response)
           ),
           port: httpsPort,
           certs: { cert, key },
@@ -629,13 +612,31 @@ class Server {
                   if (req.resource === "page")
                     page
                       .js(req, { code, message })
-                      .then((js) => res.send(js, "text/javascript"));
+                      .then((js) => res.send(js, "text/javascript"))
+                      .catch((e) =>
+                        res.reject(
+                          e?.trace ||
+                            e?.message ||
+                            e ||
+                            "Internal Server Error",
+                          500
+                        )
+                      );
                   else if (req.resource === "manifest")
                     res.reject("Resource not found", 404);
                   else
                     page
                       .html(req, { code, message })
-                      .then((html) => res.send(html, "text/html"));
+                      .then((html) => res.send(html, "text/html"))
+                      .catch((e) =>
+                        res.reject(
+                          e?.trace ||
+                            e?.message ||
+                            e ||
+                            "Internal Server Error",
+                          500
+                        )
+                      );
                 },
                 true
               )
@@ -660,17 +661,44 @@ class Server {
                   if (req.resource === "page")
                     page
                       .js(req, res.props)
-                      .then((js) => res.send(js, "text/javascript"));
+                      .then((js) => res.send(js, "text/javascript"))
+                      .catch((e) =>
+                        res.reject(
+                          e?.trace ||
+                            e?.message ||
+                            e ||
+                            "Internal Server Error",
+                          500
+                        )
+                      );
                   else if (req.resource === "manifest") {
                     if (page.pwa)
                       page
                         .manifest(req, req.props)
-                        .then((manifest) => res.send(manifest, "text/json"));
+                        .then((manifest) => res.send(manifest, "text/json"))
+                        .catch((e) =>
+                          res.reject(
+                            e?.trace ||
+                              e?.message ||
+                              e ||
+                              "Internal Server Error",
+                            500
+                          )
+                        );
                     else res.reject("Resource not found", 404);
                   } else
                     page
                       .html(req, res.props)
-                      .then((html) => res.send(html, "text/html"));
+                      .then((html) => res.send(html, "text/html"))
+                      .catch((e) =>
+                        res.reject(
+                          e?.trace ||
+                            e?.message ||
+                            e ||
+                            "Internal Server Error",
+                          500
+                        )
+                      );
                 },
                 true
               )
@@ -1022,11 +1050,12 @@ class Server {
     return (routes.push(route), route);
   }
 
-  async #handler(protocol, request, response) {
+  #handler(protocol, request, response) {
     if (request.url.endsWith("/") && request.url !== "/") {
       response.statusCode = 301;
       response.writeHead(301, { Location: request.url.slice(0, -1) });
       response.end();
+      emitRequestEvent(this.#emit.bind(this), request, response);
       return;
     }
     if (protocol === "https" && request.headers[":authority"])
@@ -1083,20 +1112,21 @@ class Server {
         "Set-Cookie": response.cookies,
         Location: url,
       }),
-      response.end()
+      response.end(),
+      emitRequestEvent(this.#emit.bind(this), request, response)
     );
     response.send = (content, type) =>
       typeof content === "object"
-        ? send(
+        ? this.#send(
             request,
             response,
             200,
             stringify(content),
             type || "application/json"
           )
-        : send(request, response, 200, content, type);
+        : this.#send(request, response, 200, content, type);
     response.sendFile = (filepath, type) =>
-      sendFile(request, response, filepath, type);
+      this.#sendFile(request, response, filepath, type);
     const middleware = matchRoute(
       this.#subdomains[request.subdomain]?.middleware,
       request.pathname
@@ -1108,7 +1138,7 @@ class Server {
     else this.#resolve(request, response);
   }
 
-  async #resolve(request, response) {
+  #resolve(request, response) {
     try {
       const method = request.method.toLowerCase();
       const resource = this.#resources?.[request.pathname];
@@ -1153,17 +1183,17 @@ class Server {
     response.message =
       message ||
       `The requested ${request.resource ? "Resource" : "URL"} "${request.url}" was not found`;
-    response.code = code || 404;
+    response.statusCode = code || 404;
     response.send = (content, type) =>
       typeof content === "object"
-        ? send(
+        ? this.#send(
             request,
             response,
-            response.code,
+            response.statusCode,
             stringify(content),
             type || "application/json"
           )
-        : send(request, response, response.code, content, type);
+        : this.#send(request, response, response.statusCode, content, type);
     const acceptsHtml =
       request.headers.accept && request.headers.accept.includes("text/html");
     let route = matchRoute(
@@ -1182,7 +1212,7 @@ class Server {
         response?.message
       );
     if (request.subdomain === "")
-      return send(request, response, response?.code, response?.message);
+      return this.#send(request, response, response?.code, response?.message);
     route = matchRoute(this.#subdomains[""]?.error, request.pathname, {
       exact: false,
       filter: (route) => route.active && (acceptsHtml || !route.isPage),
@@ -1194,7 +1224,7 @@ class Server {
         response?.code,
         response?.message
       );
-    send(request, response, response?.code, response?.message);
+    this.#send(request, response, response?.code, response?.message);
   }
 
   async #socketHandler(type, ...args) {
@@ -1225,11 +1255,65 @@ class Server {
       return route.handler(request, socket, head);
     }
   }
+
+  #sendFile(request, response, filepath, type) {
+    const stream = fs.createReadStream(filepath);
+    const headers = defaultHeaders(request, response, type);
+    response.statusCode = 200;
+    response.writeHead(200, headers);
+    stream.pipe(response);
+    stream.on("error", () => {
+      response.statusCode = 500;
+      response.writeHead(500, headers);
+      response.end("500 Internal Server Error");
+    });
+    emitRequestEvent(this.#emit.bind(this), request, response);
+  }
+
+  #send(request, response, code, content, type = "text/plain") {
+    response.statusCode = code;
+    const acceptEncoding = request.headers["accept-encoding"];
+    const headers = defaultHeaders(request, response, type);
+    if (
+      !request.headers["x-no-compression"] &&
+      acceptEncoding &&
+      compressible(type)
+    ) {
+      if (acceptEncoding.includes("gzip"))
+        zlib.gzip(content, (err, buffer) => {
+          if (!err) {
+            headers["Content-Encoding"] = "gzip";
+            response.writeHead(code, headers);
+            response.end(buffer);
+          } else (response.writeHead(code, headers), response.end(content));
+        });
+      else if (acceptEncoding.includes("deflate"))
+        zlib.deflate(content, (err, buffer) => {
+          if (!err) {
+            headers["Content-Encoding"] = "deflate";
+            response.writeHead(code, headers);
+            response.end(buffer);
+          } else (response.writeHead(code, headers), response.end(content));
+        });
+      else (response.writeHead(code, headers), response.end(content));
+    } else (response.writeHead(code, headers), response.end(content));
+    emitRequestEvent(this.#emit.bind(this), request, response);
+  }
 }
 
 export default Server;
 
 //
+
+function emitRequestEvent(emit, request, response) {
+  return emit("request", {
+    protocol: request.protocol,
+    subdomain: request.subdomain,
+    method: request.method,
+    url: request.url,
+    status: response.statusCode,
+  });
+}
 
 function parseArguments(method, subdomain, pathname, arg) {
   if (typeof subdomain !== "string")
@@ -1333,48 +1417,6 @@ function getRequestBody(request) {
     });
     request.on("error", (err) => reject(err));
   });
-}
-
-function sendFile(request, response, filepath, type) {
-  const stream = fs.createReadStream(filepath);
-  const headers = defaultHeaders(request, response, type);
-  response.statusCode = 200;
-  response.writeHead(200, headers);
-  stream.pipe(response);
-  stream.on("error", () => {
-    response.statusCode = 500;
-    response.writeHead(500, headers);
-    response.end("500 Internal Server Error");
-  });
-}
-
-function send(request, response, code, content, type = "text/plain") {
-  response.statusCode = 200;
-  const acceptEncoding = request.headers["accept-encoding"];
-  const headers = defaultHeaders(request, response, type);
-  if (
-    !request.headers["x-no-compression"] &&
-    acceptEncoding &&
-    compressible(type)
-  ) {
-    if (acceptEncoding.includes("gzip"))
-      zlib.gzip(content, (err, buffer) => {
-        if (!err) {
-          headers["Content-Encoding"] = "gzip";
-          response.writeHead(code, headers);
-          response.end(buffer);
-        } else (response.writeHead(code, headers), response.end(content));
-      });
-    else if (acceptEncoding.includes("deflate"))
-      zlib.deflate(content, (err, buffer) => {
-        if (!err) {
-          headers["Content-Encoding"] = "deflate";
-          response.writeHead(code, headers);
-          response.end(buffer);
-        } else (response.writeHead(code, headers), response.end(content));
-      });
-    else (response.writeHead(code, headers), response.end(content));
-  } else (response.writeHead(code, headers), response.end(content));
 }
 
 function checkIfMoreSpecific(segments, target) {
