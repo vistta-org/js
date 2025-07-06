@@ -19,6 +19,15 @@ import {
 } from "../utils/index.js";
 
 const dirname = import.meta.dirname;
+const PROXY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_PROXY_OPTIONS = {
+  ws: true,
+  xfwd: true,
+  secure: false,
+  changeOrigin: true,
+  timeout: PROXY_TIMEOUT, // 5 minutes
+  proxyTimeout: PROXY_TIMEOUT, // 5 minutes
+};
 
 const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [
   ".jsx",
@@ -93,6 +102,7 @@ class Route {
           "put",
           "error",
           "middleware",
+          "websocket",
         ].includes(type)
           ? "handler"
           : type
@@ -235,7 +245,7 @@ class Server {
           certs: { cert, key },
         };
     }
-    this.#socket.on("connection", this.#socketHandler.bind(this));
+    this.#socket.on("connection", this.#socketHandler.bind(this, "connection"));
     if (start !== false) this.start();
   }
 
@@ -257,6 +267,7 @@ class Server {
     const { server, port } = protocol;
     await async((resolve) => server.listen(port, resolve));
     this.#socket.attach(server);
+    server.on("upgrade", this.#socketHandler.bind(this, "upgrade"));
     shareToLoader("host", { protocol: protocol.name, port });
     protocol.active = true;
     this.#emit("ready", { type: protocol.name, port });
@@ -784,28 +795,28 @@ class Server {
     const options =
       typeOfTargetOrOptions === "string"
         ? {
-            ws: true,
-            xfwd: true,
-            secure: false,
-            changeOrigin: true,
+            ...DEFAULT_PROXY_OPTIONS,
             target: targetOrOptions,
           }
         : {
-            ws: true,
-            xfwd: true,
-            secure: false,
-            changeOrigin: true,
+            ...DEFAULT_PROXY_OPTIONS,
             ...targetOrOptions,
           };
-    return this.#register(
-      "all",
-      subdomain,
-      ensureEndsWith(pathname, "/*"),
-      (req, res) =>
+    const finalPath = ensureEndsWith(pathname, "/*");
+    const collection = new Route(subdomain, finalPath, "collection");
+    collection.add(
+      this.#register("all", subdomain, finalPath, (req, res) =>
         this.#proxy.web(req, res, options, (err) =>
           res.reject(err?.message, 500)
         )
+      )
     );
+    collection.add(
+      this.#register("websocket", subdomain, finalPath, (req, socket, head) =>
+        this.#proxy.ws(req, socket, head, options, (err) => err && socket.end())
+      )
+    );
+    return collection;
   }
 
   /**
@@ -1031,7 +1042,7 @@ class Server {
     request.href = url.href;
     request.pathname = url.pathname;
     request.params = Object.fromEntries(url.searchParams.entries());
-    request.body = await getRequestBody(request);
+    request.body = () => getRequestBody(request);
     request.cookies = {};
     if (request?.headers?.cookie) {
       const cookies = request?.headers?.cookie.split(";");
@@ -1186,14 +1197,33 @@ class Server {
     send(request, response, response?.code, response?.message);
   }
 
-  async #socketHandler(socket) {
-    const subdomain = getSubdomain(socket.handshake.headers.referer) || "";
-    await socket.join(subdomain);
-    socket.onAny((event, ...args) => {
-      const listeners = this.#events[event] || [];
-      for (let i = 0, len = listeners.length; i < len; i++)
-        listeners[i](subdomain, args);
-    });
+  async #socketHandler(type, ...args) {
+    if (type === "connection") {
+      const socket = args[0];
+      const subdomain = getSubdomain(socket.handshake.headers.referer) || "";
+      await socket.join(subdomain);
+      socket.onAny((event, ...args) => {
+        const listeners = this.#events[event] || [];
+        for (let i = 0, len = listeners.length; i < len; i++)
+          listeners[i](subdomain, args);
+      });
+    } else if (type === "upgrade") {
+      const [request, socket, head] = args;
+      if (request.url.startsWith("/socket.io/")) return;
+      request.subdomain = getSubdomain(request.headers.host);
+      const url = new URL(
+        request.url,
+        request.headers.origin || `ws://${request.headers.host}`
+      );
+      request.href = url.href;
+      request.pathname = url.pathname;
+      const route = matchRoute(
+        this.#subdomains[request.subdomain]?.["websocket"],
+        request.pathname
+      );
+      if (typeof route?.handler !== "function") socket.end();
+      return route.handler(request, socket, head);
+    }
   }
 }
 
@@ -1430,5 +1460,6 @@ function defaultSubdomain() {
     config: [],
     middleware: [],
     layout: [],
+    websocket: [],
   };
 }

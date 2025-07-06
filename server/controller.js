@@ -13,7 +13,7 @@ export class Method extends FunctionClass {
   }
 
   constructor(type, url, callback) {
-    if (typeof url === "function") (callback = url), (url = "/");
+    if (typeof url === "function") ((callback = url), (url = "/"));
     super(
       async (request, response) =>
         await async(
@@ -21,13 +21,19 @@ export class Method extends FunctionClass {
             {
               set: response.set,
               get: (type) => {
-                if (type === "address") return request.connection.remoteAddress;
-                if (request.headers[type]) return request.headers[type];
-                else return request[type];
+                type = type.split(".");
+                let current = request;
+                for (let i = 0, len = type.length; i < len; i++) {
+                  if (current[type[i]] === undefined) return undefined;
+                  current = current[type[i]];
+                }
+                return current;
               },
               redirect: response.redirect,
             },
-            type === "get" || type === "delete" ? request.params : request.body
+            type === "get" || type === "delete"
+              ? request.params
+              : await request.body()
           )
         )
     );
