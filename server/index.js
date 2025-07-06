@@ -1271,7 +1271,7 @@ class Server {
   }
 
   #send(request, response, code, content, type = "text/plain") {
-    response.statusCode = code;
+    response.statusCode = code || 200;
     const acceptEncoding = request.headers["accept-encoding"];
     const headers = defaultHeaders(request, response, type);
     if (
