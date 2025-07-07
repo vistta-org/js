@@ -42,6 +42,20 @@ export class Method extends FunctionClass {
   }
 }
 
+export class WebSocket {
+  #events;
+
+  constructor(events) {
+    if (typeof events !== "object" || Array.isArray(events))
+      throw new TypeError("WebSocket events must be an object");
+    this.#events = events;
+  }
+
+  get events() {
+    return this.#events;
+  }
+}
+
 /**
  * Sets a controller COPY.
  *
@@ -119,11 +133,14 @@ export const Post = (url, callback) => new Method("post", url, callback);
  */
 export const Put = (url, callback) => new Method("put", url, callback);
 
-export default class Controller {
-  constructor(socket) {
-    this.socket = socket;
-  }
-}
+/**
+ * Registers a WebSocket controller.
+ * @param {Record<string, function>} events - An object containing event handlers for the WebSocket.
+ * @returns {WebSocket} A new controller WebSocket instance.
+ */
+export const Socket = (events) => new WebSocket(events);
+
+export default class Controller {}
 
 export function shareToLoader(filepath, value) {
   if (global.loaders.shared[filepath]) return;

@@ -8,7 +8,12 @@ import proxy from "http-proxy";
 import { URL } from "url";
 import { Server as SocketIO } from "socket.io";
 import { createPage } from "./page.js";
-import { default as Controller, Method, shareToLoader } from "./controller.js";
+import {
+  default as Controller,
+  Method,
+  shareToLoader,
+  WebSocket,
+} from "./controller.js";
 import { Component } from "../core/classes.js";
 import {
   RESOURCES_PATH,
@@ -228,6 +233,7 @@ class Server {
           certs: { cert, key },
         };
     }
+    this.#socket.use(this.#socketHandler.bind(this, "middleware"));
     this.#socket.on("connection", this.#socketHandler.bind(this, "connection"));
     if (start !== false) this.start();
   }
@@ -887,15 +893,28 @@ class Server {
    * @param {Function} [arg3] A function to call when the event is triggered.
    */
   on(arg1, arg2, arg3) {
-    if (!arg1 || !arg2)
-      throw new TypeError("Invalid argument type, on and event and callback");
     const [subdomain, event, callback] =
       typeof arg2 === "function" ? ["*", arg1, arg2] : [arg1, arg2, arg3];
     if (typeof event !== "string") this.#emit("warning", "Invalid event name");
     if (!this.#events[event]) this.#events[event] = [];
-    this.#events[event].push((event, args) => {
-      if (event.subdomain !== subdomain && subdomain !== "*") return;
-      callback(...(args || []));
+    this.#events[event].push((socket, _subdomain, args) => {
+      if (_subdomain !== subdomain && subdomain !== "*") return;
+      callback.call(
+        socket && {
+          emit: this.emit.bind(this, subdomain),
+          on: this.on.bind(this, subdomain),
+          get: (type) => {
+            type = type.split(".");
+            let current = socket;
+            for (let i = 0, len = type.length; i < len; i++) {
+              if (current[type[i]] === undefined) return undefined;
+              current = current[type[i]];
+            }
+            return current;
+          },
+        },
+        ...(args || [])
+      );
     });
   }
 
@@ -920,7 +939,7 @@ class Server {
   #emit(event, ...args) {
     const listeners = this.#events[event] || [];
     for (let i = 0, len = listeners.length; i < len; i++)
-      listeners[i]("*", args);
+      listeners[i](undefined, "*", args);
   }
 
   /**
@@ -982,6 +1001,10 @@ class Server {
           pathname,
           async (req, res) => {
             try {
+              req.socket = {
+                emit: this.emit.bind(this, subdomain),
+                on: this.on.bind(this, subdomain),
+              };
               const value = await arg.handler(req, res);
               if (!res.writableEnded) res.send(value);
             } catch (e) {
@@ -989,35 +1012,48 @@ class Server {
             }
           }
         );
-      else if (typeof handler === "function")
+      else if (arg instanceof WebSocket) {
+        const events = Object.keys(arg.events);
+        for (let j = 0, jlen = events.length; j < jlen; j++)
+          this.on(subdomain, events[j], function (...args) {
+            arg.events[events[j]].call(this, ...args);
+          });
+      } else if (typeof handler === "function")
         return this.#register("all", subdomain, pathname, arg);
       else throw new TypeError("Invalid api type");
     }
     if (type === "controller") {
       if (!Object.isPrototypeOf.call(Controller, arg))
         throw new TypeError("Invalid controller type");
-      const socket = {
-        emit: this.emit.bind(this, subdomain),
-        on: this.on.bind(this, subdomain),
-      };
-      const handlers = Object.values(new arg(socket));
+      const handlers = Object.values(new arg());
       for (let i = 0, len = handlers.length; i < len; i++) {
         const handler = handlers[i];
-        if (!(handler instanceof Method)) continue;
-        const handlerPathname = combinePathnames(pathname, handler.url);
-        this.#register(
-          handler.type,
-          subdomain,
-          handlerPathname,
-          async (req, res) => {
-            try {
-              const value = await handler(req, res);
-              if (!res.writableEnded) res.send(value);
-            } catch (e) {
-              res.reject(e.message, 500);
+        if (handler instanceof Method) {
+          const handlerPathname = combinePathnames(pathname, handler.url);
+          this.#register(
+            handler.type,
+            subdomain,
+            handlerPathname,
+            async (req, res) => {
+              try {
+                req.socket = {
+                  emit: this.emit.bind(this, subdomain),
+                  on: this.on.bind(this, subdomain),
+                };
+                const value = await handler(req, res);
+                if (!res.writableEnded) res.send(value);
+              } catch (e) {
+                res.reject(e.message, 500);
+              }
             }
-          }
-        );
+          );
+        } else if (handler instanceof WebSocket) {
+          const events = Object.keys(handler.events);
+          for (let j = 0, jlen = events.length; j < jlen; j++)
+            this.on(subdomain, events[j], function (...args) {
+              handler.events[events[j]].call(this, ...args);
+            });
+        }
       }
       return null;
     }
@@ -1060,10 +1096,10 @@ class Server {
     }
     if (protocol === "https" && request.headers[":authority"])
       request.headers.host = request.headers[":authority"];
-    if (!request.headers.host) {
-      console.error("Missing host header in request", request);
+    if (!request.headers)
+      return this.#reject(request, response, "Missing headers", 500);
+    if (!request.headers.host)
       return this.#reject(request, response, "Missing host header", 500);
-    }
     request.protocol = protocol;
     request.subdomain = getSubdomain(request.headers.host);
     request.resource = fs.extname(request.url) !== "";
@@ -1238,7 +1274,7 @@ class Server {
       socket.onAny((event, ...args) => {
         const listeners = this.#events[event] || [];
         for (let i = 0, len = listeners.length; i < len; i++)
-          listeners[i](subdomain, args);
+          listeners[i](socket, subdomain, args);
       });
     } else if (type === "upgrade") {
       const [request, socket, head] = args;
@@ -1251,11 +1287,49 @@ class Server {
       request.href = url.href;
       request.pathname = url.pathname;
       const route = matchRoute(
-        this.#subdomains[request.subdomain]?.["websocket"],
+        this.#subdomains[request.subdomain]?.websocket,
         request.pathname
       );
       if (typeof route?.handler !== "function") socket.end();
       return route.handler(request, socket, head);
+    } else if (type === "middleware") {
+      const [socket, next] = args;
+      const request = socket.handshake;
+      request.subdomain = getSubdomain(request.headers.host);
+      const url = new URL(
+        request.url,
+        request.headers.origin || `ws://${request.headers.host}`
+      );
+      request.href = url.href;
+      request.pathname = url.pathname;
+      request.method = "WEBSOCKET";
+      const middleware = matchRoute(
+        this.#subdomains[request.subdomain]?.middleware,
+        request.pathname
+      );
+      request.params = Object.fromEntries(url.searchParams.entries());
+      request.body = () => getRequestBody(request);
+      request.cookies = {};
+      if (request?.headers?.cookie) {
+        const cookies = request?.headers?.cookie.split(";");
+        for (let i = 0, len = cookies?.length; i < len; i++) {
+          const parts = cookies[i].split("=");
+          const name = parts.shift().trim();
+          request.cookies[name] = parts.join("=").trim();
+        }
+      }
+      socket.cookies = [];
+      socket.props = {};
+      socket.set = (type, arg) => (socket[type] = arg);
+      socket.reject = (message) => next(new Error(message));
+      socket.redirect = () =>
+        this.#emit("warning", "redirect is not supported in WebSocket");
+      socket.send = () =>
+        this.#emit("warning", "send is not supported in WebSocket");
+      socket.sendFile = () =>
+        this.#emit("warning", "sendFile is not supported in WebSocket");
+      if (middleware) middleware.handler(request, socket, next);
+      else next();
     }
   }
 
@@ -1472,9 +1546,10 @@ function defaultHeaders(request, response, type) {
     "Referrer-Policy": "no-referrer",
     "X-XSS-Protection": "1; mode=block",
     "Content-Type": type,
-    "Cache-Control": "public, max-age=31536000",
     "Set-Cookie": response.cookies,
   };
+  if (!request.resource || request.resource !== "page")
+    headers["Cache-Control"] = "public, max-age=14400, immutable";
   if (process.env.NODE_ENV !== "production") {
     headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
     headers["Pragma"] = "no-cache";

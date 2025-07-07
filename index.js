@@ -22,4 +22,5 @@ export {
   Patch,
   Post,
   Put,
+  Socket,
 } from "./server/controller.js";
