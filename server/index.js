@@ -1060,7 +1060,10 @@ class Server {
     }
     if (protocol === "https" && request.headers[":authority"])
       request.headers.host = request.headers[":authority"];
-    if (!request.headers.host) throw new Error("Missing host header");
+    if (!request.headers.host) {
+      console.error("Missing host header in request", request);
+      return this.#reject(request, response, "Missing host header", 500);
+    }
     request.protocol = protocol;
     request.subdomain = getSubdomain(request.headers.host);
     request.resource = fs.extname(request.url) !== "";
