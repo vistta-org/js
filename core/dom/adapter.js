@@ -16,6 +16,7 @@
           textContent: "" + text,
         }),
         createElement: (tag) => createElement(tag),
+        documentElement: createElement("html"),
       },
       ...readonly,
     },
