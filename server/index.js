@@ -1567,6 +1567,7 @@ function setCookies(response, cookies) {
   const cookieNames = Object.keys(cookies);
   for (let i = 0, len = cookieNames.length; i < len; i++) {
     const cookie = cookies[cookieNames[i]];
+    if (cookie.value == null) continue;
     let value = `${cookieNames[i]}=${cookie.value}; SameSite=${cookie?.options?.sameSite || "Strict"}; Path=${cookie?.options?.path || "/"}; `;
     if (cookie?.options?.expires)
       value += `; Expires=${cookie.options.expires}`;

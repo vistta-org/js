@@ -30,6 +30,7 @@ export class Method extends FunctionClass {
                 return current;
               },
               redirect: response.redirect,
+              ...request.socket,
             },
             type === "get" || type === "delete"
               ? request.params
