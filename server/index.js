@@ -839,7 +839,7 @@ class Server {
     const finalPath = ensureEndsWith(pathname, "/*");
     const collection = new Route(subdomain, finalPath, "collection");
     collection.add(
-      this.#register("all", subdomain, finalPath, (req, res) =>
+      this.#register("middleware", subdomain, finalPath, (req, res) =>
         this.#proxy.web(req, res, options, (err) =>
           res.reject(err?.message, 500)
         )
@@ -877,7 +877,7 @@ class Server {
     const baseUrl =
       typeOfTarget === "string" ? typeOfTarget : typeOfTarget?.target;
     return this.#register(
-      "all",
+      "middleware",
       subdomain,
       ensureEndsWith(pathname, "/*"),
       (req, res) =>
@@ -1233,37 +1233,42 @@ class Server {
             type || "application/json"
           )
         : this.#send(request, response, response.statusCode, content, type);
-    const acceptsHtml =
-      request.headers.accept && request.headers.accept.includes("text/html");
-    let route = matchRoute(
-      this.#subdomains[request.subdomain]?.error,
-      request.pathname,
-      {
+    try {
+      const acceptsHtml =
+        request.headers.accept && request.headers.accept.includes("text/html");
+      let route = matchRoute(
+        this.#subdomains[request.subdomain]?.error,
+        request.pathname,
+        {
+          exact: false,
+          filter: (route) => route.active && (acceptsHtml || !route.isPage),
+        }
+      );
+      if (route)
+        return route.handler(
+          request,
+          response,
+          response?.code,
+          response?.message
+        );
+      if (request.subdomain === "")
+        return this.#send(request, response, response?.code, response?.message);
+      route = matchRoute(this.#subdomains[""]?.error, request.pathname, {
         exact: false,
         filter: (route) => route.active && (acceptsHtml || !route.isPage),
-      }
-    );
-    if (route)
-      return route.handler(
-        request,
-        response,
-        response?.code,
-        response?.message
-      );
-    if (request.subdomain === "")
-      return this.#send(request, response, response?.code, response?.message);
-    route = matchRoute(this.#subdomains[""]?.error, request.pathname, {
-      exact: false,
-      filter: (route) => route.active && (acceptsHtml || !route.isPage),
-    });
-    if (route)
-      return route.handler(
-        request,
-        response,
-        response?.code,
-        response?.message
-      );
-    this.#send(request, response, response?.code, response?.message);
+      });
+      if (route)
+        return route.handler(
+          request,
+          response,
+          response?.code,
+          response?.message
+        );
+      this.#send(request, response, response?.code, response?.message);
+    } catch (e) {
+      this.#emit("error", e.message);
+      this.#send(request, response, 500, e.message);
+    }
   }
 
   async #socketHandler(type, ...args) {
