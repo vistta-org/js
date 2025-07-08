@@ -1555,8 +1555,10 @@ function defaultHeaders(request, response, type) {
   };
   if (!request.resource && request.resource !== "page")
     headers["Cache-Control"] = "public, max-age=14400, immutable";
+  else
+    headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate";
   if (process.env.NODE_ENV !== "production") {
-    headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+    headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate";
     headers["Pragma"] = "no-cache";
     headers["Expires"] = "0";
   }
