@@ -1553,7 +1553,7 @@ function defaultHeaders(request, response, type) {
     "Content-Type": type,
     "Set-Cookie": response.cookies,
   };
-  if (!request.resource && request.resource !== "page")
+  if (request.resource && request.resource !== "page")
     headers["Cache-Control"] = "public, max-age=14400, immutable";
   else
     headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate";
