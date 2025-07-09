@@ -1248,11 +1248,16 @@ class Server {
         return route.handler(
           request,
           response,
-          response?.code,
+          response?.statusCode,
           response?.message
         );
       if (request.subdomain === "")
-        return this.#send(request, response, response?.code, response?.message);
+        return this.#send(
+          request,
+          response,
+          response?.statusCode,
+          response?.message
+        );
       route = matchRoute(this.#subdomains[""]?.error, request.pathname, {
         exact: false,
         filter: (route) => route.active && (acceptsHtml || !route.isPage),
@@ -1261,10 +1266,10 @@ class Server {
         return route.handler(
           request,
           response,
-          response?.code,
+          response?.statusCode,
           response?.message
         );
-      this.#send(request, response, response?.code, response?.message);
+      this.#send(request, response, response?.statusCode, response?.message);
     } catch (e) {
       this.#emit("error", e.message);
       this.#send(request, response, 500, e.message);
@@ -1551,8 +1556,8 @@ function defaultHeaders(request, response, type) {
     "Referrer-Policy": "no-referrer",
     "X-XSS-Protection": "1; mode=block",
     "Content-Type": type,
-    "Set-Cookie": response.cookies,
   };
+  if (response.cookies) headers["Set-Cookie"] = response.cookies;
   if (request.resource && request.resource !== "page")
     headers["Cache-Control"] = "public, max-age=14400, immutable";
   else
