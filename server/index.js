@@ -30,6 +30,7 @@ const DEFAULT_PROXY_OPTIONS = {
   xfwd: true,
   secure: false,
   changeOrigin: true,
+  followRedirects: false,
   timeout: PROXY_TIMEOUT, // 5 minutes
   proxyTimeout: PROXY_TIMEOUT, // 5 minutes
 };
@@ -235,6 +236,19 @@ class Server {
     }
     this.#socket.use(this.#socketHandler.bind(this, "middleware"));
     this.#socket.on("connection", this.#socketHandler.bind(this, "connection"));
+    this.#proxy.on("proxyRes", (proxyRes, req) => {
+      const location = proxyRes.headers.location;
+      const { target, pathname, preservePathname } = req.__options;
+      if (
+        proxyRes.statusCode >= 300 &&
+        proxyRes.statusCode < 400 &&
+        location.startsWith(target)
+      ) {
+        proxyRes.headers.location = (
+          (!preservePathname ? pathname : "") + location.replace(target, "")
+        ).replace("//", "/");
+      }
+    });
     if (start !== false) this.start();
   }
 
@@ -469,17 +483,15 @@ class Server {
    * @returns {Promise<Route>} The route object
    */
   async use(arg1, arg2, arg3) {
-    const [subdomain, basepath, target] = parseArguments(
-      "use",
-      arg1,
-      arg2,
-      arg3
-    );
+    let [subdomain, basepath, target] = parseArguments("use", arg1, arg2, arg3);
     const typeOfTarget = typeof target;
     if (typeOfTarget === "function")
       return this.#register("middleware", subdomain, basepath, target);
     else if (typeOfTarget !== "string")
       throw new TypeError("Invalid argument type");
+    if (basepath === "") basepath = "/";
+    else if (basepath.endsWith("/*"))
+      this.#emit("warning", "Use pathname does not need wildcard");
     const collection = new Route(subdomain, basepath, "collection");
     const use = async (type, pathname, filepath, arg, emit) => {
       try {
@@ -803,6 +815,7 @@ class Server {
    * @property {boolean} xfwd - Include x-forward header  Default: true
    * @property {boolean} secure - Allow only https  Default: false
    * @property {boolean} changeOrigin - Change origin  Default: false
+   * @property {boolean} preservePathname - Preserve pathname in the target url  Default: false
    */
 
   /**
@@ -814,7 +827,7 @@ class Server {
    * @returns {Route} The route object
    */
   proxy(arg1, arg2, arg3) {
-    const [subdomain, pathname, targetOrOptions] = parseArguments(
+    let [subdomain, pathname, targetOrOptions] = parseArguments(
       "proxy",
       arg1,
       arg2,
@@ -826,6 +839,10 @@ class Server {
       typeOfTargetOrOptions !== "string"
     )
       throw new TypeError("Invalid argument type");
+    if (pathname === "") pathname = "/";
+    else if (pathname.endsWith("/*"))
+      this.#emit("warning", "Proxy pathname does not need wildcard");
+
     const options =
       typeOfTargetOrOptions === "string"
         ? {
@@ -836,19 +853,30 @@ class Server {
             ...DEFAULT_PROXY_OPTIONS,
             ...targetOrOptions,
           };
-    const finalPath = ensureEndsWith(pathname, "/*");
-    const collection = new Route(subdomain, finalPath, "collection");
+    const collection = new Route(subdomain, pathname, "collection");
+    options.pathname = pathname;
     collection.add(
-      this.#register("middleware", subdomain, finalPath, (req, res) =>
+      this.#register("middleware", subdomain, pathname, (req, res) => {
+        req.__options = options;
+        if (!options.preservePathname)
+          req.url = removeFromPath(req.url, pathname + "*");
         this.#proxy.web(req, res, options, (err) =>
           res.reject(err?.message, 500)
-        )
-      )
+        );
+      })
     );
     collection.add(
-      this.#register("websocket", subdomain, finalPath, (req, socket, head) =>
-        this.#proxy.ws(req, socket, head, options, (err) => err && socket.end())
-      )
+      this.#register("websocket", subdomain, pathname, (req, socket, head) => {
+        if (!options.preservePathname)
+          req.url = removeFromPath(req.url, pathname + "*");
+        this.#proxy.ws(
+          req,
+          socket,
+          head,
+          options,
+          (err) => err && socket.end()
+        );
+      })
     );
     return collection;
   }
@@ -858,6 +886,7 @@ class Server {
    *
    * @typedef {Object} RedirectOptions
    * @property {string} target - Target url
+   * @property {boolean} preservePathname - Preserve pathname in the target url  Default: false
    *
    * @param {string} arg1 - Route subdomain or pathname
    * @param {string | RedirectOptions} arg2 - Route pathname, target url or options
@@ -865,7 +894,7 @@ class Server {
    * @returns {Route} The route object
    */
   redirect(arg1, arg2, arg3) {
-    const [subdomain, pathname, target] = parseArguments(
+    let [subdomain, pathname, target] = parseArguments(
       "redirect",
       arg1,
       arg2,
@@ -874,15 +903,16 @@ class Server {
     const typeOfTarget = typeof target;
     if (typeOfTarget !== "object" && typeOfTarget !== "string")
       throw new TypeError("Invalid argument type");
-    const baseUrl =
-      typeOfTarget === "string" ? typeOfTarget : typeOfTarget?.target;
-    return this.#register(
-      "middleware",
-      subdomain,
-      ensureEndsWith(pathname, "/*"),
-      (req, res) =>
-        res.redirect(new URL(req.url || "/", baseUrl).toString(), true)
-    );
+    if (pathname === "") pathname = "/";
+    else if (pathname.endsWith("/*"))
+      this.#emit("warning", "Redirect pathname does not need wildcard");
+    const options =
+      typeOfTarget === "object" ? typeOfTarget : { target: typeOfTarget };
+    return this.#register("middleware", subdomain, pathname, (req, res) => {
+      if (!options.preservePathname)
+        req.url = removeFromPath(req.url, pathname + "*");
+      res.redirect(new URL(req.url || "/", options.target).toString(), true);
+    });
   }
 
   /**
@@ -1087,11 +1117,21 @@ class Server {
   }
 
   #handler(protocol, request, response) {
+    const end = response.end.bind(response);
+    response.end = (...args) => (
+      end(...args),
+      this.#emit("request", {
+        protocol: request.protocol,
+        subdomain: request.subdomain,
+        method: request.method,
+        url: request.url,
+        status: response.statusCode,
+      })
+    );
     if (request.url.endsWith("/") && request.url !== "/") {
       response.statusCode = 301;
       response.writeHead(301, { Location: request.url.slice(0, -1) });
       response.end();
-      emitRequestEvent(this.#emit.bind(this), request, response);
       return;
     }
     if (protocol === "https" && request.headers[":authority"])
@@ -1151,8 +1191,7 @@ class Server {
         "Set-Cookie": response.cookies,
         Location: url,
       }),
-      response.end(),
-      emitRequestEvent(this.#emit.bind(this), request, response)
+      response.end()
     );
     response.send = (content, type) =>
       typeof content === "object"
@@ -1168,7 +1207,8 @@ class Server {
       this.#sendFile(request, response, filepath, type);
     const middleware = matchRoute(
       this.#subdomains[request.subdomain]?.middleware,
-      request.pathname
+      request.pathname,
+      { exact: false }
     );
     if (middleware)
       middleware.handler(request, response, () =>
@@ -1193,12 +1233,12 @@ class Server {
       } else {
         if (request.pathname.endsWith("/page.js"))
           ((request.resource = "page"),
-            (request.pathname = removeFromPath(request.pathname, "/page.js")));
+            (request.pathname = removeFromPath(request.pathname, "*/page.js")));
         if (request.pathname.endsWith("manifest.json"))
           ((request.resource = "manifest"),
             (request.pathname = removeFromPath(
               request.pathname,
-              "/manifest.json"
+              "*/manifest.json"
             )));
         const route = matchRoute(
           this.#subdomains[request.subdomain]?.[method],
@@ -1298,7 +1338,8 @@ class Server {
       request.pathname = url.pathname;
       const route = matchRoute(
         this.#subdomains[request.subdomain]?.websocket,
-        request.pathname
+        request.pathname,
+        { exact: false }
       );
       if (typeof route?.handler !== "function") socket.end();
       return route.handler(request, socket, head);
@@ -1315,7 +1356,8 @@ class Server {
       request.method = "WEBSOCKET";
       const middleware = matchRoute(
         this.#subdomains[request.subdomain]?.middleware,
-        request.pathname
+        request.pathname,
+        { exact: false }
       );
       request.params = Object.fromEntries(url.searchParams.entries());
       request.body = () => getRequestBody(request);
@@ -1354,7 +1396,6 @@ class Server {
       response.writeHead(response.statusCode, headers);
       response.end("500 Internal Server Error");
     });
-    emitRequestEvent(this.#emit.bind(this), request, response);
   }
 
   #send(request, response, code, content, type = "text/plain") {
@@ -1391,23 +1432,12 @@ class Server {
           response.end(content));
     } else
       (response.writeHead(response.statusCode, headers), response.end(content));
-    emitRequestEvent(this.#emit.bind(this), request, response);
   }
 }
 
 export default Server;
 
 //
-
-function emitRequestEvent(emit, request, response) {
-  return emit("request", {
-    protocol: request.protocol,
-    subdomain: request.subdomain,
-    method: request.method,
-    url: request.url,
-    status: response.statusCode,
-  });
-}
 
 function parseArguments(method, subdomain, pathname, arg) {
   if (typeof subdomain !== "string")
@@ -1493,8 +1523,15 @@ function combinePathnames(basePathname, relativePathname) {
 }
 
 function removeFromPath(urlPath, target) {
-  if (urlPath === target) return "/";
-  return urlPath.replace(new RegExp(target + "$"), "");
+  if (target.startsWith("*")) {
+    target = target.slice(1);
+    if (urlPath === target) return "/";
+    return urlPath.replace(new RegExp(target + "$"), "");
+  } else if (target.endsWith("*")) {
+    target = target.slice(0, -1);
+    urlPath = urlPath.replace(new RegExp(`^${target}`), "");
+    return urlPath.startsWith("/") ? urlPath : "/" + urlPath;
+  } else urlPath = urlPath.replace(target, "");
 }
 
 function getRequestBody(request) {
