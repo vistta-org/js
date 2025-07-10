@@ -65,12 +65,10 @@ export class Mutation extends FunctionClass {
 }
 
 export class Context extends FunctionClass {
+  static id = Symbol(encode(CONTEXT_CACHE_KEY.slice(0, -1), "hex"));
   #key;
-  #value;
+  #shared = { listeners: [] };
   #cache;
-  #readOnlyValue;
-  #proxy;
-  #listeners = [];
 
   constructor(key, value, cache, actions, controllers) {
     if (typeof key !== "string" || key.length == 0)
@@ -81,8 +79,12 @@ export class Context extends FunctionClass {
       );
     super(() => this);
     this.#key = key;
+    if (!window[Context.id]) window[Context.id] = {};
+    if (!window[Context.id][encode(this.#key, "hex")])
+      window[Context.id][encode(this.#key, "hex")] = this.#shared;
+    else this.#shared = window[Context.id][encode(this.#key, "hex")];
     try {
-      this.#value = clone(value);
+      this.#shared.value = clone(value);
     } catch {
       throw new Error(
         "TypeError: Cannot create context with a non serializable object as default value."
@@ -96,13 +98,13 @@ export class Context extends FunctionClass {
           : null;
     if (this.#cache) {
       try {
-        this.#value =
+        this.#shared.value =
           parse(
             decode(
               this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")),
               "hex"
             )
-          ) ?? this.#value;
+          ) ?? this.#shared.value;
       } catch {
         /* Do nothing */
       }
@@ -134,7 +136,7 @@ export class Context extends FunctionClass {
               resolve();
             };
             try {
-              let value = action(clone(this.#value), ...args);
+              let value = action(clone(this.#shared.value), ...args);
               if (isPromise(value))
                 value
                   .then((result) => {
@@ -169,13 +171,13 @@ export class Context extends FunctionClass {
   }
 
   get value() {
-    if (!this.#readOnlyValue)
-      this.#readOnlyValue = new Proxy(this.#value, {
+    if (!this.#shared.readonlyProxy)
+      this.#shared.readonlyProxy = new Proxy(this.#shared.value, {
         set: () => true,
         deleteProperty: () => true,
         defineProperty: () => true,
       });
-    return this.#readOnlyValue;
+    return this.#shared.readonlyProxy;
   }
 
   valueOf() {
@@ -183,25 +185,25 @@ export class Context extends FunctionClass {
   }
 
   toString() {
-    return JSON.stringify(this.#value);
+    return JSON.stringify(this.#shared.value);
   }
 
   proxy(listener) {
-    const listeners = this.#listeners;
+    const listeners = this.#shared.listeners;
     if (typeof listener?.set === "function") listeners.push(listener.set);
-    if (this.#proxy) return this.#proxy;
+    if (this.#shared.proxy) return this.#shared.proxy;
     const updateCache = () => {
       if (!this.#cache) return;
       try {
         this.#cache.setItem(
           encode(CONTEXT_CACHE_KEY + this.#key, "hex"),
-          encode(stringify(this.#value), "hex")
+          encode(stringify(this.#shared.value), "hex")
         );
       } catch (e) {
         console.error(e);
       }
     };
-    this.#proxy = new Proxy(this.#value, {
+    this.#shared.proxy = new Proxy(this.#shared.value, {
       get(target, key) {
         if (typeof listener?.get === "function")
           listener.get(this.path ? `${this.path}.${key}` : key, target[key]);
@@ -220,7 +222,7 @@ export class Context extends FunctionClass {
         return true;
       },
     });
-    return this.#proxy;
+    return this.#shared.proxy;
   }
 }
 
@@ -659,7 +661,7 @@ export class Form extends Component {
         for (let n = 0, pathsLen = paths.length; n < pathsLen; n++) {
           const key = paths[n];
           if (n === pathsLen - 1) temp[key] = getFieldValue(this.#fields[cur]);
-          else (temp[key] = temp[key] || {}), (temp = temp[key]);
+          else ((temp[key] = temp[key] || {}), (temp = temp[key]));
         }
       } else values[cur] = getFieldValue(this.#fields[cur]);
     }
