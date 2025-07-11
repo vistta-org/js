@@ -237,12 +237,12 @@ class Server {
     this.#socket.use(this.#socketHandler.bind(this, "middleware"));
     this.#socket.on("connection", this.#socketHandler.bind(this, "connection"));
     this.#proxy.on("proxyRes", (proxyRes, req) => {
-      const location = proxyRes.headers.location;
+      const location = proxyRes?.headers?.location;
       const { target, pathname, preservePathname } = req.__options;
       if (
         proxyRes.statusCode >= 300 &&
         proxyRes.statusCode < 400 &&
-        location.startsWith(target)
+        location?.startsWith(target)
       ) {
         proxyRes.headers.location = (
           (!preservePathname ? pathname : "") + location.replace(target, "")
@@ -1055,7 +1055,12 @@ class Server {
     if (type === "controller") {
       if (!Object.isPrototypeOf.call(Controller, arg))
         throw new TypeError("Invalid controller type");
-      const handlers = Object.values(new arg());
+      const controller = new arg();
+      controller?.onConnect?.({
+        emit: this.emit.bind(this, subdomain),
+        on: this.on.bind(this, subdomain),
+      });
+      const handlers = Object.values(controller);
       for (let i = 0, len = handlers.length; i < len; i++) {
         const handler = handlers[i];
         if (handler instanceof Method) {
