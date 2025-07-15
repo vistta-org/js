@@ -24,15 +24,15 @@ import {
 } from "../utils/index.js";
 
 const dirname = import.meta.dirname;
-const PROXY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
 const DEFAULT_PROXY_OPTIONS = {
   ws: true,
   xfwd: true,
   secure: false,
   changeOrigin: true,
   followRedirects: false,
-  timeout: PROXY_TIMEOUT, // 5 minutes
-  proxyTimeout: PROXY_TIMEOUT, // 5 minutes
+  timeout: TIMEOUT_TIME,
+  proxyTimeout: TIMEOUT_TIME,
 };
 
 const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [
@@ -157,6 +157,7 @@ class Server {
   #resources;
   #proxy = proxy.createProxyServer({});
   #socket = new SocketIO();
+  #timeout;
 
   get ports() {
     return {
@@ -181,6 +182,7 @@ class Server {
    * @property {string} [key] - Private key filepath
    * @property {boolean} [start] - Start server, default is true
    * @property {boolean} [strict] - Strict routing, default is true
+   * @property {number} [timeout] - Timeout for requests, default is 5 minutes
    *
    * @param {Options} [options] - Server options or callback
    */
@@ -191,6 +193,7 @@ class Server {
     key,
     start,
     strict,
+    timeout = TIMEOUT_TIME,
   } = {}) {
     if (httpPort === true)
       httpPort = process.env.NODE_ENV === "development" ? 3000 : 80;
@@ -206,6 +209,7 @@ class Server {
         };
     }
     this.#strict = strict !== false;
+    this.#timeout = timeout;
     if (httpPort)
       this.#http = {
         name: "http",
@@ -1122,104 +1126,114 @@ class Server {
   }
 
   #handler(protocol, request, response) {
-    const end = response.end.bind(response);
-    response.end = (...args) => (
-      end(...args),
-      this.#emit("request", {
-        protocol: request.protocol,
-        subdomain: request.subdomain,
-        method: request.method,
-        url: request.url,
-        status: response.statusCode,
-      })
-    );
-    if (request.url.endsWith("/") && request.url !== "/") {
-      response.statusCode = 301;
-      response.writeHead(301, { Location: request.url.slice(0, -1) });
-      response.end();
-      return;
-    }
-    if (protocol === "https" && request.headers[":authority"])
-      request.headers.host = request.headers[":authority"];
-    if (!request.headers)
-      return this.#reject(request, response, "Missing headers", 500);
-    if (!request.headers.host)
-      return this.#reject(request, response, "Missing host header", 500);
-    request.protocol = protocol;
-    request.subdomain = getSubdomain(request.headers.host);
-    request.resource = fs.extname(request.url) !== "";
-    const url = new URL(
-      request.url,
-      `${request.protocol}://${request.headers.host}`
-    );
-    request.href = url.href;
-    request.pathname = url.pathname;
-    request.params = Object.fromEntries(url.searchParams.entries());
-    request.body = () => getRequestBody(request);
-    request.cookies = {};
-    if (request?.headers?.cookie) {
-      const cookies = request?.headers?.cookie.split(";");
-      for (let i = 0, len = cookies?.length; i < len; i++) {
-        const parts = cookies[i].split("=");
-        const name = parts.shift().trim();
-        request.cookies[name] = parts.join("=").trim();
-      }
-    }
-    response.cookies = [];
-    response.props = {};
-    response.set = (type, ...args) => {
-      switch (type) {
-        case "cookie":
-          setCookies(response, {
-            [args[0]]: {
-              value: args[1] || "",
-              options: args[2] || {},
-            },
-          });
-          break;
-        case "cookies":
-          setCookies(response, args[0] || {});
-          break;
-        case "props":
-          Object.assign(response.props, args[0] || {});
-          break;
-        default:
-          request[type] = args[0];
-          break;
-      }
-    };
-    response.reject = (message, code) =>
-      this.#reject(request, response, message, code);
-    response.redirect = (url, permanent) => (
-      (response.statusCode = 301),
-      response.writeHead(permanent ? 301 : 302, {
-        "Set-Cookie": response.cookies,
-        Location: url,
-      }),
-      response.end()
-    );
-    response.send = (content, type) =>
-      typeof content === "object"
-        ? this.#send(
-            request,
-            response,
-            200,
-            stringify(content),
-            type || "application/json"
-          )
-        : this.#send(request, response, 200, content, type);
-    response.sendFile = (filepath, type) =>
-      this.#sendFile(request, response, filepath, type);
-    const middleware = matchRoute(
-      this.#subdomains[request.subdomain]?.middleware,
-      request.pathname,
-      { exact: false }
-    );
-    if (middleware)
-      middleware.handler(request, response, () =>
-        this.#resolve(request, response)
+    try {
+      request.timeout = setTimeout(
+        () => this.#send(request, response, 408, "Request timeout"),
+        this.#timeout
       );
-    else this.#resolve(request, response);
+      const end = response.end.bind(response);
+      response.end = (...args) => (
+        end(...args),
+        clearTimeout(request.timeout),
+        this.#emit("request", {
+          protocol: request.protocol,
+          subdomain: request.subdomain,
+          method: request.method,
+          url: request.url,
+          status: response.statusCode,
+        })
+      );
+      if (request.url.endsWith("/") && request.url !== "/") {
+        response.statusCode = 301;
+        response.writeHead(301, { Location: request.url.slice(0, -1) });
+        response.end();
+        return;
+      }
+      if (protocol === "https" && request.headers[":authority"])
+        request.headers.host = request.headers[":authority"];
+      if (!request.headers)
+        return this.#reject(request, response, "Missing headers", 500);
+      if (!request.headers.host)
+        return this.#reject(request, response, "Missing host header", 500);
+      request.protocol = protocol;
+      request.subdomain = getSubdomain(request.headers.host);
+      request.resource = fs.extname(request.url) !== "";
+      const url = new URL(
+        request.url,
+        `${request.protocol}://${request.headers.host}`
+      );
+      request.href = url.href;
+      request.pathname = url.pathname;
+      request.params = Object.fromEntries(url.searchParams.entries());
+      request.body = () => getRequestBody(request);
+      request.cookies = {};
+      if (request?.headers?.cookie) {
+        const cookies = request?.headers?.cookie.split(";");
+        for (let i = 0, len = cookies?.length; i < len; i++) {
+          const parts = cookies[i].split("=");
+          const name = parts.shift().trim();
+          request.cookies[name] = parts.join("=").trim();
+        }
+      }
+      response.cookies = [];
+      response.props = {};
+      response.set = (type, ...args) => {
+        switch (type) {
+          case "cookie":
+            setCookies(response, {
+              [args[0]]: {
+                value: args[1] || "",
+                options: args[2] || {},
+              },
+            });
+            break;
+          case "cookies":
+            setCookies(response, args[0] || {});
+            break;
+          case "props":
+            Object.assign(response.props, args[0] || {});
+            break;
+          default:
+            request[type] = args[0];
+            break;
+        }
+      };
+      response.reject = (message, code) =>
+        this.#reject(request, response, message, code);
+      response.redirect = (url, permanent) => (
+        (response.statusCode = 301),
+        response.writeHead(permanent ? 301 : 302, {
+          "Set-Cookie": response.cookies,
+          Location: url,
+        }),
+        response.end()
+      );
+      response.send = (content, type) =>
+        typeof content === "object"
+          ? this.#send(
+              request,
+              response,
+              200,
+              stringify(content),
+              type || "application/json"
+            )
+          : this.#send(request, response, 200, content, type);
+      response.sendFile = (filepath, type) =>
+        this.#sendFile(request, response, filepath, type);
+      const middleware = matchRoute(
+        this.#subdomains[request.subdomain]?.middleware,
+        request.pathname,
+        { exact: false }
+      );
+      if (middleware)
+        middleware.handler(request, response, () =>
+          this.#resolve(request, response)
+        );
+      else this.#resolve(request, response);
+    } catch (e) {
+      this.#emit("error", e.message);
+      this.#send(request, response, 500, e.message);
+    }
   }
 
   #resolve(request, response) {
@@ -1391,6 +1405,7 @@ class Server {
   }
 
   #sendFile(request, response, filepath, type) {
+    if (response.writableEnded) return;
     const stream = fs.createReadStream(filepath);
     const headers = defaultHeaders(request, response, type);
     response.statusCode = 200;
@@ -1404,6 +1419,7 @@ class Server {
   }
 
   #send(request, response, code, content, type = "text/plain") {
+    if (response.writableEnded) return;
     response.statusCode = code || 200;
     const acceptEncoding = request.headers["accept-encoding"];
     const headers = defaultHeaders(request, response, type);

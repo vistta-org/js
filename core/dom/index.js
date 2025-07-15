@@ -16,7 +16,7 @@ import {
   RESOURCES_PATH,
   capitalize,
   addUnique,
-  assign,
+  proxy,
   ensureArray,
 } from "../../utils/index.js";
 
@@ -407,25 +407,25 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
           configurable: false,
           enumerable: false,
           value: () => {
-            original.call(component, previous);
-            assign(previous, element.attributes);
+            original.call(component, proxy(previous, { readonly: true }));
+            Object.assign(previous, element.attributes);
           },
         });
       } else if (component[propertyName] instanceof Context) {
         const instance = component[propertyName];
         if (!context["#" + instance.key]) {
           const mutations = {};
-          const previous = {};
+          const _previous = {};
           context["#" + instance.key] = instance.proxy({
             get: (path, value) => {
               if (!mutations[path]) mutations[path] = [];
               if (!virtualDom.mutation) return;
               addUnique(mutations[path], virtualDom.mutation);
-              previous[path] = value;
+              _previous[path] = value;
             },
             set: (path, value) => {
-              if (previous[path] == value) return;
-              previous[path] = value;
+              if (_previous[path] == value) return;
+              _previous[path] = value;
               if (mutations[path]) virtualDom.enqueue(mutations[path]);
             },
           });
@@ -500,7 +500,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
           });
       }
     }
-    assign(previous, element.attributes);
+    Object.assign(previous, element.attributes);
     if (context?.safe?.error)
       Object.defineProperty(component, "error", {
         configurable: false,
@@ -923,7 +923,7 @@ function removeElement(element) {
     while (parent.type === Fragment || parent.type === Component.Node) {
       if (parent.firstNode === node) {
         if (parent.firstNode === parent.lastNode)
-          (parent.firstNode = null), (parent.lastNode = null);
+          ((parent.firstNode = null), (parent.lastNode = null));
         else parent.firstNode = parent.firstNode.nextSibling;
       } else if (parent.lastNode === node)
         parent.lastNode = parent.lastNode.previousSibling;
