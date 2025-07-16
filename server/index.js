@@ -1144,7 +1144,7 @@ class Server {
         })
       );
       if (request.url.endsWith("/") && request.url !== "/") {
-        if (response.writableEnded) return;
+        if (response.writableEnded || response.headersSent) return;
         response.statusCode = 301;
         response.writeHead(301, { Location: request.url.slice(0, -1) });
         response.end();
@@ -1202,7 +1202,7 @@ class Server {
       response.reject = (message, code) =>
         this.#reject(request, response, message, code);
       response.redirect = (url, permanent) => {
-        if (response.writableEnded) return;
+        if (response.writableEnded || response.headersSent) return;
         response.statusCode = 301;
         response.writeHead(permanent ? 301 : 302, {
           "Set-Cookie": response.cookies,
@@ -1407,7 +1407,7 @@ class Server {
   }
 
   #sendFile(request, response, filepath, type) {
-    if (response.writableEnded) return;
+    if (response.writableEnded || response.headersSent) return;
     const stream = fs.createReadStream(filepath);
     const headers = defaultHeaders(request, response, type);
     response.statusCode = 200;
@@ -1421,7 +1421,7 @@ class Server {
   }
 
   #send(request, response, code, content, type = "text/plain") {
-    if (response.writableEnded) return;
+    if (response.writableEnded || response.headersSent) return;
     response.statusCode = code || 200;
     const acceptEncoding = request.headers["accept-encoding"];
     const headers = defaultHeaders(request, response, type);
@@ -1432,7 +1432,7 @@ class Server {
     ) {
       if (acceptEncoding.includes("gzip"))
         zlib.gzip(content, (err, buffer) => {
-          if (response.writableEnded) return;
+          if (response.writableEnded || response.headersSent) return;
           if (!err) {
             headers["Content-Encoding"] = "gzip";
             response.writeHead(response.statusCode, headers);
@@ -1443,7 +1443,7 @@ class Server {
         });
       else if (acceptEncoding.includes("deflate"))
         zlib.deflate(content, (err, buffer) => {
-          if (response.writableEnded) return;
+          if (response.writableEnded || response.headersSent) return;
           if (!err) {
             headers["Content-Encoding"] = "deflate";
             response.writeHead(response.statusCode, headers);
