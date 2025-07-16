@@ -1144,6 +1144,7 @@ class Server {
         })
       );
       if (request.url.endsWith("/") && request.url !== "/") {
+        if (response.writableEnded) return;
         response.statusCode = 301;
         response.writeHead(301, { Location: request.url.slice(0, -1) });
         response.end();
@@ -1200,14 +1201,15 @@ class Server {
       };
       response.reject = (message, code) =>
         this.#reject(request, response, message, code);
-      response.redirect = (url, permanent) => (
-        (response.statusCode = 301),
+      response.redirect = (url, permanent) => {
+        if (response.writableEnded) return;
+        response.statusCode = 301;
         response.writeHead(permanent ? 301 : 302, {
           "Set-Cookie": response.cookies,
           Location: url,
-        }),
-        response.end()
-      );
+        });
+        response.end();
+      };
       response.send = (content, type) =>
         typeof content === "object"
           ? this.#send(
@@ -1430,6 +1432,7 @@ class Server {
     ) {
       if (acceptEncoding.includes("gzip"))
         zlib.gzip(content, (err, buffer) => {
+          if (response.writableEnded) return;
           if (!err) {
             headers["Content-Encoding"] = "gzip";
             response.writeHead(response.statusCode, headers);
@@ -1440,6 +1443,7 @@ class Server {
         });
       else if (acceptEncoding.includes("deflate"))
         zlib.deflate(content, (err, buffer) => {
+          if (response.writableEnded) return;
           if (!err) {
             headers["Content-Encoding"] = "deflate";
             response.writeHead(response.statusCode, headers);
