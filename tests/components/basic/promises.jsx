@@ -1,13 +1,9 @@
 import { Component } from "@vistta/js";
-import { TIMEOUT, TEXT_UPDATE_VALUE } from "../../defaults.js";
+import { TEXT_UPDATE_VALUE, TIMEOUT } from "../../defaults.js";
 
 export default class extends Component {
-  content1 = new Promise((resolve) =>
-    setTimeout(() => resolve(TEXT_UPDATE_VALUE), TIMEOUT)
-  );
-  content2 = new Promise((resolve) =>
-    setTimeout(() => resolve(TEXT_UPDATE_VALUE), TIMEOUT * 2)
-  );
+  content1 = new Promise((resolve) => setTimeout(() => resolve(TEXT_UPDATE_VALUE), TIMEOUT));
+  content2 = new Promise((resolve) => setTimeout(() => resolve(TEXT_UPDATE_VALUE), TIMEOUT * 2));
   render() {
     return (
       <span id="output">

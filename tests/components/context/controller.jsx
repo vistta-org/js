@@ -10,12 +10,12 @@ const context = new Context(
       new Promise((resolve) =>
         setTimeout(() => {
           resolve(((prev.counter += 1), prev));
-        }, TIMEOUT)
+        }, TIMEOUT),
       ),
   },
   {
     update: (status, value) => ((value.status = status), console.log(status)),
-  }
+  },
 );
 
 export default class extends Component {

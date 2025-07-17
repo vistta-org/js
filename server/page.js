@@ -1,16 +1,10 @@
 import fs from "@vistta/fs";
-import { Element, renderToString } from "./dom.js";
 import { RESOURCES_PATH, stringify } from "../utils/index.js";
+import { Element, renderToString } from "./dom.js";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
-export async function createPage(
-  type,
-  filepath,
-  pathname,
-  inheritedConfigs,
-  inheritedLayout
-) {
+export async function createPage(type, filepath, pathname, inheritedConfigs, inheritedLayout) {
   const { default: content, config } = await import(filepath);
   const pwa = config?.pwa;
   const { code, errors, resources } = await import(filepath, {
@@ -33,10 +27,7 @@ export async function createPage(
   if (errors?.length) throw new Error(errors[0]);
   if (!code || code === "") throw new Error("Unexpected Bundler Error");
   page.html = async (request, props, build) => {
-    page.location = new URL(
-      request.url,
-      request.headers.referer || `http://${request.headers.host}/`
-    );
+    page.location = new URL(request.url, request.headers.referer || `http://${request.headers.host}/`);
     return await html(page, props, build);
   };
   page.js = async (_, props) => await javascript(page, code, props);
@@ -51,14 +42,7 @@ async function html(page, props, build) {
   if (html) return html;
   window.page = page;
   let body;
-  if (page.inherited.layout)
-    body = renderToString(
-      new Element(
-        page.inherited.layout.layout.component,
-        {},
-        new Element(page.content, props)
-      )
-    );
+  if (page.inherited.layout) body = renderToString(new Element(page.inherited.layout.layout.component, {}, new Element(page.content, props)));
   else body = renderToString(new Element(page.content, props));
   window.page = null;
   const config = configs(page);
@@ -70,9 +54,7 @@ async function html(page, props, build) {
     }),
     new Element("meta", {
       name: "viewport",
-      content:
-        config?.viewport ||
-        "width=device-width,initial-scale=1,minimum-scale=1.0",
+      content: config?.viewport || "width=device-width,initial-scale=1,minimum-scale=1.0",
     }),
     new Element("meta", {
       "http-equiv": "Content-Type",
@@ -108,54 +90,52 @@ async function html(page, props, build) {
       new Element("meta", {
         name: "author",
         content: config.author,
-      })
+      }),
     );
   if (config?.language)
     head.push(
       new Element("meta", {
         name: "language",
         content: config.language,
-      })
+      }),
     );
   if (config?.refresh)
     head.push(
       new Element("meta", {
         "http-equiv": "refresh",
         content: config.refresh,
-      })
+      }),
     );
   if (config?.revisitAfter)
     head.push(
       new Element("meta", {
         name: "revisit-after",
         content: config.revisitAfter,
-      })
+      }),
     );
   if (page.pwa)
     head.push(
       new Element("link", {
         rel: "manifest",
         href: `.${pathname + (pathname.endsWith("/") ? "" : "/")}manifest.json`,
-      })
+      }),
     );
   if (config?.icon)
     head.push(
       new Element("link", {
         rel: "shortcut icon",
         href: config.icon,
-      })
+      }),
     );
   if (config?.icon)
     head.push(
       new Element("link", {
         rel: "apple-touch-icon",
         href: config.icon,
-      })
+      }),
     );
-  for (let i = 0, len = config?.links?.length || 0; i < len; i++)
-    head.push(new Element("link", config?.links[i]));
-  for (let i = 0, len = config?.scripts?.length || 0; i < len; i++)
-    head.push(new Element("script", config?.scripts[i]));
+  for (let i = 0, len = config?.links?.length || 0; i < len; i++) head.push(new Element("link", config?.links[i]));
+  for (let i = 0, len = config?.scripts?.length || 0; i < len; i++) head.push(new Element("script", config?.scripts[i]));
   for (let i = 0, len = config?.styles?.length || 0; i < len; i++) {
     const id = Object.keys(config.styles[i])[0].replace(/^style-/, "");
     head.push(
@@ -163,13 +143,13 @@ async function html(page, props, build) {
         rel: "preload",
         href: `/${RESOURCES_PATH}/${id}.css`,
         as: "style",
-      })
+      }),
     );
     head.push(
       new Element("link", {
         rel: "stylesheet",
         href: `/${RESOURCES_PATH}/${id}.css`,
-      })
+      }),
     );
   }
   for (let i = 0, len = page.styleSheets?.length || 0; i < len; i++) {
@@ -178,11 +158,9 @@ async function html(page, props, build) {
         rel: "preload",
         href: page.styleSheets[i],
         as: "style",
-      })
+      }),
     );
-    head.push(
-      new Element("link", { rel: "stylesheet", href: page.styleSheets[i] })
-    );
+    head.push(new Element("link", { rel: "stylesheet", href: page.styleSheets[i] }));
   }
   return page.cache.set(
     "html." + propsString,
@@ -198,11 +176,11 @@ async function html(page, props, build) {
             new Element("script", {
               src: `/${RESOURCES_PATH}/client.js`,
               defer: true,
-            })
+            }),
           ),
-          new Element("body", {}, body)
-        )
-      )
+          new Element("body", {}, body),
+        ),
+      ),
   );
 }
 
@@ -215,17 +193,10 @@ async function javascript(page, code, props) {
     script.push(
       page.inherited.layout.layout.code,
       `const __app_layout = { pathname: "${page.inherited.layout.layout.pathname}" };`,
-      "__app_layout.component = __app_layout_component?.default; export { __app_layout as layout };"
+      "__app_layout.component = __app_layout_component?.default; export { __app_layout as layout };",
     );
-  if (props)
-    script.push(
-      `const __app_props = ${stringify(props, IS_DEV)};`,
-      "export { __app_props as props };"
-    );
-  script.push(
-    `const __app_config = ${stringify(configs(page), IS_DEV)};`,
-    "export { __app_config as config };"
-  );
+  if (props) script.push(`const __app_props = ${stringify(props, IS_DEV)};`, "export { __app_props as props };");
+  script.push(`const __app_config = ${stringify(configs(page), IS_DEV)};`, "export { __app_config as config };");
   return page.cache.set("js." + key, script.join(IS_DEV ? "\n" : " "));
 }
 
@@ -247,14 +218,9 @@ function configs(page) {
 
 function manifest(page) {
   const config = configs(page);
-  if (typeof config.manifest === "object")
-    Object.assign(config, config.manifest);
+  if (typeof config.manifest === "object") Object.assign(config, config.manifest);
   return JSON.stringify({
-    id:
-      config.id ||
-      (config.name && config.version
-        ? config.name + "_" + config.version
-        : undefined),
+    id: config.id || (config.name && config.version ? config.name + "_" + config.version : undefined),
     theme_color: config.theme,
     background_color: config.background,
     display: config.display || "fullscreen",

@@ -1,5 +1,5 @@
 import { Component, Safe } from "@vistta/js";
-import { TEXT_VALUE, FALLBACK_VALUE } from "../defaults.js";
+import { FALLBACK_VALUE, TEXT_VALUE } from "../defaults.js";
 
 class ChildComponent extends Component {
   input;

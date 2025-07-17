@@ -3,18 +3,15 @@ import { default as Controller, Method } from "../../server/controller";
 
 export async function load(_, options) {
   try {
-    if (!global.main.shared?.[options.path])
-      throw new Error("Controller not found in the server shared state");
+    if (!global.main.shared?.[options.path]) throw new Error("Controller not found in the server shared state");
     const pathname = global.main.shared?.[options.path]?.pathname;
     let controller = (await import(options.path))?.default;
     let code = `import { request } from "@vistta/utils/request";const createUrl = (url) => [`;
     if (options.pathname || options.bundler) code += `"${pathname}",`;
     else {
       if (options.subdomain) {
-        if (options.subdomain === "")
-          code += `(global.main.shared.host.protocol+"://localhost:"+global.main.shared.host.port),`;
-        else
-          code += `(global.main.shared.host.protocol+"://${options.subdomain}.localhost:"+global.main.shared.host.port),`;
+        if (options.subdomain === "") code += `(global.main.shared.host.protocol+"://localhost:"+global.main.shared.host.port),`;
+        else code += `(global.main.shared.host.protocol+"://${options.subdomain}.localhost:"+global.main.shared.host.port),`;
       } else
         code += `(global.main.shared.host.protocol+"://"+(global.main.shared?.["${options.path}"]?.subdomain!==""?(global.main.shared["${options.path}"].subdomain+"."):"")+"localhost:"+global.main.shared.host.port),`;
       code += `global.main.shared?.["${options.path}"]?.pathname || "",`;
@@ -33,10 +30,7 @@ export async function load(_, options) {
     } else if (controller instanceof Method) {
       code += `export default ${convertMethodToRequest(controller)};`;
       return { code };
-    } else
-      throw new Error(
-        `Invalid api format. Export default must be either a Method or a class Controller from '@vistta/js'`
-      );
+    } else throw new Error(`Invalid api format. Export default must be either a Method or a class Controller from '@vistta/js'`);
   } catch (e) {
     return { errors: [`${options.path}(0,0): api error: ${e.message}.`] };
   }
@@ -45,7 +39,6 @@ export async function load(_, options) {
 //
 
 function convertMethodToRequest(method) {
-  const arg =
-    method.type === "get" || method.type === "delete" ? "params" : "body";
+  const arg = method.type === "get" || method.type === "delete" ? "params" : "body";
   return `(${arg}) => request.${method.type}(createUrl("${method.url}"), { ${arg} })`;
 }

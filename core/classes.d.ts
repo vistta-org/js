@@ -4,27 +4,18 @@ type Action<T> = (prev: T, ...args: any[]) => T | Promise<T> | void;
 export declare const Fragment: Symbol;
 export declare const TextNode: Symbol;
 
-export declare const Element: new <Props extends { [name: string]: any }>(
-  type: string,
-  props?: Props,
-  children?: JSX.Node
-) => JSX.Element;
+export declare const Element: new <Props extends { [name: string]: any }>(type: string, props?: Props, children?: JSX.Node) => JSX.Element;
 
-export declare const Context: new <
-  T,
-  Actions extends { [key: string]: Action<T> },
->(
+export declare const Context: new <T, Actions extends { [key: string]: Action<T> }>(
   key: string,
   defaultValue?: T,
   cache?: "none" | "session" | "local" | "storage",
   actions?: Actions,
   controllers?:
     | { [K in keyof Actions]: (status: string, controllerOrValue: any) => void }
-    | ((action: keyof Actions, status: string, controllerOrValue: any) => void)
+    | ((action: keyof Actions, status: string, controllerOrValue: any) => void),
 ) => {
-  [K in keyof Actions]: Actions[K] extends (...args: infer A) => infer R
-    ? (...args: DropFirst<A>) => Promise<void>
-    : never;
+  [K in keyof Actions]: Actions[K] extends (...args: infer A) => infer R ? (...args: DropFirst<A>) => Promise<void> : never;
 } & { (): T };
 
 export class Ref<T extends HTMLElement> {

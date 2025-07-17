@@ -1,13 +1,4 @@
-import {
-  encode,
-  decode,
-  stringify,
-  parse,
-  clone,
-  isPromise,
-  FunctionClass,
-  defineReadonly,
-} from "../utils/index.js";
+import { FunctionClass, clone, decode, defineReadonly, encode, isPromise, parse, stringify } from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
 export const Fragment = Symbol("Fragment");
@@ -48,10 +39,7 @@ export class Element {
         props.style = Object.assign(props.style || {}, style || {});
       } else props = cloneProps(this.props);
     }
-    if (children !== false)
-      children = this?.children?.map((child) =>
-        child instanceof Element ? child.clone(undefined, true) : child
-      );
+    if (children !== false) children = this?.children?.map((child) => (child instanceof Element ? child.clone(undefined, true) : child));
     return new Element(this.type, props, children);
   }
 }
@@ -71,40 +59,22 @@ export class Context extends FunctionClass {
   #cache;
 
   constructor(key, value, cache, actions, controllers) {
-    if (typeof key !== "string" || key.length == 0)
-      throw new Error("TypeError: Invalid context key.");
-    if (typeof value !== "object")
-      throw new Error(
-        "TypeError: Cannot create context with a non-object value."
-      );
+    if (typeof key !== "string" || key.length == 0) throw new Error("TypeError: Invalid context key.");
+    if (typeof value !== "object") throw new Error("TypeError: Cannot create context with a non-object value.");
     super(() => this);
     this.#key = key;
     if (!window[Context.id]) window[Context.id] = {};
-    if (!window[Context.id][encode(this.#key, "hex")])
-      window[Context.id][encode(this.#key, "hex")] = this.#shared;
+    if (!window[Context.id][encode(this.#key, "hex")]) window[Context.id][encode(this.#key, "hex")] = this.#shared;
     else this.#shared = window[Context.id][encode(this.#key, "hex")];
     try {
       this.#shared.value = clone(value);
     } catch {
-      throw new Error(
-        "TypeError: Cannot create context with a non serializable object as default value."
-      );
+      throw new Error("TypeError: Cannot create context with a non serializable object as default value.");
     }
-    this.#cache =
-      cache === "session"
-        ? sessionStorage
-        : cache === "local" || cache === "storage"
-          ? localStorage
-          : null;
+    this.#cache = cache === "session" ? sessionStorage : cache === "local" || cache === "storage" ? localStorage : null;
     if (this.#cache) {
       try {
-        this.#shared.value =
-          parse(
-            decode(
-              this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")),
-              "hex"
-            )
-          ) ?? this.#shared.value;
+        this.#shared.value = parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
       } catch {
         /* Do nothing */
       }
@@ -113,19 +83,12 @@ export class Context extends FunctionClass {
     if (actionsNames.length > 0) {
       const controllerFn = (target, status) => {
         const typeOfControllers = typeof controllers;
-        if (typeOfControllers === "function")
-          controllers.call(this, target, status, this.value);
-        else if (typeOfControllers === "object")
-          controllers?.[target]?.call(this, status, this.value);
+        if (typeOfControllers === "function") controllers.call(this, target, status, this.value);
+        else if (typeOfControllers === "object") controllers?.[target]?.call(this, status, this.value);
       };
       for (let i = 0, len = actionsNames.length; i < len; i++) {
         const actionName = actionsNames[i];
-        if (
-          ["valueOf", "toString", "setValue", "register", "proxy"].includes(
-            actionName
-          )
-        )
-          throw new Error(`Invalid action name "${actionName}".`);
+        if (["valueOf", "toString", "setValue", "register", "proxy"].includes(actionName)) throw new Error(`Invalid action name "${actionName}".`);
         const action = actions[actionName];
         this[actionName] = ((...args) => {
           controllerFn(actionName, "pending");
@@ -195,29 +158,20 @@ export class Context extends FunctionClass {
     const updateCache = () => {
       if (!this.#cache) return;
       try {
-        this.#cache.setItem(
-          encode(CONTEXT_CACHE_KEY + this.#key, "hex"),
-          encode(stringify(this.#shared.value), "hex")
-        );
+        this.#cache.setItem(encode(CONTEXT_CACHE_KEY + this.#key, "hex"), encode(stringify(this.#shared.value), "hex"));
       } catch (e) {
         console.error(e);
       }
     };
     this.#shared.proxy = new Proxy(this.#shared.value, {
       get(target, key) {
-        if (typeof listener?.get === "function")
-          listener.get(this.path ? `${this.path}.${key}` : key, target[key]);
+        if (typeof listener?.get === "function") listener.get(this.path ? `${this.path}.${key}` : key, target[key]);
         return target[key];
       },
       set(target, key, value) {
-        if (
-          target[key] === value ||
-          JSON.stringify(target[key]) === JSON.stringify(value)
-        )
-          return true;
+        if (target[key] === value || JSON.stringify(target[key]) === JSON.stringify(value)) return true;
         target[key] = value;
-        for (let i = 0, len = listeners.length; i < len; i++)
-          listeners[i](this.path ? `${this.path}.${key}` : key, value);
+        for (let i = 0, len = listeners.length; i < len; i++) listeners[i](this.path ? `${this.path}.${key}` : key, value);
         updateCache();
         return true;
       },
@@ -257,15 +211,8 @@ export class Component {
     const functions = Object.getOwnPropertyNames(prototype);
     for (let i = 0, len = functions.length; i < len; i++) {
       if (functions[i] === "constructor") continue;
-      const descriptor = Object.getOwnPropertyDescriptor(
-        prototype,
-        functions[i]
-      );
-      if (
-        typeof descriptor.get === "undefined" &&
-        typeof descriptor.set === "undefined"
-      )
-        this[functions[i]] = this[functions[i]].bind(this);
+      const descriptor = Object.getOwnPropertyDescriptor(prototype, functions[i]);
+      if (typeof descriptor.get === "undefined" && typeof descriptor.set === "undefined") this[functions[i]] = this[functions[i]].bind(this);
     }
   }
 }
@@ -313,12 +260,7 @@ export class Profiler extends Component {
   }
 
   render() {
-    if (
-      !this.callback ||
-      typeof process !== "undefined" ||
-      "production" === process.env.NODE_ENV
-    )
-      return this.children;
+    if (!this.callback || typeof process !== "undefined" || "production" === process.env.NODE_ENV) return this.children;
     this.#start = performance.now();
     return this.children;
   }
@@ -353,25 +295,18 @@ export const Render = {
 
     render() {
       if (typeof this.of !== "object") {
-        if ("production" !== process.env.NODE_ENV)
-          console.warn(
-            "Render.Each 'of' needs to be either an object or an array"
-          );
+        if ("production" !== process.env.NODE_ENV) console.warn("Render.Each 'of' needs to be either an object or an array");
         return null;
       }
       if (typeof this.as !== "function") {
-        if ("production" !== process.env.NODE_ENV)
-          console.warn("Render.Each 'as' needs to be a function");
+        if ("production" !== process.env.NODE_ENV) console.warn("Render.Each 'as' needs to be a function");
         return null;
       }
       let result = [];
       if (!Array.isArray(this.of)) {
         const keys = Object.keys(this.of);
-        for (let i = 0, len = keys.length; i < len; i++)
-          result.push(this.as(this.of[keys[i]], keys[i]));
-      } else
-        for (let i = 0, len = this.of.length; i < len; i++)
-          result.push(this.as(this.of[i], i));
+        for (let i = 0, len = keys.length; i < len; i++) result.push(this.as(this.of[keys[i]], keys[i]));
+      } else for (let i = 0, len = this.of.length; i < len; i++) result.push(this.as(this.of[i], i));
       return result;
     }
   },
@@ -453,23 +388,13 @@ export class Form extends Component {
   render() {
     if (this.#parent) {
       if (!this.name) {
-        if ("production" !== process.env.NODE_ENV)
-          console.warn(
-            "Nested Forms require a 'name' property to be specified."
-          );
+        if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
         return null;
       }
-      if (this.className || this.style)
-        return new Element(
-          "div",
-          { className: this.className, style: this.style },
-          ...this.children
-        );
+      if (this.className || this.style) return new Element("div", { className: this.className, style: this.style }, ...this.children);
       return new Element(Fragment, {}, ...this.children);
     }
-    this.#invalidEvent =
-      typeof this.oninvalid === "function" ||
-      typeof this.onInvalid === "function";
+    this.#invalidEvent = typeof this.oninvalid === "function" || typeof this.onInvalid === "function";
     return new Element(
       "form",
       {
@@ -487,7 +412,7 @@ export class Form extends Component {
         },
         style: this.style,
       },
-      ...this.children
+      ...this.children,
     );
   }
 
@@ -500,21 +425,11 @@ export class Form extends Component {
 
     const { type, attributes, node } = target || {};
 
-    if (
-      !node ||
-      (type !== "input" &&
-        type !== "textarea" &&
-        type !== "select" &&
-        attributes.role !== "input") ||
-      attributes.type === "submit"
-    )
+    if (!node || (type !== "input" && type !== "textarea" && type !== "select" && attributes.role !== "input") || attributes.type === "submit")
       return;
     const path = attributes.name || attributes.id;
     if (!path) {
-      if ("production" !== process.env.NODE_ENV)
-        console.warn(
-          `Missing either "id" or "name" attribute on ${type} inside of form.`
-        );
+      if ("production" !== process.env.NODE_ENV) console.warn(`Missing either "id" or "name" attribute on ${type} inside of form.`);
       return;
     }
     if (attributes.type === "radio") {
@@ -529,16 +444,11 @@ export class Form extends Component {
         node,
       });
     this.#required[path] = attributes.required;
-    this.#validators[path] =
-      attributes.validator instanceof Mutation
-        ? attributes.validator()
-        : attributes.validator;
+    this.#validators[path] = attributes.validator instanceof Mutation ? attributes.validator() : attributes.validator;
     node.addEventListener(type === "select" ? "change" : "input", (e) => {
       if (!this.#invalidEvent) node.setCustomValidity?.("");
-      for (let i = 0, len = this.#listeners[path]?.length; i < len; i++)
-        this.#listeners[path][i](e);
-      for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++)
-        this.#listeners["*"][i](e);
+      for (let i = 0, len = this.#listeners[path]?.length; i < len; i++) this.#listeners[path][i](e);
+      for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
     });
   }
 
@@ -576,9 +486,7 @@ export class Form extends Component {
         const defaultValue = this.#defaultValues[inputs[i]];
         if (field.value === defaultValue) continue;
         field.value = defaultValue;
-        field.dispatchEvent(
-          new Event(field.localName === "select" ? "change" : "input")
-        );
+        field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
         if (!this.#invalidEvent) field.setCustomValidity?.("");
       }
       return;
@@ -587,9 +495,7 @@ export class Form extends Component {
     const defaultValue = this.#defaultValues[name];
     if (field.value === defaultValue) return;
     field.value = defaultValue;
-    field.dispatchEvent(
-      new Event(field.localName === "select" ? "change" : "input")
-    );
+    field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
     if (!this.#invalidEvent) field.setCustomValidity?.("");
   }
 
@@ -601,8 +507,7 @@ export class Form extends Component {
       const field = this.#fields[inputs[i]];
       const value = getFieldValue(field);
       if (this.#required[inputs[i]] === true && !value) {
-        if (this.#invalidEvent)
-          errors.push({ field, error: Form.DEFAULT_ERROR_MESSAGE });
+        if (this.#invalidEvent) errors.push({ field, error: Form.DEFAULT_ERROR_MESSAGE });
         else field.setCustomValidity?.(Form.DEFAULT_ERROR_MESSAGE);
         continue;
       }
@@ -612,8 +517,7 @@ export class Form extends Component {
         if (this.#invalidEvent) errors.push({ field, error });
         else field.setCustomValidity?.(error);
       } else if (error === false) {
-        if (this.#invalidEvent)
-          errors.push({ field, error: Form.DEFAULT_ERROR_MESSAGE });
+        if (this.#invalidEvent) errors.push({ field, error: Form.DEFAULT_ERROR_MESSAGE });
         else field.setCustomValidity?.(Form.DEFAULT_ERROR_MESSAGE);
       } else if (!this.#invalidEvent) field.setCustomValidity?.("");
     }
@@ -632,18 +536,14 @@ export class Form extends Component {
         const field = this.#fields[inputs[i]];
         if (field.value === "") continue;
         field.value = "";
-        field.dispatchEvent(
-          new Event(field.localName === "select" ? "change" : "input")
-        );
+        field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
       }
       return;
     }
     const field = this.#fields[name];
     if (field.value === "") return;
     field.value = "";
-    field.dispatchEvent(
-      new Event(field.localName === "select" ? "change" : "input")
-    );
+    field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
   }
 
   submit() {
@@ -687,14 +587,12 @@ function cloneProps(props) {
     if (typeof value === "object") {
       if (Array.isArray(value)) {
         const cloned = [];
-        for (let i = 0, len = value.length; i < len; i++)
-          cloned[i] = clone(value[i]);
+        for (let i = 0, len = value.length; i < len; i++) cloned[i] = clone(value[i]);
         return cloned;
       } else {
         const cloned = {};
         const keys = Object.keys(value || {});
-        for (let i = 0, len = keys.length; i < len; i++)
-          cloned[keys[i]] = clone(value[keys[i]]);
+        for (let i = 0, len = keys.length; i < len; i++) cloned[keys[i]] = clone(value[keys[i]]);
         return cloned;
       }
     } else return value;

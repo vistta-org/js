@@ -15,9 +15,7 @@ class Socket {
         .then(({ io }) => {
           if (!io || this.#instance) return;
           this.#instance = io({ reconnectionDelay: 10000 });
-          this.#instance.on("connect_error", (error) =>
-            console.error(`Socket Internal Error: ${error.message}`)
-          );
+          this.#instance.on("connect_error", (error) => console.error(`Socket Internal Error: ${error.message}`));
           this.#instance.io.on("reconnect", () => location.reload());
         })
         .catch((error) => {
@@ -31,8 +29,7 @@ class Socket {
    * @param {...any} args - The arguments to pass with the event.
    */
   emit(event, ...args) {
-    if (typeof event !== "string")
-      return console.warn("Cannot emit an empty event");
+    if (typeof event !== "string") return console.warn("Cannot emit an empty event");
     if (!this.#instance) return console.warn("Socket Internal Error");
     this.#instance.emit(event, ...args);
   }

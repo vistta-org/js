@@ -6,8 +6,7 @@ class Test extends Component {
 
   render() {
     let children = [];
-    for (let i = 0; i < ITERATIONS; i++)
-      children.push(<div data-content={this.run} />);
+    for (let i = 0; i < ITERATIONS; i++) children.push(<div data-content={this.run} />);
     return children;
   }
 }

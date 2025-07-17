@@ -50,8 +50,7 @@ class Test1 extends Component {
 
   render() {
     let children = [];
-    for (let i = 0; i < ITERATIONS; i++)
-      children.push(<div data-content={this.run} />);
+    for (let i = 0; i < ITERATIONS; i++) children.push(<div data-content={this.run} />);
     return children;
   }
 }
@@ -72,11 +71,9 @@ class Test3 extends Component {
   render() {
     let children = []; //
     if (this.run % 2 == 0) {
-      for (let i = 0; i < ITERATIONS; i++)
-        children.push(<input key={"test3.even." + i} placeholder="even" />);
+      for (let i = 0; i < ITERATIONS; i++) children.push(<input key={"test3.even." + i} placeholder="even" />);
     } else {
-      for (let i = 0; i < this.iterations; i++)
-        children.push(<input key={"test3.odd." + i} placeholder="odd" />);
+      for (let i = 0; i < this.iterations; i++) children.push(<input key={"test3.odd." + i} placeholder="odd" />);
     }
     return children;
   }
@@ -93,7 +90,7 @@ class Test4 extends Component {
       children.push(
         <Recursive iterations={ITERATIONS / 10}>
           <div>{this.run}</div>
-        </Recursive>
+        </Recursive>,
       );
     }
     return children;

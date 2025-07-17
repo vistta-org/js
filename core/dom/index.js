@@ -1,24 +1,5 @@
-import {
-  Fragment,
-  TextNode,
-  Element,
-  Mutation,
-  Context,
-  Ref,
-  Component,
-  ScopedFragment,
-  Profiler,
-  Suspense,
-  Safe,
-  Form,
-} from "../classes.js";
-import {
-  RESOURCES_PATH,
-  capitalize,
-  addUnique,
-  proxy,
-  ensureArray,
-} from "../../utils/index.js";
+import { RESOURCES_PATH, addUnique, capitalize, ensureArray, proxy } from "../../utils/index.js";
+import { Component, Context, Element, Form, Fragment, Mutation, Profiler, Ref, Safe, ScopedFragment, Suspense, TextNode } from "../classes.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
 let componentMutationCount = 0;
@@ -54,18 +35,10 @@ class VirtualDom {
   }
 
   setAttribute(element, name, value, disabledOrReadOnly) {
-    if (
-      (name === "validator" && typeof value === "function") ||
-      element.attributes[name] === value
-    )
-      return;
+    if ((name === "validator" && typeof value === "function") || element.attributes[name] === value) return;
     element.attributes[name] = value;
     const node = element.node;
-    if (
-      !disabledOrReadOnly &&
-      /^on\w.*/.test(name) &&
-      typeof value === "function"
-    ) {
+    if (!disabledOrReadOnly && /^on\w.*/.test(name) && typeof value === "function") {
       node[name.toLowerCase()] = (event, ...args) => {
         try {
           event.stritMode = () => {
@@ -83,15 +56,11 @@ class VirtualDom {
     else if (name === "value") node.value = value;
     else if (name === "style" && typeof value === "object") {
       const keys = Object.keys(value);
-      for (let i = 0, len = keys.length || 0; i < len; i++)
-        node.style.setProperty(keys[i], value[keys[i]]);
+      for (let i = 0, len = keys.length || 0; i < len; i++) node.style.setProperty(keys[i], value[keys[i]]);
     } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
-    if (name.startsWith("style-") && value)
-      this.addStyleSheet(name.replace("style-", ""), true);
-    if (!window.isServer && name === "id" && value)
-      node.style.setProperty("anchor-name", `--a_${value.toLowerCase()}`);
-    if (name === "anchor")
-      node.style.setProperty("position-anchor", `--a_${value.toLowerCase()}`);
+    if (name.startsWith("style-") && value) this.addStyleSheet(name.replace("style-", ""), true);
+    if (!window.isServer && name === "id" && value) node.style.setProperty("anchor-name", `--a_${value.toLowerCase()}`);
+    if (name === "anchor") node.style.setProperty("position-anchor", `--a_${value.toLowerCase()}`);
   }
 
   render(element) {
@@ -107,9 +76,7 @@ class VirtualDom {
     });
     if (!window.isServer) {
       for (let i = 0, len = this.config?.styles?.length || 0; i < len; i++)
-        this.addStyleSheet(
-          Object.keys(this.config.styles[i])[0].replace("style-", "")
-        );
+        this.addStyleSheet(Object.keys(this.config.styles[i])[0].replace("style-", ""));
       this.replaceStyleSheets();
     }
     this.host.replaceChildren(host.node);
@@ -121,8 +88,7 @@ class VirtualDom {
   }
 
   enqueue(mutations) {
-    if (!Array.isArray(mutations))
-      throw new VirtualDomError("Internal Error #001");
+    if (!Array.isArray(mutations)) throw new VirtualDomError("Internal Error #001");
     this.queue.push(...mutations);
     if (!this.active || this.running) return;
     this.running = true;
@@ -135,14 +101,12 @@ class VirtualDom {
       const mutation = this.queue.shift();
       mutation.update?.();
       // Break to avoid exceeding frame budget
-      if (performance.now() - startTime > 16)
-        return requestAnimationFrame(() => this.update());
+      if (performance.now() - startTime > 16) return requestAnimationFrame(() => this.update());
     }
 
     const affectedComponents = this.affectedComponents;
     this.affectedComponents = [];
-    for (let i = 0, len = affectedComponents.length; i < len; i++)
-      affectedComponents[i].onUpdate?.();
+    for (let i = 0, len = affectedComponents.length; i < len; i++) affectedComponents[i].onUpdate?.();
     const profilers = this.profilers;
     this.profilers = [];
     for (let i = 0, len = profilers.length; i < len; i++) profilers[i].end();
@@ -150,8 +114,7 @@ class VirtualDom {
   }
 
   disable() {
-    if (!this.virtualTree)
-      throw new VirtualDomError("Virtual Dom not rendered");
+    if (!this.virtualTree) throw new VirtualDomError("Virtual Dom not rendered");
     traverseVirtualTree(this.virtualTree, (element) => {
       if (element.type === Component.Node) element.component?.onDisconnect?.();
     });
@@ -160,8 +123,7 @@ class VirtualDom {
   }
 
   enable() {
-    if (!this.virtualTree)
-      throw new VirtualDomError("Virtual Dom not rendered");
+    if (!this.virtualTree) throw new VirtualDomError("Virtual Dom not rendered");
     this.active = true;
     this.running = true;
     traverseVirtualTree(this.virtualTree, (element) => {
@@ -191,9 +153,7 @@ class VirtualDom {
   addStyleSheet(style, scoped) {
     style = `/${RESOURCES_PATH}/${style}${scoped ? ".scoped" : ""}.css`;
     if (this.styleSheets[style]) return;
-    let stylesheet = document.querySelector(
-      `link[rel="stylesheet"][href="${style}"]`
-    );
+    let stylesheet = document.querySelector(`link[rel="stylesheet"][href="${style}"]`);
     if (!stylesheet) {
       stylesheet = document.createElement("link");
       stylesheet.rel = "stylesheet";
@@ -224,8 +184,7 @@ class VirtualDom {
 export { VirtualDom };
 
 function renderElement(virtualDom, parent, element, context, referenceNode) {
-  if (!(element instanceof Element))
-    element = convertToElement(virtualDom, element);
+  if (!(element instanceof Element)) element = convertToElement(virtualDom, element);
   element.mutations = [];
   element.parent = parent;
   element.context = context;
@@ -248,27 +207,18 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
   // Element Node
   if (typeof element.type === "string") {
     if (element.key?.length > 0) {
-      if (element.key instanceof Mutation)
-        throw new VirtualDomError("Internal Error #002");
-      if (virtualDom.keys[element.key] == null)
-        virtualDom.keys[element.key] = element;
-      else if (virtualDom.keys[element.key].type !== element.type)
-        throw new VirtualDomError(`Key ${element.key} already in use.`);
+      if (element.key instanceof Mutation) throw new VirtualDomError("Internal Error #002");
+      if (virtualDom.keys[element.key] == null) virtualDom.keys[element.key] = element;
+      else if (virtualDom.keys[element.key].type !== element.type) throw new VirtualDomError(`Key ${element.key} already in use.`);
       else {
-        element = updateElement(
-          virtualDom,
-          virtualDom.keys[element.key],
-          element.props,
-          element.children
-        );
+        element = updateElement(virtualDom, virtualDom.keys[element.key], element.props, element.children);
         element.active = true;
         appendElement(parent, element, referenceNode);
         return element;
       }
     }
     element.node = virtualDom.createElement(element.type);
-    if (element.ref instanceof Mutation)
-      throw new VirtualDomError("Internal Error #003");
+    if (element.ref instanceof Mutation) throw new VirtualDomError("Internal Error #003");
     if (typeof element.ref === "function") element.ref(element.node);
     else if (element.ref instanceof Ref) element.ref.node = element.node;
     element.node._element = element;
@@ -279,9 +229,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
       context.scoped = null;
     }
     const keys = Object.keys(element.props);
-    const disabledOrReadOnly =
-      getPropValue(element.props.disabled) ||
-      getPropValue(element.props.readOnly);
+    const disabledOrReadOnly = getPropValue(element.props.disabled) || getPropValue(element.props.readOnly);
     for (let i = 0, len = keys.length; i < len; i++) {
       const prop = element.props[keys[i]];
       if (prop instanceof Mutation)
@@ -290,17 +238,9 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
           element,
           prop,
           evalMutation(prop, (value) =>
-            virtualDom.setAttribute(
-              element,
-              keys[i],
-              value,
-              getPropValue(element.props.disabled) ||
-                getPropValue(element.props.readOnly)
-            )
+            virtualDom.setAttribute(element, keys[i], value, getPropValue(element.props.disabled) || getPropValue(element.props.readOnly)),
           ),
-          evalMutationAsync(virtualDom, prop, (value) =>
-            virtualDom.setAttribute(element, keys[i], value, disabledOrReadOnly)
-          )
+          evalMutationAsync(virtualDom, prop, (value) => virtualDom.setAttribute(element, keys[i], value, disabledOrReadOnly)),
         );
       else virtualDom.setAttribute(element, keys[i], prop, disabledOrReadOnly);
     }
@@ -311,28 +251,16 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
   }
 
   // Fragment Node
-  if (element.type === Fragment)
-    return (
-      renderElementChildren(
-        virtualDom,
-        element,
-        element.children,
-        context,
-        referenceNode
-      ),
-      element
-    );
+  if (element.type === Fragment) return (renderElementChildren(virtualDom, element, element.children, context, referenceNode), element);
 
   // Component Node
   if (element.type === Component.Node) {
     let component;
     const hasKey = element.key?.length > 0;
     if (hasKey) {
-      if (element.key instanceof Mutation)
-        throw new VirtualDomError("Internal Error #002");
+      if (element.key instanceof Mutation) throw new VirtualDomError("Internal Error #002");
       if (virtualDom.keys[element.key] != null) {
-        if (virtualDom.keys[element.key].type !== element.Component)
-          throw new VirtualDomError(`Key ${element.key} already in use.`);
+        if (virtualDom.keys[element.key].type !== element.Component) throw new VirtualDomError(`Key ${element.key} already in use.`);
         const previous = virtualDom.keys[element.key].element;
         previous.parent = parent;
         const appendChildren = (element) => {
@@ -343,11 +271,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
           }
         };
         appendChildren(previous);
-        traverseVirtualTree(
-          previous,
-          (element) =>
-            element.type === Component.Node && element.component?.onConnect?.()
-        );
+        traverseVirtualTree(previous, (element) => element.type === Component.Node && element.component?.onConnect?.());
         return {
           ...previous,
           ...element,
@@ -355,47 +279,32 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
       }
     }
 
-    if (element.Component.prototype instanceof Component)
-      component = new element.Component();
+    if (element.Component.prototype instanceof Component) component = new element.Component();
     else {
       component = element.Component();
-      if (
-        typeof component !== "object" ||
-        typeof component.render !== "function"
-      )
-        throw new VirtualDomError("Invalid Function Component format");
+      if (typeof component !== "object" || typeof component.render !== "function") throw new VirtualDomError("Invalid Function Component format");
       component = Object.assign(new Component(), component);
     }
-    if (hasKey)
-      virtualDom.keys[element.key] = { type: element.Component, element };
+    if (hasKey) virtualDom.keys[element.key] = { type: element.Component, element };
 
     context.components.push(component);
     element.attributes = {};
     const previous = {};
     //
-    if (element.Component === ScopedFragment)
-      context.scoped = getPropValue(element.props.style);
+    if (element.Component === ScopedFragment) context.scoped = getPropValue(element.props.style);
     else if (element.Component === Form) {
       if (context.form) component.register(context.form);
       else context.form = component;
-    } else if (
-      element.Component === Profiler &&
-      "production" !== process.env.NODE_ENV
-    ) {
+    } else if (element.Component === Profiler && "production" !== process.env.NODE_ENV) {
       addUnique(virtualDom.profilers, component);
       context.profiler = component;
     } else if (element.component === Safe) context.safe = component;
     const keys = Object.keys(element.props);
-    for (let i = 0, len = keys.length; i < len; i++)
-      component[keys[i]] ??= true;
+    for (let i = 0, len = keys.length; i < len; i++) component[keys[i]] ??= true;
     const propertyNames = Object.getOwnPropertyNames(component);
     for (let i = 0, len = propertyNames.length; i < len; i++) {
       const propertyName = propertyNames[i];
-      if (
-        propertyName === "render" ||
-        propertyName === "onConnect" ||
-        propertyName === "onDisconnect"
-      )
+      if (propertyName === "render" || propertyName === "onConnect" || propertyName === "onDisconnect")
         Object.defineProperty(component, propertyName, {
           configurable: false,
           enumerable: false,
@@ -449,14 +358,9 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
               element.attributes[propertyName] = value;
               virtualDom.enqueue(mutations);
             }),
-            evalMutationAsync(
-              virtualDom,
-              mutation,
-              (value) => (element.attributes[propertyName] = value)
-            )
+            evalMutationAsync(virtualDom, mutation, (value) => (element.attributes[propertyName] = value)),
           );
-        } else if (element.props[propertyName] != null)
-          element.attributes[propertyName] = element.props[propertyName];
+        } else if (element.props[propertyName] != null) element.attributes[propertyName] = element.props[propertyName];
         if (element.attributes[propertyName] instanceof Promise) {
           let fulfilled = false;
           let suspense;
@@ -471,10 +375,8 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
             configurable: false,
             enumerable: true,
             get: () => {
-              if (virtualDom.mutation)
-                addUnique(mutations, virtualDom.mutation);
-              if (!fulfilled && virtualDom.suspense)
-                suspense = virtualDom.suspense.register();
+              if (virtualDom.mutation) addUnique(mutations, virtualDom.mutation);
+              if (!fulfilled && virtualDom.suspense) suspense = virtualDom.suspense.register();
               return element.attributes[propertyName];
             },
             set: (v) => {
@@ -488,8 +390,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
             configurable: false,
             enumerable: propertyName !== "children",
             get: () => {
-              if (virtualDom.mutation)
-                addUnique(mutations, virtualDom.mutation);
+              if (virtualDom.mutation) addUnique(mutations, virtualDom.mutation);
               return element.attributes[propertyName];
             },
             set: (v) => {
@@ -508,9 +409,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         get: () => context.safe.error,
       });
 
-    const mutation = new Mutation(`##${componentMutationCount++}`, () =>
-      component.render()
-    );
+    const mutation = new Mutation(`##${componentMutationCount++}`, () => component.render());
 
     if (element.Component === Suspense) {
       const fragment = {
@@ -524,32 +423,15 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         for (let i = 0, len = element.children.length; i < len; i++) {
           if (!element.children[i]) continue;
           removeElement(element.children[i]);
-          traverseVirtualTree(
-            element.children[i],
-            (element) =>
-              element.type === Component.Node && component?.onDisconnect?.()
-          );
+          traverseVirtualTree(element.children[i], (element) => element.type === Component.Node && component?.onDisconnect?.());
         }
         element.children = fragment.children;
-        for (let i = 0, len = element.children.length; i < len; i++)
-          element.children[i].parent = element;
-        while (fragment.node.firstChild)
-          appendElement(
-            element,
-            { node: fragment.node.firstChild },
-            referenceNode
-          );
+        for (let i = 0, len = element.children.length; i < len; i++) element.children[i].parent = element;
+        while (fragment.node.firstChild) appendElement(element, { node: fragment.node.firstChild }, referenceNode);
       };
       const result = mutation();
-      if (element instanceof Promise)
-        throw new VirtualDomError("Suspense render cannot be async");
-      renderElementChildren(
-        virtualDom,
-        fragment,
-        ensureArray(result),
-        context,
-        referenceNode
-      );
+      if (element instanceof Promise) throw new VirtualDomError("Suspense render cannot be async");
+      renderElementChildren(virtualDom, fragment, ensureArray(result), context, referenceNode);
       virtualDom.suspense = null;
       element.mutation = applyMutation(
         virtualDom,
@@ -559,35 +441,18 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         () =>
           component.fulfilled
             ? replaceChildren()
-            : renderElementChildren(
-                virtualDom,
-                element,
-                ensureArray(component.render(replaceChildren)),
-                context,
-                referenceNode
-              )
+            : renderElementChildren(virtualDom, element, ensureArray(component.render(replaceChildren)), context, referenceNode),
       );
     } else
       element.mutation = applyMutation(
         virtualDom,
         element,
         mutation,
-        evalMutation(mutation, (value) =>
-          updateElement(virtualDom, element, null, ensureArray(value))
-        ),
-        evalMutationAsync(virtualDom, mutation, (value) =>
-          renderElementChildren(
-            virtualDom,
-            element,
-            ensureArray(value),
-            context,
-            referenceNode
-          )
-        )
+        evalMutation(mutation, (value) => updateElement(virtualDom, element, null, ensureArray(value))),
+        evalMutationAsync(virtualDom, mutation, (value) => renderElementChildren(virtualDom, element, ensureArray(value), context, referenceNode)),
       );
 
-    if (!window.isServer && component.onConnect)
-      preventMutation(virtualDom, () => component.onConnect?.());
+    if (!window.isServer && component.onConnect) preventMutation(virtualDom, () => component.onConnect?.());
     element.component = component;
     return element;
   }
@@ -599,8 +464,7 @@ function updateElement(virtualDom, element, props, children) {
   const context = element.context;
   if (element.type === null) return element;
   if (element.type === TextNode) {
-    if (children[0] !== element.node.textContent)
-      element.node.textContent = children[0];
+    if (children[0] !== element.node.textContent) element.node.textContent = children[0];
     return element;
   }
 
@@ -622,16 +486,14 @@ function updateElement(virtualDom, element, props, children) {
             if (value === element.attributes[keys[i]]) return;
             element.attributes[keys[i]] = value;
             updateChildren = true;
-          })
+          }),
         );
       } else element.component[keys[i]] = props[keys[i]];
     }
     if (updateChildren) children = ensureArray(element.mutation());
   } else if (element.type !== Fragment) {
     const keys = Object.keys(props || {});
-    const disabledOrReadOnly =
-      getPropValue(element.props.disabled) ||
-      getPropValue(element.props.readOnly);
+    const disabledOrReadOnly = getPropValue(element.props.disabled) || getPropValue(element.props.readOnly);
     for (let i = 0, len = keys.length; i < len; i++) {
       if (!(props[keys[i]] instanceof Mutation)) continue;
       applyMutation(
@@ -639,18 +501,12 @@ function updateElement(virtualDom, element, props, children) {
         element,
         element.props[keys[i]],
         evalMutation(props[keys[i]], (value) =>
-          virtualDom.setAttribute(
-            element,
-            keys[i],
-            value,
-            getPropValue(element.props.disabled) ||
-              getPropValue(element.props.readOnly)
-          )
+          virtualDom.setAttribute(element, keys[i], value, getPropValue(element.props.disabled) || getPropValue(element.props.readOnly)),
         ),
         evalMutationAsync(virtualDom, props[keys[i]], (value) => {
           if (value === element.attributes[keys[i]]) return;
           virtualDom.setAttribute(element, keys[i], value, disabledOrReadOnly);
-        })
+        }),
       );
     }
   }
@@ -661,11 +517,9 @@ function updateElement(virtualDom, element, props, children) {
     element.children = [];
     for (let i = 0, len = children.length; i < len; i++) {
       let child = children[i];
-      if (!(child instanceof Element))
-        child = convertToElement(virtualDom, child, true);
+      if (!(child instanceof Element)) child = convertToElement(virtualDom, child, true);
       let matches = [];
-      for (let j = 0, len = previous.length; j < len; j++)
-        if (elementEquals(child, previous[j])) matches.push(j);
+      for (let j = 0, len = previous.length; j < len; j++) if (elementEquals(child, previous[j])) matches.push(j);
       if (matches.length !== 1) changes[i] = { type: "insert", element: child };
       else {
         const match = matches[0];
@@ -685,8 +539,7 @@ function updateElement(virtualDom, element, props, children) {
       removeElement(previous[i]);
       traverseVirtualTree(previous[i], (element) => {
         element.active = false;
-        if (element.type === Component.Node)
-          element.component?.onDisconnect?.();
+        if (element.type === Component.Node) element.component?.onDisconnect?.();
       });
     }
 
@@ -702,33 +555,21 @@ function updateElement(virtualDom, element, props, children) {
             components: [...context.components],
             depth: context.depth + 1,
           },
-          referenceNode
+          referenceNode,
         );
       } else if (changes[i].type === "update") {
         if (changes[i].previous.type === Component.Node)
-          element.children[i] = updateElement(
-            virtualDom,
-            changes[i].previous,
-            changes[i].element.props
-          );
+          element.children[i] = updateElement(virtualDom, changes[i].previous, changes[i].element.props);
         else if (changes[i].previous.mutation)
-          element.children[i] = updateElement(
-            virtualDom,
-            changes[i].previous,
-            changes[i].element.props,
-            ensureArray(changes[i].element.mutation())
-          );
+          element.children[i] = updateElement(virtualDom, changes[i].previous, changes[i].element.props, ensureArray(changes[i].element.mutation()));
         else
           element.children[i] = updateElement(
             virtualDom,
             changes[i].previous,
             changes[i].element.props,
-            changes[i].element.children.length > 0
-              ? changes[i].element.children
-              : [null]
+            changes[i].element.children.length > 0 ? changes[i].element.children : [null],
           );
-        if (changes[i].move)
-          appendElement(element, changes[i].previous, referenceNode);
+        if (changes[i].move) appendElement(element, changes[i].previous, referenceNode);
       }
       referenceNode = element.children[i].node || element.children[i].firstNode;
     }
@@ -737,21 +578,9 @@ function updateElement(virtualDom, element, props, children) {
       if (!element.children[i]) continue;
       const type = element.children[i].type;
       if (type === Fragment && element.children[i].mutation)
-        element.children[i] = updateElement(
-          virtualDom,
-          element.children[i],
-          null,
-          ensureArray(element.children[i].mutation())
-        );
-      else if (type === Component.Node)
-        element.children[i] = updateElement(virtualDom, element.children[i]);
-      else
-        element.children[i] = updateElement(
-          virtualDom,
-          element.children[i],
-          element.children[i].props,
-          element.children[i].children
-        );
+        element.children[i] = updateElement(virtualDom, element.children[i], null, ensureArray(element.children[i].mutation()));
+      else if (type === Component.Node) element.children[i] = updateElement(virtualDom, element.children[i]);
+      else element.children[i] = updateElement(virtualDom, element.children[i], element.children[i].props, element.children[i].children);
     }
   }
 
@@ -759,8 +588,7 @@ function updateElement(virtualDom, element, props, children) {
 }
 
 function convertToElement(virtualDom, element, ignoreMutation = false) {
-  if (element === null || element === undefined || element === false)
-    return new Element(null);
+  if (element === null || element === undefined || element === false) return new Element(null);
   if (Array.isArray(element)) return new Element(Fragment, null, element);
   else if (element instanceof Mutation) {
     const mutation = element;
@@ -772,32 +600,18 @@ function convertToElement(virtualDom, element, ignoreMutation = false) {
         virtualDom,
         element,
         mutation,
-        evalMutation(mutation, (value) =>
-          updateElement(virtualDom, element, null, ensureArray(value))
-        ),
-        evalMutationAsync(
-          virtualDom,
-          mutation,
-          (value) => (element.children = ensureArray(value))
-        )
+        evalMutation(mutation, (value) => updateElement(virtualDom, element, null, ensureArray(value))),
+        evalMutationAsync(virtualDom, mutation, (value) => (element.children = ensureArray(value))),
       );
     else element.mutation = mutation;
     return element;
   } else if (typeof element === "function") return new Element(element);
   else if (typeof element === "object" || element instanceof Promise)
-    throw new VirtualDomError(
-      `${capitalize(typeof element)} is not a valid Element`
-    );
+    throw new VirtualDomError(`${capitalize(typeof element)} is not a valid Element`);
   return new Element(TextNode, null, "" + element);
 }
 
-function renderElementChildren(
-  virtualDom,
-  element,
-  children,
-  context,
-  referenceNode
-) {
+function renderElementChildren(virtualDom, element, children, context, referenceNode) {
   element.children = [];
   if (!children || children.length === 0)
     return (element.children[0] = renderElement(
@@ -809,7 +623,7 @@ function renderElementChildren(
         components: [...context.components],
         depth: context.depth + 1,
       },
-      referenceNode
+      referenceNode,
     ));
   for (let i = 0, len = children.length; i < len; i++)
     element.children[i] = renderElement(
@@ -821,7 +635,7 @@ function renderElementChildren(
         components: [...context.components],
         depth: context.depth + 1,
       },
-      referenceNode
+      referenceNode,
     );
 }
 
@@ -829,15 +643,13 @@ function applyMutation(virtualDom, element, mutation, update, init) {
   const updateWrapper = () => {
     if (!element.active) return;
     const components = element.context.components;
-    for (let i = 0, len = components.length; i < len; i++)
-      addUnique(virtualDom.affectedComponents, components[i]);
+    for (let i = 0, len = components.length; i < len; i++) addUnique(virtualDom.affectedComponents, components[i]);
     update();
   };
   const safe = element?.context?.safe;
   if (element?.context?.profiler)
-    mutation.update = element.context.profiler.record(
-      safe ? safe.catch(updateWrapper) : updateWrapper,
-      (profiler) => addUnique(virtualDom.profilers, profiler)
+    mutation.update = element.context.profiler.record(safe ? safe.catch(updateWrapper) : updateWrapper, (profiler) =>
+      addUnique(virtualDom.profilers, profiler),
     );
   else mutation.update = safe ? safe.catch(updateWrapper) : updateWrapper;
 
@@ -883,17 +695,13 @@ function preventMutation(virtualDom, callback) {
 function appendElement(parent, element, referenceNode) {
   if (parent.type === Fragment || parent.type === Component.Node) {
     if (referenceNode) {
-      if (!parent.firstNode)
-        parent.firstNode = element.node || element.firstNode;
-      else if (referenceNode === parent.firstNode)
-        parent.firstNode = element.node || element.firstNode;
+      if (!parent.firstNode) parent.firstNode = element.node || element.firstNode;
+      else if (referenceNode === parent.firstNode) parent.firstNode = element.node || element.firstNode;
       if (!parent.lastNode) parent.lastNode = element.node || element.lastNode;
-      else if (referenceNode.previousSibling === parent.lastNode)
-        parent.lastNode = element.node || element.lastNode;
+      else if (referenceNode.previousSibling === parent.lastNode) parent.lastNode = element.node || element.lastNode;
       appendElement(parent.parent, element, referenceNode);
     } else {
-      if (!parent.firstNode)
-        parent.firstNode = element.node || element.firstNode;
+      if (!parent.firstNode) parent.firstNode = element.node || element.firstNode;
       parent.lastNode = element.node || element.lastNode;
       appendElement(parent.parent, element);
     }
@@ -922,11 +730,9 @@ function removeElement(element) {
   const remove = (parent, node) => {
     while (parent.type === Fragment || parent.type === Component.Node) {
       if (parent.firstNode === node) {
-        if (parent.firstNode === parent.lastNode)
-          ((parent.firstNode = null), (parent.lastNode = null));
+        if (parent.firstNode === parent.lastNode) ((parent.firstNode = null), (parent.lastNode = null));
         else parent.firstNode = parent.firstNode.nextSibling;
-      } else if (parent.lastNode === node)
-        parent.lastNode = parent.lastNode.previousSibling;
+      } else if (parent.lastNode === node) parent.lastNode = parent.lastNode.previousSibling;
       parent = parent.parent;
     }
     parent.node.removeChild(node);
@@ -951,17 +757,13 @@ function elementEquals(a, b) {
     a?.type === b?.type &&
     (a.type === null ||
       a.type === TextNode ||
-      (a.key || b.key
-        ? a.key === b.key
-        : a.id === b.id &&
-          (a.type !== Component.Node || a.Component === b.Component)))
+      (a.key || b.key ? a.key === b.key : a.id === b.id && (a.type !== Component.Node || a.Component === b.Component)))
   );
 }
 
 function traverseVirtualTree(element, callback) {
   if (!element) return;
-  for (let i = 0, len = element?.children?.length || 0; i < len; i++)
-    traverseVirtualTree(element.children[i], callback);
+  for (let i = 0, len = element?.children?.length || 0; i < len; i++) traverseVirtualTree(element.children[i], callback);
   callback(element);
 }
 

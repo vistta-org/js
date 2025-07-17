@@ -7,8 +7,7 @@ class Test extends Component {
   render() {
     let children = []; //
     const target = this.run % 2 == 0 ? "even" : "odd";
-    for (let i = 0; i < ITERATIONS; i++)
-      children.push(<input key={`test.${target}.${i}`} placeholder={target} />);
+    for (let i = 0; i < ITERATIONS; i++) children.push(<input key={`test.${target}.${i}`} placeholder={target} />);
     return children;
   }
 }

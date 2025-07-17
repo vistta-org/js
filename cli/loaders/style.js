@@ -1,16 +1,10 @@
 import fs from "@vistta/fs";
-import { RESOURCES_PATH } from "../../utils/index.js";
-import { pathToFileURL, fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-import {
-  compileStringAsync as compileSassString,
-  SassBoolean,
-  SassNumber,
-  SassString,
-  SassColor,
-} from "sass-embedded";
-import postcss from "postcss";
 import autoprefixer from "autoprefixer";
+import { createRequire } from "node:module";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import postcss from "postcss";
+import { compileStringAsync as compileSassString, SassBoolean, SassColor, SassNumber, SassString } from "sass-embedded";
+import { RESOURCES_PATH } from "../../utils/index.js";
 
 const EXT = [".sass", ".scss", ".css"];
 const require = createRequire(import.meta.url);
@@ -19,11 +13,7 @@ export async function load(source, { path }) {
   try {
     const dirname = fs.dirname(path);
     const id = fs.fileId(path);
-    const { code, resources, files } = await transform(
-      source,
-      dirname,
-      fs.resolve(process.cwd(), "node_modules")
-    );
+    const { code, resources, files } = await transform(source, dirname, fs.resolve(process.cwd(), "node_modules"));
     resources.push({ hash: id + ".css", code });
     resources.push({
       hash: id + ".scoped.css",
@@ -43,36 +33,28 @@ export async function load(source, { path }) {
 
 async function transform(code, dirname, node_modules, params = {}) {
   const resources = [];
-  const compiled = await compileSassString(
-    loadResources(dirname, code, resources),
-    {
-      style: "compressed",
-      loadPaths: [dirname, node_modules],
-      silenceDeprecations: ["mixed-decls"],
-      functions: {
-        "prop($name, $default)": (args) =>
-          convertToSass(params[args[0].assertString("name").text], args[1]),
-      },
-      importers: [
-        {
-          canonicalize(url) {
-            return resolve(dirname, url);
-          },
-          load(canonicalUrl) {
-            const path = fileURLToPath(canonicalUrl);
-            return {
-              contents: loadResources(
-                fs.dirname(path),
-                "" + fs.readFileSync(path),
-                resources
-              ),
-              syntax: fs.extname(path).slice(1),
-            };
-          },
+  const compiled = await compileSassString(loadResources(dirname, code, resources), {
+    style: "compressed",
+    loadPaths: [dirname, node_modules],
+    silenceDeprecations: ["mixed-decls"],
+    functions: {
+      "prop($name, $default)": (args) => convertToSass(params[args[0].assertString("name").text], args[1]),
+    },
+    importers: [
+      {
+        canonicalize(url) {
+          return resolve(dirname, url);
         },
-      ],
-    }
-  );
+        load(canonicalUrl) {
+          const path = fileURLToPath(canonicalUrl);
+          return {
+            contents: loadResources(fs.dirname(path), "" + fs.readFileSync(path), resources),
+            syntax: fs.extname(path).slice(1),
+          };
+        },
+      },
+    ],
+  });
   return {
     code:
       postcss([autoprefixer()]).process(compiled.css || "", {
@@ -104,9 +86,7 @@ function convertToSass(input, fallback) {
       return new SassNumber(input);
     case "string":
       if (/^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(input)) {
-        const color = [...input.matchAll(/([0-9A-Fa-f]{2})/g)].map(
-          (match) => match[1]
-        );
+        const color = [...input.matchAll(/([0-9A-Fa-f]{2})/g)].map((match) => match[1]);
         return new SassColor({
           red: parseInt(color[0], 16),
           green: parseInt(color[1], 16),
@@ -114,16 +94,8 @@ function convertToSass(input, fallback) {
           alpha: parseInt(color[3], 16),
         });
       }
-      if (
-        /^rgba?\((\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*,?\s*(\d*\.?\d+)?\s*)\)$/.test(
-          input
-        )
-      ) {
-        const color = input
-          .match(
-            /rgba?\((\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*,?\s*(\d*\.?\d+)?\s*)\)/
-          )[1]
-          .split(",");
+      if (/^rgba?\((\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*,?\s*(\d*\.?\d+)?\s*)\)$/.test(input)) {
+        const color = input.match(/rgba?\((\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*,?\s*(\d*\.?\d+)?\s*)\)/)[1].split(",");
         return new SassColor({
           red: parseInt(color[0] || 255),
           green: parseInt(color[1] || 255),

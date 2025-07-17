@@ -1,7 +1,7 @@
-import { default as DefaultCLI } from "./default.js";
 import { COLORS } from "@vistta/console";
-import Server from "../server/index.js";
 import fs from "@vistta/fs";
+import Server from "../server/index.js";
+import { default as DefaultCLI } from "./default.js";
 
 const dirname = import.meta.dirname;
 
@@ -13,25 +13,17 @@ export default class extends DefaultCLI {
     console.print("\nUsage:");
     switch (command) {
       default:
-        console.print(
-          "vistta server start [folder]\tStart a web server using the specified folder as the router."
-        );
-        console.print(
-          "vistta server build [folder]\tBuilds the specified folder into a static web page files."
-        );
+        console.print("vistta server start [folder]\tStart a web server using the specified folder as the router.");
+        console.print("vistta server build [folder]\tBuilds the specified folder into a static web page files.");
         break;
       case "start":
-        console.print(
-          "vistta server start [folder]\tStart a web server using the specified folder as the router."
-        );
+        console.print("vistta server start [folder]\tStart a web server using the specified folder as the router.");
         console.print("Options:");
         console.print("--http\tPort for HTTP server. Default is 80/3000.");
         console.print("--https\tPort for HTTPS server. Default is 443.");
         break;
       case "build":
-        console.print(
-          "vistta server build [folder]\tBuilds the specified folder into a static web page files."
-        );
+        console.print("vistta server build [folder]\tBuilds the specified folder into a static web page files.");
         break;
     }
   }
@@ -48,8 +40,7 @@ export default class extends DefaultCLI {
   async start(folder, options) {
     if (!(folder?.length > 0)) return this.help("start");
     if (process.env.NODE_ENV === "development") await this.outdated();
-    const { version } = (await import(fs.resolve(dirname, "../package.json")))
-      .default;
+    const { version } = (await import(fs.resolve(dirname, "../package.json"))).default;
     console.clear();
     this.#announcer = console.print(`Vistta JS v${version}`);
     console.println();
@@ -65,50 +56,32 @@ export default class extends DefaultCLI {
         case "http":
         case "https":
           console.time("routes");
-          return this.#announcer.replace((_, data) => [
-            ...data,
-            `\n${type}://localhost:${port}`,
-          ]);
+          return this.#announcer.replace((_, data) => [...data, `\n${type}://localhost:${port}`]);
         case "page":
           if (counter.page.includes(pathname)) break;
           counter.page.push(pathname);
-          if (counter.log)
-            counter.log.replace(
-              `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`
-            );
-          else
-            counter.log = console.timeLog(
-              "routes",
-              `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`
-            );
+          if (counter.log) counter.log.replace(`Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
+          else counter.log = console.timeLog("routes", `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
           break;
         case "api":
           if (counter.api.includes(pathname)) break;
           counter.api.push(pathname);
-          if (counter.log)
-            counter.log.replace(
-              `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`
-            );
-          else
-            counter.log = console.timeLog(
-              "routes",
-              `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`
-            );
+          if (counter.log) counter.log.replace(`Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
+          else counter.log = console.timeLog("routes", `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
           break;
       }
     });
     server.on("request", ({ method, subdomain, url, status }) =>
       console.log(
-        `${status >= 400 ? COLORS.RED : status >= 300 ? COLORS.DIM : COLORS.GREEN}${status}${COLORS.RESET} ${method}${subdomain !== "" ? " " + subdomain : ""} ${url}`
-      )
+        `${status >= 400 ? COLORS.RED : status >= 300 ? COLORS.DIM : COLORS.GREEN}${status}${COLORS.RESET} ${method}${subdomain !== "" ? " " + subdomain : ""} ${url}`,
+      ),
     );
   }
 
   async build(folder, output = "dist", options) {
     if (!(folder?.length > 0)) return this.help("build");
     if (process.env.NODE_ENV === "development") await this.outdated();
-    const { version } = (await import(fs.resolve(dirname, "../package.json")))
-      .default;
+    const { version } = (await import(fs.resolve(dirname, "../package.json"))).default;
     console.clear();
     console.print(`Vistta JS v${version}`);
     console.println();

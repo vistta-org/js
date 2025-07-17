@@ -1,11 +1,6 @@
-import { VirtualDom } from "./dom/index.js";
+import { BoundClass, RESOURCES_PATH, async, isValidUrl } from "../utils/index.js";
 import { Element } from "./classes.js";
-import {
-  isValidUrl,
-  BoundClass,
-  RESOURCES_PATH,
-  async,
-} from "../utils/index.js";
+import { VirtualDom } from "./dom/index.js";
 
 export class Router extends BoundClass {
   #routes = {};
@@ -26,49 +21,24 @@ export class Router extends BoundClass {
   async navigate(arg) {
     const initial = !this.#loaded;
     this.#loaded = true;
-    let { href, pushState, refresh } =
-      typeof arg === "object" ? arg : { href: arg };
+    let { href, pushState, refresh } = typeof arg === "object" ? arg : { href: arg };
     if (!refresh && !initial) refresh = href === true;
-    const updateHistory =
-      pushState !== false
-        ? (url) => history.pushState({}, "", url)
-        : (url) => history.replaceState({}, "", url);
+    const updateHistory = pushState !== false ? (url) => history.pushState({}, "", url) : (url) => history.replaceState({}, "", url);
 
-    if (isValidUrl(href) && !isAppUrl(href))
-      return (window.location.href = href);
-    const { pathname, hash, search } = href
-      ? new URL(href, window.location.href)
-      : new URL(window.location.href);
-    if (
-      this.#previous?.pathname === pathname &&
-      this.#previous?.search === search &&
-      this.#previous?.hash === hash
-    )
-      return;
+    if (isValidUrl(href) && !isAppUrl(href)) return (window.location.href = href);
+    const { pathname, hash, search } = href ? new URL(href, window.location.href) : new URL(window.location.href);
+    if (this.#previous?.pathname === pathname && this.#previous?.search === search && this.#previous?.hash === hash) return;
 
     if (initial || refresh || pathname !== this.#virtualDom.pathname) {
       const cachedVirtualDom = this.#routes?.[pathname];
       this.#virtualDom?.disable();
       try {
         if (initial || refresh || !cachedVirtualDom) {
-          const {
-            default: app,
-            config,
-            layout,
-            props,
-          } = await import(
-            `${pathname}${pathname.endsWith("/") ? "" : "/"}page.js`
-          );
-          this.#routes[pathname] = new VirtualDom(
-            pathname,
-            document.body,
-            config
-          );
+          const { default: app, config, layout, props } = await import(`${pathname}${pathname.endsWith("/") ? "" : "/"}page.js`);
+          this.#routes[pathname] = new VirtualDom(pathname, document.body, config);
           await async((resolve) => startViewTransition(resolve));
           this.#virtualDom = this.#routes[pathname].render(
-            layout
-              ? new Element(layout.component, {}, new Element(app, props))
-              : new Element(app, props)
+            layout ? new Element(layout.component, {}, new Element(app, props)) : new Element(app, props),
           );
           updateConfig(this.#virtualDom.config);
         } else {
@@ -85,7 +55,7 @@ export class Router extends BoundClass {
       requestAnimationFrame(() =>
         setTimeout(() => {
           document.querySelector(hash)?.scrollIntoView({ behavior: "smooth" });
-        }, 100)
+        }, 100),
       );
 
     this.#previous = { pathname, hash, search };
@@ -107,16 +77,10 @@ export class Router extends BoundClass {
     if (this.#loaded) return;
     window.addEventListener("click", (event) => handleClick(event, this));
     await this.navigate();
-    if (
-      !("serviceWorker" in navigator) ||
-      !document.querySelector(`head > link[rel="manifest"]`)
-    )
-      return;
+    if (!("serviceWorker" in navigator) || !document.querySelector(`head > link[rel="manifest"]`)) return;
     navigator.serviceWorker
       .register(`/${RESOURCES_PATH}/worker.js`)
-      .then(undefined, (error) =>
-        console.log(`Service worker registration failed: ${error}`)
-      );
+      .then(undefined, (error) => console.log(`Service worker registration failed: ${error}`));
   }
 
   get location() {
@@ -136,7 +100,7 @@ export class Router extends BoundClass {
         bubbles: true,
         composed: true,
         detail: details,
-      })
+      }),
     );
   }
 
@@ -155,11 +119,7 @@ export class Router extends BoundClass {
 export default new Router();
 
 function startViewTransition(callback) {
-  if (
-    document.startViewTransition ||
-    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  )
-    document.startViewTransition(callback);
+  if (document.startViewTransition || !window.matchMedia("(prefers-reduced-motion: reduce)").matches) document.startViewTransition(callback);
   else callback();
 }
 
@@ -171,19 +131,14 @@ function updateConfig(config) {
         document.title = config.title;
         break;
       case "href":
-        document
-          .querySelector(`head > base`)
-          ?.setAttribute("href", config.href);
+        document.querySelector(`head > base`)?.setAttribute("href", config.href);
         break;
       case "icon":
         var icons = document.querySelectorAll(`head > link[rel$="icon"]`);
-        for (let i2 = 0, len2 = icons.length; i2 < len2; i2++)
-          icons[i2].setAttribute("href", config.icon);
+        for (let i2 = 0, len2 = icons.length; i2 < len2; i2++) icons[i2].setAttribute("href", config.icon);
         break;
       default:
-        document
-          .querySelector(`head > meta[name="${keys[i1]}"]`)
-          ?.setAttribute("content", config[keys[i1]]);
+        document.querySelector(`head > meta[name="${keys[i1]}"]`)?.setAttribute("content", config[keys[i1]]);
         break;
     }
   }

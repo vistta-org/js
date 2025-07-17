@@ -95,14 +95,8 @@ function createElement(type) {
       const attr = Object.keys(props || {});
       for (let i = 0, len = attr.length; i < len; i++) {
         const name = attr[i];
-        const value =
-          name === "style" ? styleToString(props[name]) : props[name];
-        if (
-          value == null ||
-          value === false ||
-          ["function", "object"].includes(typeof value)
-        )
-          continue;
+        const value = name === "style" ? styleToString(props[name]) : props[name];
+        if (value == null || value === false || ["function", "object"].includes(typeof value)) continue;
         if (value === true) attributes += ` ${name}`;
         else attributes += ` ${name}="${value}"`;
       }
@@ -135,8 +129,7 @@ function styleToString(style) {
   let result = "";
   for (let i = 0, len = keys.length; i < len; i++) {
     const value = style[keys[i]];
-    if (typeof value === "string")
-      result += ` ${keys[i].replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase()}: ${value};`;
+    if (typeof value === "string") result += ` ${keys[i].replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase()}: ${value};`;
   }
   result = result.trim();
   return result === "" ? null : result;

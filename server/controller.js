@@ -32,11 +32,9 @@ export class Method extends FunctionClass {
               redirect: response.redirect,
               ...request.socket,
             },
-            type === "get" || type === "delete"
-              ? request.params
-              : await request.body()
-          )
-        )
+            type === "get" || type === "delete" ? request.params : await request.body(),
+          ),
+        ),
     );
     this.#type = type;
     this.#url = url;
@@ -47,8 +45,7 @@ export class WebSocket {
   #events;
 
   constructor(events) {
-    if (typeof events !== "object" || Array.isArray(events))
-      throw new TypeError("WebSocket events must be an object");
+    if (typeof events !== "object" || Array.isArray(events)) throw new TypeError("WebSocket events must be an object");
     this.#events = events;
   }
 

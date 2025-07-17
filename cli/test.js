@@ -1,9 +1,9 @@
-import fs from "@vistta/fs";
 import { default as DefaultCLI } from "@vistta/cli/test";
-import puppeteer from 'puppeteer';
-import { randomBytes } from 'crypto';
+import fs from "@vistta/fs";
 import { sleep } from "@vistta/utils";
+import { randomBytes } from "crypto";
 import { URL } from "node:url";
+import puppeteer from "puppeteer";
 
 const DEFAULT_PORT = 1246;
 const dirname = import.meta.dirname;
@@ -21,13 +21,13 @@ export default class extends DefaultCLI {
     this.define("browser", {
       mount: async (filepath, options) => {
         await startServer();
-        const id = randomBytes(6).toString('hex');
+        const id = randomBytes(6).toString("hex");
         await server.instance.use(id, "/", fs.resolve(process.cwd(), filepath));
         return await page(`http://${id}.localhost:${DEFAULT_PORT}/`, options);
       },
       open: async (url, options) => {
         return await page(url, options);
-      }
+      },
     });
   }
 }
@@ -38,7 +38,7 @@ async function startServer() {
     const awaitStatus = (resolve) => {
       if (server.status === "ready") resolve();
       else setTimeout(() => awaitStatus(resolve), 100);
-    }
+    };
     return new Promise(awaitStatus);
   }
   server.status = "loading";
@@ -48,28 +48,29 @@ async function startServer() {
 }
 
 async function page(url, options) {
-  const page = await (await puppeteer.launch({
-    headless: !process.env.NODE_DEBUG,
-    ignoreDefaultArgs: ["--disable-extensions"],
-    args: ["--no-sandbox"],
-    ...options
-  })).newPage();
+  const page = await (
+    await puppeteer.launch({
+      headless: !process.env.NODE_DEBUG,
+      ignoreDefaultArgs: ["--disable-extensions"],
+      args: ["--no-sandbox"],
+      ...options,
+    })
+  ).newPage();
   await page.goto(url);
   page.navigate = async (url) => await page.goto(url);
   page.get = async (selector, arg1, arg2) => {
-    if (typeof arg1 === "string")
-      return await (await element(page, selector, arg2)).get(arg1);
+    if (typeof arg1 === "string") return await (await element(page, selector, arg2)).get(arg1);
     else return await element(page, selector, arg1);
   };
   page.wait = async (delay) => await sleep(delay);
   page.press = async (selector, key, options) => await (await element(page, selector)).press(key, options);
-  page.type = async (selector, text, options) =>
-    await (await element(page, selector)).type(text, options);
+  page.type = async (selector, text, options) => await (await element(page, selector)).type(text, options);
   page.location = async () => new URL(await page.url());
-  page.dimensions = () => page.evaluate(() => ({
-    width: document.documentElement.clientWidth,
-    height: document.documentElement.clientHeight,
-  }));
+  page.dimensions = () =>
+    page.evaluate(() => ({
+      width: document.documentElement.clientWidth,
+      height: document.documentElement.clientHeight,
+    }));
   return page;
 }
 
@@ -80,9 +81,9 @@ async function element(page, selector, options) {
   element.wait = async (delay) => await sleep(delay);
   const type = element.type.bind(element);
   element.type = async (text, options) => {
-    if (options?.clear) await element.evaluate((e) => e.value = "");
+    if (options?.clear) await element.evaluate((e) => (e.value = ""));
     await type(text, options);
     if (options?.submit !== false) await element.press("Enter");
-  }
+  };
   return element;
 }

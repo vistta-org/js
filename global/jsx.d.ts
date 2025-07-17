@@ -2,7 +2,7 @@ declare function _Element<Props extends { [name: string]: any }>(
   id: string | number,
   type: string | JSX.Component<Props>,
   props?: Props,
-  children?: JSX.Node[]
+  children?: JSX.Node[],
 ): JSX.Element | null;
 declare const _Fragment: symbol;
 declare const React: object;
@@ -235,11 +235,7 @@ declare namespace JSX {
     [componentName: string]: any;
   }
 
-  type LibraryManagedAttributes<C, _> = C extends new (
-    ...args: any[]
-  ) => infer Instance
-    ? ComponentProps<Instance>
-    : never;
+  type LibraryManagedAttributes<C, _> = C extends new (...args: any[]) => infer Instance ? ComponentProps<Instance> : never;
 
   interface IntrinsicAttributes {
     key?: string | number;

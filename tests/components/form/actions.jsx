@@ -18,22 +18,13 @@ export default class extends Component {
         <button id="toggle" onClick={() => (this.toggle = !this.toggle)}>
           toggle
         </button>
-        <button
-          id="values"
-          onClick={() => (this.value = this.form?.values?.()?.number)}
-        >
+        <button id="values" onClick={() => (this.value = this.form?.values?.()?.number)}>
           values
         </button>
-        <button
-          id="watch"
-          onClick={() => this.form?.watch?.("number", this.update)}
-        >
+        <button id="watch" onClick={() => this.form?.watch?.("number", this.update)}>
           watch
         </button>
-        <button
-          id="unwatch"
-          onClick={() => this.form?.unwatch?.("number", this.update)}
-        >
+        <button id="unwatch" onClick={() => this.form?.unwatch?.("number", this.update)}>
           unwatch
         </button>
         <button id="clear" onClick={() => this.form?.clear?.()}>
@@ -42,20 +33,14 @@ export default class extends Component {
         <button id="reset" onClick={() => this.form?.reset?.()}>
           reset
         </button>
-        <button
-          id="validate"
-          onClick={() => (this.validation = this.form?.validate?.())}
-        >
+        <button id="validate" onClick={() => (this.validation = this.form?.validate?.())}>
           validate
         </button>
         <button id="submit" onClick={() => this.form?.submit?.()}>
           submit
         </button>
         {this.toggle && (
-          <Form
-            ref={this.form}
-            onSubmit={({ values: { number } }) => (this.submitted = number)}
-          >
+          <Form ref={this.form} onSubmit={({ values: { number } }) => (this.submitted = number)}>
             <input id="input" name="number" type="number" value={this.output} />
           </Form>
         )}

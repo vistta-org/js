@@ -7,11 +7,7 @@ export default class extends Component {
   render() {
     return (
       <>
-        <input
-          id="input"
-          value={this.defaultValue}
-          onChange={({ target: { value } }) => (this.outputValue = value)}
-        />
+        <input id="input" value={this.defaultValue} onChange={({ target: { value } }) => (this.outputValue = value)} />
         <span id="output">{this.outputValue || this.defaultValue}</span>
       </>
     );

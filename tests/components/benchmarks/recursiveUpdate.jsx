@@ -27,7 +27,7 @@ class Test extends Component {
       children.push(
         <Recursive iterations={ITERATIONS / 10}>
           <div>{this.run}</div>
-        </Recursive>
+        </Recursive>,
       );
     }
     return children;

@@ -5,10 +5,7 @@ export default class extends Component {
   render() {
     return (
       <>
-        <Form
-          onSubmit={({ values: { email } }) => (this.output = email)}
-          autocomplete={true}
-        >
+        <Form onSubmit={({ values: { email } }) => (this.output = email)} autocomplete={true}>
           <input id="input" name="email" />
           <input id="submit" type="submit" />
         </Form>

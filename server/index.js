@@ -1,27 +1,16 @@
 import fs from "@vistta/fs";
+import compressible from "compressible";
 import { createServer } from "http";
+import proxy from "http-proxy";
 import { createSecureServer } from "http2";
 import mime from "mime";
-import compressible from "compressible";
-import zlib from "zlib";
-import proxy from "http-proxy";
-import { URL } from "url";
 import { Server as SocketIO } from "socket.io";
-import { createPage } from "./page.js";
-import {
-  default as Controller,
-  Method,
-  shareToLoader,
-  WebSocket,
-} from "./controller.js";
+import { URL } from "url";
+import zlib from "zlib";
 import { Component } from "../core/classes.js";
-import {
-  RESOURCES_PATH,
-  async,
-  isIPAddress,
-  stringify,
-  ensureEndsWith,
-} from "../utils/index.js";
+import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from "../utils/index.js";
+import { default as Controller, Method, shareToLoader, WebSocket } from "./controller.js";
+import { createPage } from "./page.js";
 
 const dirname = import.meta.dirname;
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
@@ -35,20 +24,7 @@ const DEFAULT_PROXY_OPTIONS = {
   proxyTimeout: TIMEOUT_TIME,
 };
 
-const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [
-  ".jsx",
-  ".mjsx",
-  ".cjsx",
-  ".tsx",
-  ".mtsx",
-  ".ctsx",
-  ".js",
-  ".mjs",
-  ".cjs",
-  ".ts",
-  ".mts",
-  ".cts",
-];
+const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [".jsx", ".mjsx", ".cjsx", ".tsx", ".mtsx", ".ctsx", ".js", ".mjs", ".cjs", ".ts", ".mts", ".cts"];
 
 const ALL_METHODS = ["copy", "delete", "get", "move", "patch", "post", "put"];
 class Route {
@@ -93,26 +69,9 @@ class Route {
     this.#pathname = pathname;
     if (type === "collection") this.#collection = [];
     else {
-      this.#route = pathname
-        .replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)"))
-        .replace(/\*$/, ".*");
-      this[
-        [
-          "all",
-          "copy",
-          "delete",
-          "get",
-          "move",
-          "patch",
-          "post",
-          "put",
-          "error",
-          "middleware",
-          "websocket",
-        ].includes(type)
-          ? "handler"
-          : type
-      ] = handler;
+      this.#route = pathname.replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)")).replace(/\*$/, ".*");
+      this[["all", "copy", "delete", "get", "move", "patch", "post", "put", "error", "middleware", "websocket"].includes(type) ? "handler" : type] =
+        handler;
     }
     this.#page = page;
   }
@@ -122,9 +81,7 @@ class Route {
    */
   enable() {
     if (!this.#collection) this.#active = true;
-    else
-      for (let i = 0, len = this.#collection.length; i < len; i++)
-        this.#collection[i].enable();
+    else for (let i = 0, len = this.#collection.length; i < len; i++) this.#collection[i].enable();
   }
 
   /**
@@ -132,9 +89,7 @@ class Route {
    */
   disable() {
     if (!this.#collection) this.#active = false;
-    else
-      for (let i = 0, len = this.#collection.length; i < len; i++)
-        this.#collection[i].disable();
+    else for (let i = 0, len = this.#collection.length; i < len; i++) this.#collection[i].disable();
   }
 
   /**
@@ -186,20 +141,10 @@ class Server {
    *
    * @param {Options} [options] - Server options or callback
    */
-  constructor({
-    http: httpPort,
-    https: httpsPort,
-    cert,
-    key,
-    start,
-    strict,
-    timeout = TIMEOUT_TIME,
-  } = {}) {
-    if (httpPort === true)
-      httpPort = process.env.NODE_ENV === "development" ? 3000 : 80;
+  constructor({ http: httpPort, https: httpsPort, cert, key, start, strict, timeout = TIMEOUT_TIME } = {}) {
+    if (httpPort === true) httpPort = process.env.NODE_ENV === "development" ? 3000 : 80;
     if (httpsPort === true) httpsPort = 443;
-    if (!(httpPort || httpsPort))
-      throw new Error("Missing ports for either HTTP or HTTPS");
+    if (!(httpPort || httpsPort)) throw new Error("Missing ports for either HTTP or HTTPS");
     if (httpsPort && !(cert || key)) {
       httpsPort = null;
       if (!httpPort) throw new Error("Missing certification for HTTPS");
@@ -213,9 +158,7 @@ class Server {
     if (httpPort)
       this.#http = {
         name: "http",
-        server: createServer((request, response) =>
-          this.#handler("http", request, response)
-        ),
+        server: createServer((request, response) => this.#handler("http", request, response)),
         port: httpPort,
       };
     if (httpsPort) {
@@ -232,7 +175,7 @@ class Server {
               key: fs.readFileSync(key),
               cert: fs.readFileSync(cert),
             },
-            (request, response) => this.#handler("https", request, response)
+            (request, response) => this.#handler("https", request, response),
           ),
           port: httpsPort,
           certs: { cert, key },
@@ -243,14 +186,8 @@ class Server {
     this.#proxy.on("proxyRes", (proxyRes, req) => {
       const location = proxyRes?.headers?.location;
       const { target, pathname, preservePathname } = req.__options;
-      if (
-        proxyRes.statusCode >= 300 &&
-        proxyRes.statusCode < 400 &&
-        location?.startsWith(target)
-      ) {
-        proxyRes.headers.location = (
-          (!preservePathname ? pathname : "") + location.replace(target, "")
-        ).replace("//", "/");
+      if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && location?.startsWith(target)) {
+        proxyRes.headers.location = ((!preservePathname ? pathname : "") + location.replace(target, "")).replace("//", "/");
       }
     });
     if (start !== false) this.start();
@@ -265,12 +202,10 @@ class Server {
   async start(protocol) {
     if (protocol === "http") protocol = this.#http;
     else if (protocol === "https") protocol = this.#https;
-    else
-      return (await this.start("http"), await this.start("https"), this.ports);
+    else return (await this.start("http"), await this.start("https"), this.ports);
     if (protocol?.warning) this.#emit("warning", protocol.warning);
     if (!protocol?.server) return null;
-    if (protocol.active)
-      throw new Error(protocol.name.toUpperCase() + " Server already running");
+    if (protocol.active) throw new Error(protocol.name.toUpperCase() + " Server already running");
     const { server, port } = protocol;
     await async((resolve) => server.listen(port, resolve));
     this.#socket.attach(server);
@@ -307,14 +242,8 @@ class Server {
    * @returns {Route} The route object
    */
   copy(arg1, arg2, arg3) {
-    const [subdomain, pathname, handler] = parseArguments(
-      "copy",
-      arg1,
-      arg2,
-      arg3
-    );
-    if (typeof handler !== "function")
-      throw new TypeError("Invalid argument type");
+    const [subdomain, pathname, handler] = parseArguments("copy", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("copy", subdomain, pathname, handler);
   }
 
@@ -327,14 +256,8 @@ class Server {
    * @returns {Route} The route object
    */
   delete(arg1, arg2, arg3) {
-    const [subdomain, pathname, handler] = parseArguments(
-      "delete",
-      arg1,
-      arg2,
-      arg3
-    );
-    if (typeof handler !== "function")
-      throw new TypeError("Invalid argument type");
+    const [subdomain, pathname, handler] = parseArguments("delete", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("delete", subdomain, pathname, handler);
   }
 
@@ -347,14 +270,8 @@ class Server {
    * @returns {Route} The route object
    */
   get(arg1, arg2, arg3) {
-    const [subdomain, pathname, handler] = parseArguments(
-      "get",
-      arg1,
-      arg2,
-      arg3
-    );
-    if (typeof handler !== "function")
-      throw new TypeError("Invalid argument type");
+    const [subdomain, pathname, handler] = parseArguments("get", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("get", subdomain, pathname, handler);
   }
 
@@ -367,14 +284,8 @@ class Server {
    * @returns {Route} The route object
    */
   move(arg1, arg2, arg3) {
-    const [subdomain, pathname, handler] = parseArguments(
-      "move",
-      arg1,
-      arg2,
-      arg3
-    );
-    if (typeof handler !== "function")
-      throw new TypeError("Invalid argument type");
+    const [subdomain, pathname, handler] = parseArguments("move", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("move", subdomain, pathname, handler);
   }
 
@@ -387,14 +298,8 @@ class Server {
    * @returns {Route} The route object
    */
   patch(arg1, arg2, arg3) {
-    const [subdomain, pathname, handler] = parseArguments(
-      "patch",
-      arg1,
-      arg2,
-      arg3
-    );
-    if (typeof handler !== "function")
-      throw new TypeError("Invalid argument type");
+    const [subdomain, pathname, handler] = parseArguments("patch", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("patch", subdomain, pathname, handler);
   }
 
@@ -407,14 +312,8 @@ class Server {
    * @returns {Route} The route object
    */
   post(arg1, arg2, arg3) {
-    const [subdomain, pathname, handler] = parseArguments(
-      "post",
-      arg1,
-      arg2,
-      arg3
-    );
-    if (typeof handler !== "function")
-      throw new TypeError("Invalid argument type");
+    const [subdomain, pathname, handler] = parseArguments("post", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("post", subdomain, pathname, handler);
   }
 
@@ -427,14 +326,8 @@ class Server {
    * @returns {Route} The route object
    */
   put(arg1, arg2, arg3) {
-    const [subdomain, pathname, handler] = parseArguments(
-      "put",
-      arg1,
-      arg2,
-      arg3
-    );
-    if (typeof handler !== "function")
-      throw new TypeError("Invalid argument type");
+    const [subdomain, pathname, handler] = parseArguments("put", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("put", subdomain, pathname, handler);
   }
 
@@ -447,14 +340,8 @@ class Server {
    * @returns {Route} The route object
    */
   all(arg1, arg2, arg3) {
-    const [subdomain, pathname, handler] = parseArguments(
-      "all",
-      arg1,
-      arg2,
-      arg3
-    );
-    if (typeof handler !== "function")
-      throw new TypeError("Invalid argument type");
+    const [subdomain, pathname, handler] = parseArguments("all", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("all", subdomain, pathname, handler);
   }
 
@@ -467,14 +354,8 @@ class Server {
    * @returns {Route} The route object
    */
   error(arg1, arg2, arg3) {
-    const [subdomain, pathname, handler] = parseArguments(
-      "error",
-      arg1,
-      arg2,
-      arg3
-    );
-    if (typeof handler !== "function")
-      throw new TypeError("Invalid argument type");
+    const [subdomain, pathname, handler] = parseArguments("error", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("error", subdomain, pathname, handler);
   }
 
@@ -489,48 +370,29 @@ class Server {
   async use(arg1, arg2, arg3) {
     let [subdomain, basepath, target] = parseArguments("use", arg1, arg2, arg3);
     const typeOfTarget = typeof target;
-    if (typeOfTarget === "function")
-      return this.#register("middleware", subdomain, basepath, target);
-    else if (typeOfTarget !== "string")
-      throw new TypeError("Invalid argument type");
+    if (typeOfTarget === "function") return this.#register("middleware", subdomain, basepath, target);
+    else if (typeOfTarget !== "string") throw new TypeError("Invalid argument type");
     if (basepath === "") basepath = "/";
-    else if (basepath.endsWith("/*"))
-      this.#emit("warning", "Use pathname does not need wildcard");
+    else if (basepath.endsWith("/*")) this.#emit("warning", "Use pathname does not need wildcard");
     const collection = new Route(subdomain, basepath, "collection");
     const use = async (type, pathname, filepath, arg, emit) => {
       try {
-        if (
-          !arg &&
-          ["api", "controller", "config", "middleware", "layout"].includes(type)
-        )
-          arg = (await import(filepath))?.default;
+        if (!arg && ["api", "controller", "config", "middleware", "layout"].includes(type)) arg = (await import(filepath))?.default;
         if (type === "config") {
-          if (typeof arg !== "object")
-            throw new TypeError("Invalid config type");
-          const config = this.#register(
-            "config",
-            subdomain,
-            ensureEndsWith(pathname, "/"),
-            arg
-          );
+          if (typeof arg !== "object") throw new TypeError("Invalid config type");
+          const config = this.#register("config", subdomain, ensureEndsWith(pathname, "/"), arg);
           const segments = pathname.split("/");
-          matchRoutes(
-            this.#subdomains[subdomain]?.page || [],
-            pathname,
-            ({ page }) => {
-              const configs = page.inherited.configs;
-              for (let i = 0, len = configs.length; i < len; i++) {
-                if (checkIfMoreSpecific(segments, configs[i].pathname))
-                  return configs.splice(i, 0, config);
-              }
-              collection.add(config);
-              configs.push(config);
-              page.cache.reset();
+          matchRoutes(this.#subdomains[subdomain]?.page || [], pathname, ({ page }) => {
+            const configs = page.inherited.configs;
+            for (let i = 0, len = configs.length; i < len; i++) {
+              if (checkIfMoreSpecific(segments, configs[i].pathname)) return configs.splice(i, 0, config);
             }
-          );
+            collection.add(config);
+            configs.push(config);
+            page.cache.reset();
+          });
         } else if (type === "layout") {
-          if (typeof arg !== "function")
-            throw new TypeError("Invalid layout type");
+          if (typeof arg !== "function") throw new TypeError("Invalid layout type");
           const { code, resources } = await import(filepath, {
             with: {
               type: "bundler",
@@ -539,50 +401,25 @@ class Server {
             },
           });
           const resourceKeys = Object.keys(resources);
-          for (
-            let i2 = 0, resourcesLen = resourceKeys.length;
-            i2 < resourcesLen;
-            i2++
-          )
-            this.#resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] =
-              resources[resourceKeys[i2]];
-          const layout = this.#register(
-            "layout",
-            subdomain,
-            ensureEndsWith(pathname, "/"),
-            {
-              pathname,
-              component: arg,
-              code: code,
-            }
-          );
-          const segments = pathname.split("/");
-          matchRoutes(
-            this.#subdomains[subdomain]?.page || [],
+          for (let i2 = 0, resourcesLen = resourceKeys.length; i2 < resourcesLen; i2++)
+            this.#resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] = resources[resourceKeys[i2]];
+          const layout = this.#register("layout", subdomain, ensureEndsWith(pathname, "/"), {
             pathname,
-            ({ page }) => {
-              if (
-                page.inherited.layout &&
-                !checkIfMoreSpecific(segments, page.inherited.layout.pathname)
-              )
-                return;
-              page.inherited.layout = layout;
-              page.cache.reset();
-            }
-          );
+            component: arg,
+            code: code,
+          });
+          const segments = pathname.split("/");
+          matchRoutes(this.#subdomains[subdomain]?.page || [], pathname, ({ page }) => {
+            if (page.inherited.layout && !checkIfMoreSpecific(segments, page.inherited.layout.pathname)) return;
+            page.inherited.layout = layout;
+            page.cache.reset();
+          });
           collection.add(layout);
         } else if (type === "page" || type === "error") {
           const configs = [];
           const segments = pathname.split("/");
-          for (
-            let i = 0, len = pathname === "/" ? 1 : segments.length;
-            i < len;
-            i++
-          ) {
-            const config = matchRoute(
-              this.#subdomains[subdomain]?.config || [],
-              segments.slice(0, i + 1).join("/") || "/"
-            );
+          for (let i = 0, len = pathname === "/" ? 1 : segments.length; i < len; i++) {
+            const config = matchRoute(this.#subdomains[subdomain]?.config || [], segments.slice(0, i + 1).join("/") || "/");
             if (config) configs.push(config);
           }
           const page = await createPage(
@@ -593,7 +430,7 @@ class Server {
             matchRoute(this.#subdomains[subdomain]?.layout || [], pathname, {
               exact: false,
               filter: (route) => route.layout,
-            })
+            }),
           );
           if (!this.#resources)
             this.#resources = {
@@ -609,22 +446,10 @@ class Server {
               )?.code,
             };
           const resourceKeys = Object.keys(page.resources);
-          for (
-            let i2 = 0, resourcesLen = resourceKeys.length;
-            i2 < resourcesLen;
-            i2++
-          )
-            this.#resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] =
-              page.resources[resourceKeys[i2]];
+          for (let i2 = 0, resourcesLen = resourceKeys.length; i2 < resourcesLen; i2++)
+            this.#resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] = page.resources[resourceKeys[i2]];
           if (type === "error") {
-            collection.add(
-              this.#register(
-                "page",
-                subdomain,
-                ensureEndsWith(pathname, "/❌"),
-                page
-              )
-            );
+            collection.add(this.#register("page", subdomain, ensureEndsWith(pathname, "/❌"), page));
             collection.add(
               this.#register(
                 "error",
@@ -635,45 +460,20 @@ class Server {
                     page
                       .js(req, { code, message })
                       .then((js) => res.send(js, "text/javascript"))
-                      .catch((e) =>
-                        res.reject(
-                          e?.trace ||
-                            e?.message ||
-                            e ||
-                            "Internal Server Error",
-                          500
-                        )
-                      );
-                  else if (req.resource === "manifest")
-                    res.reject("Resource not found", 404);
+                      .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
+                  else if (req.resource === "manifest") res.reject("Resource not found", 404);
                   else
                     page
                       .html(req, { code, message })
                       .then((html) => res.send(html, "text/html"))
-                      .catch((e) =>
-                        res.reject(
-                          e?.trace ||
-                            e?.message ||
-                            e ||
-                            "Internal Server Error",
-                          500
-                        )
-                      );
+                      .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
                 },
-                true
-              )
+                true,
+              ),
             );
           } else {
-            collection.add(
-              this.#register(
-                "page",
-                subdomain,
-                ensureEndsWith(pathname, "/"),
-                page
-              )
-            );
-            if (page.config)
-              use("config", pathname, filepath, page.config, false);
+            collection.add(this.#register("page", subdomain, ensureEndsWith(pathname, "/"), page));
+            if (page.config) use("config", pathname, filepath, page.config, false);
             collection.add(
               this.#register(
                 "get",
@@ -684,46 +484,22 @@ class Server {
                     page
                       .js(req, res.props)
                       .then((js) => res.send(js, "text/javascript"))
-                      .catch((e) =>
-                        res.reject(
-                          e?.trace ||
-                            e?.message ||
-                            e ||
-                            "Internal Server Error",
-                          500
-                        )
-                      );
+                      .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
                   else if (req.resource === "manifest") {
                     if (page.pwa)
                       page
                         .manifest(req, req.props)
                         .then((manifest) => res.send(manifest, "text/json"))
-                        .catch((e) =>
-                          res.reject(
-                            e?.trace ||
-                              e?.message ||
-                              e ||
-                              "Internal Server Error",
-                            500
-                          )
-                        );
+                        .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
                     else res.reject("Resource not found", 404);
                   } else
                     page
                       .html(req, res.props)
                       .then((html) => res.send(html, "text/html"))
-                      .catch((e) =>
-                        res.reject(
-                          e?.trace ||
-                            e?.message ||
-                            e ||
-                            "Internal Server Error",
-                          500
-                        )
-                      );
+                      .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
                 },
-                true
-              )
+                true,
+              ),
             );
           }
         } else if (type === "api" || type === "controller") {
@@ -731,9 +507,7 @@ class Server {
             subdomain,
             pathname: "/api" + pathname,
           });
-          collection.add(
-            this.#register(type, subdomain, "/api" + pathname, arg)
-          );
+          collection.add(this.#register(type, subdomain, "/api" + pathname, arg));
         } else collection.add(this.#register(type, subdomain, pathname, arg));
         if (emit != false) this.#emit("ready", { type, subdomain, pathname });
       } catch (e) {
@@ -743,10 +517,8 @@ class Server {
 
     if (!fs.isDirectory(target)) {
       const DefaultClass = (await import(target))?.default;
-      if (Object.isPrototypeOf.call(Controller, DefaultClass))
-        await use("controller", basepath, target);
-      else if (Object.isPrototypeOf.call(Component, DefaultClass))
-        await use("page", basepath, target);
+      if (Object.isPrototypeOf.call(Controller, DefaultClass)) await use("controller", basepath, target);
+      else if (Object.isPrototypeOf.call(Component, DefaultClass)) await use("page", basepath, target);
       else throw new TypeError("Invalid file default export type");
       return collection;
     }
@@ -767,20 +539,11 @@ class Server {
       const filepath = fs.resolve(target, file);
       const extname = fs.extname(filepath);
       const isResource = fs.contains(filepath, RESOURCES_PATH);
-      if (
-        fs.isDirectory(filepath) ||
-        !(JAVASCRIPT_TYPESCRIPT_EXTENSIONS.includes(extname) || isResource)
-      )
-        continue;
+      if (fs.isDirectory(filepath) || !(JAVASCRIPT_TYPESCRIPT_EXTENSIONS.includes(extname) || isResource)) continue;
       const paths = file.replace(/\.[^.]+$/, "").split("/");
       const pathsLen = paths.length;
       if (pathsLen == 1 && !isResource) {
-        if (entries[paths[0]])
-          entries[paths[0]].push([
-            paths[0],
-            combinePathnames(basepath, "/"),
-            filepath,
-          ]);
+        if (entries[paths[0]]) entries[paths[0]].push([paths[0], combinePathnames(basepath, "/"), filepath]);
         continue;
       }
       let pathname = "";
@@ -794,21 +557,11 @@ class Server {
         } else if (path.startsWith("[")) pathname += "/:" + path.slice(1, -1);
         else pathname += "/" + path.slice(0, -1);
       }
-      if (isResource)
-        this.#resources[
-          combinePathnames(basepath, pathname) + "/" + fs.basename(filepath)
-        ] = filepath;
-      else if (entries[paths[pathsLen - 1]])
-        entries[paths[pathsLen - 1]].push([
-          paths[pathsLen - 1],
-          combinePathnames(basepath, pathname),
-          filepath,
-        ]);
+      if (isResource) this.#resources[combinePathnames(basepath, pathname) + "/" + fs.basename(filepath)] = filepath;
+      else if (entries[paths[pathsLen - 1]]) entries[paths[pathsLen - 1]].push([paths[pathsLen - 1], combinePathnames(basepath, pathname), filepath]);
     }
-    for (let i = 0, len = serverEntries.length; i < len; i++)
-      await use(...serverEntries[i]);
-    for (let i = 0, len = clientEntries.length; i < len; i++)
-      await use(...clientEntries[i]);
+    for (let i = 0, len = serverEntries.length; i < len; i++) await use(...serverEntries[i]);
+    for (let i = 0, len = clientEntries.length; i < len; i++) await use(...clientEntries[i]);
     return collection;
   }
 
@@ -831,21 +584,11 @@ class Server {
    * @returns {Route} The route object
    */
   proxy(arg1, arg2, arg3) {
-    let [subdomain, pathname, targetOrOptions] = parseArguments(
-      "proxy",
-      arg1,
-      arg2,
-      arg3
-    );
+    let [subdomain, pathname, targetOrOptions] = parseArguments("proxy", arg1, arg2, arg3);
     const typeOfTargetOrOptions = typeof targetOrOptions;
-    if (
-      typeOfTargetOrOptions !== "object" &&
-      typeOfTargetOrOptions !== "string"
-    )
-      throw new TypeError("Invalid argument type");
+    if (typeOfTargetOrOptions !== "object" && typeOfTargetOrOptions !== "string") throw new TypeError("Invalid argument type");
     if (pathname === "") pathname = "/";
-    else if (pathname.endsWith("/*"))
-      this.#emit("warning", "Proxy pathname does not need wildcard");
+    else if (pathname.endsWith("/*")) this.#emit("warning", "Proxy pathname does not need wildcard");
 
     const options =
       typeOfTargetOrOptions === "string"
@@ -862,25 +605,15 @@ class Server {
     collection.add(
       this.#register("middleware", subdomain, pathname, (req, res) => {
         req.__options = options;
-        if (!options.preservePathname)
-          req.url = removeFromPath(req.url, pathname + "*");
-        this.#proxy.web(req, res, options, (err) =>
-          res.reject(err?.message, 500)
-        );
-      })
+        if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
+        this.#proxy.web(req, res, options, (err) => res.reject(err?.message, 500));
+      }),
     );
     collection.add(
       this.#register("websocket", subdomain, pathname, (req, socket, head) => {
-        if (!options.preservePathname)
-          req.url = removeFromPath(req.url, pathname + "*");
-        this.#proxy.ws(
-          req,
-          socket,
-          head,
-          options,
-          (err) => err && socket.end()
-        );
-      })
+        if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
+        this.#proxy.ws(req, socket, head, options, (err) => err && socket.end());
+      }),
     );
     return collection;
   }
@@ -898,23 +631,14 @@ class Server {
    * @returns {Route} The route object
    */
   redirect(arg1, arg2, arg3) {
-    let [subdomain, pathname, target] = parseArguments(
-      "redirect",
-      arg1,
-      arg2,
-      arg3
-    );
+    let [subdomain, pathname, target] = parseArguments("redirect", arg1, arg2, arg3);
     const typeOfTarget = typeof target;
-    if (typeOfTarget !== "object" && typeOfTarget !== "string")
-      throw new TypeError("Invalid argument type");
+    if (typeOfTarget !== "object" && typeOfTarget !== "string") throw new TypeError("Invalid argument type");
     if (pathname === "") pathname = "/";
-    else if (pathname.endsWith("/*"))
-      this.#emit("warning", "Redirect pathname does not need wildcard");
-    const options =
-      typeOfTarget === "object" ? typeOfTarget : { target: typeOfTarget };
+    else if (pathname.endsWith("/*")) this.#emit("warning", "Redirect pathname does not need wildcard");
+    const options = typeOfTarget === "object" ? typeOfTarget : { target: typeOfTarget };
     return this.#register("middleware", subdomain, pathname, (req, res) => {
-      if (!options.preservePathname)
-        req.url = removeFromPath(req.url, pathname + "*");
+      if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
       res.redirect(new URL(req.url || "/", options.target).toString(), true);
     });
   }
@@ -927,8 +651,7 @@ class Server {
    * @param {Function} [arg3] A function to call when the event is triggered.
    */
   on(arg1, arg2, arg3) {
-    const [subdomain, event, callback] =
-      typeof arg2 === "function" ? ["*", arg1, arg2] : [arg1, arg2, arg3];
+    const [subdomain, event, callback] = typeof arg2 === "function" ? ["*", arg1, arg2] : [arg1, arg2, arg3];
     if (typeof event !== "string") this.#emit("warning", "Invalid event name");
     if (!this.#events[event]) this.#events[event] = [];
     this.#events[event].push((socket, _subdomain, args) => {
@@ -947,7 +670,7 @@ class Server {
             return current;
           },
         },
-        ...(args || [])
+        ...(args || []),
       );
     });
   }
@@ -960,10 +683,8 @@ class Server {
    * @param {...any} args Additional arguments to pass to the event listener.
    */
   emit(subdomain, event, ...args) {
-    if (typeof event !== "string")
-      return this.#emit("warning", "Cannot emit an empty event");
-    if (subdomain && subdomain !== "*")
-      this.#socket.to(subdomain).emit(event, ...args);
+    if (typeof event !== "string") return this.#emit("warning", "Cannot emit an empty event");
+    if (subdomain && subdomain !== "*") this.#socket.to(subdomain).emit(event, ...args);
     else this.#socket.emit(event, ...args);
   }
 
@@ -972,8 +693,7 @@ class Server {
    */
   #emit(event, ...args) {
     const listeners = this.#events[event] || [];
-    for (let i = 0, len = listeners.length; i < len; i++)
-      listeners[i](undefined, "*", args);
+    for (let i = 0, len = listeners.length; i < len; i++) listeners[i](undefined, "*", args);
   }
 
   /**
@@ -1000,10 +720,7 @@ class Server {
       const page = pages[i].page;
       if (page.pathname.includes(":")) continue;
       await fs.ensureDir(fs.resolve(output, "." + page.pathname));
-      await createFile(
-        page.pathname + "/index.html",
-        await page.html({ headers: { host: "localhost" } }, {}, true)
-      );
+      await createFile(page.pathname + "/index.html", await page.html({ headers: { host: "localhost" } }, {}, true));
       await createFile(page.pathname + "/page.js", await page.js({}, {}));
     }
 
@@ -1026,39 +743,31 @@ class Server {
 
   #register(type, subdomain, pathname, arg, page) {
     if (type === "api") {
-      if (Object.isPrototypeOf.call(Controller, arg))
-        return this.#register("controller", subdomain, pathname, arg);
+      if (Object.isPrototypeOf.call(Controller, arg)) return this.#register("controller", subdomain, pathname, arg);
       else if (arg instanceof Method)
-        return this.#register(
-          arg.type,
-          subdomain,
-          pathname,
-          async (req, res) => {
-            try {
-              req.socket = {
-                emit: this.emit.bind(this, subdomain),
-                on: this.on.bind(this, subdomain),
-              };
-              const value = await arg.handler(req, res);
-              if (!res.writableEnded) res.send(value);
-            } catch (e) {
-              res.reject(e.message, 500);
-            }
+        return this.#register(arg.type, subdomain, pathname, async (req, res) => {
+          try {
+            req.socket = {
+              emit: this.emit.bind(this, subdomain),
+              on: this.on.bind(this, subdomain),
+            };
+            const value = await arg.handler(req, res);
+            if (!res.writableEnded) res.send(value);
+          } catch (e) {
+            res.reject(e.message, 500);
           }
-        );
+        });
       else if (arg instanceof WebSocket) {
         const events = Object.keys(arg.events);
         for (let j = 0, jlen = events.length; j < jlen; j++)
           this.on(subdomain, events[j], function (...args) {
             arg.events[events[j]].call(this, ...args);
           });
-      } else if (typeof handler === "function")
-        return this.#register("all", subdomain, pathname, arg);
+      } else if (typeof handler === "function") return this.#register("all", subdomain, pathname, arg);
       else throw new TypeError("Invalid api type");
     }
     if (type === "controller") {
-      if (!Object.isPrototypeOf.call(Controller, arg))
-        throw new TypeError("Invalid controller type");
+      if (!Object.isPrototypeOf.call(Controller, arg)) throw new TypeError("Invalid controller type");
       const controller = new arg();
       controller?.onConnect?.({
         emit: this.emit.bind(this, subdomain),
@@ -1069,23 +778,18 @@ class Server {
         const handler = handlers[i];
         if (handler instanceof Method) {
           const handlerPathname = combinePathnames(pathname, handler.url);
-          this.#register(
-            handler.type,
-            subdomain,
-            handlerPathname,
-            async (req, res) => {
-              try {
-                req.socket = {
-                  emit: this.emit.bind(this, subdomain),
-                  on: this.on.bind(this, subdomain),
-                };
-                const value = await handler(req, res);
-                if (!res.writableEnded) res.send(value);
-              } catch (e) {
-                res.reject(e.message, 500);
-              }
+          this.#register(handler.type, subdomain, handlerPathname, async (req, res) => {
+            try {
+              req.socket = {
+                emit: this.emit.bind(this, subdomain),
+                on: this.on.bind(this, subdomain),
+              };
+              const value = await handler(req, res);
+              if (!res.writableEnded) res.send(value);
+            } catch (e) {
+              res.reject(e.message, 500);
             }
-          );
+          });
         } else if (handler instanceof WebSocket) {
           const events = Object.keys(handler.events);
           for (let j = 0, jlen = events.length; j < jlen; j++)
@@ -1098,39 +802,29 @@ class Server {
     }
     if (type === "all") {
       const route = new Route(subdomain, pathname, type, arg);
-      for (let i = 0, len = ALL_METHODS.length; i < len; i++)
-        this.#register(ALL_METHODS[i], subdomain, pathname, route);
+      for (let i = 0, len = ALL_METHODS.length; i < len; i++) this.#register(ALL_METHODS[i], subdomain, pathname, route);
       return route;
     }
 
     this.#subdomains[subdomain] ||= defaultSubdomain();
-    const route =
-      arg instanceof Route
-        ? arg
-        : new Route(subdomain, pathname, type, arg, page);
+    const route = arg instanceof Route ? arg : new Route(subdomain, pathname, type, arg, page);
     const routes = this.#subdomains[subdomain][type];
     const { route: existing, replace } = findRoute(routes, route.route) || {};
     if (existing) {
       if (this.#strict)
-        throw new Error(
-          `${type.toUpperCase()} ${subdomain !== "" ? 'for subdomain "' + subdomain + '"' : ""} path "${pathname}" already exists.`
-        );
+        throw new Error(`${type.toUpperCase()} ${subdomain !== "" ? 'for subdomain "' + subdomain + '"' : ""} path "${pathname}" already exists.`);
       return replace(route);
     }
     const segments = pathname.split("/");
     for (let i = 0, len = routes.length; i < len; i++) {
-      if (checkIfMoreSpecific(segments, routes[i].pathname))
-        return (routes.splice(i, 0, route), route);
+      if (checkIfMoreSpecific(segments, routes[i].pathname)) return (routes.splice(i, 0, route), route);
     }
     return (routes.push(route), route);
   }
 
   #handler(protocol, request, response) {
     try {
-      request.timeout = setTimeout(
-        () => this.#send(request, response, 408, "Request timeout"),
-        this.#timeout
-      );
+      request.timeout = setTimeout(() => this.#send(request, response, 408, "Request timeout"), this.#timeout);
       const end = response.end.bind(response);
       response.end = (...args) => (
         end(...args),
@@ -1150,19 +844,13 @@ class Server {
         response.end();
         return;
       }
-      if (protocol === "https" && request.headers[":authority"])
-        request.headers.host = request.headers[":authority"];
-      if (!request.headers)
-        return this.#reject(request, response, "Missing headers", 500);
-      if (!request.headers.host)
-        return this.#reject(request, response, "Missing host header", 500);
+      if (protocol === "https" && request.headers[":authority"]) request.headers.host = request.headers[":authority"];
+      if (!request.headers) return this.#reject(request, response, "Missing headers", 500);
+      if (!request.headers.host) return this.#reject(request, response, "Missing host header", 500);
       request.protocol = protocol;
       request.subdomain = getSubdomain(request.headers.host);
       request.resource = fs.extname(request.url) !== "";
-      const url = new URL(
-        request.url,
-        `${request.protocol}://${request.headers.host}`
-      );
+      const url = new URL(request.url, `${request.protocol}://${request.headers.host}`);
       request.href = url.href;
       request.pathname = url.pathname;
       request.params = Object.fromEntries(url.searchParams.entries());
@@ -1199,8 +887,7 @@ class Server {
             break;
         }
       };
-      response.reject = (message, code) =>
-        this.#reject(request, response, message, code);
+      response.reject = (message, code) => this.#reject(request, response, message, code);
       response.redirect = (url, permanent) => {
         if (response.writableEnded || response.headersSent) return;
         response.statusCode = 301;
@@ -1212,25 +899,11 @@ class Server {
       };
       response.send = (content, type) =>
         typeof content === "object"
-          ? this.#send(
-              request,
-              response,
-              200,
-              stringify(content),
-              type || "application/json"
-            )
+          ? this.#send(request, response, 200, stringify(content), type || "application/json")
           : this.#send(request, response, 200, content, type);
-      response.sendFile = (filepath, type) =>
-        this.#sendFile(request, response, filepath, type);
-      const middleware = matchRoute(
-        this.#subdomains[request.subdomain]?.middleware,
-        request.pathname,
-        { exact: false }
-      );
-      if (middleware)
-        middleware.handler(request, response, () =>
-          this.#resolve(request, response)
-        );
+      response.sendFile = (filepath, type) => this.#sendFile(request, response, filepath, type);
+      const middleware = matchRoute(this.#subdomains[request.subdomain]?.middleware, request.pathname, { exact: false });
+      if (middleware) middleware.handler(request, response, () => this.#resolve(request, response));
       else this.#resolve(request, response);
     } catch (e) {
       this.#emit("error", e.message);
@@ -1243,32 +916,18 @@ class Server {
       const method = request.method.toLowerCase();
       const resource = this.#resources?.[request.pathname];
       if (request.resource && resource) {
-        if (method !== "get")
-          return this.#reject(request, response, "Method not allowed", 405);
-        const type =
-          mime.getType(request.pathname) || "application/octet-stream";
+        if (method !== "get") return this.#reject(request, response, "Method not allowed", 405);
+        const type = mime.getType(request.pathname) || "application/octet-stream";
 
-        if (fs.isAbsolute(resource) && fs.existsSync(resource))
-          return response.sendFile(resource, type);
+        if (fs.isAbsolute(resource) && fs.existsSync(resource)) return response.sendFile(resource, type);
         return response.send(resource, type);
       } else {
-        if (request.pathname.endsWith("/page.js"))
-          ((request.resource = "page"),
-            (request.pathname = removeFromPath(request.pathname, "*/page.js")));
+        if (request.pathname.endsWith("/page.js")) ((request.resource = "page"), (request.pathname = removeFromPath(request.pathname, "*/page.js")));
         if (request.pathname.endsWith("manifest.json"))
-          ((request.resource = "manifest"),
-            (request.pathname = removeFromPath(
-              request.pathname,
-              "*/manifest.json"
-            )));
-        const route = matchRoute(
-          this.#subdomains[request.subdomain]?.[method],
-          request.pathname
-        );
+          ((request.resource = "manifest"), (request.pathname = removeFromPath(request.pathname, "*/manifest.json")));
+        const route = matchRoute(this.#subdomains[request.subdomain]?.[method], request.pathname);
         if (route) {
-          route.params.forEach(
-            (param, index) => (request.params[param] = route.match[index + 1])
-          );
+          route.params.forEach((param, index) => (request.params[param] = route.match[index + 1]));
           return route.handler(request, response);
         }
       }
@@ -1280,56 +939,25 @@ class Server {
   }
 
   #reject(request, response, message, code) {
-    response.message =
-      message ||
-      `The requested ${request.resource ? "Resource" : "URL"} "${request.url}" was not found`;
+    response.message = message || `The requested ${request.resource ? "Resource" : "URL"} "${request.url}" was not found`;
     response.statusCode = code || 404;
     response.send = (content, type) =>
       typeof content === "object"
-        ? this.#send(
-            request,
-            response,
-            response.statusCode,
-            stringify(content),
-            type || "application/json"
-          )
+        ? this.#send(request, response, response.statusCode, stringify(content), type || "application/json")
         : this.#send(request, response, response.statusCode, content, type);
     try {
-      const acceptsHtml =
-        request.headers.accept && request.headers.accept.includes("text/html");
-      let route = matchRoute(
-        this.#subdomains[request.subdomain]?.error,
-        request.pathname,
-        {
-          exact: false,
-          filter: (route) => route.active && (acceptsHtml || !route.isPage),
-        }
-      );
-      if (route)
-        return route.handler(
-          request,
-          response,
-          response?.statusCode,
-          response?.message
-        );
-      if (request.subdomain === "")
-        return this.#send(
-          request,
-          response,
-          response?.statusCode,
-          response?.message
-        );
+      const acceptsHtml = request.headers.accept && request.headers.accept.includes("text/html");
+      let route = matchRoute(this.#subdomains[request.subdomain]?.error, request.pathname, {
+        exact: false,
+        filter: (route) => route.active && (acceptsHtml || !route.isPage),
+      });
+      if (route) return route.handler(request, response, response?.statusCode, response?.message);
+      if (request.subdomain === "") return this.#send(request, response, response?.statusCode, response?.message);
       route = matchRoute(this.#subdomains[""]?.error, request.pathname, {
         exact: false,
         filter: (route) => route.active && (acceptsHtml || !route.isPage),
       });
-      if (route)
-        return route.handler(
-          request,
-          response,
-          response?.statusCode,
-          response?.message
-        );
+      if (route) return route.handler(request, response, response?.statusCode, response?.message);
       this.#send(request, response, response?.statusCode, response?.message);
     } catch (e) {
       this.#emit("error", e.message);
@@ -1344,42 +972,27 @@ class Server {
       await socket.join(subdomain);
       socket.onAny((event, ...args) => {
         const listeners = this.#events[event] || [];
-        for (let i = 0, len = listeners.length; i < len; i++)
-          listeners[i](socket, subdomain, args);
+        for (let i = 0, len = listeners.length; i < len; i++) listeners[i](socket, subdomain, args);
       });
     } else if (type === "upgrade") {
       const [request, socket, head] = args;
       if (request.url.startsWith("/socket.io/")) return;
       request.subdomain = getSubdomain(request.headers.host);
-      const url = new URL(
-        request.url,
-        request.headers.origin || `ws://${request.headers.host}`
-      );
+      const url = new URL(request.url, request.headers.origin || `ws://${request.headers.host}`);
       request.href = url.href;
       request.pathname = url.pathname;
-      const route = matchRoute(
-        this.#subdomains[request.subdomain]?.websocket,
-        request.pathname,
-        { exact: false }
-      );
+      const route = matchRoute(this.#subdomains[request.subdomain]?.websocket, request.pathname, { exact: false });
       if (typeof route?.handler !== "function") socket.end();
       return route.handler(request, socket, head);
     } else if (type === "middleware") {
       const [socket, next] = args;
       const request = socket.handshake;
       request.subdomain = getSubdomain(request.headers.host);
-      const url = new URL(
-        request.url,
-        request.headers.origin || `ws://${request.headers.host}`
-      );
+      const url = new URL(request.url, request.headers.origin || `ws://${request.headers.host}`);
       request.href = url.href;
       request.pathname = url.pathname;
       request.method = "WEBSOCKET";
-      const middleware = matchRoute(
-        this.#subdomains[request.subdomain]?.middleware,
-        request.pathname,
-        { exact: false }
-      );
+      const middleware = matchRoute(this.#subdomains[request.subdomain]?.middleware, request.pathname, { exact: false });
       request.params = Object.fromEntries(url.searchParams.entries());
       request.body = () => getRequestBody(request);
       request.cookies = {};
@@ -1395,12 +1008,9 @@ class Server {
       socket.props = {};
       socket.set = (type, arg) => (socket[type] = arg);
       socket.reject = (message) => next(new Error(message));
-      socket.redirect = () =>
-        this.#emit("warning", "redirect is not supported in WebSocket");
-      socket.send = () =>
-        this.#emit("warning", "send is not supported in WebSocket");
-      socket.sendFile = () =>
-        this.#emit("warning", "sendFile is not supported in WebSocket");
+      socket.redirect = () => this.#emit("warning", "redirect is not supported in WebSocket");
+      socket.send = () => this.#emit("warning", "send is not supported in WebSocket");
+      socket.sendFile = () => this.#emit("warning", "sendFile is not supported in WebSocket");
       if (middleware) middleware.handler(request, socket, next);
       else next();
     }
@@ -1425,11 +1035,7 @@ class Server {
     response.statusCode = code || 200;
     const acceptEncoding = request.headers["accept-encoding"];
     const headers = defaultHeaders(request, response, type);
-    if (
-      !request.headers["x-no-compression"] &&
-      acceptEncoding &&
-      compressible(type)
-    ) {
+    if (!request.headers["x-no-compression"] && acceptEncoding && compressible(type)) {
       if (acceptEncoding.includes("gzip"))
         zlib.gzip(content, (err, buffer) => {
           if (response.writableEnded || response.headersSent) return;
@@ -1437,9 +1043,7 @@ class Server {
             headers["Content-Encoding"] = "gzip";
             response.writeHead(response.statusCode, headers);
             response.end(buffer);
-          } else
-            (response.writeHead(response.statusCode, headers),
-              response.end(content));
+          } else (response.writeHead(response.statusCode, headers), response.end(content));
         });
       else if (acceptEncoding.includes("deflate"))
         zlib.deflate(content, (err, buffer) => {
@@ -1448,15 +1052,10 @@ class Server {
             headers["Content-Encoding"] = "deflate";
             response.writeHead(response.statusCode, headers);
             response.end(buffer);
-          } else
-            (response.writeHead(response.statusCode, headers),
-              response.end(content));
+          } else (response.writeHead(response.statusCode, headers), response.end(content));
         });
-      else
-        (response.writeHead(response.statusCode, headers),
-          response.end(content));
-    } else
-      (response.writeHead(response.statusCode, headers), response.end(content));
+      else (response.writeHead(response.statusCode, headers), response.end(content));
+    } else (response.writeHead(response.statusCode, headers), response.end(content));
   }
 }
 
@@ -1465,35 +1064,15 @@ export default Server;
 //
 
 function parseArguments(method, subdomain, pathname, arg) {
-  if (typeof subdomain !== "string")
-    throw new TypeError(
-      `Invalid arguments for ${method.toUpperCase()} "${pathname}"`
-    );
+  if (typeof subdomain !== "string") throw new TypeError(`Invalid arguments for ${method.toUpperCase()} "${pathname}"`);
   if (!arg) ((arg = pathname), (pathname = subdomain), (subdomain = ""));
-  if (!arg)
-    throw new TypeError(
-      `Invalid arguments for ${method.toUpperCase()} "${pathname}"`
-    );
-  if (
-    subdomain !== "" &&
-    !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain)
-  )
-    throw new TypeError(`Invalid subdomain for "${subdomain}"`);
-  if (!pathname)
-    throw new TypeError(
-      `Invalid pathname for ${method.toUpperCase()} "${pathname}"`
-    );
+  if (!arg) throw new TypeError(`Invalid arguments for ${method.toUpperCase()} "${pathname}"`);
+  if (subdomain !== "" && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain)) throw new TypeError(`Invalid subdomain for "${subdomain}"`);
+  if (!pathname) throw new TypeError(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`);
   if (pathname.length > 1 && pathname.charAt(pathname.length - 1) === "/")
-    throw new TypeError(
-      `Invalid pathname for ${method.toUpperCase()} "${pathname}"`
-    );
-  if (
-    !/^\/(?!.*\/\/)(?!.*\.\.)([a-zA-Z0-9\-_.:*/]*)$/.test(pathname) ||
-    /([^/]:)|([^/]\*)|(\*[^/])/.test(pathname)
-  )
-    throw new TypeError(
-      `Invalid pathname for ${method.toUpperCase()} "${pathname}"`
-    );
+    throw new TypeError(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`);
+  if (!/^\/(?!.*\/\/)(?!.*\.\.)([a-zA-Z0-9\-_.:*/]*)$/.test(pathname) || /([^/]:)|([^/]\*)|(\*[^/])/.test(pathname))
+    throw new TypeError(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`);
   return [subdomain, pathname, arg];
 }
 
@@ -1518,9 +1097,7 @@ function matchRoute(routes, pathname, { exact, filter } = {}) {
 }
 
 function matchRoutes(routes, pathname, callback) {
-  const regex = new RegExp(
-    "^" + pathname.replace(/:(\w+)/g, "([^/]+)").replace(/\*$/, ".*")
-  );
+  const regex = new RegExp("^" + pathname.replace(/:(\w+)/g, "([^/]+)").replace(/\*$/, ".*"));
   for (let i = 0, len = routes.length; i < len; i++) {
     if (routes[i].pathname.match(regex)) callback(routes[i]);
   }
@@ -1538,13 +1115,8 @@ function findRoute(routes, route) {
 }
 
 function combinePathnames(basePathname, relativePathname) {
-  const pathname = new URL(
-    "." + relativePathname,
-    new URL(basePathname + (basePathname.endsWith("/") ? "" : "/"), "file://")
-  ).pathname;
-  return pathname.endsWith("/") && pathname !== "/"
-    ? pathname.slice(0, -1)
-    : pathname;
+  const pathname = new URL("." + relativePathname, new URL(basePathname + (basePathname.endsWith("/") ? "" : "/"), "file://")).pathname;
+  return pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
 }
 
 function removeFromPath(urlPath, target) {
@@ -1585,20 +1157,12 @@ function checkIfMoreSpecific(segments, target) {
       const matchedIsDynamic = comparedSegments[i].startsWith(":");
       const matchedIsWild = comparedSegments[i] === "*";
       if (
-        (!segmentIsDynamic &&
-          !segmentIsWild &&
-          (matchedIsDynamic || matchedIsWild)) ||
+        (!segmentIsDynamic && !segmentIsWild && (matchedIsDynamic || matchedIsWild)) ||
         (segmentIsDynamic && matchedIsWild) ||
         comparedSegments[i] === ""
       )
         return true;
-      if (
-        (!matchedIsDynamic &&
-          !matchedIsWild &&
-          (segmentIsDynamic || segmentIsWild)) ||
-        (segmentIsWild && matchedIsDynamic) ||
-        segments[i] === ""
-      )
+      if ((!matchedIsDynamic && !matchedIsWild && (segmentIsDynamic || segmentIsWild)) || (segmentIsWild && matchedIsDynamic) || segments[i] === "")
         return false;
     }
   }
@@ -1620,10 +1184,8 @@ function defaultHeaders(request, response, type) {
     "Content-Type": type,
   };
   if (response.cookies) headers["Set-Cookie"] = response.cookies;
-  if (request.resource && request.resource !== "page")
-    headers["Cache-Control"] = "public, max-age=14400, immutable";
-  else
-    headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate";
+  if (request.resource && request.resource !== "page") headers["Cache-Control"] = "public, max-age=14400, immutable";
+  else headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate";
   if (process.env.NODE_ENV !== "production") {
     headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate";
     headers["Pragma"] = "no-cache";
@@ -1638,8 +1200,7 @@ function setCookies(response, cookies) {
     const cookie = cookies[cookieNames[i]];
     if (cookie.value == null) continue;
     let value = `${cookieNames[i]}=${cookie.value}; SameSite=${cookie?.options?.sameSite || "Strict"}; Path=${cookie?.options?.path || "/"}; `;
-    if (cookie?.options?.expires)
-      value += `; Expires=${cookie.options.expires}`;
+    if (cookie?.options?.expires) value += `; Expires=${cookie.options.expires}`;
     if (cookie?.options?.maxAge) value += `; Max-Age=${cookie.options.maxAge}`;
     if (cookie?.options?.domain) value += `; Domain=${cookie.options.domain}`;
     if (cookie?.options?.secure) value += `; Secure`;

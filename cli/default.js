@@ -23,22 +23,22 @@ export default class extends DefaultCLI {
       console.print(`Unknown command/script "${file}"\n`);
       return this.help();
     }
-    if(options.app) this.app(filepath);
+    if (options.app) this.app(filepath);
     else import(filepath);
   }
 
   async app(filepath) {
     const electronPath = (await import("electron"))?.default;
     const { spawn } = await import("node:child_process");
-    const child = spawn(electronPath, [filepath], { stdio: 'inherit', windowsHide: false });
-    child.on('close', async(code, signal) => {
+    const child = spawn(electronPath, [filepath], { stdio: "inherit", windowsHide: false });
+    child.on("close", async (code, signal) => {
       if (code === null) {
-        console.error(electronPath, 'exited with signal', signal);
+        console.error(electronPath, "exited with signal", signal);
         process.exit(1);
       }
       process.exit(code);
     });
-    process.on('SIGINT', () => !child.killed && child.kill('SIGINT'));
-    process.on('SIGTERM', () => !child.killed && child.kill('SIGTERM'));
+    process.on("SIGINT", () => !child.killed && child.kill("SIGINT"));
+    process.on("SIGTERM", () => !child.killed && child.kill("SIGTERM"));
   }
 }

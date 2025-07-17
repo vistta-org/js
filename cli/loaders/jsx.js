@@ -3,8 +3,7 @@ let id = 0;
 
 export async function load(source, options) {
   try {
-    if (options.extension === "tsx")
-      return loadTypescript(transform(source), options);
+    if (options.extension === "tsx") return loadTypescript(transform(source), options);
     return { code: transform(source) };
   } catch (e) {
     return { errors: [`${options.path}(0,0): jsx error: ${e.stack}`] };
@@ -16,20 +15,15 @@ function transform(code, debug) {
   let i = 0;
   while (i < code.length) {
     if (!skip) {
-      if (code[i] === "/" && code[i + 1] === "*") (skip = "block_comment"), i++;
-      else if (code[i] === "/" && code[i + 1] === "/")
-        (skip = "line_comment"), i++;
-      else if (code[i] === '"' || code[i] === "'" || code[i] === "`")
-        skip = code[i];
+      if (code[i] === "/" && code[i + 1] === "*") ((skip = "block_comment"), i++);
+      else if (code[i] === "/" && code[i + 1] === "/") ((skip = "line_comment"), i++);
+      else if (code[i] === '"' || code[i] === "'" || code[i] === "`") skip = code[i];
       if (!skip && code[i] === "<" && />|\w/.test(code[i + 1])) {
         const [element, end] = transformElement(code.slice(i), debug);
-        if (element)
-          return (
-            code.slice(0, i) + element + transform(code.slice(i + end), debug)
-          );
+        if (element) return code.slice(0, i) + element + transform(code.slice(i + end), debug);
       }
     } else if (skip === "block_comment") {
-      if (code[i] === "*" && code[i + 1] === "/") (skip = null), i++;
+      if (code[i] === "*" && code[i + 1] === "/") ((skip = null), i++);
     } else if (skip === "line_comment") {
       if (code[i] === "\n") skip = null;
     } else if (skip === '"' || skip === "'" || skip === "`") {
@@ -59,7 +53,7 @@ function transformElement(code) {
         context.progress = 2;
         context.child = "";
       } else if (!isWhitespace(code[i])) tagName += code[i];
-      else (context.progress = 1), (context.prop = "");
+      else ((context.progress = 1), (context.prop = ""));
     } else if (context.progress == 1) {
       if (code[i] === "/" && code[i + 1] === ">") {
         end = i + 2;
@@ -111,11 +105,7 @@ function transformElement(code) {
         }
         const [value, expressionEnd] = transformJSExpression(code.slice(i));
         if (!value) return [];
-        if (
-          (value[0] === '"' || value[0] === "'" || value[0] === "`") &&
-          value[0] === value[value.length - 1]
-        )
-          children += `${value}, `;
+        if ((value[0] === '"' || value[0] === "'" || value[0] === "`") && value[0] === value[value.length - 1]) children += `${value}, `;
         else children += `child("#${id++}", () => ${value}), `;
         i += expressionEnd - 1;
       } else context.child += code[i];
@@ -129,10 +119,7 @@ function transformElement(code) {
   if (props.length == 0) props = "null";
   else props = `{ ${props.slice(0, -2)} }`;
   if (children.length > 0) children = ", " + children;
-  return [
-    `element("#${id++}", ${tagName}, ${props}${children.slice(0, -2)})`,
-    end,
-  ];
+  return [`element("#${id++}", ${tagName}, ${props}${children.slice(0, -2)})`, end];
 }
 
 function transformProps(code) {
@@ -164,8 +151,7 @@ function transformJSExpression(code) {
   while (!done && i < len) {
     if (context.quote) {
       if (isQuoteEnd(code, context.quote, i)) context.quote = null;
-    } else if (code[i] === '"' || code[i] === "'" || code[i] === "`")
-      context.quote = code[i];
+    } else if (code[i] === '"' || code[i] === "'" || code[i] === "`") context.quote = code[i];
     else if (code[i] === "}") {
       if (context.depth == 0) {
         end = i + 1;
@@ -176,8 +162,7 @@ function transformJSExpression(code) {
   }
   if (!done) return [];
   const value = transform(code.slice(1, end - 1));
-  if (value[0] === "{" && value[value.length - 1] === "}")
-    return [`(${value})`, end];
+  if (value[0] === "{" && value[value.length - 1] === "}") return [`(${value})`, end];
   return [value, end];
 }
 

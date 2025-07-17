@@ -14,5 +14,5 @@ export class FunctionClass extends Function {
   }
 }
 
-export * from "./string.js";
 export * from "@vistta/utils";
+export * from "./string.js";

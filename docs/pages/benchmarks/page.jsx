@@ -1,9 +1,9 @@
 import { Component, Profiler } from "@vistta/js";
-import style from "./style.scss";
 import Test1 from "./_tests/1";
 import Test2 from "./_tests/2";
 import Test3 from "./_tests/3";
 import Test4 from "./_tests/4";
+import style from "./style.scss";
 const ITERATIONS = 1000;
 const BENCHMARK_RUNS = 500;
 const TESTS = {
@@ -32,8 +32,7 @@ class Page extends Component {
     results.count++;
     if (results.count === ENABLED_TESTS) {
       results.count = 0;
-      if (this.counter < BENCHMARK_RUNS)
-        return setTimeout(() => (this.counter += 1), 10);
+      if (this.counter < BENCHMARK_RUNS) return setTimeout(() => (this.counter += 1), 10);
       this.active = false;
       console.group("Benchmark Run");
       Object.entries(results).forEach(([key, value]) => {
@@ -47,30 +46,10 @@ class Page extends Component {
   render() {
     return (
       <div className="container" {...style}>
-        <Bench
-          id="1"
-          run={this.counter}
-          test={Test1}
-          callback={(...args) => this.onComplete(...args)}
-        />
-        <Bench
-          id="2"
-          run={this.counter}
-          test={Test2}
-          callback={(...args) => this.onComplete(...args)}
-        />
-        <Bench
-          id="3"
-          run={this.counter}
-          test={Test3}
-          callback={(...args) => this.onComplete(...args)}
-        />
-        <Bench
-          id="4"
-          run={this.counter}
-          test={Test4}
-          callback={(...args) => this.onComplete(...args)}
-        />
+        <Bench id="1" run={this.counter} test={Test1} callback={(...args) => this.onComplete(...args)} />
+        <Bench id="2" run={this.counter} test={Test2} callback={(...args) => this.onComplete(...args)} />
+        <Bench id="3" run={this.counter} test={Test3} callback={(...args) => this.onComplete(...args)} />
+        <Bench id="4" run={this.counter} test={Test4} callback={(...args) => this.onComplete(...args)} />
         <div className="controls">
           <button className="runner" onclick={() => (this.counter += 1)}>
             Single Run
@@ -78,11 +57,7 @@ class Page extends Component {
           <button className="runner" onclick={this.run} disabled={this.active}>
             Bench Run
           </button>
-          {"production" === process.env.NODE_ENV && (
-            <h2 className="warning">
-              *Benchmark only works no Development Mode*
-            </h2>
-          )}
+          {"production" === process.env.NODE_ENV && <h2 className="warning">*Benchmark only works no Development Mode*</h2>}
         </div>
       </div>
     );

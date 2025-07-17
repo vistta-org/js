@@ -18,16 +18,10 @@ export default class extends Component {
           toggle
         </button>
         <div id="list">
-          <Render.Each
-            of={this.list}
-            as={(value) => <input value={value} />}
-          />
+          <Render.Each of={this.list} as={(value) => <input value={value} />} />
         </div>
         <div id="object">
-          <Render.Each
-            of={this.object}
-            as={(v, k) => <input value={`${k}: ${v}`} />}
-          />
+          <Render.Each of={this.object} as={(v, k) => <input value={`${k}: ${v}`} />} />
         </div>
       </>
     );
@@ -36,10 +30,7 @@ export default class extends Component {
 
 function createObject(list, reverse) {
   return list.reduce((acc, value) => {
-    acc[value] =
-      TEXT_UPDATE_VALUE[
-        reverse ? list.length - Number(value) + 1 : Number(value)
-      ];
+    acc[value] = TEXT_UPDATE_VALUE[reverse ? list.length - Number(value) + 1 : Number(value)];
     return acc;
   }, {});
 }
