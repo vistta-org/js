@@ -1099,7 +1099,7 @@ function parseArguments(method, subdomain, pathname, arg) {
 }
 
 function getSubdomain(input) {
-  if (isIPAddress(input)) return "";
+  if (input && isIPAddress(input)) return "";
   const match = input.match(/^(?:https?:\/\/)?(?:www\.)?([^/:?]+)/i);
   const parts = (match && match[1] ? match[1] : input).split(".");
   if (parts[0] === "www") parts.shift();
