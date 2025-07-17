@@ -1,6 +1,6 @@
 import { BoundClass, RESOURCES_PATH, async, isValidUrl } from "../utils/index.js";
 import { Element } from "./classes.js";
-import { VirtualDom } from "./dom/index.js";
+import { VirtualDom } from "./dom.js";
 
 export class Router extends BoundClass {
   #routes = {};
@@ -23,7 +23,8 @@ export class Router extends BoundClass {
     this.#loaded = true;
     let { href, pushState, refresh } = typeof arg === "object" ? arg : { href: arg };
     if (!refresh && !initial) refresh = href === true;
-    const updateHistory = pushState !== false ? (url) => history.pushState({}, "", url) : (url) => history.replaceState({}, "", url);
+    const updateHistory =
+      pushState !== false ? (url) => history.pushState({}, "", url) : (url) => history.replaceState({}, "", url);
 
     if (isValidUrl(href) && !isAppUrl(href)) return (window.location.href = href);
     const { pathname, hash, search } = href ? new URL(href, window.location.href) : new URL(window.location.href);
@@ -34,7 +35,12 @@ export class Router extends BoundClass {
       this.#virtualDom?.disable();
       try {
         if (initial || refresh || !cachedVirtualDom) {
-          const { default: app, config, layout, props } = await import(`${pathname}${pathname.endsWith("/") ? "" : "/"}page.js`);
+          const {
+            default: app,
+            config,
+            layout,
+            props,
+          } = await import(`${pathname}${pathname.endsWith("/") ? "" : "/"}page.js`);
           this.#routes[pathname] = new VirtualDom(pathname, document.body, config);
           await async((resolve) => startViewTransition(resolve));
           this.#virtualDom = this.#routes[pathname].render(
@@ -119,7 +125,8 @@ export class Router extends BoundClass {
 export default new Router();
 
 function startViewTransition(callback) {
-  if (document.startViewTransition || !window.matchMedia("(prefers-reduced-motion: reduce)").matches) document.startViewTransition(callback);
+  if (document.startViewTransition || !window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    document.startViewTransition(callback);
   else callback();
 }
 

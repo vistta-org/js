@@ -7,10 +7,9 @@ import mime from "mime";
 import { Server as SocketIO } from "socket.io";
 import { URL } from "url";
 import zlib from "zlib";
-import { Component } from "../core/classes.js";
 import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from "../utils/index.js";
 import { default as Controller, Method, shareToLoader, WebSocket } from "./controller.js";
-import { createPage } from "./page.js";
+import { Component, createPage } from "./page.js";
 
 const dirname = import.meta.dirname;
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
@@ -24,7 +23,20 @@ const DEFAULT_PROXY_OPTIONS = {
   proxyTimeout: TIMEOUT_TIME,
 };
 
-const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [".jsx", ".mjsx", ".cjsx", ".tsx", ".mtsx", ".ctsx", ".js", ".mjs", ".cjs", ".ts", ".mts", ".cts"];
+const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [
+  ".jsx",
+  ".mjsx",
+  ".cjsx",
+  ".tsx",
+  ".mtsx",
+  ".ctsx",
+  ".js",
+  ".mjs",
+  ".cjs",
+  ".ts",
+  ".mts",
+  ".cts",
+];
 
 const ALL_METHODS = ["copy", "delete", "get", "move", "patch", "post", "put"];
 class Route {
@@ -70,8 +82,11 @@ class Route {
     if (type === "collection") this.#collection = [];
     else {
       this.#route = pathname.replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)")).replace(/\*$/, ".*");
-      this[["all", "copy", "delete", "get", "move", "patch", "post", "put", "error", "middleware", "websocket"].includes(type) ? "handler" : type] =
-        handler;
+      this[
+        ["all", "copy", "delete", "get", "move", "patch", "post", "put", "error", "middleware", "websocket"].includes(type)
+          ? "handler"
+          : type
+      ] = handler;
     }
     this.#page = page;
   }
@@ -377,7 +392,8 @@ class Server {
     const collection = new Route(subdomain, basepath, "collection");
     const use = async (type, pathname, filepath, arg, emit) => {
       try {
-        if (!arg && ["api", "controller", "config", "middleware", "layout"].includes(type)) arg = (await import(filepath))?.default;
+        if (!arg && ["api", "controller", "config", "middleware", "layout"].includes(type))
+          arg = (await import(filepath))?.default;
         if (type === "config") {
           if (typeof arg !== "object") throw new TypeError("Invalid config type");
           const config = this.#register("config", subdomain, ensureEndsWith(pathname, "/"), arg);
@@ -558,7 +574,8 @@ class Server {
         else pathname += "/" + path.slice(0, -1);
       }
       if (isResource) this.#resources[combinePathnames(basepath, pathname) + "/" + fs.basename(filepath)] = filepath;
-      else if (entries[paths[pathsLen - 1]]) entries[paths[pathsLen - 1]].push([paths[pathsLen - 1], combinePathnames(basepath, pathname), filepath]);
+      else if (entries[paths[pathsLen - 1]])
+        entries[paths[pathsLen - 1]].push([paths[pathsLen - 1], combinePathnames(basepath, pathname), filepath]);
     }
     for (let i = 0, len = serverEntries.length; i < len; i++) await use(...serverEntries[i]);
     for (let i = 0, len = clientEntries.length; i < len; i++) await use(...clientEntries[i]);
@@ -586,7 +603,8 @@ class Server {
   proxy(arg1, arg2, arg3) {
     let [subdomain, pathname, targetOrOptions] = parseArguments("proxy", arg1, arg2, arg3);
     const typeOfTargetOrOptions = typeof targetOrOptions;
-    if (typeOfTargetOrOptions !== "object" && typeOfTargetOrOptions !== "string") throw new TypeError("Invalid argument type");
+    if (typeOfTargetOrOptions !== "object" && typeOfTargetOrOptions !== "string")
+      throw new TypeError("Invalid argument type");
     if (pathname === "") pathname = "/";
     else if (pathname.endsWith("/*")) this.#emit("warning", "Proxy pathname does not need wildcard");
 
@@ -812,7 +830,9 @@ class Server {
     const { route: existing, replace } = findRoute(routes, route.route) || {};
     if (existing) {
       if (this.#strict)
-        throw new Error(`${type.toUpperCase()} ${subdomain !== "" ? 'for subdomain "' + subdomain + '"' : ""} path "${pathname}" already exists.`);
+        throw new Error(
+          `${type.toUpperCase()} ${subdomain !== "" ? 'for subdomain "' + subdomain + '"' : ""} path "${pathname}" already exists.`,
+        );
       return replace(route);
     }
     const segments = pathname.split("/");
@@ -922,7 +942,8 @@ class Server {
         if (fs.isAbsolute(resource) && fs.existsSync(resource)) return response.sendFile(resource, type);
         return response.send(resource, type);
       } else {
-        if (request.pathname.endsWith("/page.js")) ((request.resource = "page"), (request.pathname = removeFromPath(request.pathname, "*/page.js")));
+        if (request.pathname.endsWith("/page.js"))
+          ((request.resource = "page"), (request.pathname = removeFromPath(request.pathname, "*/page.js")));
         if (request.pathname.endsWith("manifest.json"))
           ((request.resource = "manifest"), (request.pathname = removeFromPath(request.pathname, "*/manifest.json")));
         const route = matchRoute(this.#subdomains[request.subdomain]?.[method], request.pathname);
@@ -1067,7 +1088,8 @@ function parseArguments(method, subdomain, pathname, arg) {
   if (typeof subdomain !== "string") throw new TypeError(`Invalid arguments for ${method.toUpperCase()} "${pathname}"`);
   if (!arg) ((arg = pathname), (pathname = subdomain), (subdomain = ""));
   if (!arg) throw new TypeError(`Invalid arguments for ${method.toUpperCase()} "${pathname}"`);
-  if (subdomain !== "" && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain)) throw new TypeError(`Invalid subdomain for "${subdomain}"`);
+  if (subdomain !== "" && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain))
+    throw new TypeError(`Invalid subdomain for "${subdomain}"`);
   if (!pathname) throw new TypeError(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`);
   if (pathname.length > 1 && pathname.charAt(pathname.length - 1) === "/")
     throw new TypeError(`Invalid pathname for ${method.toUpperCase()} "${pathname}"`);
@@ -1115,7 +1137,10 @@ function findRoute(routes, route) {
 }
 
 function combinePathnames(basePathname, relativePathname) {
-  const pathname = new URL("." + relativePathname, new URL(basePathname + (basePathname.endsWith("/") ? "" : "/"), "file://")).pathname;
+  const pathname = new URL(
+    "." + relativePathname,
+    new URL(basePathname + (basePathname.endsWith("/") ? "" : "/"), "file://"),
+  ).pathname;
   return pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
 }
 
@@ -1162,7 +1187,11 @@ function checkIfMoreSpecific(segments, target) {
         comparedSegments[i] === ""
       )
         return true;
-      if ((!matchedIsDynamic && !matchedIsWild && (segmentIsDynamic || segmentIsWild)) || (segmentIsWild && matchedIsDynamic) || segments[i] === "")
+      if (
+        (!matchedIsDynamic && !matchedIsWild && (segmentIsDynamic || segmentIsWild)) ||
+        (segmentIsWild && matchedIsDynamic) ||
+        segments[i] === ""
+      )
         return false;
     }
   }

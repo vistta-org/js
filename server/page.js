@@ -2,6 +2,8 @@ import fs from "@vistta/fs";
 import { RESOURCES_PATH, stringify } from "../utils/index.js";
 import { Element, renderToString } from "./dom.js";
 
+export { Component } from "./dom.js";
+
 const IS_DEV = process.env.NODE_ENV === "development";
 
 export async function createPage(type, filepath, pathname, inheritedConfigs, inheritedLayout) {
@@ -42,7 +44,8 @@ async function html(page, props, build) {
   if (html) return html;
   window.page = page;
   let body;
-  if (page.inherited.layout) body = renderToString(new Element(page.inherited.layout.layout.component, {}, new Element(page.content, props)));
+  if (page.inherited.layout)
+    body = renderToString(new Element(page.inherited.layout.layout.component, {}, new Element(page.content, props)));
   else body = renderToString(new Element(page.content, props));
   window.page = null;
   const config = configs(page);

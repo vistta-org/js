@@ -1,5 +1,18 @@
-import { RESOURCES_PATH, addUnique, capitalize, ensureArray, proxy } from "../../utils/index.js";
-import { Component, Context, Element, Form, Fragment, Mutation, Profiler, Ref, Safe, ScopedFragment, Suspense, TextNode } from "../classes.js";
+import { RESOURCES_PATH, addUnique, capitalize, ensureArray, proxy } from "../utils/index.js";
+import {
+  Component,
+  Context,
+  Element,
+  Form,
+  Fragment,
+  Mutation,
+  Profiler,
+  Ref,
+  Safe,
+  ScopedFragment,
+  Suspense,
+  TextNode,
+} from "./classes.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
 let componentMutationCount = 0;
@@ -209,7 +222,8 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
     if (element.key?.length > 0) {
       if (element.key instanceof Mutation) throw new VirtualDomError("Internal Error #002");
       if (virtualDom.keys[element.key] == null) virtualDom.keys[element.key] = element;
-      else if (virtualDom.keys[element.key].type !== element.type) throw new VirtualDomError(`Key ${element.key} already in use.`);
+      else if (virtualDom.keys[element.key].type !== element.type)
+        throw new VirtualDomError(`Key ${element.key} already in use.`);
       else {
         element = updateElement(virtualDom, virtualDom.keys[element.key], element.props, element.children);
         element.active = true;
@@ -238,9 +252,16 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
           element,
           prop,
           evalMutation(prop, (value) =>
-            virtualDom.setAttribute(element, keys[i], value, getPropValue(element.props.disabled) || getPropValue(element.props.readOnly)),
+            virtualDom.setAttribute(
+              element,
+              keys[i],
+              value,
+              getPropValue(element.props.disabled) || getPropValue(element.props.readOnly),
+            ),
           ),
-          evalMutationAsync(virtualDom, prop, (value) => virtualDom.setAttribute(element, keys[i], value, disabledOrReadOnly)),
+          evalMutationAsync(virtualDom, prop, (value) =>
+            virtualDom.setAttribute(element, keys[i], value, disabledOrReadOnly),
+          ),
         );
       else virtualDom.setAttribute(element, keys[i], prop, disabledOrReadOnly);
     }
@@ -251,7 +272,8 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
   }
 
   // Fragment Node
-  if (element.type === Fragment) return (renderElementChildren(virtualDom, element, element.children, context, referenceNode), element);
+  if (element.type === Fragment)
+    return (renderElementChildren(virtualDom, element, element.children, context, referenceNode), element);
 
   // Component Node
   if (element.type === Component.Node) {
@@ -260,7 +282,8 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
     if (hasKey) {
       if (element.key instanceof Mutation) throw new VirtualDomError("Internal Error #002");
       if (virtualDom.keys[element.key] != null) {
-        if (virtualDom.keys[element.key].type !== element.Component) throw new VirtualDomError(`Key ${element.key} already in use.`);
+        if (virtualDom.keys[element.key].type !== element.Component)
+          throw new VirtualDomError(`Key ${element.key} already in use.`);
         const previous = virtualDom.keys[element.key].element;
         previous.parent = parent;
         const appendChildren = (element) => {
@@ -282,7 +305,8 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
     if (element.Component.prototype instanceof Component) component = new element.Component();
     else {
       component = element.Component();
-      if (typeof component !== "object" || typeof component.render !== "function") throw new VirtualDomError("Invalid Function Component format");
+      if (typeof component !== "object" || typeof component.render !== "function")
+        throw new VirtualDomError("Invalid Function Component format");
       component = Object.assign(new Component(), component);
     }
     if (hasKey) virtualDom.keys[element.key] = { type: element.Component, element };
@@ -423,7 +447,10 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         for (let i = 0, len = element.children.length; i < len; i++) {
           if (!element.children[i]) continue;
           removeElement(element.children[i]);
-          traverseVirtualTree(element.children[i], (element) => element.type === Component.Node && component?.onDisconnect?.());
+          traverseVirtualTree(
+            element.children[i],
+            (element) => element.type === Component.Node && component?.onDisconnect?.(),
+          );
         }
         element.children = fragment.children;
         for (let i = 0, len = element.children.length; i < len; i++) element.children[i].parent = element;
@@ -441,7 +468,13 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         () =>
           component.fulfilled
             ? replaceChildren()
-            : renderElementChildren(virtualDom, element, ensureArray(component.render(replaceChildren)), context, referenceNode),
+            : renderElementChildren(
+                virtualDom,
+                element,
+                ensureArray(component.render(replaceChildren)),
+                context,
+                referenceNode,
+              ),
       );
     } else
       element.mutation = applyMutation(
@@ -449,7 +482,9 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         element,
         mutation,
         evalMutation(mutation, (value) => updateElement(virtualDom, element, null, ensureArray(value))),
-        evalMutationAsync(virtualDom, mutation, (value) => renderElementChildren(virtualDom, element, ensureArray(value), context, referenceNode)),
+        evalMutationAsync(virtualDom, mutation, (value) =>
+          renderElementChildren(virtualDom, element, ensureArray(value), context, referenceNode),
+        ),
       );
 
     if (!window.isServer && component.onConnect) preventMutation(virtualDom, () => component.onConnect?.());
@@ -501,7 +536,12 @@ function updateElement(virtualDom, element, props, children) {
         element,
         element.props[keys[i]],
         evalMutation(props[keys[i]], (value) =>
-          virtualDom.setAttribute(element, keys[i], value, getPropValue(element.props.disabled) || getPropValue(element.props.readOnly)),
+          virtualDom.setAttribute(
+            element,
+            keys[i],
+            value,
+            getPropValue(element.props.disabled) || getPropValue(element.props.readOnly),
+          ),
         ),
         evalMutationAsync(virtualDom, props[keys[i]], (value) => {
           if (value === element.attributes[keys[i]]) return;
@@ -561,7 +601,12 @@ function updateElement(virtualDom, element, props, children) {
         if (changes[i].previous.type === Component.Node)
           element.children[i] = updateElement(virtualDom, changes[i].previous, changes[i].element.props);
         else if (changes[i].previous.mutation)
-          element.children[i] = updateElement(virtualDom, changes[i].previous, changes[i].element.props, ensureArray(changes[i].element.mutation()));
+          element.children[i] = updateElement(
+            virtualDom,
+            changes[i].previous,
+            changes[i].element.props,
+            ensureArray(changes[i].element.mutation()),
+          );
         else
           element.children[i] = updateElement(
             virtualDom,
@@ -578,9 +623,20 @@ function updateElement(virtualDom, element, props, children) {
       if (!element.children[i]) continue;
       const type = element.children[i].type;
       if (type === Fragment && element.children[i].mutation)
-        element.children[i] = updateElement(virtualDom, element.children[i], null, ensureArray(element.children[i].mutation()));
+        element.children[i] = updateElement(
+          virtualDom,
+          element.children[i],
+          null,
+          ensureArray(element.children[i].mutation()),
+        );
       else if (type === Component.Node) element.children[i] = updateElement(virtualDom, element.children[i]);
-      else element.children[i] = updateElement(virtualDom, element.children[i], element.children[i].props, element.children[i].children);
+      else
+        element.children[i] = updateElement(
+          virtualDom,
+          element.children[i],
+          element.children[i].props,
+          element.children[i].children,
+        );
     }
   }
 

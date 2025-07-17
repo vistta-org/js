@@ -1,6 +1,6 @@
-import { Element } from "../core/classes.js";
-import "../core/dom/adapter.js";
-import { VirtualDom } from "../core/dom/index.js";
+import "../core/adapter.js";
+import { Component, Element } from "../core/classes.js";
+import { VirtualDom } from "../core/dom.js";
 import { RESOURCES_PATH } from "../utils/index.js";
 
 class ServerVirtualDom extends VirtualDom {
@@ -27,4 +27,4 @@ function renderToString(element) {
   return virtualDom.host.innerHTML;
 }
 
-export { Element, renderToString };
+export { Component, Element, renderToString };
