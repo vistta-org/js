@@ -1,4 +1,4 @@
-import { FunctionClass, clone, decode, defineReadonly, encode, isPromise, parse, stringify } from "../utils/index.js";
+import { FunctionClass, clone, decode, defineReadonly, encode, isPromise, parse, proxy, stringify } from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
 export const Fragment = Symbol("Fragment");
@@ -39,7 +39,8 @@ export class Element {
         props.style = Object.assign(props.style || {}, style || {});
       } else props = cloneProps(this.props);
     }
-    if (children !== false) children = this?.children?.map((child) => (child instanceof Element ? child.clone(undefined, true) : child));
+    if (children !== false)
+children = this?.children?.map((child) => (child instanceof Element ? child.clone(undefined, true) : child));
     return new Element(this.type, props, children);
   }
 }
@@ -74,7 +75,8 @@ export class Context extends FunctionClass {
     this.#cache = cache === "session" ? sessionStorage : cache === "local" || cache === "storage" ? localStorage : null;
     if (this.#cache) {
       try {
-        this.#shared.value = parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
+        this.#shared.value =
+parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
       } catch {
         /* Do nothing */
       }
@@ -88,7 +90,8 @@ export class Context extends FunctionClass {
       };
       for (let i = 0, len = actionsNames.length; i < len; i++) {
         const actionName = actionsNames[i];
-        if (["valueOf", "toString", "setValue", "register", "proxy"].includes(actionName)) throw new Error(`Invalid action name "${actionName}".`);
+        if (["valueOf", "toString", "setValue", "register", "proxy"].includes(actionName))
+throw new Error(`Invalid action name "${actionName}".`);
         const action = actions[actionName];
         this[actionName] = ((...args) => {
           controllerFn(actionName, "pending");
@@ -135,10 +138,8 @@ export class Context extends FunctionClass {
 
   get value() {
     if (!this.#shared.readonlyProxy)
-      this.#shared.readonlyProxy = new Proxy(this.#shared.value, {
-        set: () => true,
-        deleteProperty: () => true,
-        defineProperty: () => true,
+      this.#shared.readonlyProxy = proxy(this.#shared.value, {
+        readonly: true,
       });
     return this.#shared.readonlyProxy;
   }
@@ -163,17 +164,17 @@ export class Context extends FunctionClass {
         console.error(e);
       }
     };
-    this.#shared.proxy = new Proxy(this.#shared.value, {
-      get(target, key) {
-        if (typeof listener?.get === "function") listener.get(this.path ? `${this.path}.${key}` : key, target[key]);
-        return target[key];
+    this.#shared.proxy = proxy(this.#shared.value, {
+      get(path, value) {
+        if (typeof listener?.get === "function") listener.get(path.join("."), value);
+        return value;
       },
-      set(target, key, value) {
-        if (target[key] === value || JSON.stringify(target[key]) === JSON.stringify(value)) return true;
-        target[key] = value;
-        for (let i = 0, len = listeners.length; i < len; i++) listeners[i](this.path ? `${this.path}.${key}` : key, value);
+      set(path, newValue, oldValue, next) {
+        if (oldValue === newValue || JSON.stringify(oldValue) === JSON.stringify(newValue)) return true;
+        const result = next();
+        for (let i = 0, len = listeners.length; i < len; i++) listeners[i](path.join("."), newValue);
         updateCache();
-        return true;
+        return result;
       },
     });
     return this.#shared.proxy;
@@ -212,7 +213,8 @@ export class Component {
     for (let i = 0, len = functions.length; i < len; i++) {
       if (functions[i] === "constructor") continue;
       const descriptor = Object.getOwnPropertyDescriptor(prototype, functions[i]);
-      if (typeof descriptor.get === "undefined" && typeof descriptor.set === "undefined") this[functions[i]] = this[functions[i]].bind(this);
+      if (typeof descriptor.get === "undefined" && typeof descriptor.set === "undefined")
+this[functions[i]] = this[functions[i]].bind(this);
     }
   }
 }
@@ -391,7 +393,8 @@ export class Form extends Component {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
         return null;
       }
-      if (this.className || this.style) return new Element("div", { className: this.className, style: this.style }, ...this.children);
+      if (this.className || this.style)
+return new Element("div", { className: this.className, style: this.style }, ...this.children);
       return new Element(Fragment, {}, ...this.children);
     }
     this.#invalidEvent = typeof this.oninvalid === "function" || typeof this.onInvalid === "function";
@@ -425,11 +428,16 @@ export class Form extends Component {
 
     const { type, attributes, node } = target || {};
 
-    if (!node || (type !== "input" && type !== "textarea" && type !== "select" && attributes.role !== "input") || attributes.type === "submit")
+    if (
+!node ||
+(type !== "input" && type !== "textarea" && type !== "select" && attributes.role !== "input") ||
+attributes.type === "submit"
+)
       return;
     const path = attributes.name || attributes.id;
     if (!path) {
-      if ("production" !== process.env.NODE_ENV) console.warn(`Missing either "id" or "name" attribute on ${type} inside of form.`);
+      if ("production" !== process.env.NODE_ENV)
+console.warn(`Missing either "id" or "name" attribute on ${type} inside of form.`);
       return;
     }
     if (attributes.type === "radio") {
