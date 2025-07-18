@@ -213,7 +213,6 @@ function configs(page) {
     description: "Page generated using VisttaJS",
     theme: "#ffffff",
     referrer: "origin",
-    viewport: "width=device-width,initial-scale=1",
     keywords: "visttajs",
     robots: "index, follow",
     ...Object.assign({}, ...page.inherited.configs.map(({ config }) => config)),
