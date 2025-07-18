@@ -348,19 +348,13 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
         const instance = component[propertyName];
         if (!context["#" + instance.key]) {
           const mutations = {};
-          const _previous = {};
           context["#" + instance.key] = instance.proxy({
-            get: (path, value) => {
+            get: (path) => {
               if (!mutations[path]) mutations[path] = [];
               if (!virtualDom.mutation) return;
               addUnique(mutations[path], virtualDom.mutation);
-              _previous[path] = value;
             },
-            set: (path, value) => {
-              if (_previous[path] == value) return;
-              _previous[path] = value;
-              if (mutations[path]) virtualDom.enqueue(mutations[path]);
-            },
+            set: (path) => (mutations[path]) && virtualDom.enqueue(mutations[path]),
           });
         }
         Object.defineProperty(component, propertyName, {

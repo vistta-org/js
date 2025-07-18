@@ -1099,6 +1099,8 @@ function parseArguments(method, subdomain, pathname, arg) {
 }
 
 function getSubdomain(input) {
+  if (!input || typeof input !== "string") return "";
+  if (input.includes(":")) input = input.split(":")[0];
   if (input && isIPAddress(input)) return "";
   const match = input.match(/^(?:https?:\/\/)?(?:www\.)?([^/:?]+)/i);
   const parts = (match && match[1] ? match[1] : input).split(".");
