@@ -57,7 +57,9 @@ async function html(page, props, build) {
     }),
     new Element("meta", {
       name: "viewport",
-      content: config?.viewport || "width=device-width,initial-scale=1,minimum-scale=1.0",
+      content:
+        config?.viewport ||
+        "width=device-width,initial-scale=1" + (page.pwa ? ",interactive-widget=resizes-content,viewport-fit=cover" : ""),
     }),
     new Element("meta", {
       "http-equiv": "Content-Type",
