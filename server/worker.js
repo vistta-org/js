@@ -45,13 +45,13 @@ self.addEventListener("notificationclick", (event) => {
   const urlToOpen = event.notification?.data?.url || self.location.origin;
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
         if (client.url === urlToOpen) {
           return client.focus();
         }
       }
-      return clients.openWindow(urlToOpen);
+      return self.clients.openWindow(urlToOpen);
     }),
   );
 });
