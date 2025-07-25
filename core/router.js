@@ -1,4 +1,4 @@
-import { BoundClass, RESOURCES_PATH, async, isValidUrl } from "../utils/index.js";
+import { BoundClass, async, isValidUrl } from "../utils/index.js";
 import { Element } from "./classes.js";
 import { VirtualDom } from "./dom.js";
 
@@ -85,8 +85,11 @@ export class Router extends BoundClass {
     await this.navigate();
     if (!("serviceWorker" in navigator) || !document.querySelector(`head > link[rel="manifest"]`)) return;
     navigator.serviceWorker
-      .register(`/${RESOURCES_PATH}/worker.js`)
-      .then(undefined, (error) => console.log(`Service worker registration failed: ${error}`));
+      .register(`/worker.js`)
+      .then(undefined)
+      .catch((error) => {
+        console.error("Service Worker registration failed:", error);
+      });
   }
 
   get location() {

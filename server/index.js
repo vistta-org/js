@@ -8,8 +8,10 @@ import { Server as SocketIO } from "socket.io";
 import { URL } from "url";
 import zlib from "zlib";
 import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from "../utils/index.js";
+import { code as client } from "./client.js" with { type: "bundler" };
 import { default as Controller, Method, shareToLoader, WebSocket } from "./controller.js";
 import { Component, createPage } from "./page.js";
+import { code as worker } from "./worker.js" with { type: "bundler" };
 
 const dirname = import.meta.dirname;
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
@@ -450,16 +452,7 @@ class Server {
           );
           if (!this.#resources)
             this.#resources = {
-              [`/${RESOURCES_PATH}/client.js`]: (
-                await import(fs.resolve(dirname, "./client.js"), {
-                  with: { type: "bundler" },
-                })
-              )?.code,
-              [`/${RESOURCES_PATH}/worker.js`]: (
-                await import(fs.resolve(dirname, "./worker.js"), {
-                  with: { type: "bundler" },
-                })
-              )?.code,
+              [`/${RESOURCES_PATH}/client.js`]: client,
             };
           const resourceKeys = Object.keys(page.resources);
           for (let i2 = 0, resourcesLen = resourceKeys.length; i2 < resourcesLen; i2++)
@@ -501,7 +494,10 @@ class Server {
                       .js(req, res.props)
                       .then((js) => res.send(js, "text/javascript"))
                       .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
-                  else if (req.resource === "manifest") {
+                  else if (req.resource === "worker") {
+                    if (page.pwa) res.send(worker, "text/javascript");
+                    else res.reject("Resource not found", 404);
+                  } else if (req.resource === "manifest") {
                     if (page.pwa)
                       page
                         .manifest(req, req.props)
@@ -844,6 +840,7 @@ class Server {
 
   #handler(protocol, request, response) {
     try {
+      console.debug(`[${protocol.toUpperCase()}] ${request.method} ${request.url}`);
       request.timeout = setTimeout(() => this.#send(request, response, 408, "Request timeout"), this.#timeout);
       const end = response.end.bind(response);
       response.end = (...args) => (
@@ -946,6 +943,8 @@ class Server {
           ((request.resource = "page"), (request.pathname = removeFromPath(request.pathname, "*/page.js")));
         if (request.pathname.endsWith("manifest.json"))
           ((request.resource = "manifest"), (request.pathname = removeFromPath(request.pathname, "*/manifest.json")));
+        if (request.pathname.endsWith("worker.js"))
+          ((request.resource = "worker"), (request.pathname = removeFromPath(request.pathname, "*/worker.js")));
         const route = matchRoute(this.#subdomains[request.subdomain]?.[method], request.pathname);
         if (route) {
           route.params.forEach((param, index) => (request.params[param] = route.match[index + 1]));

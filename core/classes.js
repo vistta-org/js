@@ -5,7 +5,17 @@ export const Fragment = Symbol("Fragment");
 export const TextNode = Symbol("TextNode");
 const ComponentNode = Symbol("Component");
 
+/**
+ * @extends {JSX.Element}
+ */
 export class Element {
+  /**
+   * @template Props
+   * Represents a virtual DOM element.
+   * @param {string|Symbol|Function} type - The type of the element, can be a string (HTML tag), a Symbol (custom element), or a Function (Component).
+   * @param {Props} [props] - The properties of the element.
+   * @param {JSX.Node} [children] - The children of the element, can be other Elements, strings, numbers, or any other type.
+   */
   constructor(type, props, ...children) {
     this.props = props || {};
     this.children = children;
@@ -40,7 +50,7 @@ export class Element {
       } else props = cloneProps(this.props);
     }
     if (children !== false)
-children = this?.children?.map((child) => (child instanceof Element ? child.clone(undefined, true) : child));
+      children = this?.children?.map((child) => (child instanceof Element ? child.clone(undefined, true) : child));
     return new Element(this.type, props, children);
   }
 }
@@ -76,7 +86,7 @@ export class Context extends FunctionClass {
     if (this.#cache) {
       try {
         this.#shared.value =
-parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
+          parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
       } catch {
         /* Do nothing */
       }
@@ -91,7 +101,7 @@ parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")
       for (let i = 0, len = actionsNames.length; i < len; i++) {
         const actionName = actionsNames[i];
         if (["valueOf", "toString", "setValue", "register", "proxy"].includes(actionName))
-throw new Error(`Invalid action name "${actionName}".`);
+          throw new Error(`Invalid action name "${actionName}".`);
         const action = actions[actionName];
         this[actionName] = ((...args) => {
           controllerFn(actionName, "pending");
@@ -181,7 +191,13 @@ throw new Error(`Invalid action name "${actionName}".`);
   }
 }
 
+/**
+ * @template T
+ */
 export class Ref {
+  /**
+   * @param {T} initialValue - The initial value of the reference.
+   */
   constructor(initialValue) {
     this.node = initialValue;
   }
@@ -214,7 +230,7 @@ export class Component {
       if (functions[i] === "constructor") continue;
       const descriptor = Object.getOwnPropertyDescriptor(prototype, functions[i]);
       if (typeof descriptor.get === "undefined" && typeof descriptor.set === "undefined")
-this[functions[i]] = this[functions[i]].bind(this);
+        this[functions[i]] = this[functions[i]].bind(this);
     }
   }
 }
@@ -394,7 +410,7 @@ export class Form extends Component {
         return null;
       }
       if (this.className || this.style)
-return new Element("div", { className: this.className, style: this.style }, ...this.children);
+        return new Element("div", { className: this.className, style: this.style }, ...this.children);
       return new Element(Fragment, {}, ...this.children);
     }
     this.#invalidEvent = typeof this.oninvalid === "function" || typeof this.onInvalid === "function";
@@ -429,15 +445,15 @@ return new Element("div", { className: this.className, style: this.style }, ...t
     const { type, attributes, node } = target || {};
 
     if (
-!node ||
-(type !== "input" && type !== "textarea" && type !== "select" && attributes.role !== "input") ||
-attributes.type === "submit"
-)
+      !node ||
+      (type !== "input" && type !== "textarea" && type !== "select" && attributes.role !== "input") ||
+      attributes.type === "submit"
+    )
       return;
     const path = attributes.name || attributes.id;
     if (!path) {
       if ("production" !== process.env.NODE_ENV)
-console.warn(`Missing either "id" or "name" attribute on ${type} inside of form.`);
+        console.warn(`Missing either "id" or "name" attribute on ${type} inside of form.`);
       return;
     }
     if (attributes.type === "radio") {
