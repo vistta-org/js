@@ -20,6 +20,8 @@ const DEFAULT_PROXY_OPTIONS = {
   xfwd: true,
   secure: false,
   changeOrigin: true,
+  preserveHeaderKeyCase: true,
+  selfHandleResponse: false,
   followRedirects: false,
   timeout: TIMEOUT_TIME,
   proxyTimeout: TIMEOUT_TIME,
