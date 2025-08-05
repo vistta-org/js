@@ -774,7 +774,7 @@ class Server {
           }
         });
       else if (arg instanceof WebSocket) {
-        const events = Object.keys(arg.events);
+        const events = Object.keys(arg.events || {});
         for (let j = 0, jlen = events.length; j < jlen; j++)
           this.on(subdomain, events[j], function (...args) {
             arg.events[events[j]].call(this, ...args);
@@ -789,7 +789,7 @@ class Server {
         emit: this.emit.bind(this, subdomain),
         on: this.on.bind(this, subdomain),
       });
-      const handlers = Object.values(controller);
+      const handlers = Object.values(controller || {});
       for (let i = 0, len = handlers.length; i < len; i++) {
         const handler = handlers[i];
         if (handler instanceof Method) {
@@ -807,7 +807,7 @@ class Server {
             }
           });
         } else if (handler instanceof WebSocket) {
-          const events = Object.keys(handler.events);
+          const events = Object.keys(handler.events || {});
           for (let j = 0, jlen = events.length; j < jlen; j++)
             this.on(subdomain, events[j], function (...args) {
               handler.events[events[j]].call(this, ...args);
@@ -824,7 +824,7 @@ class Server {
 
     this.#subdomains[subdomain] ||= defaultSubdomain();
     const route = arg instanceof Route ? arg : new Route(subdomain, pathname, type, arg, page);
-    const routes = this.#subdomains[subdomain][type];
+    const routes = this.#subdomains[subdomain][type] || [];
     const { route: existing, replace } = findRoute(routes, route.route) || {};
     if (existing) {
       if (this.#strict)
@@ -842,7 +842,6 @@ class Server {
 
   #handler(protocol, request, response) {
     try {
-      console.debug(`[${protocol.toUpperCase()}] ${request.method} ${request.url}`);
       request.timeout = setTimeout(() => this.#send(request, response, 408, "Request timeout"), this.#timeout);
       const end = response.end.bind(response);
       response.end = (...args) => (
@@ -876,8 +875,8 @@ class Server {
       request.body = () => getRequestBody(request);
       request.cookies = {};
       if (request?.headers?.cookie) {
-        const cookies = request?.headers?.cookie.split(";");
-        for (let i = 0, len = cookies?.length; i < len; i++) {
+        const cookies = request?.headers?.cookie?.split(";") || [];
+        for (let i = 0, len = cookies.length; i < len; i++) {
           const parts = cookies[i].split("=");
           const name = parts.shift().trim();
           request.cookies[name] = parts.join("=").trim();
