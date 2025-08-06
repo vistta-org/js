@@ -195,6 +195,14 @@ export class Context extends FunctionClass {
  * @template T
  */
 export class Ref {
+  static forward(ref, callback) {
+    return (element) => {
+      if (typeof ref === "function") ref(element);
+      else if (ref && typeof ref === "object") ref.node = element;
+      return callback(element);
+    };
+  }
+
   /**
    * @param {T} initialValue - The initial value of the reference.
    */

@@ -1,4 +1,4 @@
-import { Context } from "./classes.js";
+import { Context, Ref } from "./classes.js";
 
 export class Theme extends Context {
   constructor() {
@@ -24,6 +24,8 @@ export class Theme extends Context {
     document.documentElement.setAttribute("theme", this.value?.value);
   }
 }
+
+export const forwardRef = Ref.forward;
 
 /*
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
