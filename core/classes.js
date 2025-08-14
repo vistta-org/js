@@ -176,7 +176,8 @@ export class Context extends FunctionClass {
     };
     this.#shared.proxy = proxy(this.#shared.value, {
       get(path, value) {
-        if (typeof listener?.get === "function") listener.get(path.join("."), value);
+        if (typeof listener?.get === "function" && !path.find((cur) => typeof cur !== "string"))
+          listener.get(path.join("."), value);
         return value;
       },
       set(path, newValue, oldValue, next) {
@@ -204,7 +205,7 @@ export class Ref {
   }
 
   /**
-   * @param {T} initialValue - The initial value of the reference.
+   * @param {T} [initialValue] - The initial value of the reference.
    */
   constructor(initialValue) {
     this.node = initialValue;

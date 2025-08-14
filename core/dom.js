@@ -354,7 +354,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
               if (!virtualDom.mutation) return;
               addUnique(mutations[path], virtualDom.mutation);
             },
-            set: (path) => (mutations[path]) && virtualDom.enqueue(mutations[path]),
+            set: (path) => mutations[path] && virtualDom.enqueue(mutations[path]),
           });
         }
         Object.defineProperty(component, propertyName, {
@@ -502,14 +502,14 @@ function updateElement(virtualDom, element, props, children) {
     const keys = Object.keys(props || {});
     for (let i = 0, len = keys.length; i < len; i++) {
       if (props[keys[i]] instanceof Mutation) {
-        const mutations = element.props[keys[i]].context.mutations;
+        const mutations = element.props[keys[i]]?.context?.mutations;
         applyMutation(
           virtualDom,
           element,
           element.props[keys[i]],
           evalMutation(props[keys[i]], (value) => {
             element.attributes[keys[i]] = value;
-            virtualDom.enqueue(mutations);
+            if (mutations) virtualDom.enqueue(mutations);
           }),
           evalMutationAsync(virtualDom, props[keys[i]], (value) => {
             if (value === element.attributes[keys[i]]) return;
