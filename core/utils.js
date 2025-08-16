@@ -25,6 +25,45 @@ export class Theme extends Context {
   }
 }
 
+const eventObservers = [];
+const elementObservers = {};
+
+export function anchor(element, target) {
+  let position = "bottom";
+  if (typeof target === "object" && target.position) ({ position, target } = target);
+  target = typeof target === "string" ? document.querySelector(target) : target;
+  const { changed, set } = getPositioning(position);
+  if (target instanceof Ref) target = target.node;
+  if (!target) return;
+  let last = target.getBoundingClientRect();
+  const observer = (force) => {
+    const rect = target.getBoundingClientRect();
+    if (!force && !changed(last, rect)) return;
+    last = set(element, rect);
+  };
+  if (eventObservers.length === 0) {
+    window.addEventListener(
+      "scroll",
+      () => {
+        for (let i = 0, len = eventObservers.length; i < len; i++) eventObservers[i]();
+      },
+      true,
+    );
+    window.addEventListener("resize", () => {
+      for (let i = 0, len = eventObservers.length; i < len; i++) eventObservers[i]();
+    });
+  }
+  if (elementObservers[target]) elementObservers[target].push(observer);
+  else {
+    elementObservers[target] = [observer];
+    new ResizeObserver(() => {
+      for (let i = 0, len = elementObservers[target].length; i < len; i++) elementObservers[target][i]();
+    }).observe(target);
+  }
+  eventObservers.push(observer);
+  requestAnimationFrame(() => observer(true));
+}
+
 export const forwardRef = Ref.forward;
 
 /*
@@ -37,3 +76,41 @@ window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',
 });
 
 */
+function getPositioning(position) {
+  if (position === "top")
+    return {
+      changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.width !== last.width,
+      set: (element, rect) => {
+        element.style.setProperty("bottom", `${rect.top}px`);
+        element.style.setProperty("left", `${rect.left + rect.width / 2}px`);
+        return rect;
+      },
+    };
+  else if (position === "bottom")
+    return {
+      changed: (last, rect) => rect.bottom !== last.bottom || rect.left !== last.left || rect.width !== last.width,
+      set: (element, rect) => {
+        element.style.setProperty("top", `${rect.bottom}px`);
+        element.style.setProperty("left", `${rect.left + rect.width / 2}px`);
+        return rect;
+      },
+    };
+  else if (position === "left")
+    return {
+      changed: (last, rect) => rect.top !== last.top || rect.right !== last.right || rect.height !== last.height,
+      set: (element, rect) => {
+        element.style.setProperty("top", `${rect.top + rect.height / 2}px`);
+        element.style.setProperty("left", `${rect.right}px`);
+        return rect;
+      },
+    };
+  else if (position === "right")
+    return {
+      changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.height !== last.height,
+      set: (element, rect) => {
+        element.style.setProperty("top", `${rect.top + rect.height / 2}px`);
+        element.style.setProperty("left", `${rect.left}px`);
+        return rect;
+      },
+    };
+}

@@ -13,6 +13,7 @@ import {
   Suspense,
   TextNode,
 } from "./classes.js";
+import { anchor } from "./utils.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
 let componentMutationCount = 0;
@@ -51,6 +52,7 @@ class VirtualDom {
     if ((name === "validator" && typeof value === "function") || element.attributes[name] === value) return;
     element.attributes[name] = value;
     const node = element.node;
+    if (name === "anchor") return !window.isServer && anchor(node, value);
     if (!disabledOrReadOnly && /^on\w.*/.test(name) && typeof value === "function") {
       node[name.toLowerCase()] = (event, ...args) => {
         try {
@@ -72,8 +74,6 @@ class VirtualDom {
       for (let i = 0, len = keys.length || 0; i < len; i++) node.style.setProperty(keys[i], value[keys[i]]);
     } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
     if (name.startsWith("style-") && value) this.addStyleSheet(name.replace("style-", ""), true);
-    if (!window.isServer && name === "id" && value) node.style.setProperty("anchor-name", `--a_${value.toLowerCase()}`);
-    if (name === "anchor") node.style.setProperty("position-anchor", `--a_${value.toLowerCase()}`);
   }
 
   render(element) {
@@ -94,9 +94,7 @@ class VirtualDom {
     }
     this.host.replaceChildren(host.node);
     host.node = this.host;
-    if (!window.isServer) {
-      requestAnimationFrame(() => this.update());
-    }
+    if (!window.isServer) requestAnimationFrame(() => this.update());
     return this;
   }
 
@@ -128,9 +126,10 @@ class VirtualDom {
 
   disable() {
     if (!this.virtualTree) throw new VirtualDomError("Virtual Dom not rendered");
-    traverseVirtualTree(this.virtualTree, (element) => {
-      if (element.type === Component.Node) element.component?.onDisconnect?.();
-    });
+    traverseVirtualTree(
+      this.virtualTree,
+      (element) => element.type === Component.Node && element.component?.onDisconnect?.(),
+    );
     this.active = false;
     this.running = false;
   }
@@ -139,9 +138,7 @@ class VirtualDom {
     if (!this.virtualTree) throw new VirtualDomError("Virtual Dom not rendered");
     this.active = true;
     this.running = true;
-    traverseVirtualTree(this.virtualTree, (element) => {
-      if (element.type === Component.Node) element.component?.onConnect?.();
-    });
+    traverseVirtualTree(this.virtualTree, (element) => element.type === Component.Node && element.component?.onConnect?.());
     const fragment = this.createElement("fragment");
     const firstNode = this.virtualTree.node || this.virtualTree.firstNode;
     if (firstNode) {
