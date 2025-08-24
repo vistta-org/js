@@ -841,6 +841,7 @@ class Server {
   }
 
   #handler(protocol, request, response) {
+    console.log(`handler: ${request.subdomain} ${request.method} ${request.url} [DEBUG]`);
     try {
       request.timeout = setTimeout(() => this.#send(request, response, 408, "Request timeout"), this.#timeout);
       const end = response.end.bind(response);
@@ -930,6 +931,7 @@ class Server {
   }
 
   #resolve(request, response) {
+    console.log(`resolve: ${request.subdomain} ${request.method} ${request.url} [DEBUG]`);
     try {
       const method = request.method.toLowerCase();
       const resource = this.#resources?.[request.pathname];
