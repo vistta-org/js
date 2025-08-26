@@ -841,7 +841,6 @@ class Server {
   }
 
   #handler(protocol, request, response) {
-    console.log(`handler: ${request.subdomain} ${request.method} ${request.url} [DEBUG]`);
     try {
       request.timeout = setTimeout(() => this.#send(request, response, 408, "Request timeout"), this.#timeout);
       const end = response.end.bind(response);
@@ -931,29 +930,34 @@ class Server {
   }
 
   #resolve(request, response) {
-    console.log(`resolve: ${request.subdomain} ${request.method} ${request.url} [DEBUG]`);
+    console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 1`);
     try {
       const method = request.method.toLowerCase();
       const resource = this.#resources?.[request.pathname];
       if (request.resource && resource) {
+        console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 2.1`);
         if (method !== "get") return this.#reject(request, response, "Method not allowed", 405);
         const type = mime.getType(request.pathname) || "application/octet-stream";
 
+        console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 3`, fs.isAbsolute(resource) && fs.existsSync(resource));
         if (fs.isAbsolute(resource) && fs.existsSync(resource)) return response.sendFile(resource, type);
         return response.send(resource, type);
       } else {
         if (request.pathname.endsWith("/page.js"))
           ((request.resource = "page"), (request.pathname = removeFromPath(request.pathname, "*/page.js")));
-        if (request.pathname.endsWith("manifest.json"))
+        else if (request.pathname.endsWith("/manifest.json"))
           ((request.resource = "manifest"), (request.pathname = removeFromPath(request.pathname, "*/manifest.json")));
-        if (request.pathname.endsWith("worker.js"))
+        else if (request.pathname.endsWith("/worker.js"))
           ((request.resource = "worker"), (request.pathname = removeFromPath(request.pathname, "*/worker.js")));
+        console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 2.2`);
         const route = matchRoute(this.#subdomains[request.subdomain]?.[method], request.pathname);
+        console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 3`, !!route);
         if (route) {
           route.params.forEach((param, index) => (request.params[param] = route.match[index + 1]));
           return route.handler(request, response);
         }
       }
+      console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 4`);
       this.#reject(request, response);
     } catch (e) {
       this.#emit("error", e.message);
