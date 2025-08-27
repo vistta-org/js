@@ -930,16 +930,13 @@ class Server {
   }
 
   #resolve(request, response) {
-    console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 1`);
     try {
       const method = request.method.toLowerCase();
       const resource = this.#resources?.[request.pathname];
       if (request.resource && resource) {
-        console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 2.1`);
         if (method !== "get") return this.#reject(request, response, "Method not allowed", 405);
         const type = mime.getType(request.pathname) || "application/octet-stream";
 
-        console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 3`, fs.isAbsolute(resource) && fs.existsSync(resource));
         if (fs.isAbsolute(resource) && fs.existsSync(resource)) return response.sendFile(resource, type);
         return response.send(resource, type);
       } else {
@@ -949,15 +946,12 @@ class Server {
           ((request.resource = "manifest"), (request.pathname = removeFromPath(request.pathname, "*/manifest.json")));
         else if (request.pathname.endsWith("/worker.js"))
           ((request.resource = "worker"), (request.pathname = removeFromPath(request.pathname, "*/worker.js")));
-        console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 2.2`);
         const route = matchRoute(this.#subdomains[request.subdomain]?.[method], request.pathname);
-        console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 3`, !!route);
         if (route) {
           route.params.forEach((param, index) => (request.params[param] = route.match[index + 1]));
           return route.handler(request, response);
         }
       }
-      console.log(`[DEBUG] ${request.subdomain} ${request.method} ${request.url}: mark 4`);
       this.#reject(request, response);
     } catch (e) {
       this.#emit("error", e.message);
@@ -966,6 +960,7 @@ class Server {
   }
 
   #reject(request, response, message, code) {
+    console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 1`);
     response.message = message || `The requested ${request.resource ? "Resource" : "URL"} "${request.url}" was not found`;
     response.statusCode = code || 404;
     response.send = (content, type) =>
@@ -978,15 +973,20 @@ class Server {
         exact: false,
         filter: (route) => route.active && (acceptsHtml || !route.isPage),
       });
+      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 2`, !!route);
       if (route) return route.handler(request, response, response?.statusCode, response?.message);
+      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 3`);
       if (request.subdomain === "") return this.#send(request, response, response?.statusCode, response?.message);
       route = matchRoute(this.#subdomains[""]?.error, request.pathname, {
         exact: false,
         filter: (route) => route.active && (acceptsHtml || !route.isPage),
       });
+      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 4`, !!route);
       if (route) return route.handler(request, response, response?.statusCode, response?.message);
+      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 5`);
       this.#send(request, response, response?.statusCode, response?.message);
     } catch (e) {
+      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 6`, e.message);
       this.#emit("error", e.message);
       this.#send(request, response, 500, e.message);
     }
