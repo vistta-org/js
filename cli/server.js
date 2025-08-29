@@ -61,13 +61,15 @@ export default class extends DefaultCLI {
           if (counter.page.includes(pathname)) break;
           counter.page.push(pathname);
           if (counter.log) counter.log.replace(`Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
-          else counter.log = console.timeLog("routes", `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
+          else
+            counter.log = console.timeLog("routes", `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
           break;
         case "api":
           if (counter.api.includes(pathname)) break;
           counter.api.push(pathname);
           if (counter.log) counter.log.replace(`Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
-          else counter.log = console.timeLog("routes", `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
+          else
+            counter.log = console.timeLog("routes", `Loaded ${counter.page.length} page(s), ${counter.api.length} API(s).`);
           break;
       }
     });

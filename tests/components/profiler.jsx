@@ -9,7 +9,13 @@ class Test extends Component {
     let children = []; //
     const target = this.run % 2 == 0 ? "even" : "odd";
     for (let i = 0; i < ITERATIONS; i++)
-      children.push(<input key={`test.${target}.${i}`} placeholder={target} style={{ position: "absolute", inset: "5px 50vw auto auto" }} />);
+      children.push(
+        <input
+          key={`test.${target}.${i}`}
+          placeholder={target}
+          style={{ position: "absolute", inset: "5px 50vw auto auto" }}
+        />,
+      );
     return children;
   }
 }

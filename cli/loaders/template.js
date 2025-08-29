@@ -16,7 +16,8 @@ export async function load(source) {
       code: `export default () => null;`,
     };
   const keys = Object.keys(htmlToJSX);
-  for (let i = 0, len = keys.length; i < len; i++) source = source.replace(new RegExp(`(?<=<[^>]*)${keys[i]}(?==)`, "g"), htmlToJSX[keys[i]]);
+  for (let i = 0, len = keys.length; i < len; i++)
+    source = source.replace(new RegExp(`(?<=<[^>]*)${keys[i]}(?==)`, "g"), htmlToJSX[keys[i]]);
   source = source.replace(/(\r\n|\n|\r)/gm, "");
   source = source.replace(/<!--[\s\S]*?-->/gm, "");
   source = source.replace(/="{[^}]*}"/gm, (m) => "=" + m.slice(2, -1));
