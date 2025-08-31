@@ -471,13 +471,19 @@ class Server {
                     page
                       .js(req, { code, message })
                       .then((js) => res.send(js, "text/javascript"))
-                      .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
+                      .catch((e) => {
+                        this.#emit("error", e?.trace || e?.message || e);
+                        this.#send(req, res, 500, e?.message || e);
+                      });
                   else if (req.resource === "manifest") res.reject("Resource not found", 404);
                   else
                     page
                       .html(req, { code, message })
                       .then((html) => res.send(html, "text/html"))
-                      .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
+                      .catch((e) => {
+                        this.#emit("error", e?.trace || e?.message || e);
+                        this.#send(req, res, 500, e?.message || e);
+                      });
                 },
                 true,
               ),
@@ -924,8 +930,8 @@ class Server {
       if (middleware) middleware.handler(request, response, () => this.#resolve(request, response));
       else this.#resolve(request, response);
     } catch (e) {
-      this.#emit("error", e.message);
-      this.#send(request, response, 500, e.message);
+      this.#emit("error", e?.trace || e?.message || e);
+      this.#send(request, response, 500, e?.message || e);
     }
   }
 
@@ -954,8 +960,8 @@ class Server {
       }
       this.#reject(request, response);
     } catch (e) {
-      this.#emit("error", e.message);
-      this.#reject(request, response, e.message, 500);
+      this.#emit("error", e?.trace || e?.message || e);
+      this.#reject(request, response, e?.message || e, 500);
     }
   }
 
@@ -973,20 +979,15 @@ class Server {
         exact: false,
         filter: (route) => route.active && (acceptsHtml || !route.isPage),
       });
-      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 2`, !!route);
       if (route) return route.handler(request, response, response?.statusCode, response?.message);
-      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 3`);
       if (request.subdomain === "") return this.#send(request, response, response?.statusCode, response?.message);
       route = matchRoute(this.#subdomains[""]?.error, request.pathname, {
         exact: false,
         filter: (route) => route.active && (acceptsHtml || !route.isPage),
       });
-      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 4`, !!route);
       if (route) return route.handler(request, response, response?.statusCode, response?.message);
-      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 5`);
       this.#send(request, response, response?.statusCode, response?.message);
     } catch (e) {
-      console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 6`, e.message);
       this.#emit("error", e.message);
       this.#send(request, response, 500, e.message);
     }
