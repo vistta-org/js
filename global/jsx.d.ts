@@ -207,8 +207,14 @@ interface CustomElement {
 
 interface HTMLElement {
   class?: string;
+  for?: string;
   anchor?: string | HTMLElement | Object | { target: string | HTMLElement | Object; position?: string };
   readonly?: boolean;
+  tabindex?: number;
+  frameborder?: number | string;
+  allowfullscreen?: boolean;
+  allowpaymentrequest?: boolean;
+  allowtransparency?: boolean;
 }
 
 declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
