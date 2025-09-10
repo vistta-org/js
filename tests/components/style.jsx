@@ -4,6 +4,6 @@ import style from "./style.css";
 
 export default class extends Component {
   render() {
-    return <div id="target" className="centered" {...style} style={{ "--size": SIZE + "px" }} />;
+    return <div id="target" class="centered" {...style} style={{ "--size": SIZE + "px" }} />;
   }
 }

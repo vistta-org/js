@@ -386,7 +386,7 @@ export class Form extends Component {
   ref;
   id;
   name;
-  className;
+  class;
   autocomplete;
   style;
   onsubmit;
@@ -418,8 +418,7 @@ export class Form extends Component {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
         return null;
       }
-      if (this.className || this.style)
-        return new Element("div", { className: this.className, style: this.style }, ...this.children);
+      if (this.class || this.style) return new Element("div", { class: this.class, style: this.style }, ...this.children);
       return new Element(Fragment, {}, ...this.children);
     }
     this.#invalidEvent = typeof this.oninvalid === "function" || typeof this.onInvalid === "function";
@@ -427,7 +426,7 @@ export class Form extends Component {
       "form",
       {
         ref: (element) => (this.#node = element),
-        className: this.className,
+        class: this.class,
         autocomplete: this.autocomplete,
         onreset: () => this.reset(),
         oninvalid: this.oninvalid || this.onInvalid,

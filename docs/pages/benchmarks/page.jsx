@@ -45,19 +45,19 @@ class Page extends Component {
 
   render() {
     return (
-      <div className="container" {...style}>
+      <div class="container" {...style}>
         <Bench id="1" run={this.counter} test={Test1} callback={(...args) => this.onComplete(...args)} />
         <Bench id="2" run={this.counter} test={Test2} callback={(...args) => this.onComplete(...args)} />
         <Bench id="3" run={this.counter} test={Test3} callback={(...args) => this.onComplete(...args)} />
         <Bench id="4" run={this.counter} test={Test4} callback={(...args) => this.onComplete(...args)} />
-        <div className="controls">
-          <button className="runner" onclick={() => (this.counter += 1)}>
+        <div class="controls">
+          <button class="runner" onclick={() => (this.counter += 1)}>
             Single Run
           </button>
-          <button className="runner" onclick={this.run} disabled={this.active}>
+          <button class="runner" onclick={this.run} disabled={this.active}>
             Bench Run
           </button>
-          {"production" === process.env.NODE_ENV && <h2 className="warning">*Benchmark only works no Development Mode*</h2>}
+          {"production" === process.env.NODE_ENV && <h2 class="warning">*Benchmark only works no Development Mode*</h2>}
         </div>
       </div>
     );
@@ -78,7 +78,7 @@ class Bench extends Component {
     return (
       <div class="bench">
         <p>Benchmark #{this.id}</p>
-        <div className="display">
+        <div class="display">
           <Profiler callback={(time) => this.callback?.(this.id, time)}>
             <Test run={this.run} iterations={ITERATIONS} />
           </Profiler>

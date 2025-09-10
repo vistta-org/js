@@ -1,14 +1,5 @@
 import JSXLoader from "./jsx.js";
 
-const htmlToJSX = {
-  class: "className",
-  for: "htmlFor",
-  tabindex: "tabIndex",
-  readonly: "readOnly",
-  frameborder: "frameBorder",
-  allowfullscreen: "allowFullScreen",
-};
-
 export default class TemplateLoader extends JSXLoader {
   async load(source) {
     source = source.match(/(?<=(<template>)).*(?=(<\/template>))/gs)?.[0];
@@ -16,9 +7,6 @@ export default class TemplateLoader extends JSXLoader {
       return {
         code: `export default () => null;`,
       };
-    const keys = Object.keys(htmlToJSX);
-    for (let i = 0, len = keys.length; i < len; i++)
-      source = source.replace(new RegExp(`(?<=<[^>]*)${keys[i]}(?==)`, "g"), htmlToJSX[keys[i]]);
     source = source.replace(/(\r\n|\n|\r)/gm, "");
     source = source.replace(/<!--[\s\S]*?-->/gm, "");
     source = source.replace(/="{[^}]*}"/gm, (m) => "=" + m.slice(2, -1));
