@@ -1,0 +1,24 @@
+{
+  "extends": "@vistta/cli/config",
+  "cliOptions": {
+    "commands": {
+      "default": "./commands/default.js",
+      "server": "./commands/server.js"
+    }
+  },
+  "bundlerOptions": {
+    "paths": {
+      "@vistta/js": {
+        "path": "vistta",
+        "namespace": "window"
+      },
+      "@socket": {
+        "path": "/socket.io/socket.io.esm.min.js",
+        "external": true
+      }
+    },
+    "define": {
+      "window.isServer": "false"
+    }
+  }
+}

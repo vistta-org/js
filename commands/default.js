@@ -1,22 +1,23 @@
-import { default as DefaultCLI } from "@vistta/cli/default";
+import { DefaultCommand, parseArgs } from "@vistta/cli";
 import fs from "@vistta/fs";
 
 const dirname = import.meta.dirname;
 
-export default class extends DefaultCLI {
-  constructor(options) {
-    super(options);
-    this.register(fs.resolve(dirname, "./loaders/file.js"), "File", "*");
-    this.register(fs.resolve(dirname, "./loaders/file.js"), "File", "reader");
-    this.register(fs.resolve(dirname, "./loaders/file.js"), "File", "url");
-    this.register(fs.resolve(dirname, "./loaders/jsx.js"), "JSX", "*", ["jsx", "mjsx", "cjsx", "tsx", "mtsx", "ctsx"], true);
-    this.register(fs.resolve(dirname, "./loaders/api.js"), "API", "api", ["js", "mjs", "cjs", "ts", "mts", "cts"]);
-    this.register(fs.resolve(dirname, "./loaders/style.js"), "Style", "*", ["css", "sass", "scss"]);
-    this.register(fs.resolve(dirname, "./loaders/template.js"), "Template", "template");
+export default class extends DefaultCommand {
+  constructor(config) {
+    super(config);
+    this.register(fs.resolve(dirname, "./loaders/file.js"));
+    this.register(fs.resolve(dirname, "./loaders/file.js"), { type: "reader" });
+    this.register(fs.resolve(dirname, "./loaders/file.js"), { type: "url" });
+    this.register(fs.resolve(dirname, "./loaders/jsx.js"), { filter: ".*\\.(jsx|mjsx|cjsx|tsx|mtsx|ctsx)" });
+    this.register(fs.resolve(dirname, "./loaders/api.js"), { type: "api" });
+    this.register(fs.resolve(dirname, "./loaders/style.js"), { filter: ".*\\.(css|sass|scss)" });
+    this.register(fs.resolve(dirname, "./loaders/template.js"), { type: "template" });
+    this.resolve("jsx", "tsx");
   }
 
   async main(...argv) {
-    const [[file], options] = this.parse(argv);
+    const [[file], options] = parseArgs(argv);
     if (process.env.NODE_ENV === "development") await this.outdated();
     const filepath = fs.resolve(process.cwd(), file);
     if (!fs.existsSync(filepath)) {

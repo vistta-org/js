@@ -1,11 +1,11 @@
 import { COLORS } from "@vistta/console";
 import fs from "@vistta/fs";
 import Server from "../server/index.js";
-import { default as DefaultCLI } from "./default.js";
+import { default as DefaultCommand } from "./default.js";
 
 const dirname = import.meta.dirname;
 
-export default class extends DefaultCLI {
+export default class extends DefaultCommand {
   #announcer;
 
   help(command) {

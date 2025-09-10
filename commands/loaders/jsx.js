@@ -1,12 +1,14 @@
-import { load as loadTypescript } from "@vistta/cli/loaders/typescript";
+import TypescriptLoader from "@vistta/cli/loaders/typescript";
 let id = 0;
 
-export async function load(source, options) {
-  try {
-    if (options.extension === "tsx") return loadTypescript(transform(source), options);
-    return { code: transform(source) };
-  } catch (e) {
-    return { errors: [`${options.path}(0,0): jsx error: ${e.stack}`] };
+export default class JSXLoader extends TypescriptLoader {
+  async load(source, options) {
+    try {
+      if (options.extension === "tsx") return super.load(transform(source), options);
+      return { code: transform(source) };
+    } catch (e) {
+      return { errors: [`${options.path}(0,0): jsx error: ${e.stack}`] };
+    }
   }
 }
 

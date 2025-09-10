@@ -27,20 +27,7 @@ const DEFAULT_PROXY_OPTIONS = {
   proxyTimeout: TIMEOUT_TIME,
 };
 
-const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [
-  ".jsx",
-  ".mjsx",
-  ".cjsx",
-  ".tsx",
-  ".mtsx",
-  ".ctsx",
-  ".js",
-  ".mjs",
-  ".cjs",
-  ".ts",
-  ".mts",
-  ".cts",
-];
+const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [".jsx", ".tsx", ".js", ".ts"];
 
 const ALL_METHODS = ["copy", "delete", "get", "move", "patch", "post", "put"];
 class Route {
@@ -706,6 +693,7 @@ class Server {
    */
   emit(subdomain, event, ...args) {
     if (typeof event !== "string") return this.#emit("warning", "Cannot emit an empty event");
+    console.log(`[DEBUG] Emitting event: ${event} to subdomain: ${subdomain} with args:`, args);
     if (subdomain && subdomain !== "*") this.#socket.to(subdomain).emit(event, ...args);
     else this.#socket.emit(event, ...args);
   }
@@ -966,7 +954,6 @@ class Server {
   }
 
   #reject(request, response, message, code) {
-    console.log(`[DEBUG] reject ${request.subdomain} ${request.method} ${request.url}: mark 1`);
     response.message = message || `The requested ${request.resource ? "Resource" : "URL"} "${request.url}" was not found`;
     response.statusCode = code || 404;
     response.send = (content, type) =>

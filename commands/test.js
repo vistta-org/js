@@ -1,4 +1,4 @@
-import { default as DefaultCLI } from "@vistta/cli/test";
+import { DefaultCommand } from "@vistta/cli";
 import fs from "@vistta/fs";
 import { sleep } from "@vistta/utils";
 import { randomBytes } from "crypto";
@@ -9,16 +9,17 @@ const DEFAULT_PORT = 1246;
 const dirname = import.meta.dirname;
 const server = {};
 
-export default class extends DefaultCLI {
+export default class extends DefaultCommand {
   constructor(options) {
     super(options);
-    this.register(fs.resolve(dirname, "./loaders/file.js"), "File", "*");
-    this.register(fs.resolve(dirname, "./loaders/file.js"), "File", "reader");
-    this.register(fs.resolve(dirname, "./loaders/jsx.js"), "JSX", "*", ["jsx", "mjsx", "cjsx", "tsx", "mtsx", "ctsx"], true);
-    this.register(fs.resolve(dirname, "./loaders/api.js"), "API", "api", ["js", "mjs", "cjs", "ts", "mts", "cts"]);
-    this.register(fs.resolve(dirname, "./loaders/style.js"), "Style", "*", ["css", "sass", "scss"]);
-    this.register(fs.resolve(dirname, "./loaders/template.js"), "Template", "template");
-    this.define("browser", {
+    this.register(fs.resolve(dirname, "./loaders/file.js"));
+    this.register(fs.resolve(dirname, "./loaders/file.js"), { type: "reader" });
+    this.register(fs.resolve(dirname, "./loaders/file.js"), { type: "url" });
+    this.register(fs.resolve(dirname, "./loaders/jsx.js"), { filter: ".*\\.(jsx|mjsx|cjsx|tsx|mtsx|ctsx)" });
+    this.register(fs.resolve(dirname, "./loaders/api.js"), { type: "api" });
+    this.register(fs.resolve(dirname, "./loaders/style.js"), { filter: ".*\\.(css|sass|scss)" });
+    this.register(fs.resolve(dirname, "./loaders/template.js"), { type: "template" });
+    this.define("global", "browser", {
       mount: async (filepath, options) => {
         await startServer();
         const id = randomBytes(6).toString("hex");

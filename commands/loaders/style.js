@@ -1,3 +1,4 @@
+import { Loader } from "@vistta/cli";
 import fs from "@vistta/fs";
 import autoprefixer from "autoprefixer";
 import { createRequire } from "node:module";
@@ -9,23 +10,25 @@ import { RESOURCES_PATH } from "../../utils/index.js";
 const EXT = [".sass", ".scss", ".css"];
 const require = createRequire(import.meta.url);
 
-export async function load(source, { path }) {
-  try {
-    const dirname = fs.dirname(path);
-    const id = fs.fileId(path);
-    const { code, resources, files } = await transform(source, dirname, fs.resolve(process.cwd(), "node_modules"));
-    resources.push({ hash: id + ".css", code });
-    resources.push({
-      hash: id + ".scoped.css",
-      code: `@scope([style-${id}]){${code}}`,
-    });
-    return {
-      code: `export default ({ ["style-${id}"]: true });`,
-      resources,
-      files,
-    };
-  } catch (e) {
-    return { errors: [`${path}(0,0): style error: ${e.message}`] };
+export default class StyleLoader extends Loader {
+  async load(source, { path }) {
+    try {
+      const dirname = fs.dirname(path);
+      const id = fs.fileId(path);
+      const { code, resources, files } = await transform(source, dirname, fs.resolve(process.cwd(), "node_modules"));
+      resources.push({ hash: id + ".css", code });
+      resources.push({
+        hash: id + ".scoped.css",
+        code: `@scope([style-${id}]){${code}}`,
+      });
+      return {
+        code: `export default ({ ["style-${id}"]: true });`,
+        resources,
+        files,
+      };
+    } catch (e) {
+      return { errors: [`${path}(0,0): style error: ${e.message}`] };
+    }
   }
 }
 
