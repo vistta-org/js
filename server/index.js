@@ -693,7 +693,6 @@ class Server {
    */
   emit(subdomain, event, ...args) {
     if (typeof event !== "string") return this.#emit("warning", "Cannot emit an empty event");
-    console.log(`[DEBUG] Emitting event: ${event} to subdomain: ${subdomain} with args:`, args);
     if (subdomain && subdomain !== "*") this.#socket.to(subdomain).emit(event, ...args);
     else this.#socket.emit(event, ...args);
   }
@@ -994,6 +993,7 @@ class Server {
     if (type === "connection") {
       const socket = args[0];
       const subdomain = getSubdomain(socket.handshake.headers.referer) || "";
+      console.log(`[DEBUG] client to join ${subdomain}`);
       await socket.join(subdomain);
       socket.onAny((event, ...args) => {
         const listeners = this.#events[event] || [];
