@@ -9,7 +9,7 @@ import { URL } from "url";
 import zlib from "zlib";
 import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from "../utils/index.js";
 import { code as client } from "./client.js" with { type: "bundler" };
-import { default as Controller, Method, shareToLoader, WebSocket } from "./controller.js";
+import { default as Controller, Method, shareToLoader, WebSocketListener } from "./controller.js";
 import { Component, createPage } from "./page.js";
 import { code as worker } from "./worker.js" with { type: "bundler" };
 
@@ -767,11 +767,16 @@ class Server {
             res.reject(e.message, 500);
           }
         });
-      else if (arg instanceof WebSocket) {
+      else if (arg instanceof WebSocketListener) {
         const events = Object.keys(arg.events || {});
         for (let j = 0, jlen = events.length; j < jlen; j++)
           this.on(subdomain, events[j], function (...args) {
-            arg.events[events[j]].call(this, ...args);
+            arg.events[events[j]].call(
+              {
+                emit: this.emit.bind(this, subdomain),
+              },
+              ...args,
+            );
           });
       } else if (typeof handler === "function") return this.#register("all", subdomain, pathname, arg);
       else throw new TypeError("Invalid api type");
@@ -800,11 +805,16 @@ class Server {
               res.reject(e.message, 500);
             }
           });
-        } else if (handler instanceof WebSocket) {
+        } else if (handler instanceof WebSocketListener) {
           const events = Object.keys(handler.events || {});
           for (let j = 0, jlen = events.length; j < jlen; j++)
             this.on(subdomain, events[j], function (...args) {
-              handler.events[events[j]].call(this, ...args);
+              handler.events[events[j]].call(
+                {
+                  emit: this.emit.bind(this, subdomain),
+                },
+                ...args,
+              );
             });
         }
       }

@@ -1,3 +1,4 @@
+import { socket } from "../core/socket.js";
 import { async, FunctionClass } from "../utils/index.js";
 
 export class Method extends FunctionClass {
@@ -41,16 +42,16 @@ export class Method extends FunctionClass {
   }
 }
 
-export class WebSocket {
-  #events;
+export class WebSocketListener extends FunctionClass {
+  #name;
 
-  constructor(events) {
-    if (typeof events !== "object" || Array.isArray(events)) throw new TypeError("WebSocket events must be an object");
-    this.#events = events;
+  get name() {
+    return this.#name;
   }
 
-  get events() {
-    return this.#events;
+  constructor(name, callback) {
+    super(async (...args) => await async(callback.call(...args)));
+    this.#name = name;
   }
 }
 
@@ -63,7 +64,7 @@ export class WebSocket {
  * @param {Function} callback Options for the request.
  * @returns {Function} A promise that resolves to the response data.
  */
-export const Copy = (url, callback) => new Method("copy", url, callback);
+export const copy = (url, callback) => new Method("copy", url, callback);
 
 /**
  * Sets a controller DELETE.
@@ -74,7 +75,7 @@ export const Copy = (url, callback) => new Method("copy", url, callback);
  * @param {Function} callback Options for the request.
  * @returns {Function} A promise that resolves to the response data.
  */
-export const Delete = (url, callback) => new Method("delete", url, callback);
+export const del = (url, callback) => new Method("delete", url, callback);
 
 /**
  * Sets a controller GET.
@@ -85,7 +86,7 @@ export const Delete = (url, callback) => new Method("delete", url, callback);
  * @param {Function} callback Options for the request.
  * @returns {Function} A promise that resolves to the response data.
  */
-export const Get = (url, callback) => new Method("get", url, callback);
+export const get = (url, callback) => new Method("get", url, callback);
 
 /**
  * Sets a controller MOVE.
@@ -96,7 +97,7 @@ export const Get = (url, callback) => new Method("get", url, callback);
  * @param {Function} callback Options for the request.
  * @returns {Function} A promise that resolves to the response data.
  */
-export const Move = (url, callback) => new Method("move", url, callback);
+export const move = (url, callback) => new Method("move", url, callback);
 
 /**
  * Sets a controller PATCH.
@@ -107,7 +108,7 @@ export const Move = (url, callback) => new Method("move", url, callback);
  * @param {Function} callback Options for the request.
  * @returns {Function} A promise that resolves to the response data.
  */
-export const Patch = (url, callback) => new Method("patch", url, callback);
+export const patch = (url, callback) => new Method("patch", url, callback);
 
 /**
  * Sets a controller POST.
@@ -118,7 +119,7 @@ export const Patch = (url, callback) => new Method("patch", url, callback);
  * @param {Function} callback Options for the request.
  * @returns {Function} A promise that resolves to the response data.
  */
-export const Post = (url, callback) => new Method("post", url, callback);
+export const post = (url, callback) => new Method("post", url, callback);
 
 /**
  * Sets a controller PUT.
@@ -129,14 +130,19 @@ export const Post = (url, callback) => new Method("post", url, callback);
  * @param {Function} callback Options for the request.
  * @returns {Function} A promise that resolves to the response data.
  */
-export const Put = (url, callback) => new Method("put", url, callback);
+export const put = (url, callback) => new Method("put", url, callback);
 
 /**
- * Registers a WebSocket controller.
- * @param {Record<string, function>} events - An object containing event handlers for the WebSocket.
- * @returns {WebSocket} A new controller WebSocket instance.
+ * Sets a controller WebSocket event listener.
+ *
+ * @param {string} event - The event name to listen for.
+ * @param {Function} callback - The callback function to execute when the event is triggered.
+ * @returns {Method} A new Method instance representing the WebSocket event listener.
  */
-export const Socket = (events) => new WebSocket(events);
+socket.on = (event, callback) => new WebSocketListener(event, callback);
+socket.emit = () => {}; // Dummy function to avoid errors in server environment
+
+export { socket };
 
 export default class Controller {}
 

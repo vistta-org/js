@@ -15,5 +15,4 @@ export {
   Suspense,
 } from "./core/classes";
 export { router } from "./core/router";
-export { socket } from "./core/socket";
-export { default as Controller, Copy, Delete, Get, Move, Patch, Post, Put, Socket } from "./server/controller";
+export { default as Controller, copy, del, get, move, patch, post, put, socket } from "./server/controller";

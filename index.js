@@ -12,5 +12,4 @@ export {
   Suspense,
 } from "./core/classes.js";
 export { default as router } from "./core/router.js";
-export { socket } from "./core/socket.js";
-export { default as Controller, Copy, Delete, Get, Move, Patch, Post, Put, Socket } from "./server/controller.js";
+export { default as Controller, copy, del, get, move, patch, post, put, socket } from "./server/controller.js";
