@@ -993,7 +993,6 @@ class Server {
     if (type === "connection") {
       const socket = args[0];
       const subdomain = getSubdomain(socket.handshake.headers.referer) || "";
-      console.log(`[DEBUG] client to join ${subdomain}`, args);
       await socket.join(subdomain);
       socket.onAny((event, ...args) => {
         const listeners = this.#events[event] || [];
@@ -1104,9 +1103,10 @@ function parseArguments(method, subdomain, pathname, arg) {
 
 function getSubdomain(input) {
   if (!input || typeof input !== "string") return "";
+  if (input.startsWith("http")) input = input.replace(/^https?:\/\//, "");
   if (input.includes(":")) input = input.split(":")[0];
   if (input && isIPAddress(input)) return "";
-  const match = input.match(/^(?:https?:\/\/)?(?:www\.)?([^/:?]+)/i);
+  const match = input.match(/^(?:www\.)?([^/:?]+)/i);
   const parts = (match && match[1] ? match[1] : input).split(".");
   if (parts[0] === "www") parts.shift();
   const isLocal = parts.includes("localhost");
