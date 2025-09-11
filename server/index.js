@@ -993,7 +993,7 @@ class Server {
     if (type === "connection") {
       const socket = args[0];
       const subdomain = getSubdomain(socket.handshake.headers.referer) || "";
-      console.log(`[DEBUG] client to join ${subdomain}`);
+      console.log(`[DEBUG] client to join ${subdomain}`, args);
       await socket.join(subdomain);
       socket.onAny((event, ...args) => {
         const listeners = this.#events[event] || [];
