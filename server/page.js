@@ -227,7 +227,7 @@ function manifest(page) {
     id: config.id || (config.name && config.version ? config.name + "_" + config.version : undefined),
     theme_color: config.theme,
     background_color: config.background,
-    display: config.display || "fullscreen",
+    display: config.display || "standalone",
     scope: config.scope || config.href,
     start_url: config.start_url || config.href,
     name: config.name || config.title,
