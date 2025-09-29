@@ -1,7 +1,7 @@
-import "../core/adapter.js";
-import { Component, Element } from "../core/classes.js";
-import { VirtualDom } from "../core/dom.js";
-import { RESOURCES_PATH } from "../utils/index.js";
+import "../../core/adapter.js";
+import { Component, Element } from "../../core/classes.js";
+import { VirtualDom } from "../../core/dom.js";
+import { RESOURCES_PATH } from "../../utils/index.js";
 
 class ServerVirtualDom extends VirtualDom {
   constructor() {

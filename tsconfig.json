@@ -3,7 +3,8 @@
   "cliOptions": {
     "commands": {
       "default": "./commands/default.js",
-      "server": "./commands/server.js"
+      "serve": "./commands/serve.js",
+      "build": "./commands/build.js"
     }
   },
   "bundlerOptions": {

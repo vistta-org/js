@@ -1,6 +1,6 @@
 import { Loader } from "@vistta/cli";
 import "../../core/adapter";
-import { default as Controller, Method } from "../../server/controller";
+import { default as Controller, Method } from "../../web/server/controller";
 
 export default class APILoader extends Loader {
   async load(_, options) {

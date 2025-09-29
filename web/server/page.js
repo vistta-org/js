@@ -1,5 +1,5 @@
 import fs from "@vistta/fs";
-import { RESOURCES_PATH, stringify } from "../utils/index.js";
+import { RESOURCES_PATH, stringify } from "../../utils/index.js";
 import { Element, renderToString } from "./dom.js";
 
 export { Component } from "./dom.js";

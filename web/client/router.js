@@ -1,6 +1,6 @@
-import { BoundClass, async, isValidUrl } from "../utils/index.js";
-import { Element } from "./classes.js";
-import { VirtualDom } from "./dom.js";
+import { Element } from "../../core/classes.js";
+import { VirtualDom } from "../../core/dom.js";
+import { BoundClass, async, isValidUrl } from "../../utils/index.js";
 
 export class Router extends BoundClass {
   #routes = {};
@@ -83,13 +83,6 @@ export class Router extends BoundClass {
     if (this.#loaded) return;
     window.addEventListener("click", (event) => handleClick(event, this));
     await this.navigate();
-    if (!("serviceWorker" in navigator) || !document.querySelector(`head > link[rel="manifest"]`)) return;
-    navigator.serviceWorker
-      .register(`/worker.js`)
-      .then(undefined)
-      .catch((error) => {
-        console.error("Service Worker registration failed:", error);
-      });
   }
 
   get location() {

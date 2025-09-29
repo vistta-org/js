@@ -7,11 +7,11 @@ import mime from "mime";
 import { Server as SocketIO } from "socket.io";
 import { URL } from "url";
 import zlib from "zlib";
-import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from "../utils/index.js";
-import { code as client } from "./client.js" with { type: "bundler" };
+import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from "../../utils/index.js";
+import { code as client } from "../client/client.js" with { type: "bundler" };
+import { code as worker } from "../client/worker.js" with { type: "bundler" };
 import { default as Controller, Method, shareToLoader, WebSocketListener } from "./controller.js";
 import { Component, createPage } from "./page.js";
-import { code as worker } from "./worker.js" with { type: "bundler" };
 
 const dirname = import.meta.dirname;
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
@@ -29,7 +29,7 @@ const DEFAULT_PROXY_OPTIONS = {
 
 const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [".jsx", ".tsx", ".js", ".ts"];
 
-const ALL_METHODS = ["copy", "delete", "get", "move", "patch", "post", "put"];
+const ALL_METHODS = ["copy", "delete", "get", "head", "move", "options", "patch", "post", "put"];
 class Route {
   #subdomain;
   #pathname;
@@ -74,7 +74,21 @@ class Route {
     else {
       this.#route = pathname.replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)")).replace(/\*$/, ".*");
       this[
-        ["all", "copy", "delete", "get", "move", "patch", "post", "put", "error", "middleware", "websocket"].includes(type)
+        [
+          "all",
+          "copy",
+          "delete",
+          "get",
+          "head",
+          "move",
+          "options",
+          "patch",
+          "post",
+          "put",
+          "error",
+          "middleware",
+          "websocket",
+        ].includes(type)
           ? "handler"
           : type
       ] = handler;
@@ -115,7 +129,9 @@ class Server {
   #strict;
   #events = {};
   #subdomains = {};
-  #resources;
+  #resources = {
+    [`/${RESOURCES_PATH}/client.js`]: client,
+  };
   #proxy = proxy.createProxyServer({});
   #socket = new SocketIO();
   #timeout;
@@ -282,6 +298,20 @@ class Server {
   }
 
   /**
+   * Routes HTTP HEAD requests to the specified pathname and subdomain with the specified handler function.
+   *
+   * @param {string} arg1 - Route subdomain or pathname
+   * @param {string | Function} arg2 - Route pathname or handler function
+   * @param {Function} [arg3] - Route handler function
+   * @returns {Route} The route object
+   */
+  head(arg1, arg2, arg3) {
+    const [subdomain, pathname, handler] = parseArguments("head", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
+    return this.#register("head", subdomain, pathname, handler);
+  }
+
+  /**
    * Routes HTTP MOVE requests to the specified pathname and subdomain with the specified handler function.
    *
    * @param {string} arg1 - Route subdomain or pathname
@@ -293,6 +323,19 @@ class Server {
     const [subdomain, pathname, handler] = parseArguments("move", arg1, arg2, arg3);
     if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("move", subdomain, pathname, handler);
+  }
+
+  /**
+   * Routes HTTP OPTIONS requests to the specified pathname and subdomain with the specified handler function.
+   * @param {string} arg1 - Route subdomain or pathname
+   * @param {string | Function} arg2 - Route pathname or handler function
+   * @param {Function} [arg3] - Route handler function
+   * @return {Route} The route object
+   */
+  options(arg1, arg2, arg3) {
+    const [subdomain, pathname, handler] = parseArguments("options", arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
+    return this.#register("options", subdomain, pathname, handler);
   }
 
   /**
@@ -439,10 +482,6 @@ class Server {
               filter: (route) => route.layout,
             }),
           );
-          if (!this.#resources)
-            this.#resources = {
-              [`/${RESOURCES_PATH}/client.js`]: client,
-            };
           const resourceKeys = Object.keys(page.resources);
           for (let i2 = 0, resourcesLen = resourceKeys.length; i2 < resourcesLen; i2++)
             this.#resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] = page.resources[resourceKeys[i2]];
@@ -858,13 +897,6 @@ class Server {
           status: response.statusCode,
         })
       );
-      if (request.url.endsWith("/") && request.url !== "/") {
-        if (response.writableEnded || response.headersSent) return;
-        response.statusCode = 301;
-        response.writeHead(301, { Location: request.url.slice(0, -1) });
-        response.end();
-        return;
-      }
       if (protocol === "https" && request.headers[":authority"]) request.headers.host = request.headers[":authority"];
       if (!request.headers) return this.#reject(request, response, "Missing headers", 500);
       if (!request.headers.host) return this.#reject(request, response, "Missing host header", 500);

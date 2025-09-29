@@ -1,5 +1,5 @@
-import { socket } from "../core/socket.js";
-import { async, FunctionClass } from "../utils/index.js";
+import { socket } from "../../core/socket.js";
+import { async, FunctionClass } from "../../utils/index.js";
 
 export class Method extends FunctionClass {
   #type;

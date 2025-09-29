@@ -14,5 +14,5 @@ export {
   ScopedFragment,
   Suspense,
 } from "./core/classes";
-export { router } from "./core/router";
-export { default as Controller, copy, del, get, move, patch, post, put, socket } from "./server/controller";
+export { router } from "./web/client/router";
+export { default as Controller, copy, del, get, move, patch, post, put, socket } from "./web/server/controller";

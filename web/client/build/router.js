@@ -1,5 +1,5 @@
-import { Router } from "../../core/router.js";
-import { isValidUrl } from "../../utils/index.js";
+import { isValidUrl } from "../../../utils/index.js";
+import { Router } from "../router.js";
 
 class BuildRouter extends Router {
   #loaded = false;
@@ -11,9 +11,7 @@ class BuildRouter extends Router {
     }
     let { href } = typeof arg === "object" ? arg : { href: arg };
     if (!href) return;
-    window.location.href = isValidUrl(href)
-      ? href
-      : new URL(href, window.location.href).href;
+    window.location.href = isValidUrl(href) ? href : new URL(href, window.location.href).href;
   }
 
   refresh() {

@@ -6,7 +6,7 @@
   "types": "index.d.ts",
   "exports": {
     ".": "./index.js",
-    "./server": "./server/index.js",
+    "./server": "./web/server/index.js",
     "./loader": "./cli/default.js",
     "./config": "./tsconfig.json"
   },
