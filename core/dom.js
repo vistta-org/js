@@ -71,7 +71,13 @@ class VirtualDom {
     else if (name === "value") node.value = value;
     else if (name === "style" && typeof value === "object") {
       const keys = Object.keys(value);
-      for (let i = 0, len = keys.length || 0; i < len; i++) node.style.setProperty(keys[i], value[keys[i]]);
+      for (let i = 0, len = keys.length || 0; i < len; i++) {
+        if (value[keys[i]].startsWith("!"))
+          node.style.setProperty(keys[i], value[keys[i]].slice(1), "important");
+        else if (value[keys[i]].endsWith("!"))
+          node.style.setProperty(keys[i], value[keys[i]].slice(-1), "important");
+        else node.style.setProperty(keys[i], value[keys[i]]);
+      }
     } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
     if (name.startsWith("style-") && value) this.addStyleSheet(name.replace("style-", ""), true);
   }

@@ -8,7 +8,7 @@ import { Server as SocketIO } from "socket.io";
 import { URL } from "url";
 import zlib from "zlib";
 import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from "../../utils/index.js";
-import { code as client } from "../client/client.js" with { type: "bundler" };
+import { code as client } from "../client/index.js" with { type: "bundler" };
 import { code as worker } from "../client/worker.js" with { type: "bundler" };
 import { default as Controller, Method, shareToLoader, WebSocketListener } from "./controller.js";
 import { Component, createPage } from "./page.js";
@@ -779,7 +779,7 @@ class Server {
       let content = this.#resources[filepath];
       if (filepath === `/${RESOURCES_PATH}/client.js`)
         content = (
-          await import(fs.resolve(dirname, "./build/client.js"), {
+          await import(fs.resolve(dirname, "../client/build/index.js"), {
             with: { type: "bundler" },
           })
         )?.code;

@@ -32,7 +32,7 @@ export default class ServeCommand extends DefaultCommand {
     const server = new Server(options);
     server.use("/", fs.resolve(process.cwd(), folder));
     server.on("warning", console.warn);
-    server.on("error", ({ stack }) => console.error(stack));
+    server.on("error", (error) => console.error(error.trace || error.message || error));
     server.on("ready", ({ type, port, pathname }) => {
       switch (type) {
         case "http":

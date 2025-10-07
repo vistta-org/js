@@ -78,8 +78,8 @@
 function createElement(type) {
   const props = {
     style: {
-      setProperty(key, value) {
-        this[key] = value;
+      setProperty(key, value, priority) {
+        this[key] = value + (priority?.toLowerCase() === "important" ? " !important" : "");
       },
     },
   };
