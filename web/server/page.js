@@ -45,8 +45,11 @@ async function html(page, props, build) {
   window.page = page;
   let body;
   if (page.inherited.layout)
-    body = renderToString(new Element(page.inherited.layout.layout.component, {}, new Element(page.content, props)));
-  else body = renderToString(new Element(page.content, props));
+    body = renderToString(
+      new Element(page.inherited.layout.layout.component, {}, new Element(page.content, props)),
+      page.config,
+    );
+  else body = renderToString(new Element(page.content, props), page.config);
   window.page = null;
   const config = configs(page);
   const head = [

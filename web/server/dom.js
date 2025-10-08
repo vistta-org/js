@@ -4,8 +4,8 @@ import { VirtualDom } from "../../core/dom.js";
 import { RESOURCES_PATH } from "../../utils/index.js";
 
 class ServerVirtualDom extends VirtualDom {
-  constructor() {
-    super("server", document.createDocumentFragment());
+  constructor(config) {
+    super("server", document.createDocumentFragment(), config);
   }
 
   enqueue() {}
