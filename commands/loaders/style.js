@@ -19,7 +19,7 @@ export default class StyleLoader extends Loader {
       resources.push({ hash: id + ".css", code });
       resources.push({
         hash: id + ".scoped.css",
-        code: `@scope([style-${id}]){${code}}`,
+        code: `@scope([style*="${id}"]){${code}}`,
       });
       return {
         code: `export default ({ ["style-${id}"]: true });`,

@@ -1,4 +1,4 @@
-import { RESOURCES_PATH, addUnique, capitalize, ensureArray, proxy } from "../utils/index.js";
+import { RESOURCES_PATH, addUnique, capitalize, ensureArray, join, proxy } from "../utils/index.js";
 import {
   Component,
   Context,
@@ -13,6 +13,7 @@ import {
   Suspense,
   TextNode,
 } from "./classes.js";
+import { VirtualStyleSheet } from "./style.js";
 import { anchor } from "./utils.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
@@ -31,12 +32,19 @@ class VirtualDom {
   keys = {};
   affectedComponents = [];
   profilers = [];
-  styleSheets = {};
+  stylesheets = {
+    virtual: new VirtualStyleSheet(this.addStyleSheet.bind(this)),
+  };
 
   constructor(pathname, host, config) {
     this.pathname = pathname;
     this.host = host;
     this.config = config || {};
+    for (let i = 0, len = this.config?.styles?.length || 0; i < len; i++) {
+      const keys = Object.keys(this.config.styles[i]);
+      if (keys[0]?.startsWith("style-")) this.addStyleSheet(keys[0].slice(6));
+      else this.stylesheets.virtual.add(this.config.styles[i]);
+    }
   }
 
   createElement(type) {
@@ -69,15 +77,9 @@ class VirtualDom {
     if (name === "className") name = "class";
     if (value == null || value === false) node.removeAttribute(name);
     else if (name === "value") node.value = value;
-    else if (name === "style" && typeof value === "object") {
-      const keys = Object.keys(value);
-      for (let i = 0, len = keys.length || 0; i < len; i++) {
-        if (value[keys[i]].startsWith("!")) node.style.setProperty(keys[i], value[keys[i]].slice(1), "important");
-        else if (value[keys[i]].endsWith("!")) node.style.setProperty(keys[i], value[keys[i]].slice(-1), "important");
-        else node.style.setProperty(keys[i], value[keys[i]]);
-      }
-    } else node.setAttribute(name, typeof value === "boolean" ? "" : value);
-    if (name.startsWith("style-") && value) this.addStyleSheet(name.replace("style-", ""), true);
+    else if (name === "style") node.setAttribute(name, this.stylesheets.virtual.resolve(value));
+    else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(" ", value));
+    else node.setAttribute(name, typeof value === "boolean" ? "" : value);
   }
 
   render(element) {
@@ -91,11 +93,7 @@ class VirtualDom {
       depth: 0,
       components: [],
     });
-    if (!window.isServer) {
-      for (let i = 0, len = this.config?.styles?.length || 0; i < len; i++)
-        this.addStyleSheet(Object.keys(this.config.styles[i])[0].replace("style-", ""));
-      this.replaceStyleSheets();
-    }
+    this.replaceStyleSheets();
     this.host.replaceChildren(host.node);
     host.node = this.host;
     if (!window.isServer) requestAnimationFrame(() => this.update());
@@ -166,7 +164,7 @@ class VirtualDom {
 
   addStyleSheet(style, scoped) {
     style = `/${RESOURCES_PATH}/${style}${scoped ? ".scoped" : ""}.css`;
-    if (this.styleSheets[style]) return;
+    if (this.stylesheets[style]) return;
     let stylesheet = document.querySelector(`link[rel="stylesheet"][href="${style}"]`);
     if (!stylesheet) {
       stylesheet = document.createElement("link");
@@ -174,23 +172,26 @@ class VirtualDom {
       stylesheet.href = style;
       document.head.appendChild(stylesheet);
     }
-    this.styleSheets[style] = stylesheet;
+    this.stylesheets[style] = stylesheet;
   }
 
   replaceStyleSheets() {
+    const ssr = document.querySelector("style[data-ssr]");
+    document.adoptedStyleSheets = [this.stylesheets.virtual.stylesheet];
+    if (ssr) ssr.remove();
     const existing = document.head.querySelectorAll(`link[rel="stylesheet"]`);
-    const skip = {};
+    const skip = { virtual: true };
     for (let i = 0, len = existing.length; i < len; i++) {
       const current = existing[i];
       const href = current.href.replace(current.baseURI, "/");
       skip[href] = true;
-      if (this.styleSheets[href]) continue;
+      if (this.stylesheets[href]) continue;
       current.remove();
     }
-    const keys = Object.keys(this.styleSheets);
+    const keys = Object.keys(this.stylesheets);
     for (let i = 0, len = keys.length; i < len; i++) {
       if (skip[keys[i]]) continue;
-      document.head.appendChild(this.styleSheets[keys[i]]);
+      document.head.appendChild(this.stylesheets[keys[i]]);
     }
   }
 }

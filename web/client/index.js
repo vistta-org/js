@@ -13,7 +13,7 @@ import {
   Suspense,
 } from "../../core/classes";
 import { socket } from "../../core/socket";
-import { Theme } from "../../core/utils";
+import { File, Theme } from "../../core/utils";
 import { defineReadonly } from "../../utils/index.js";
 import router from "./router";
 
@@ -31,6 +31,7 @@ const vistta = {
   Form,
   router,
   socket,
+  File,
   Theme,
 };
 

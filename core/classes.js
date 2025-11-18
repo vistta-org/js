@@ -1,6 +1,9 @@
 import { FunctionClass, clone, decode, defineReadonly, encode, isPromise, parse, proxy, stringify } from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
+const DB_NAME = encode("vistta-context-db", "hex");
+const STORE_NAME = encode("vistta-context-kv", "hex");
+const DB_VERSION = 1;
 export const Fragment = Symbol("Fragment");
 export const TextNode = Symbol("TextNode");
 const ComponentNode = Symbol("Component");
@@ -82,8 +85,16 @@ export class Context extends FunctionClass {
     } catch {
       throw new Error("TypeError: Cannot create context with a non serializable object as default value.");
     }
-    this.#cache = cache === "session" ? sessionStorage : cache === "local" || cache === "storage" ? localStorage : null;
-    if (this.#cache) {
+    if (cache === "indexed" || cache === "db" || cache === "indexeddb") {
+      this.#cache = indexed;
+      this.#cache
+        .getItem(encode(CONTEXT_CACHE_KEY + key, "hex"))
+        .then((value) => (this.#shared.value = parse(decode(value, "hex")) ?? this.#shared.value))
+        .catch(() => {
+          /* Do nothing */
+        });
+    } else if (cache === "session" || cache === "local" || cache === "storage") {
+      this.#cache = cache === "session" ? sessionStorage : localStorage;
       try {
         this.#shared.value =
           parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
@@ -190,6 +201,80 @@ export class Context extends FunctionClass {
     });
     return this.#shared.proxy;
   }
+}
+
+// IndexDB
+
+export const indexed = {
+  async setItem(key, value) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+
+  async getItem(key) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const req = tx.objectStore(STORE_NAME).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  },
+
+  async removeItem(key) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+
+  async clear() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+};
+
+let dbPromise = null;
+
+function openDB() {
+  if (dbPromise) return dbPromise;
+
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+
+    req.onsuccess = () => {
+      const db = req.result;
+
+      // Recommended: close on version upgrade
+      db.onversionchange = () => db.close();
+
+      resolve(db);
+    };
+
+    req.onerror = () => reject(req.error);
+  });
+
+  return dbPromise;
 }
 
 /**
@@ -639,6 +724,7 @@ function getFieldValue(element) {
     }
     return null;
   }
+  if (element.type === "file") return element.files;
   if (element.type === "checkbox") return element.checked;
   return element.value;
 }

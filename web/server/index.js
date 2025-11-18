@@ -498,7 +498,7 @@ class Server {
                       .js(req, { code, message })
                       .then((js) => res.send(js, "text/javascript"))
                       .catch((e) => {
-                        this.#emit("error", e?.trace || e?.message || e);
+                        this.#emit("error", e?.stack || e?.message || e);
                         this.#send(req, res, 500, e?.message || e);
                       });
                   else if (req.resource === "manifest") res.reject("Resource not found", 404);
@@ -507,7 +507,7 @@ class Server {
                       .html(req, { code, message })
                       .then((html) => res.send(html, "text/html"))
                       .catch((e) => {
-                        this.#emit("error", e?.trace || e?.message || e);
+                        this.#emit("error", e?.stack || e?.message || e);
                         this.#send(req, res, 500, e?.message || e);
                       });
                 },
@@ -527,7 +527,7 @@ class Server {
                     page
                       .js(req, res.props)
                       .then((js) => res.send(js, "text/javascript"))
-                      .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
+                      .catch((e) => res.reject(e?.stack || e?.message || e || "Internal Server Error", 500));
                   else if (req.resource === "worker") {
                     if (page.pwa) res.send(worker, "text/javascript");
                     else res.reject("Resource not found", 404);
@@ -536,13 +536,13 @@ class Server {
                       page
                         .manifest(req, req.props)
                         .then((manifest) => res.send(manifest, "text/json"))
-                        .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
+                        .catch((e) => res.reject(e?.stack || e?.message || e || "Internal Server Error", 500));
                     else res.reject("Resource not found", 404);
                   } else
                     page
                       .html(req, res.props)
                       .then((html) => res.send(html, "text/html"))
-                      .catch((e) => res.reject(e?.trace || e?.message || e || "Internal Server Error", 500));
+                      .catch((e) => res.reject(e?.stack || e?.message || e || "Internal Server Error", 500));
                 },
                 true,
               ),
@@ -557,7 +557,7 @@ class Server {
         } else collection.add(this.#register(type, subdomain, pathname, arg));
         if (emit != false) this.#emit("ready", { type, subdomain, pathname });
       } catch (e) {
-        this.#emit("error", e?.trace || e?.message || e);
+        this.#emit("error", e?.stack || e?.message || e);
       }
     };
 
@@ -959,7 +959,7 @@ class Server {
       if (middleware) middleware.handler(request, response, () => this.#resolve(request, response));
       else this.#resolve(request, response);
     } catch (e) {
-      this.#emit("error", e?.trace || e?.message || e);
+      this.#emit("error", e?.stack || e?.message || e);
       this.#send(request, response, 500, e?.message || e);
     }
   }
@@ -989,7 +989,7 @@ class Server {
       }
       this.#reject(request, response);
     } catch (e) {
-      this.#emit("error", e?.trace || e?.message || e);
+      this.#emit("error", e?.stack || e?.message || e);
       this.#reject(request, response, e?.message || e, 500);
     }
   }
@@ -1016,7 +1016,7 @@ class Server {
       if (route) return route.handler(request, response, response?.statusCode, response?.message);
       this.#send(request, response, response?.statusCode, response?.message);
     } catch (e) {
-      this.#emit("error", e.message);
+      this.#emit("error", e?.stack || e?.message || e);
       this.#send(request, response, 500, e.message);
     }
   }

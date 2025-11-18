@@ -148,8 +148,8 @@ function updateConfig(config) {
 }
 
 function handleClick(event, router) {
-  const { tagName, href, target } = event.target;
-  if (tagName !== "A" || (target && target !== "___private") || !href) return;
+  const { tagName, href, target, download } = event.target;
+  if (tagName !== "A" || (target && target !== "___private") || !href || download) return;
   const hash = href.replace(location.origin + "/", "");
   event.preventDefault();
   router.navigate(!hash?.startsWith("#") ? href : hash);

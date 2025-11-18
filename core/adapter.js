@@ -21,6 +21,21 @@
       ...readonly,
     },
     HTMLElement: { value: class {}, ...readonly },
+    CSSStyleSheet: {
+      value: class {
+        #value = [];
+        get cssRules() {
+          return this.#value;
+        }
+        insertRule(rule, index) {
+          if (index === this.#value.length) this.#value.push(rule);
+          else if (index == null || index < 0 || index > this.#value.length) this.#value.unshift(rule);
+          else this.#value.splice(index, 0, rule);
+          return index != null && index >= 0 && index < this.#value.length ? index : this.#value.length - 1;
+        }
+      },
+      ...readonly,
+    },
     MutationObserver: {
       value: class {
         constructor() {
@@ -47,6 +62,28 @@
           this.unobserve = () => null;
           this.disconnect = () => null;
         }
+      },
+      ...readonly,
+    },
+    indexedDB: {
+      value: {
+        open: () => ({
+          transaction: () => ({
+            objectStore: () => ({
+              get: () => ({
+                onsuccess: () => null,
+                onerror: () => null,
+              }),
+              put: () => ({
+                onsuccess: () => null,
+                onerror: () => null,
+              }),
+            }),
+          }),
+          onupgradeneeded: () => null,
+          onsuccess: () => null,
+          onerror: () => null,
+        }),
       },
       ...readonly,
     },
@@ -110,6 +147,7 @@ function createElement(type) {
     },
     appendChild: (child) => children.push(child),
     setAttribute: (name, value) => (props[name] = value),
+    getAttribute: (name) => props[name],
     removeAttribute: (name) => delete props[name],
     addEventListener: () => null,
     replaceChildren: (...nodes) => {
@@ -125,6 +163,7 @@ function createElement(type) {
 }
 
 function styleToString(style) {
+  if (typeof style !== "object" || style == null) return style;
   const keys = Object.keys(style || {});
   let result = "";
   for (let i = 0, len = keys.length; i < len; i++) {

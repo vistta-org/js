@@ -12,7 +12,7 @@ import {
   ScopedFragment,
   Suspense,
 } from "../../../core/classes.js";
-import { Theme } from "../../../core/utils.js";
+import { File, Theme } from "../../../core/utils.js";
 import { defineReadonly } from "../../../utils/index.js";
 import router from "./router.js";
 
@@ -37,6 +37,7 @@ const vistta = {
       console.warn("Socket is not available on built apps.");
     },
   },
+  File,
   Theme,
 };
 

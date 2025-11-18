@@ -1,5 +1,44 @@
 import { Context, Ref } from "./classes.js";
 
+export class File {
+  /**
+   * Download a file
+   *
+   * @param {string} filename
+   * @param {*} content
+   * @param {string} [type]
+   */
+  static download(filename, content, type = "text/plain") {
+    const element = document.createElement("a");
+    const file = new Blob([content], { type });
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    URL.revokeObjectURL(element.href);
+  }
+
+  /**
+   * Read a file as text
+   *
+   * @param {File} file
+   * @param {Object} [options]
+   * @param {"text" | "arraybuffer" | "data"} [options.type='text']
+   * @returns {Promise<any>}
+   */
+  static read(file, type = "text") {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      if (type === "text") reader.readAsText(file);
+      else if (type === "arraybuffer") reader.readAsArrayBuffer(file);
+      else if (type === "data") reader.readAsDataURL(file);
+      else reject(new Error("Invalid file read type"));
+    });
+  }
+}
+
 export class Theme extends Context {
   constructor() {
     super("theme", { value: "auto" }, "storage", {
@@ -64,18 +103,6 @@ export function anchor(element, target) {
   requestAnimationFrame(() => observer(true));
 }
 
-export const forwardRef = Ref.forward;
-
-/*
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-console.log(prefersReducedMotion); // true if "Reduce Motion" is enabled, false otherwise
-
-
-window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', (event) => {
-    console.log('Reduce motion setting changed:', event.matches);
-});
-
-*/
 function getPositioning(position) {
   if (position === "top")
     return {
@@ -114,3 +141,14 @@ function getPositioning(position) {
       },
     };
 }
+
+/*
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+console.log(prefersReducedMotion); // true if "Reduce Motion" is enabled, false otherwise
+
+
+window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', (event) => {
+    console.log('Reduce motion setting changed:', event.matches);
+});
+
+*/
