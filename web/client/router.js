@@ -68,14 +68,8 @@ export class Router extends BoundClass {
     updateHistory(pathname + search + hash);
   }
 
-  /**
-   *
-   *
-   */
-  async refresh(href) {
-    if (!href) href = this.#virtualDom.pathname;
-    if (this.#routes?.[href]) delete this.#routes[href];
-    if (href !== this.#virtualDom.pathname) return;
+  async refresh(force) {
+    if (force) return location.reload();
     await this.navigate({ refresh: true });
   }
 
