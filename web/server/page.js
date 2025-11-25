@@ -43,7 +43,8 @@ export async function createPage(type, filepath, pathname, layout, configs) {
         const config = this.config;
         window.page = this;
         const virtualDom = new VirtualDom(config);
-        if (this.layout) virtualDom.render(new Element(this.layout.layout.component, {}, new Element(content, props)));
+        if (this.inherited.layout)
+          virtualDom.render(new Element(this.inherited.layout.layout.component, {}, new Element(content, props)));
         else virtualDom.render(new Element(content, props));
         window.page = null;
         const pathname = build ? this.pathname : this.location?.pathname;
@@ -87,10 +88,10 @@ export async function createPage(type, filepath, pathname, layout, configs) {
       const js = this.cache.get("js." + key);
       if (js) return js;
       let script = [code];
-      if (this.layout)
+      if (this.inherited.layout)
         script.push(
-          this.layout.layout.code,
-          `const __app_layout = { pathname: "${this.layout.layout.pathname}" };`,
+          this.inherited.layout.layout.code,
+          `const __app_layout = { pathname: "${this.inherited.layout.layout.pathname}" };`,
           "__app_layout.component = __app_layout_component?.default; export { __app_layout as layout };",
         );
       if (props) script.push(`const __app_props = ${stringify(props, IS_DEV)};`, "export { __app_props as props };");
