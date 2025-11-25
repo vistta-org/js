@@ -476,11 +476,11 @@ class Server {
             type,
             filepath,
             pathname,
-            configs,
             matchRoute(this.#subdomains[subdomain]?.layout || [], pathname, {
               exact: false,
               filter: (route) => route.layout,
             }),
+            configs,
           );
           const resourceKeys = Object.keys(page.resources);
           for (let i2 = 0, resourcesLen = resourceKeys.length; i2 < resourcesLen; i2++)
@@ -1024,7 +1024,7 @@ class Server {
   async #socketHandler(type, ...args) {
     if (type === "connection") {
       const socket = args[0];
-      const subdomain = getSubdomain(socket.handshake.headers.referer) || "";
+      const subdomain = getSubdomain(socket?.handshake?.headers?.host) || "";
       await socket.join(subdomain);
       socket.onAny((event, ...args) => {
         const listeners = this.#events[event] || [];

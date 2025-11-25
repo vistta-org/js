@@ -10,31 +10,39 @@ import { BoundClass, join } from "@vistta/utils";
  * @typedef {string|StyleDefinition} Stylesheet
  */
 
-const PSEUDO_CLASSES = [
-  "root",
-  "after",
-  "before",
-  "first-letter",
-  "first-line",
-  "selection",
-  "backdrop",
-  "placeholder",
-  "link",
-  "visited",
-  "active",
-  "checked",
-  "disabled",
-  "empty",
-  "enabled",
-  "first-child",
-  "focus",
-  "focus-within",
-  "hover",
-  "in-range",
-  "invalid",
-  "last-child",
-  "indeterminate",
-];
+const PSEUDO_CLASSES = {
+  root: "&:root",
+  after: "&::after",
+  before: "&::before",
+  "first-letter": "&::first-letter",
+  "first-line": "&::first-line",
+  selection: "&::selection",
+  backdrop: "&::backdrop",
+  placeholder: "&::placeholder",
+  link: "&:link",
+  visited: "&:visited",
+  active: "&:active",
+  checked: "&:checked",
+  disabled: "&:disabled",
+  valid: "&:valid",
+  invalid: "&:invalid",
+  optional: "&:optional",
+  required: "&:required",
+  "read-only": "&:read-only",
+  empty: "&:empty",
+  enabled: "&:enabled",
+  focus: "&:focus",
+  "focus-within": "&:focus-within",
+  hover: "&:hover",
+  "in-range": "&:in-range",
+  "out-of-range": "&:out-of-range",
+  indeterminate: "&:indeterminate",
+  first: "&:first-child",
+  last: "&:last-child",
+  "only-child": "&:only-child",
+  "first-child": "> *:first-child",
+  "last-child": "> *:last-child",
+};
 
 const PSEUDO_FUCTIONS = [
   "is",
@@ -245,8 +253,7 @@ function format(key, value, { properties = {}, queries = {}, selector }) {
     return [null, `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value)};`];
   }
   if (queries[key]) return [null, queries[key](value) + " "];
-  for (let i = 0, len = PSEUDO_CLASSES.length; i < len; i++)
-    if (key === PSEUDO_CLASSES[i]) return [null, `&:${PSEUDO_CLASSES[i]} { ${value}}`];
+  if (PSEUDO_CLASSES[key]) return [null, `${PSEUDO_CLASSES[key]} { ${value}}`];
   for (let i = 0, len = PSEUDO_FUCTIONS.length; i < len; i++)
     if (key.startsWith(PSEUDO_FUCTIONS[i] + "(") && key.endsWith(")"))
       return [null, `&:${PSEUDO_FUCTIONS[i]}(${key.slice(PSEUDO_FUCTIONS[i].length + 1, -1)}) { ${value}}`];

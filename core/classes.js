@@ -303,20 +303,6 @@ export class Component {
     return ComponentNode;
   }
 
-  get props() {
-    const props = {};
-    const keys = Object.keys(this);
-    for (let i = 0, len = keys.length; i < len; i++) {
-      const key = keys[i];
-      if (key === "render" || key === "children") continue;
-      props[key] = {
-        get: () => this[key],
-        set: (value) => (this[key] = value),
-      };
-    }
-    return props;
-  }
-
   constructor() {
     const prototype = Object.getPrototypeOf(this);
     const functions = Object.getOwnPropertyNames(prototype);
@@ -355,7 +341,7 @@ export class Suspense extends Component {
     if (this.#count == 0) this.#callback(true);
   }
 
-  render(callback) {
+  render(_, callback) {
     if (callback) this.#callback = callback;
     if (this.#count == 0) return this.children;
     return this.fallback;

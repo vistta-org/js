@@ -4,7 +4,7 @@ import { Component, Element, VirtualDom } from "./dom.js";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
-export async function createPage(type, filepath, pathname, inheritedConfigs, inheritedLayout) {
+export async function createPage(type, filepath, pathname, layout, configs) {
   const { default: content, config } = await import(filepath);
   const pwa = config?.pwa;
   const { code, errors, resources } = await import(filepath, {
@@ -15,57 +15,59 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
   return {
     type,
     pathname,
-    config: {
-      title: "Vistta JS",
-      description: "Page generated using VisttaJS",
-      theme: "#ffffff",
-      referrer: "origin",
-      keywords: "visttajs",
-      robots: "index, follow",
-      ...inheritedConfigs.reduce((acc, { config }) => Object.assign(acc, config || {}), {}),
-      ...config,
+    get config() {
+      return {
+        title: "Vistta JS",
+        description: "Page generated using VisttaJS",
+        theme: "#ffffff",
+        referrer: "origin",
+        keywords: "visttajs",
+        robots: "index, follow",
+        ...this.inherited.configs.reduce((acc, { config }) => Object.assign(acc, config || {}), {}),
+        ...config,
+      };
     },
     content,
     resources,
     pwa,
     cache: cache(),
     inherited: {
-      configs: inheritedConfigs || [],
-      layout: inheritedLayout,
+      configs,
+      layout,
     },
     async html(request, props, build) {
       this.location = new URL(request.url, request.headers.referer || `http://${request.headers.host}/`);
       const key = "html." + stringify(props);
       let html = this.cache.get(key);
       if (!html) {
+        const config = this.config;
         window.page = this;
-        const virtualDom = new VirtualDom(this.config);
-        if (this.inherited.layout)
-          virtualDom.render(new Element(this.inherited.layout.layout.component, {}, new Element(content, props)));
+        const virtualDom = new VirtualDom(config);
+        if (this.layout) virtualDom.render(new Element(this.layout.layout.component, {}, new Element(content, props)));
         else virtualDom.render(new Element(content, props));
         window.page = null;
         const pathname = build ? this.pathname : this.location?.pathname;
         html = `<!doctype html>
-        <html lang="${this.config?.lang || "en"}">
+        <html lang="${config?.lang || "en"}">
           <head>
-            <title>${this.config.title}</title>
-            <meta referrer="${this.config.referrer || "origin"}" />
-            <meta http-equiv="Content-Type" content="${this.config.contentType || "text/html; charset=utf-8"}" />
+            <title>${config.title}</title>
+            <meta referrer="${config.referrer || "origin"}" />
+            <meta http-equiv="Content-Type" content="${config.contentType || "text/html; charset=utf-8"}" />
             <meta name="viewport" content="${config?.viewport || "width=device-width,initial-scale=1" + (this.pwa ? ",interactive-widget=resizes-content,viewport-fit=cover" : "")}" />
             <meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self';style-src 'self' 'unsafe-inline';" />
-            <meta name="description" content="${this.config.description || ""}" />
-            <meta name="color-scheme" content="${this.config.colorScheme || "light dark"}" />
-            <meta name="theme-color" content="${this.config.theme || "#ffffff"}" />
-            <meta name="keywords" content="${this.config.keywords || ""}" />
-            <meta name="robots" content="${this.config.robots || "index, follow"}" />
-            ${this.config.author ? `<meta name="author" content="${this.config.author}" />` : ""}
-            ${this.config.language ? `<meta name="language" content="${this.config.language}" />` : ""}
-            ${this.config.refresh ? `<meta http-equiv="refresh" content="${this.config.refresh}" />` : ""}
-            ${this.config.revisitAfter ? `<meta name="revisit-after" content="${this.config.revisitAfter}" />` : ""}
-            ${this.config.copyright ? `<meta name="copyright" content="${this.config.copyright}" />` : ""}
-            ${this.config.publisher ? `<meta name="publisher" content="${this.config.publisher}" />` : ""}
-            ${this.config.icon ? `<link rel="icon" href="${this.config.icon}" />` : ""}
-            ${this.config.icon ? `<link rel="apple-touch-icon" href="${this.config.icon}" />` : ""}
+            <meta name="description" content="${config.description || ""}" />
+            <meta name="color-scheme" content="${config.colorScheme || "light dark"}" />
+            <meta name="theme-color" content="${config.theme || "#ffffff"}" />
+            <meta name="keywords" content="${config.keywords || ""}" />
+            <meta name="robots" content="${config.robots || "index, follow"}" />
+            ${config.author ? `<meta name="author" content="${config.author}" />` : ""}
+            ${config.language ? `<meta name="language" content="${config.language}" />` : ""}
+            ${config.refresh ? `<meta http-equiv="refresh" content="${config.refresh}" />` : ""}
+            ${config.revisitAfter ? `<meta name="revisit-after" content="${config.revisitAfter}" />` : ""}
+            ${config.copyright ? `<meta name="copyright" content="${config.copyright}" />` : ""}
+            ${config.publisher ? `<meta name="publisher" content="${config.publisher}" />` : ""}
+            ${config.icon ? `<link rel="icon" href="${config.icon}" />` : ""}
+            ${config.icon ? `<link rel="apple-touch-icon" href="${config.icon}" />` : ""}
             ${this.pwa ? `<link rel="manifest" href=".${pathname + (pathname.endsWith("/") ? "" : "/")}manifest.json" />` : ""}
             <style data-ssr>${virtualDom.stylesheets.virtual.stylesheet.cssRules.join(" ")}</style>
             ${Object.keys(virtualDom.stylesheets).reduce((acc, key) => acc + (key === "virtual" ? "" : `\n\t<link rel="preload" href="/${RESOURCES_PATH}/${key}.css" as="style" />`), "")}
@@ -85,10 +87,10 @@ export async function createPage(type, filepath, pathname, inheritedConfigs, inh
       const js = this.cache.get("js." + key);
       if (js) return js;
       let script = [code];
-      if (this.inherited.layout)
+      if (this.layout)
         script.push(
-          this.inherited.layout.layout.code,
-          `const __app_layout = { pathname: "${this.inherited.layout.layout.pathname}" };`,
+          this.layout.layout.code,
+          `const __app_layout = { pathname: "${this.layout.layout.pathname}" };`,
           "__app_layout.component = __app_layout_component?.default; export { __app_layout as layout };",
         );
       if (props) script.push(`const __app_props = ${stringify(props, IS_DEV)};`, "export { __app_props as props };");
