@@ -55,7 +55,7 @@ export async function createPage(type, filepath, pathname, layout, configs) {
             <meta referrer="${config.referrer || "origin"}" />
             <meta http-equiv="Content-Type" content="${config.contentType || "text/html; charset=utf-8"}" />
             <meta name="viewport" content="${config?.viewport || "width=device-width,initial-scale=1" + (this.pwa ? ",interactive-widget=resizes-content,viewport-fit=cover" : "")}" />
-            <meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self';style-src 'self' 'unsafe-inline';" />
+            <meta http-equiv="Content-Security-Policy" content="${config?.csp || "default-src 'self';script-src 'self';style-src 'self' 'unsafe-inline'; img-src 'self' data:;"}" />
             <meta name="description" content="${config.description || ""}" />
             <meta name="color-scheme" content="${config.colorScheme || "light dark"}" />
             <meta name="theme-color" content="${config.theme || "#ffffff"}" />
