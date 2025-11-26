@@ -64,6 +64,30 @@ export class Theme extends Context {
   }
 }
 
+export class HistoryStateContext extends Context {
+  constructor(name, initial, cache, actions, controllers) {
+    super(
+      name,
+      initial,
+      cache,
+      {
+        init: (prev) => {
+          window.addEventListener("popstate", ({ state: _state }) => this.set(_state));
+          history.replaceState({ ...prev }, document.title, location.href);
+          return { ...prev };
+        },
+        set: (_, state) => state,
+        update: (prev, state) => {
+          history.pushState({ ...prev, ...state }, document.title, location.href);
+          return { ...prev, ...state };
+        },
+        ...actions,
+      },
+      controllers,
+    );
+  }
+}
+
 const eventObservers = [];
 const elementObservers = {};
 
