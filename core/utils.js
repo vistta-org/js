@@ -39,7 +39,7 @@ export class File {
   }
 }
 
-export class Theme extends Context {
+export class ThemeContext extends Context {
   constructor() {
     super("theme", { value: "auto" }, "storage", {
       toggle: (prev) => {
@@ -71,11 +71,6 @@ export class HistoryStateContext extends Context {
       initial,
       cache,
       {
-        init: (prev) => {
-          window.addEventListener("popstate", ({ state: _state }) => this.set(_state));
-          history.replaceState({ ...prev }, document.title, location.href);
-          return { ...prev };
-        },
         set: (_, state) => state,
         update: (prev, state) => {
           history.pushState({ ...prev, ...state }, document.title, location.href);
@@ -85,6 +80,10 @@ export class HistoryStateContext extends Context {
       },
       controllers,
     );
+    window.addEventListener("popstate", ({ state: _state }) => this.set(_state));
+    // Timeout needed to wait for initial history load
+    if (typeof history !== "undefined")
+      setTimeout(() => history.replaceState(JSON.parse(super.toString()), document.title, location.href), 250);
   }
 }
 

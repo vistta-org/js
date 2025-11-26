@@ -13,7 +13,7 @@ import {
   Suspense,
 } from "../../core/classes";
 import { socket } from "../../core/socket";
-import { File, Theme } from "../../core/utils";
+import { File, HistoryStateContext, ThemeContext } from "../../core/utils";
 import { defineReadonly } from "../../utils/index.js";
 import router from "./router";
 
@@ -32,7 +32,8 @@ const vistta = {
   router,
   socket,
   File,
-  Theme,
+  ThemeContext,
+  HistoryStateContext,
 };
 
 defineReadonly(window, "vistta", vistta);
