@@ -64,7 +64,7 @@ export class ThemeContext extends Context {
   }
 }
 
-export class HistoryStateContext extends Context {
+export class HistoryContext extends Context {
   constructor(name, initial, cache, actions, controllers) {
     super(
       name,
@@ -81,7 +81,7 @@ export class HistoryStateContext extends Context {
       controllers,
     );
     window.addEventListener("popstate", ({ state: _state }) => this.set(_state));
-    // Timeout needed to wait for initial history load
+    // Timeout needed to wait for initial history and cache load
     if (typeof history !== "undefined")
       setTimeout(() => history.replaceState(JSON.parse(super.toString()), document.title, location.href), 250);
   }
