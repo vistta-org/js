@@ -33,7 +33,7 @@ export class Method extends FunctionClass {
               redirect: response.redirect,
               ...request.socket,
             },
-            type === "get" || type === "delete" ? request.params : await request.body(),
+            Object.assign({}, request.params, await request.body()),
           ),
         ),
     );

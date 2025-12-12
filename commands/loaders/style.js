@@ -39,7 +39,6 @@ async function transform(code, dirname, node_modules, params = {}) {
   const compiled = await compileSassString(loadResources(dirname, code, resources), {
     style: "compressed",
     loadPaths: [dirname, node_modules],
-    silenceDeprecations: ["mixed-decls"],
     functions: {
       "prop($name, $default)": (args) => convertToSass(params[args[0].assertString("name").text], args[1]),
     },

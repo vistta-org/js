@@ -73,6 +73,7 @@ class Route {
     if (type === "collection") this.#collection = [];
     else {
       this.#route = pathname.replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)")).replace(/\*$/, ".*");
+      if (this.#route.endsWith("/([^/]+)")) this.#route = this.#route.slice(0, -8) + "/?([^/]+)?";
       this[
         [
           "all",

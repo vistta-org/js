@@ -33,6 +33,9 @@
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0"
   },
+  "devDependencies": {
+    "sass-embedded-win32-x64": "^1.80.4"
+  },
   "peerDependencies": {
     "@vistta/cli": "*",
     "electron": "^36.0.0"
