@@ -29,12 +29,9 @@
     "http-proxy": "^1.18.1",
     "mime": "^4.0.7",
     "postcss": "^8.5.5",
-    "sass-embedded": "^1.89.2",
+    "sass-embedded": "^1.96.0",
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0"
-  },
-  "devDependencies": {
-    "sass-embedded-win32-x64": "^1.80.4"
   },
   "peerDependencies": {
     "@vistta/cli": "*",
