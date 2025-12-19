@@ -1,3 +1,4 @@
+import { clone } from "@vistta/utils";
 import { Context, Ref } from "./classes.js";
 
 export class File {
@@ -65,7 +66,10 @@ export class ThemeContext extends Context {
 }
 
 export class HistoryContext extends Context {
-  constructor(name, initial, cache, actions, controllers) {
+  #listeners = [];
+
+  constructor(name, initial, cache) {
+    let prev;
     super(
       name,
       initial,
@@ -76,14 +80,26 @@ export class HistoryContext extends Context {
           history.pushState({ ...prev, ...state }, document.title, location.href);
           return { ...prev, ...state };
         },
-        ...actions,
       },
-      controllers,
+      (_, status, value) => {
+        const len = this.#listeners.length;
+        if (len === 0) return;
+        value = clone(value, true);
+        if (status === "pending") prev = value;
+        else if (status === "completed") {
+          for (let i = 0; i < len; i++) this.#listeners[i](prev, value);
+          prev = null;
+        }
+      },
     );
     window.addEventListener("popstate", ({ state: _state }) => this.set(_state));
     // Timeout needed to wait for initial history and cache load
     if (typeof history !== "undefined")
       setTimeout(() => history.replaceState(JSON.parse(super.toString()), document.title, location.href), 250);
+  }
+
+  onUpdate(listener) {
+    this.#listeners.push(listener);
   }
 }
 
