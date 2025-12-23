@@ -15,7 +15,7 @@ import { Component, createPage } from "./page.js";
 
 const dirname = import.meta.dirname;
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
-const BODY_IDLE_TIMEOUT_TIME = 30 * 1000; // 30 seconds
+const BODY_IDLE_TIMEOUT_TIME = 5 * 1000; // 5 seconds
 const DEFAULT_PROXY_OPTIONS = {
   ws: true,
   xfwd: true,
