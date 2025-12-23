@@ -1,5 +1,5 @@
 import { socket } from "../../core/socket.js";
-import { async, FunctionClass } from "../../utils/index.js";
+import { FunctionClass } from "../../utils/index.js";
 
 export class Method extends FunctionClass {
   #type;
@@ -17,24 +17,22 @@ export class Method extends FunctionClass {
     if (typeof url === "function") ((callback = url), (url = "/"));
     super(
       async (request, response) =>
-        await async(
-          callback.call(
-            {
-              set: response.set,
-              get: (type) => {
-                type = type.split(".");
-                let current = request;
-                for (let i = 0, len = type.length; i < len; i++) {
-                  if (current[type[i]] === undefined) return undefined;
-                  current = current[type[i]];
-                }
-                return current;
-              },
-              redirect: response.redirect,
-              ...request.socket,
+        await callback.call(
+          {
+            set: response.set,
+            get: (type) => {
+              type = type.split(".");
+              let current = request;
+              for (let i = 0, len = type.length; i < len; i++) {
+                if (current[type[i]] === undefined) return undefined;
+                current = current[type[i]];
+              }
+              return current;
             },
-            Object.assign({}, request.params, await request.body()),
-          ),
+            redirect: response.redirect,
+            ...request.socket,
+          },
+          Object.assign({}, request.params, await request.body()),
         ),
     );
     this.#type = type;
@@ -50,7 +48,7 @@ export class WebSocketListener extends FunctionClass {
   }
 
   constructor(name, callback) {
-    super(async (...args) => await async(callback.call(...args)));
+    super(async (...args) => await callback.call(...args));
     this.#name = name;
   }
 }

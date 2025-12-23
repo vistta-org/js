@@ -15,6 +15,7 @@ import { Component, createPage } from "./page.js";
 
 const dirname = import.meta.dirname;
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
+const BODY_IDLE_TIMEOUT_TIME = 30 * 1000; // 30 seconds
 const DEFAULT_PROXY_OPTIONS = {
   ws: true,
   xfwd: true,
@@ -1197,17 +1198,51 @@ function removeFromPath(urlPath, target) {
 
 function getRequestBody(request) {
   return new Promise((resolve, reject) => {
-    let body = "";
-    request.on("data", (data) => (body += data));
-    request.on("end", () => {
+    if (request.complete || request.readableEnded) return resolve("");
+    const contentLength = parseInt(request.headers["content-length"], 10);
+    if (!contentLength || contentLength === 0) return resolve("");
+
+    const chunks = [];
+    let size = 0;
+    let timeoutId;
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      request.removeListener("data", onData);
+      request.removeListener("end", onEnd);
+      request.removeListener("error", onError);
+      request.removeListener("aborted", onAborted);
+      request.removeListener("closed", onEnd);
+    };
+
+    const onData = (chunk) => {
+      size += chunk.length;
+      if (size > 1e6) return (cleanup(), reject(new Error("BODY_TOO_LARGE")));
+      chunks.push(chunk);
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => (cleanup(), resolve("")), BODY_IDLE_TIMEOUT_TIME);
+    };
+
+    const onEnd = () => {
+      cleanup();
+      let body = Buffer.concat(chunks, size).toString();
       try {
-        body = JSON.parse(body);
+        body = body ? JSON.parse(body) : body;
       } catch {
-        /* Do Nothing */
+        /* Return as plain text if not JSON */
       }
       resolve(body);
-    });
-    request.on("error", (err) => reject(err));
+    };
+
+    const onError = (err) => (cleanup(), reject(err));
+    const onAborted = () => (cleanup(), reject(new Error("REQUEST_ABORTED")));
+
+    timeoutId = setTimeout(() => (cleanup(), resolve("")), BODY_IDLE_TIMEOUT_TIME);
+    request.on("data", onData);
+    request.on("end", onEnd);
+    request.on("error", onError);
+    request.on("aborted", onAborted);
+    request.on("closed", onEnd);
   });
 }
 
