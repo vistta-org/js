@@ -61,6 +61,7 @@ function convertMethodToRequest(method) {
     parts.push(`"${url}"`, match[1] + " ?? ''");
     target = remaining;
   }
+  if (target.length > 0) parts.push(`"${target}"`);
   const arg = method.type === "get" || method.type === "delete" ? "params" : "body";
   if (params.length == 0) return `(${arg}) => request.${method.type}(createUrl("${method.url}"), { ${arg} })`;
   return `({ ${params.join(", ")}, ...${arg} } = {}) => request.${method.type}(createUrl(${parts.join(", ")}), { ${arg} })`;
