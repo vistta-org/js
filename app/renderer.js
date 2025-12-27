@@ -1,0 +1,60 @@
+/* eslint-disable no-undef */
+import {
+  Component,
+  Context,
+  Element,
+  Form,
+  Fragment,
+  Profiler,
+  Ref,
+  Render,
+  Safe,
+  ScopedFragment,
+  Suspense,
+} from "../core/classes.js";
+import { VirtualDom } from "../core/dom.js";
+import { File, HistoryContext, ThemeContext } from "../core/utils.js";
+import { defineReadonly } from "../utils/index.js";
+
+const vistta = {
+  Fragment,
+  Element,
+  Context,
+  Ref,
+  Component,
+  ScopedFragment,
+  Suspense,
+  Profiler,
+  Render,
+  Safe,
+  Form,
+  router: {
+    navigate() {
+      console.warn("Router is not available on apps.");
+    },
+    refresh() {
+      console.warn("Router is not available on apps.");
+    },
+  },
+  socket: {
+    emit(event, ...args) {
+      __app.send(event, { args });
+    },
+    on(event, callback) {
+      __app.on(event, (_, { args }) => callback(...args));
+    },
+  },
+  File,
+  ThemeContext,
+  HistoryContext,
+};
+
+defineReadonly(window, "vistta", vistta);
+
+setTimeout(() => {
+  new VirtualDom("", document.body, main.config).render(
+    main.layout
+      ? new Element(main.layout.component, {}, new Element(main.default, main.props))
+      : new Element(main.default, main.props),
+  );
+}, 0);

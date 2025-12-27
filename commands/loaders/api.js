@@ -1,6 +1,6 @@
 import { Loader } from "@vistta/cli";
-import "../../core/adapter";
-import { default as Controller, Method } from "../../web/server/controller";
+import "../../core/adapter.js";
+import { default as Controller, Method } from "../../web/server/controller.js";
 
 const PARAMS_REGEX = /:(\w+)/g;
 

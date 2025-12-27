@@ -28,10 +28,13 @@ export default class extends DefaultCommand {
     else import(filepath);
   }
 
-  async app(filepath) {
+  async app(...args) {
     const electronPath = (await import("electron"))?.default;
     const { spawn } = await import("node:child_process");
-    const child = spawn(electronPath, [filepath], { stdio: "inherit", windowsHide: false });
+    const keys = Object.keys(process.vistta || {});
+    for (let i = 0, len = keys.length; i < len; i++)
+      process.env[`vistta_${keys[i]}`.toUpperCase()] = JSON.stringify(process.vistta[keys[i]]);
+    const child = spawn(electronPath, args, { stdio: "inherit", windowsHide: false });
     child.on("close", async (code, signal) => {
       if (code === null) {
         console.error(electronPath, "exited with signal", signal);

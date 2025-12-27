@@ -11,7 +11,7 @@ export default class ServeCommand extends DefaultCommand {
   help() {
     console.print("Vistta JS Serve CLI");
     console.print("\nUsage:");
-    console.print("vistta server start [folder]\tStart a web server using the specified folder as the router.");
+    console.print("vistta serve [folder]\tStart a web server using the specified folder as the router.");
     console.print("Options:");
     console.print("--http\tPort for HTTP server. Default is 80/3000.");
     console.print("--https\tPort for HTTPS server. Default is 443.");
