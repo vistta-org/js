@@ -309,7 +309,7 @@ function stringStyleToObjectStyle(value) {
   let [key, val, rest] = extractKeyValueFromString(value);
   while (key) {
     if (val?.startsWith("(") && val?.endsWith(")")) obj[key] = stringStyleToObjectStyle(val.slice(1, -1));
-    else if (val != null && val !== false) obj[key] = val ?? true;
+    else if (val !== false) obj[key] = val ?? true;
     [key, val, rest] = extractKeyValueFromString(rest);
   }
   return obj;
