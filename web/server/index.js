@@ -429,7 +429,7 @@ class Server {
     const use = async (type, pathname, filepath, arg, emit) => {
       try {
         if (!arg && ["api", "controller", "config", "middleware", "layout"].includes(type))
-          arg = (await import(filepath))?.default;
+          arg = (await import(filepath)).default;
         if (type === "config") {
           if (typeof arg !== "object") throw new TypeError("Invalid config type");
           const config = this.#register("config", subdomain, ensureEndsWith(pathname, "/"), arg);

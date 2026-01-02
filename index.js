@@ -1,4 +1,5 @@
 import { proxy } from "@vistta/utils";
+import "./core/adapter.js";
 
 export {
   Component,
