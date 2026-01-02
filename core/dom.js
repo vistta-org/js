@@ -563,12 +563,20 @@ function updateElement(virtualDom, element, props, children) {
           type: "update",
           element: child,
           previous: previous[match],
+          previousIndex: match,
           move: match != i,
         };
         previous[match] = null;
       }
     }
     let referenceNode = element.node ? null : element.lastNode?.nextSibling;
+
+    const matchedOldIndicesByNewIndex = new Array(changes.length).fill(-1);
+    for (let i = 0, len = changes.length; i < len; i++) {
+      if (changes[i]?.type !== "update") continue;
+      matchedOldIndicesByNewIndex[i] = changes[i].previousIndex;
+    }
+    const keepInPlacePositions = new Set(longestIncreasingSubsequencePositions(matchedOldIndicesByNewIndex));
 
     for (let i = 0, len = previous.length; i < len; i++) {
       if (!previous[i]) continue;
@@ -610,7 +618,10 @@ function updateElement(virtualDom, element, props, children) {
             changes[i].element.props,
             changes[i].element.children.length > 0 ? changes[i].element.children : [null],
           );
-        if (changes[i].move) appendElement(element, changes[i].previous, referenceNode);
+
+        const shouldMove = !keepInPlacePositions.has(i);
+        if (shouldMove && !isAlreadyBeforeReferenceNode(changes[i].previous, referenceNode))
+          appendElement(element, changes[i].previous, referenceNode);
       }
       referenceNode = element.children[i].node || element.children[i].firstNode;
     }
@@ -804,6 +815,13 @@ function removeElement(element) {
   }
 }
 
+function isAlreadyBeforeReferenceNode(virtualElement, referenceNode) {
+  const lastNode = virtualElement?.lastNode || virtualElement?.node || virtualElement?.firstNode;
+  if (!lastNode) return false;
+  if (referenceNode) return lastNode.nextSibling === referenceNode;
+  return lastNode.nextSibling === null;
+}
+
 function elementEquals(a, b) {
   return (
     a?.type === b?.type &&
@@ -817,6 +835,38 @@ function traverseVirtualTree(element, callback) {
   if (!element) return;
   for (let i = 0, len = element?.children?.length || 0; i < len; i++) traverseVirtualTree(element.children[i], callback);
   callback(element);
+}
+
+function longestIncreasingSubsequencePositions(matchedOldIndicesByNewIndex) {
+  const count = matchedOldIndicesByNewIndex.length;
+  const previousPositionInLis = new Array(count).fill(-1);
+  const lisTailPositions = [];
+
+  for (let newIndex = 0; newIndex < count; newIndex++) {
+    const oldIndex = matchedOldIndicesByNewIndex[newIndex];
+    if (oldIndex < 0) continue;
+
+    let left = 0;
+    let right = lisTailPositions.length;
+    while (left < right) {
+      const mid = (left + right) >> 1;
+      const midTailNewIndex = lisTailPositions[mid];
+      const midTailOldIndex = matchedOldIndicesByNewIndex[midTailNewIndex];
+      if (midTailOldIndex < oldIndex) left = mid + 1;
+      else right = mid;
+    }
+
+    if (left > 0) previousPositionInLis[newIndex] = lisTailPositions[left - 1];
+    lisTailPositions[left] = newIndex;
+  }
+
+  const lisPositions = [];
+  let currentPosition = lisTailPositions.length ? lisTailPositions[lisTailPositions.length - 1] : -1;
+  while (currentPosition >= 0) {
+    lisPositions.push(currentPosition);
+    currentPosition = previousPositionInLis[currentPosition];
+  }
+  return lisPositions.reverse();
 }
 
 function getPropValue(prop) {
