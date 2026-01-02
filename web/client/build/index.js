@@ -12,7 +12,7 @@ import {
   ScopedFragment,
   Suspense,
 } from "../../../core/classes.js";
-import { File, HistoryContext, ThemeContext } from "../../../core/utils.js";
+import { File, HistoryContext, ThemeContext, assignStyle } from "../../../core/utils.js";
 import { defineReadonly } from "../../../utils/index.js";
 import router from "./router.js";
 
@@ -38,8 +38,9 @@ const vistta = {
     },
   },
   File,
-  ThemeContext,
   HistoryContext,
+  ThemeContext,
+  assignStyle,
 };
 
 defineReadonly(window, "vistta", vistta);
