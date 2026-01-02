@@ -1,5 +1,6 @@
 import { clone } from "@vistta/utils";
 import { Context, Ref } from "./classes.js";
+export { assignStyle } from "./style.js";
 
 export class File {
   /**
@@ -17,6 +18,30 @@ export class File {
     document.body.appendChild(element);
     element.click();
     URL.revokeObjectURL(element.href);
+  }
+
+  /**
+   * Upload a file
+   * @param {Object} [options]
+   * @param {boolean} [options.multiple=false]
+   * @param {string} [options.accept='']
+   *
+   * @returns {Promise<FileList>}
+   */
+  static upload(options = {}) {
+    const element = document.createElement("input");
+    element.type = "file";
+    element.accept = options?.accept || "";
+    element.multiple = options?.multiple || false;
+    element.style.display = "none";
+    document.body.appendChild(element);
+    return new Promise((resolve) => {
+      element.addEventListener("change", () => {
+        resolve(options?.multiple ? element.files : element.files[0]);
+        document.body.removeChild(element);
+      });
+      element.click();
+    });
   }
 
   /**
@@ -146,48 +171,37 @@ function getPositioning(position) {
   if (position === "top")
     return {
       changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.width !== last.width,
-      set: (element, rect) => {
-        element.style.setProperty("bottom", `${rect.top}px`);
-        element.style.setProperty("left", `${rect.left + rect.width / 2}px`);
+      set: ({ attributes: { style } }, rect) => {
+        const value = style.nodeValue.replace(/\b(?:bottom|left):[^;]+;/g, "").trim();
+        style.nodeValue = `${value}${value === "" ? "" : "; "}bottom: ${rect.top}px; left: ${rect.left + rect.width / 2}px;`;
         return rect;
       },
     };
   else if (position === "bottom")
     return {
       changed: (last, rect) => rect.bottom !== last.bottom || rect.left !== last.left || rect.width !== last.width,
-      set: (element, rect) => {
-        element.style.setProperty("top", `${rect.bottom}px`);
-        element.style.setProperty("left", `${rect.left + rect.width / 2}px`);
+      set: ({ attributes: { style } }, rect) => {
+        const value = style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
+        style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.bottom}px; left: ${rect.left + rect.width / 2}px;`;
         return rect;
       },
     };
   else if (position === "left")
     return {
       changed: (last, rect) => rect.top !== last.top || rect.right !== last.right || rect.height !== last.height,
-      set: (element, rect) => {
-        element.style.setProperty("top", `${rect.top + rect.height / 2}px`);
-        element.style.setProperty("left", `${rect.right}px`);
+      set: ({ attributes: { style } }, rect) => {
+        const value = style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
+        style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.top + rect.height / 2}px; left: ${rect.right}px;`;
         return rect;
       },
     };
   else if (position === "right")
     return {
       changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.height !== last.height,
-      set: (element, rect) => {
-        element.style.setProperty("top", `${rect.top + rect.height / 2}px`);
-        element.style.setProperty("left", `${rect.left}px`);
+      set: ({ attributes: { style } }, rect) => {
+        const value = style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
+        style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.top + rect.height / 2}px; left: ${rect.left}px;`;
         return rect;
       },
     };
 }
-
-/*
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-console.log(prefersReducedMotion); // true if "Reduce Motion" is enabled, false otherwise
-
-
-window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', (event) => {
-    console.log('Reduce motion setting changed:', event.matches);
-});
-
-*/

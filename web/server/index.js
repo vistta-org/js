@@ -921,6 +921,7 @@ class Server {
       }
       response.cookies = [];
       response.props = {};
+      response.headers = {};
       response.set = (type, ...args) => {
         switch (type) {
           case "cookie":
@@ -933,6 +934,12 @@ class Server {
             break;
           case "cookies":
             setCookies(response, args[0] || {});
+            break;
+          case "header":
+            response.headers[args[0]] = args[1];
+            break;
+          case "headers":
+            Object.assign(response.headers, args[0] || {});
             break;
           case "props":
             Object.assign(response.props, args[0] || {});
@@ -1225,11 +1232,11 @@ function getRequestBody(request) {
 
     const onEnd = () => {
       cleanup();
-      let body = Buffer.concat(chunks, size).toString();
+      let body = Buffer.concat(chunks, size);
       try {
-        body = body ? JSON.parse(body) : body;
+        body = body.toString() ? JSON.parse(body.toString()) : body;
       } catch {
-        /* Return as plain text if not JSON */
+        /* Return as raw if not JSON */
       }
       resolve(body);
     };
@@ -1273,19 +1280,22 @@ function checkIfMoreSpecific(segments, target) {
 }
 
 function defaultHeaders(request, response, type) {
-  const headers = {
-    "X-DNS-Prefetch-Control": "off",
-    "Expect-CT": "max-age=86400, enforce",
-    "X-Frame-Options": "DENY",
-    "X-Powered-By": "",
-    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
-    "X-Download-Options": "noopen",
-    "X-Content-Type-Options": "nosniff",
-    "X-Permitted-Cross-Domain-Policies": "none",
-    "Referrer-Policy": "no-referrer",
-    "X-XSS-Protection": "1; mode=block",
-    "Content-Type": type,
-  };
+  const headers = Object.assign(
+    {
+      "X-DNS-Prefetch-Control": "off",
+      "Expect-CT": "max-age=86400, enforce",
+      "X-Frame-Options": "DENY",
+      "X-Powered-By": "",
+      "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+      "X-Download-Options": "noopen",
+      "X-Content-Type-Options": "nosniff",
+      "X-Permitted-Cross-Domain-Policies": "none",
+      "Referrer-Policy": "no-referrer",
+      "X-XSS-Protection": "1; mode=block",
+      "Content-Type": type,
+    },
+    response.headers || {},
+  );
   if (response.cookies) headers["Set-Cookie"] = response.cookies;
   if (request.resource && request.resource !== "page") headers["Cache-Control"] = "public, max-age=14400, immutable";
   else headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate";

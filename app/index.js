@@ -40,8 +40,6 @@ export default class App {
     });
     if (config.icon?.startsWith("file://")) config.icon = fileURLToPath(config.icon);
     this.#window = new BrowserWindow({
-      width: 800,
-      height: 600,
       ...(config || {}),
       frame: false,
       webPreferences: {

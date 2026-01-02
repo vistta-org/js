@@ -15,26 +15,17 @@ export class Method extends FunctionClass {
 
   constructor(type, url, callback) {
     if (typeof url === "function") ((callback = url), (url = "/"));
-    super(
-      async (request, response) =>
-        await callback.call(
-          {
-            set: response.set,
-            get: (type) => {
-              type = type.split(".");
-              let current = request;
-              for (let i = 0, len = type.length; i < len; i++) {
-                if (current[type[i]] === undefined) return undefined;
-                current = current[type[i]];
-              }
-              return current;
-            },
-            redirect: response.redirect,
-            ...request.socket,
-          },
-          Object.assign({}, request.params, await request.body()),
-        ),
-    );
+    super(async (request, response) => {
+      const body = await request.body();
+      return await callback.call(
+        {
+          request: request,
+          response: response,
+          socket: request.socket,
+        },
+        Object.assign(typeof body === "object" && !Buffer.isBuffer(body) ? body : { data: body }, request.params),
+      );
+    });
     this.#type = type;
     this.#url = url;
   }
