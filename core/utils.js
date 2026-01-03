@@ -171,36 +171,52 @@ function getPositioning(position) {
   if (position === "top")
     return {
       changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.width !== last.width,
-      set: ({ attributes: { style } }, rect) => {
-        const value = style.nodeValue.replace(/\b(?:bottom|left):[^;]+;/g, "").trim();
-        style.nodeValue = `${value}${value === "" ? "" : "; "}bottom: ${rect.top}px; left: ${rect.left + rect.width / 2}px;`;
+      set: (target, rect) => {
+        if (!target.attributes.style)
+          target.setAttribute("style", `bottom: ${rect.top}px; left: ${rect.left + rect.width / 2}px;`);
+        else {
+          const value = target.attributes.style.nodeValue.replace(/\b(?:bottom|left):[^;]+;/g, "").trim();
+          target.attributes.style.nodeValue = `${value}${value === "" ? "" : "; "}bottom: ${rect.top}px; left: ${rect.left + rect.width / 2}px;`;
+        }
         return rect;
       },
     };
   else if (position === "bottom")
     return {
       changed: (last, rect) => rect.bottom !== last.bottom || rect.left !== last.left || rect.width !== last.width,
-      set: ({ attributes: { style } }, rect) => {
-        const value = style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
-        style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.bottom}px; left: ${rect.left + rect.width / 2}px;`;
+      set: (target, rect) => {
+        if (!target.attributes.style)
+          target.setAttribute("style", `top: ${rect.bottom}px; left: ${rect.left + rect.width / 2}px;`);
+        else {
+          const value = target.attributes.style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
+          target.attributes.style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.bottom}px; left: ${rect.left + rect.width / 2}px;`;
+        }
         return rect;
       },
     };
   else if (position === "left")
     return {
       changed: (last, rect) => rect.top !== last.top || rect.right !== last.right || rect.height !== last.height,
-      set: ({ attributes: { style } }, rect) => {
-        const value = style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
-        style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.top + rect.height / 2}px; left: ${rect.right}px;`;
+      set: (target, rect) => {
+        if (!target.attributes.style)
+          target.setAttribute("style", `top: ${rect.top + rect.height / 2}px; left: ${rect.right}px;`);
+        else {
+          const value = target.attributes.style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
+          target.attributes.style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.top + rect.height / 2}px; left: ${rect.right}px;`;
+        }
         return rect;
       },
     };
   else if (position === "right")
     return {
       changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.height !== last.height,
-      set: ({ attributes: { style } }, rect) => {
-        const value = style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
-        style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.top + rect.height / 2}px; left: ${rect.left}px;`;
+      set: (target, rect) => {
+        if (!target.attributes.style)
+          target.setAttribute("style", `top: ${rect.top + rect.height / 2}px; left: ${rect.left}px;`);
+        else {
+          const value = target.attributes.style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
+          target.attributes.style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.top + rect.height / 2}px; left: ${rect.left}px;`;
+        }
         return rect;
       },
     };
