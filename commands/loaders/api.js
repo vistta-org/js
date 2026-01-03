@@ -1,3 +1,4 @@
+import { stringify } from "@/utils";
 import { Loader } from "@vistta/cli";
 import "../../core/adapter.js";
 import { default as Controller, Method } from "../../web/server/controller.js";
@@ -13,14 +14,15 @@ export default class APILoader extends Loader {
       let code = `import { request } from "@vistta/utils/request";const createUrl = (...url) => [`;
       if (options.pathname || options.bundler) code += `"${pathname}",`;
       else {
+        const escapePath = stringify(options.path);
         if (options.subdomain) {
           if (options.subdomain === "")
             code += `(global.main.shared.host.protocol+"://localhost:"+global.main.shared.host.port),`;
           else
             code += `(global.main.shared.host.protocol+"://${options.subdomain}.localhost:"+global.main.shared.host.port),`;
         } else
-          code += `(global.main.shared.host.protocol+"://"+(global.main.shared?.["${options.path}"]?.subdomain!==""?(global.main.shared["${options.path}"].subdomain+"."):"")+"localhost:"+global.main.shared.host.port),`;
-        code += `global.main.shared?.["${options.path}"]?.pathname || "",`;
+          code += `(global.main.shared.host.protocol+"://"+(global.main.shared?.[${escapePath}]?.subdomain!==""?(global.main.shared[${escapePath}].subdomain+"."):"")+"localhost:"+global.main.shared.host.port),`;
+        code += `global.main.shared?.[${escapePath}]?.pathname || "",`;
       }
       code += `...url].reduce((acc, v) => v == null || v.toString() === "" ? acc : acc + "/" + v.toString(), "").replace(/\\/+/g, "/").replace(/\\/$/g, "");`;
       if (Object.prototype.isPrototypeOf.call(Controller, controller)) {
