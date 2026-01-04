@@ -564,7 +564,6 @@ function updateElement(virtualDom, element, props, children) {
           element: child,
           previous: previous[match],
           previousIndex: match,
-          move: match != i,
         };
         previous[match] = null;
       }
