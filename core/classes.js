@@ -1,4 +1,15 @@
-import { FunctionClass, clone, decode, defineReadonly, encode, isPromise, parse, proxy, stringify } from "../utils/index.js";
+import {
+  FunctionClass,
+  assign,
+  clone,
+  decode,
+  defineReadonly,
+  encode,
+  isPromise,
+  parse,
+  proxy,
+  stringify,
+} from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
 const DB_NAME = encode("vistta-context-db", "hex");
@@ -48,8 +59,8 @@ export class Element {
     if (props !== false) {
       if (props) {
         const { style, ...rest } = props || {};
-        props = Object.assign(cloneProps(this.props), rest);
-        props.style = Object.assign(props.style || {}, style || {});
+        props = assign(cloneProps(this.props), rest);
+        props.style = assign(props.style || {}, style || {});
       } else props = cloneProps(this.props);
     }
     if (children !== false)
@@ -81,7 +92,7 @@ export class Context extends FunctionClass {
     if (!window[Context.id][encode(this.#key, "hex")]) window[Context.id][encode(this.#key, "hex")] = this.#shared;
     else this.#shared = window[Context.id][encode(this.#key, "hex")];
     try {
-      this.#shared.value = clone(value);
+      this.#shared.value = clone(value, true);
     } catch {
       throw new Error("TypeError: Cannot create context with a non serializable object as default value.");
     }
@@ -123,12 +134,12 @@ export class Context extends FunctionClass {
               resolve();
             };
             try {
-              let value = action(clone(this.#shared.value), ...args);
+              let value = action(this.value, ...args);
               if (isPromise(value))
                 value
                   .then((result) => {
                     if (controller.signal?.aborted) return;
-                    Object.assign(this.proxy(), result);
+                    assign(this.proxy(), clone(result, true));
                     resolve();
                     controllerFn(actionName, "completed");
                   })
@@ -137,7 +148,7 @@ export class Context extends FunctionClass {
                     resolve();
                   });
               else if (!controller.signal?.aborted) {
-                Object.assign(this.proxy(), value);
+                assign(this.proxy(), clone(value, true));
                 resolve();
                 controllerFn(actionName, "completed");
               }
@@ -170,7 +181,7 @@ export class Context extends FunctionClass {
   }
 
   toString() {
-    return JSON.stringify(this.#shared.value);
+    return stringify(this.#shared.value, true);
   }
 
   proxy(listener) {
@@ -192,7 +203,7 @@ export class Context extends FunctionClass {
         return value;
       },
       set(path, newValue, oldValue, next) {
-        if (oldValue === newValue || JSON.stringify(oldValue) === JSON.stringify(newValue)) return true;
+        if (oldValue === newValue || stringify(oldValue, true) === stringify(newValue, true)) return true;
         const result = next();
         for (let i = 0, len = listeners.length; i < len; i++) listeners[i](path.join("."), newValue);
         updateCache();
