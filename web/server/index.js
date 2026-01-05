@@ -804,7 +804,8 @@ class Server {
             const value = await arg.handler(req, res);
             if (!res.writableEnded) res.send(value);
           } catch (e) {
-            res.reject(e.message, 500);
+            this.#emit("error", e?.stack || e?.message || e);
+            res.reject(e.message || "Internal Server Error", 500);
           }
         });
       else if (arg instanceof WebSocketListener) {
@@ -842,7 +843,8 @@ class Server {
               const value = await handler(req, res);
               if (!res.writableEnded) res.send(value);
             } catch (e) {
-              res.reject(e.message, 500);
+              this.#emit("error", e?.stack || e?.message || e);
+              res.reject(e.message || "Internal Server Error", 500);
             }
           });
         } else if (handler instanceof WebSocketListener) {
@@ -969,7 +971,7 @@ class Server {
       else this.#resolve(request, response);
     } catch (e) {
       this.#emit("error", e?.stack || e?.message || e);
-      this.#send(request, response, 500, e?.message || e);
+      this.#reject(request, response, e?.message || "Internal Server Error", 500);
     }
   }
 
@@ -999,7 +1001,7 @@ class Server {
       this.#reject(request, response);
     } catch (e) {
       this.#emit("error", e?.stack || e?.message || e);
-      this.#reject(request, response, e?.message || e, 500);
+      this.#reject(request, response, e?.message || "Internal Server Error", 500);
     }
   }
 
@@ -1026,7 +1028,7 @@ class Server {
       this.#send(request, response, response?.statusCode, response?.message);
     } catch (e) {
       this.#emit("error", e?.stack || e?.message || e);
-      this.#send(request, response, 500, e.message);
+      this.#send(request, response, 500, e.message || "Internal Server Error");
     }
   }
 
