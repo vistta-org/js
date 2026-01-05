@@ -603,14 +603,27 @@ function updateElement(virtualDom, element, props, children) {
       } else if (changes[i].type === "update") {
         if (changes[i].previous.type === Component.Node)
           element.children[i] = updateElement(virtualDom, changes[i].previous, changes[i].element.props);
-        else if (changes[i].previous.mutation)
-          element.children[i] = updateElement(
-            virtualDom,
-            changes[i].previous,
-            changes[i].element.props,
-            ensureArray(changes[i].element.mutation()),
-          );
-        else
+        else if (changes[i].previous.mutation) {
+          const result = changes[i].element.mutation();
+          if (result instanceof Promise) {
+            element.children[i] = changes[i].previous;
+            result.then(
+              (value) =>
+                (element.children[i] = updateElement(
+                  virtualDom,
+                  changes[i].previous,
+                  changes[i].element.props,
+                  ensureArray(value),
+                )),
+            );
+          } else
+            element.children[i] = updateElement(
+              virtualDom,
+              changes[i].previous,
+              changes[i].element.props,
+              ensureArray(result),
+            );
+        } else
           element.children[i] = updateElement(
             virtualDom,
             changes[i].previous,

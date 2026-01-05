@@ -360,7 +360,7 @@ export class Suspense extends Component {
     if (this.#count == 0) this.#callback(true);
   }
 
-  render(_, callback) {
+  render(callback) {
     if (callback) this.#callback = callback;
     if (this.#count == 0) return this.children;
     return this.fallback;
