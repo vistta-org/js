@@ -214,7 +214,7 @@ export class Context extends FunctionClass {
         for (let i = 0, len = listeners.length; i < len; i++) listeners[i](path.join("."), newValue);
         if (!saveCache) return result;
         clearTimeout(debounce);
-        debounce = setTimeout(saveCache, 1000);
+        debounce = setTimeout(saveCache, 100);
         return result;
       },
     });
