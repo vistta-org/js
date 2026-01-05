@@ -196,7 +196,6 @@ export class Context extends FunctionClass {
       this.#cache &&
       (() => {
         try {
-          console.log(stringify(this.#shared.value, true));
           this.#cache.setItem(encode(CONTEXT_CACHE_KEY + this.#key, "hex"), encode(stringify(this.#shared.value), "hex"));
         } catch (e) {
           console.error(e);
