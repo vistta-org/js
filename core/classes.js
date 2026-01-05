@@ -89,30 +89,34 @@ export class Context extends FunctionClass {
     super(() => this);
     this.#key = key;
     if (!window[Context.id]) window[Context.id] = {};
-    if (!window[Context.id][encode(this.#key, "hex")]) window[Context.id][encode(this.#key, "hex")] = this.#shared;
-    else this.#shared = window[Context.id][encode(this.#key, "hex")];
-    try {
-      this.#shared.value = clone(value, true);
-    } catch {
-      throw new Error("TypeError: Cannot create context with a non serializable object as default value.");
-    }
-    if (cache === "indexed" || cache === "db" || cache === "indexeddb") {
-      this.#cache = indexed;
-      this.#cache
-        .getItem(encode(CONTEXT_CACHE_KEY + key, "hex"))
-        .then((value) => (this.#shared.value = parse(decode(value, "hex")) ?? this.#shared.value))
-        .catch(() => {
-          /* Do nothing */
-        });
-    } else if (cache === "session" || cache === "local" || cache === "storage") {
-      this.#cache = cache === "session" ? sessionStorage : localStorage;
+    if (window[Context.id][encode(this.#key, "hex")]) this.#shared = window[Context.id][encode(this.#key, "hex")];
+    else {
+      window[Context.id][encode(this.#key, "hex")] = this.#shared;
+      this.#shared.cache = cache;
       try {
-        this.#shared.value =
-          parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
+        this.#shared.value = clone(value, true);
       } catch {
-        /* Do nothing */
+        throw new Error("TypeError: Cannot create context with a non serializable object as default value.");
+      }
+      if (cache === "indexed" || cache === "db" || cache === "indexeddb") {
+        this.#cache = indexed;
+        this.#cache
+          .getItem(encode(CONTEXT_CACHE_KEY + key, "hex"))
+          .then((value) => (this.#shared.value = parse(decode(value, "hex")) ?? this.#shared.value))
+          .catch(() => {
+            /* Do nothing */
+          });
+      } else if (cache === "session" || cache === "local" || cache === "storage") {
+        this.#cache = cache === "session" ? sessionStorage : localStorage;
+        try {
+          this.#shared.value =
+            parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
+        } catch {
+          /* Do nothing */
+        }
       }
     }
+    if (this.#shared.cache !== cache) throw new Error("Error: Cannot create the same context with different cache types.");
     const actionsNames = Object.keys(actions || {});
     if (actionsNames.length > 0) {
       const controllerFn = (target, status) => {
@@ -188,14 +192,17 @@ export class Context extends FunctionClass {
     const listeners = this.#shared.listeners;
     if (typeof listener?.set === "function") listeners.push(listener.set);
     if (this.#shared.proxy) return this.#shared.proxy;
-    const updateCache = () => {
-      if (!this.#cache) return;
-      try {
-        this.#cache.setItem(encode(CONTEXT_CACHE_KEY + this.#key, "hex"), encode(stringify(this.#shared.value), "hex"));
-      } catch (e) {
-        console.error(e);
-      }
-    };
+    const saveCache =
+      this.#cache &&
+      (() => {
+        try {
+          console.log(stringify(this.#shared.value, true));
+          this.#cache.setItem(encode(CONTEXT_CACHE_KEY + this.#key, "hex"), encode(stringify(this.#shared.value), "hex"));
+        } catch (e) {
+          console.error(e);
+        }
+      });
+    let debounce;
     this.#shared.proxy = proxy(this.#shared.value, {
       get(path, value) {
         if (typeof listener?.get === "function" && !path.find((cur) => typeof cur !== "string"))
@@ -206,7 +213,9 @@ export class Context extends FunctionClass {
         if (oldValue === newValue || stringify(oldValue, true) === stringify(newValue, true)) return true;
         const result = next();
         for (let i = 0, len = listeners.length; i < len; i++) listeners[i](path.join("."), newValue);
-        updateCache();
+        if (!saveCache) return result;
+        clearTimeout(debounce);
+        debounce = setTimeout(saveCache, 1000);
         return result;
       },
     });
