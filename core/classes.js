@@ -445,7 +445,7 @@ export class Safe extends Component {
   }
 
   render() {
-    if (this.error) return this.fallback;
+    if (this.error) return typeof this.fallback === "function" ? this.fallback(this.error) : this.fallback;
     return this.children;
   }
 }
