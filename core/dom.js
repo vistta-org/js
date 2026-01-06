@@ -324,7 +324,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
     } else if (element.Component === Profiler && "production" !== process.env.NODE_ENV) {
       addUnique(virtualDom.profilers, component);
       context.profiler = component;
-    } else if (element.component === Safe) context.safe = component;
+    } else if (element.Component === Safe) context.safe = component;
     const keys = Object.keys(element.props);
     for (let i = 0, len = keys.length; i < len; i++) component[keys[i]] ??= true;
     const propertyNames = Object.getOwnPropertyNames(component);
