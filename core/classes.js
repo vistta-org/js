@@ -433,15 +433,9 @@ export class Safe extends Component {
   error;
   fallback;
 
-  catch(updater) {
-    return () => {
-      try {
-        updater();
-      } catch (error) {
-        console.error(error);
-        this.error = error;
-      }
-    };
+  catch(error) {
+    console.error(error);
+    this.error = error;
   }
 
   render() {

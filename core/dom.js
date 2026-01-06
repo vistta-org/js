@@ -716,22 +716,30 @@ function renderElementChildren(virtualDom, element, children, context, reference
 
 function applyMutation(virtualDom, element, mutation, update, init) {
   const updateWrapper = () => {
-    if (!element.active) return;
-    const components = element.context.components;
-    for (let i = 0, len = components.length; i < len; i++) addUnique(virtualDom.affectedComponents, components[i]);
-    update();
+    try {
+      if (!element.active) return;
+      const components = element.context.components;
+      for (let i = 0, len = components.length; i < len; i++) addUnique(virtualDom.affectedComponents, components[i]);
+      update();
+    } catch (e) {
+      if (element?.context?.safe) element.context.safe.catch(e);
+      else throw e;
+    }
   };
-  const safe = element?.context?.safe;
   if (element?.context?.profiler)
-    mutation.update = element.context.profiler.record(safe ? safe.catch(updateWrapper) : updateWrapper, (profiler) =>
+    mutation.update = element.context.profiler.record(updateWrapper, (profiler) =>
       addUnique(virtualDom.profilers, profiler),
     );
-  else mutation.update = safe ? safe.catch(updateWrapper) : updateWrapper;
+  else mutation.update = updateWrapper;
 
   const previousMutation = virtualDom.mutation;
   virtualDom.mutation = mutation;
-  if (safe) safe.catch(init)();
-  else init();
+  try {
+    init();
+  } catch (e) {
+    if (element?.context?.safe) element.context.safe.catch(e);
+    else throw e;
+  }
   virtualDom.mutation = previousMutation;
   addUnique(element.mutations, mutation);
   return mutation;
