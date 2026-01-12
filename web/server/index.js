@@ -207,6 +207,11 @@ class Server {
     }
     this.#socket.use(this.#socketHandler.bind(this, "middleware"));
     this.#socket.on("connection", this.#socketHandler.bind(this, "connection"));
+    this.#proxy.on("proxyReq", (proxyReq, req) => {
+      proxyReq.setHeader("Host", req.headers["x-forwarded-host"]);
+      proxyReq.setHeader("X-Forwarded-Host", req.headers["x-forwarded-host"]);
+      proxyReq.setHeader("X-Forwarded-Proto", req.headers["x-forwarded-proto"]);
+    });
     this.#proxy.on("proxyRes", (proxyRes, req) => {
       const location = proxyRes?.headers?.location;
       const { target, pathname, preservePathname } = req.__options;
