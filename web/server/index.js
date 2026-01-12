@@ -913,7 +913,7 @@ class Server {
       if (!request.headers) return this.#reject(request, response, "Missing headers", 500);
       if (!request.headers.host) return this.#reject(request, response, "Missing host header", 500);
       request.protocol = protocol;
-      request.address = request.headers["x-forwarded-for"] || request.socket.remoteAddress;
+      request.address = request.socket.remoteAddress;
       request.subdomain = getSubdomain(request.headers.host);
       request.resource = fs.extname(request.url) !== "";
       const url = new URL(request.url, `${request.protocol}://${request.headers.host}`);
