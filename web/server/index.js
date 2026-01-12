@@ -207,6 +207,9 @@ class Server {
     }
     this.#socket.use(this.#socketHandler.bind(this, "middleware"));
     this.#socket.on("connection", this.#socketHandler.bind(this, "connection"));
+    this.#proxy.on("proxyReq", (proxyReq, req) => {
+      console.log(proxyReq.headers, req.headers);
+    });
     this.#proxy.on("proxyRes", (proxyRes, req) => {
       const location = proxyRes?.headers?.location;
       const { target, pathname, preservePathname } = req.__options;
