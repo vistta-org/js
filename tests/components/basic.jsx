@@ -1,0 +1,136 @@
+import { Component } from "@vistta/js";
+import { TEXT_UPDATE_VALUE, TEXT_VALUE, TIMEOUT } from "../defaults.js";
+
+export class ComponentLifecycle extends Component {
+  toggle = false;
+  output;
+  render() {
+    const root = this;
+    return (
+      <>
+        <button id="toggle" onClick={() => (this.toggle = !this.toggle)}>
+          toggle
+        </button>
+        <p id="output">{this.output}</p>
+        {this.toggle &&
+          (() => ({
+            onConnect() {
+              root.output = "connected";
+            },
+            onDisconnect() {
+              root.output = "disconnected";
+            },
+            render() {
+              return <p></p>;
+            },
+          }))}
+      </>
+    );
+  }
+}
+
+export class ConditionalRender extends Component {
+  toggle = false;
+  render() {
+    return (
+      <>
+        <button id="toggle" onClick={() => (this.toggle = !this.toggle)}>
+          toggle
+        </button>
+        {this.toggle && <input id="inputWithoutKey" />}
+        {this.toggle && <input id="inputWithKey" key="input" />}
+      </>
+    );
+  }
+}
+
+export const FunctionalComponent = () => ({
+  counter: 0,
+  defaultValue: TEXT_VALUE,
+  render() {
+    return (
+      <>
+        <input id="input" value={this.defaultValue} />
+        <span id="output">{this.counter}</span>
+        <button id="increment" onClick={() => this.counter++}>
+          increment
+        </button>
+        <button id="decrement" onClick={() => this.counter--}>
+          decrement
+        </button>
+      </>
+    );
+  },
+});
+
+export class ListRender extends Component {
+  list = [1, 2, 3, 4, 5];
+
+  render() {
+    return (
+      <>
+        <button
+          id="sort"
+          onClick={() => {
+            const reverse = this.list[0] == 1;
+            this.list = this.list.toSorted((a, b) => (reverse ? b - a : a - b));
+          }}
+        >
+          sort
+        </button>
+        <div id="containerWithoutKeys">
+          {this.list.map((value) => (
+            <input value={value} />
+          ))}
+        </div>
+        <div id="containerWithKeys">
+          {this.list.map((value) => (
+            <input key={"input-" + value} value={value} />
+          ))}
+        </div>
+      </>
+    );
+  }
+}
+
+export class Promises extends Component {
+  content1 = new Promise((resolve) => setTimeout(() => resolve(TEXT_UPDATE_VALUE), TIMEOUT));
+  content2 = new Promise((resolve) => setTimeout(() => resolve(TEXT_UPDATE_VALUE), TIMEOUT * 2));
+  render() {
+    return (
+      <span id="output">
+        {this.content1}/{this.content2}
+      </span>
+    );
+  }
+}
+
+export class StateCounter extends Component {
+  counter = 0;
+  render() {
+    return (
+      <>
+        <span id="output">{this.counter}</span>
+        <button id="increment" onClick={() => this.counter++}>
+          increment
+        </button>
+        <button id="decrement" onClick={() => this.counter--}>
+          decrement
+        </button>
+      </>
+    );
+  }
+}
+
+export class StateText extends Component {
+  defaultValue = TEXT_VALUE;
+  outputValue;
+  render() {
+    return (
+      <>
+        <input id="input" value={this.defaultValue} onChange={({ target: { value } }) => (this.outputValue = value)} />
+        <span id="output">{this.outputValue || this.defaultValue}</span>
+      </>
+    );
+  }
+}

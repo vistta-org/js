@@ -36,19 +36,23 @@ Bytes/Sec (MB): 38.8
 
 Attribute Update:
 
-- Total (runs/sec): 240.25; Average Time (ms): 0.0007; Initial Time (ms): 4.5;
+- Total (runs/sec): 239.8; Average Time (ms): 0.4; Initial Time (ms): 3.6;
 
 Content Update:
 
-- Total (runs/sec): 169.9; Average Time (ms): 0.007; Initial Time (ms): 5.4;
+- Total (runs/sec): 180; Average Time (ms): 0.8; Initial Time (ms): 2.5;
 
-Element Update:
+Element Update With Keys:
 
-- Total (runs/sec): 34.525; Average Time (ms): 4.33; Initial Time (ms): 5.2;
+- Total (runs/sec): 40.35; Average Time (ms): 9.3; Initial Time (ms): 2.7;
+
+Element Update Without Keys:
+
+- Total (runs/sec): 37.05; Average Time (ms): 10.45; Initial Time (ms): 1.4;
 
 Recursive Update:
 
-- Total (runs/sec): 239.925; Average Time (ms): 0.003; Initial Time (ms): 11;
+- Total (runs/sec): 239.8; Average Time (ms): 0.04; Initial Time (ms): 4.9;
 
 ## **License**
 

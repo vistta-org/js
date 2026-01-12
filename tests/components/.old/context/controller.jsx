@@ -1,5 +1,5 @@
 import { Component, Context } from "@vistta/js";
-import { TIMEOUT } from "../../defaults.js";
+import { TIMEOUT } from "../../../defaults.js";
 
 const context = new Context(
   "context",

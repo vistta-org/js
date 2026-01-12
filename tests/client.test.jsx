@@ -1,118 +1,119 @@
-/*import { TIMEOUT, TEXT_VALUE, TEXT_UPDATE_VALUE, FALLBACK_VALUE, LOADING_VALUE, LOADED_VALUE, URL, SIZE } from "./defaults.js";
+import * as basic from "./components/basic.jsx";
+import { TEXT_UPDATE_VALUE, TEXT_VALUE, TIMEOUT } from "./defaults.js";
 
 const TIMEOUT_WITH_DELAY = TIMEOUT * 1.1;
 
 suite("VisttaJS Client Unit Tests", async () => {
-  test("Basic: State Counter", async () => {
-    const page = await browser.mount("./components/basic/stateCounter.jsx");
-    const output = await page.get("#output", { wait: true });
+  await test("Basic: State Counter", async () => {
+    await document.mount(basic.StateCounter);
 
-    expect(await output.get("innerText")).toEqual("0");
-    await (await page.get("#increment")).click();
-    expect(await output.get("innerText")).toEqual("1");
-    await (await page.get("#decrement")).click();
-    expect(await output.get("innerText")).toEqual("0");
+    expect(document.querySelector("#output").innerText).toEqual("0");
+    await document.querySelector("#increment").click();
+    expect(document.querySelector("#output").innerText).toEqual("1");
+    await document.querySelector("#decrement").click();
+    expect(document.querySelector("#output").innerText).toEqual("0");
   });
 
-  test("Basic: State Text", async () => {
-    const page = await browser.mount("./components/basic/stateText.jsx");
-    const input = await page.get("#input", { wait: true });
-    const output = await page.get("#output", { wait: true });
+  await test("Basic: State Text", async () => {
+    await document.mount(basic.StateText);
+    const input = document.querySelector("#input");
+    const output = document.querySelector("#output");
 
-    expect(await input.get("value")).toEqual(TEXT_VALUE);
-    expect(await output.get("innerText")).toEqual(TEXT_VALUE);
-    await input.type(TEXT_UPDATE_VALUE, { clear: true });
-    expect(await output.get("innerText")).toEqual(TEXT_UPDATE_VALUE);
+    expect(input.value).toEqual(TEXT_VALUE);
+    expect(output.innerText).toEqual(TEXT_VALUE);
+    await input.write(TEXT_UPDATE_VALUE, { clear: true });
+    expect(output.innerText).toEqual(TEXT_UPDATE_VALUE);
   });
 
-  test("Basic: Function Component", async () => {
-    const page = await browser.mount("./components/basic/functionComponent.jsx");
-    const output = await page.get("#output", { wait: true });
+  await test("Basic: Function Component", async () => {
+    await document.mount(basic.FunctionalComponent);
+    const output = document.querySelector("#output");
 
-    expect(await page.get("#input", "value")).toEqual(TEXT_VALUE);
-    expect(await output.get("innerText")).toEqual("0");
-    await (await page.get("#increment")).click();
-    expect(await output.get("innerText")).toEqual("1");
-    await (await page.get("#decrement")).click();
-    expect(await output.get("innerText")).toEqual("0");
+    expect(document.querySelector("#input").value).toEqual(TEXT_VALUE);
+    expect(output.innerText).toEqual("0");
+    await document.querySelector("#increment").click();
+    expect(output.innerText).toEqual("1");
+    await document.querySelector("#decrement").click();
+    expect(output.innerText).toEqual("0");
   });
 
-  test("Basic: Conditional Render", async () => {
-    const page = await browser.mount("./components/basic/conditionalRender.jsx");
-    const toggle = await page.get("#toggle", { wait: true });
+  await test("Basic: Conditional Render", async () => {
+    await document.mount(basic.ConditionalRender);
+    const toggle = document.querySelector("#toggle");
     const inputWithoutKey = "#inputWithoutKey";
     const inputWithKey = "#inputWithKey";
 
-    expect(await page.get(inputWithoutKey)).toEqual(null);
-    expect(await page.get(inputWithKey)).toEqual(null);
+    expect(document.querySelector(inputWithoutKey)).toEqual(null);
+    expect(document.querySelector(inputWithKey)).toEqual(null);
 
     await toggle.click();
-    await page.type(inputWithoutKey, TEXT_UPDATE_VALUE, { clear: true });
-    expect(await page.get(inputWithoutKey, "value")).toEqual(TEXT_UPDATE_VALUE);
+    await document.querySelector(inputWithoutKey).write(TEXT_UPDATE_VALUE, { clear: true });
+    expect(document.querySelector(inputWithoutKey).value).toEqual(TEXT_UPDATE_VALUE);
 
-    await page.type(inputWithKey, TEXT_UPDATE_VALUE, { clear: true });
-    expect(await page.get(inputWithKey, "value")).toEqual(TEXT_UPDATE_VALUE);
-
-    await toggle.click();
-    expect(await page.get(inputWithoutKey)).toEqual(null);
-    expect(await page.get(inputWithKey)).toEqual(null);
+    await document.querySelector(inputWithKey).write(TEXT_UPDATE_VALUE, { clear: true });
+    expect(document.querySelector(inputWithKey).value).toEqual(TEXT_UPDATE_VALUE);
 
     await toggle.click();
-    expect(await page.get(inputWithoutKey, "value")).toEqual("");
-    expect(await page.get(inputWithKey, "value")).toEqual(TEXT_UPDATE_VALUE);
+    expect(document.querySelector(inputWithoutKey)).toEqual(null);
+    expect(document.querySelector(inputWithKey)).toEqual(null);
+
+    await toggle.click();
+    expect(document.querySelector(inputWithoutKey).value).toEqual("");
+    expect(document.querySelector(inputWithKey).value).toEqual(TEXT_UPDATE_VALUE);
   });
 
-  test("Basic: List Render", async () => {
-    const page = await browser.mount("./components/basic/listRender.jsx");
-    const sort = await page.get("#sort", { wait: true });
+  await test("Basic: List Render", async () => {
+    await document.mount(basic.ListRender);
+    const sort = document.querySelector("#sort");
 
     const firstSelectorWithoutKey = "#containerWithoutKeys > input:first-child";
     const firstSelectorWithKey = "#containerWithKeys > input:first-child";
 
-    expect(await page.get(firstSelectorWithoutKey, "value")).toEqual("1");
-    expect(await page.get(firstSelectorWithKey, "value")).toEqual("1");
+    expect(document.querySelector(firstSelectorWithoutKey).value).toEqual("1");
+    expect(document.querySelector(firstSelectorWithKey).value).toEqual("1");
 
-    await page.type(firstSelectorWithoutKey, TEXT_UPDATE_VALUE, { clear: true });
-    expect(await page.get(firstSelectorWithoutKey, "value")).toEqual(TEXT_UPDATE_VALUE);
-    await page.type(firstSelectorWithKey, TEXT_UPDATE_VALUE, { clear: true });
-    expect(await page.get(firstSelectorWithKey, "value")).toEqual(TEXT_UPDATE_VALUE);
-
-    await sort.click();
-    expect(await page.get(firstSelectorWithoutKey, "value")).toEqual("5");
-    expect(await page.get(firstSelectorWithKey, "value")).toEqual("5");
+    await document.querySelector(firstSelectorWithoutKey).write(TEXT_UPDATE_VALUE, { clear: true });
+    expect(document.querySelector(firstSelectorWithoutKey).value).toEqual(TEXT_UPDATE_VALUE);
+    await document.querySelector(firstSelectorWithKey).write(TEXT_UPDATE_VALUE, { clear: true });
+    expect(document.querySelector(firstSelectorWithKey).value).toEqual(TEXT_UPDATE_VALUE);
 
     await sort.click();
-    expect(await page.get(firstSelectorWithoutKey, "value")).toEqual("1");
-    expect(await page.get(firstSelectorWithKey, "value")).toEqual(TEXT_UPDATE_VALUE);
+    expect(document.querySelector(firstSelectorWithoutKey).value).toEqual("5");
+    expect(document.querySelector(firstSelectorWithKey).value).toEqual("5");
+
+    await sort.click();
+    expect(document.querySelector(firstSelectorWithoutKey).value).toEqual("1");
+    expect(document.querySelector(firstSelectorWithKey).value).toEqual(TEXT_UPDATE_VALUE);
   });
 
-  test("Basic: Promises", async () => {
-    const page = await browser.mount("./components/basic/promises.jsx");
+  await test("Basic: Promises", async () => {
+    await document.mount(basic.Promises);
 
-    const output = await page.get("#output", { wait: true });
-    expect(await output.get("innerText")).toEqual("/");
-    await page.wait(TIMEOUT_WITH_DELAY);
-    expect(await output.get("innerText")).toEqual(TEXT_UPDATE_VALUE + "/");
-    await page.wait(TIMEOUT_WITH_DELAY);
-    expect(await output.get("innerText")).toEqual(TEXT_UPDATE_VALUE + "/" + TEXT_UPDATE_VALUE);
+    const output = document.querySelector("#output");
+    expect(output.innerText).toEqual("/");
+    await document.wait(TIMEOUT_WITH_DELAY);
+    expect(output.innerText).toEqual(TEXT_UPDATE_VALUE + "/");
+    await document.wait(TIMEOUT_WITH_DELAY);
+    expect(output.innerText).toEqual(TEXT_UPDATE_VALUE + "/" + TEXT_UPDATE_VALUE);
   });
 
-  test("Basic: Component Lifecycle", async () => {
-    const page = await browser.mount("./components/basic/componentLifecycle.jsx");
-    const output = await page.get("#output", { wait: true });
+  await test("Basic: Component Lifecycle", async () => {
+    await document.mount(basic.ComponentLifecycle);
+    const output = document.querySelector("#output");
+    const toggle = document.querySelector("#toggle");
 
-    expect(await output.get("innerText")).toEqual("");
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual("connected");
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual("disconnected");
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual("connected");
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual("disconnected");
+    expect(output.innerText).toEqual("");
+    await toggle.click();
+    expect(output.innerText).toEqual("connected");
+    await toggle.click();
+    expect(output.innerText).toEqual("disconnected");
+    await toggle.click();
+    expect(output.innerText).toEqual("connected");
+    await toggle.click();
+    expect(output.innerText).toEqual("disconnected");
   });
 
-  test("Style", async () => {
+  /*test("Style", async () => {
     const page = await browser.mount("./components/style.jsx");
     const target = await (await page.get("#target", { wait: true })).boundingBox();
     expect(target.height).toEqual(SIZE);
@@ -376,5 +377,5 @@ suite("VisttaJS Client Unit Tests", async () => {
     await page.type("#password", "987654321");
     await page.click("#submit");
     expect(await output.get("innerText")).toEqual("valid");
-  });
-});*/
+  });*/
+});

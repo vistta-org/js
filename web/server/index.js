@@ -797,10 +797,14 @@ class Server {
       else if (arg instanceof Method)
         return this.#register(arg.type, subdomain, pathname, async (req, res) => {
           try {
-            req.socket = {
-              emit: this.emit.bind(this, subdomain),
-              on: this.on.bind(this, subdomain),
-            };
+            Object.defineProperty(req, "socket", {
+              value: {
+                emit: this.emit.bind(this, subdomain),
+                on: this.on.bind(this, subdomain),
+              },
+              writable: false,
+              configurable: false,
+            });
             const value = await arg.handler(req, res);
             if (!res.writableEnded) res.send(value);
           } catch (e) {
@@ -836,10 +840,14 @@ class Server {
           const handlerPathname = combinePathnames(pathname, handler.url);
           this.#register(handler.type, subdomain, handlerPathname, async (req, res) => {
             try {
-              req.socket = {
-                emit: this.emit.bind(this, subdomain),
-                on: this.on.bind(this, subdomain),
-              };
+              Object.defineProperty(req, "socket", {
+                value: {
+                  emit: this.emit.bind(this, subdomain),
+                  on: this.on.bind(this, subdomain),
+                },
+                writable: true,
+                configurable: true,
+              });
               const value = await handler(req, res);
               if (!res.writableEnded) res.send(value);
             } catch (e) {
@@ -905,6 +913,7 @@ class Server {
       if (!request.headers) return this.#reject(request, response, "Missing headers", 500);
       if (!request.headers.host) return this.#reject(request, response, "Missing host header", 500);
       request.protocol = protocol;
+      request.address = request.headers["x-forwarded-for"] || request.socket.remoteAddress;
       request.subdomain = getSubdomain(request.headers.host);
       request.resource = fs.extname(request.url) !== "";
       const url = new URL(request.url, `${request.protocol}://${request.headers.host}`);
@@ -1033,53 +1042,59 @@ class Server {
   }
 
   async #socketHandler(type, ...args) {
-    if (type === "connection") {
-      const socket = args[0];
-      const subdomain = getSubdomain(socket?.handshake?.headers?.host) || "";
-      await socket.join(subdomain);
-      socket.onAny((event, ...args) => {
-        const listeners = this.#events[event] || [];
-        for (let i = 0, len = listeners.length; i < len; i++) listeners[i](socket, subdomain, args);
-      });
-    } else if (type === "upgrade") {
-      const [request, socket, head] = args;
-      if (request.url.startsWith("/socket.io/")) return;
-      request.subdomain = getSubdomain(request.headers.host);
-      const url = new URL(request.url, request.headers.origin || `ws://${request.headers.host}`);
-      request.href = url.href;
-      request.pathname = url.pathname;
-      const route = matchRoute(this.#subdomains[request.subdomain]?.websocket, request.pathname, { exact: false });
-      if (typeof route?.handler !== "function") socket.end();
-      return route.handler(request, socket, head);
-    } else if (type === "middleware") {
-      const [socket, next] = args;
-      const request = socket.handshake;
-      request.subdomain = getSubdomain(request.headers.host);
-      const url = new URL(request.url, request.headers.origin || `ws://${request.headers.host}`);
-      request.href = url.href;
-      request.pathname = url.pathname;
-      request.method = "WEBSOCKET";
-      const middleware = matchRoute(this.#subdomains[request.subdomain]?.middleware, request.pathname, { exact: false });
-      request.params = Object.fromEntries(url.searchParams.entries());
-      request.body = () => getRequestBody(request);
-      request.cookies = {};
-      if (request?.headers?.cookie) {
-        const cookies = request?.headers?.cookie.split(";");
-        for (let i = 0, len = cookies?.length; i < len; i++) {
-          const parts = cookies[i].split("=");
-          const name = parts.shift().trim();
-          request.cookies[name] = parts.join("=").trim();
-        }
+    switch (type) {
+      case "connection": {
+        const socket = args[0];
+        const subdomain = getSubdomain(socket?.handshake?.headers?.host) || "";
+        await socket.join(subdomain);
+        socket.onAny((event, ...args) => {
+          const listeners = this.#events[event] || [];
+          for (let i = 0, len = listeners.length; i < len; i++) listeners[i](socket, subdomain, args);
+        });
+        return;
       }
-      socket.cookies = [];
-      socket.props = {};
-      socket.set = (type, arg) => (socket[type] = arg);
-      socket.reject = (message) => next(new Error(message));
-      socket.redirect = () => this.#emit("warning", "redirect is not supported in WebSocket");
-      socket.send = () => this.#emit("warning", "send is not supported in WebSocket");
-      socket.sendFile = () => this.#emit("warning", "sendFile is not supported in WebSocket");
-      if (middleware) middleware.handler(request, socket, next);
-      else next();
+      case "upgrade": {
+        const [request, socket, head] = args;
+        if (request.url.startsWith("/socket.io/")) return;
+        request.subdomain = getSubdomain(request.headers.host);
+        const url = new URL(request.url, request.headers.origin || `ws://${request.headers.host}`);
+        request.href = url.href;
+        request.pathname = url.pathname;
+        const route = matchRoute(this.#subdomains[request.subdomain]?.websocket, request.pathname, { exact: false });
+        if (typeof route?.handler !== "function") socket.end();
+        return route.handler(request, socket, head);
+      }
+      case "middleware": {
+        const [socket, next] = args;
+        const request = socket.handshake;
+        request.subdomain = getSubdomain(request.headers.host);
+        const url = new URL(request.url, request.headers.origin || `ws://${request.headers.host}`);
+        request.href = url.href;
+        request.pathname = url.pathname;
+        request.method = "WEBSOCKET";
+        const middleware = matchRoute(this.#subdomains[request.subdomain]?.middleware, request.pathname, { exact: false });
+        request.params = Object.fromEntries(url.searchParams.entries());
+        request.body = () => getRequestBody(request);
+        request.cookies = {};
+        if (request?.headers?.cookie) {
+          const cookies = request?.headers?.cookie.split(";");
+          for (let i = 0, len = cookies?.length; i < len; i++) {
+            const parts = cookies[i].split("=");
+            const name = parts.shift().trim();
+            request.cookies[name] = parts.join("=").trim();
+          }
+        }
+        socket.cookies = [];
+        socket.props = {};
+        socket.set = (type, arg) => (socket[type] = arg);
+        socket.reject = (message) => next(new Error(message));
+        socket.redirect = () => this.#emit("warning", "redirect is not supported in WebSocket");
+        socket.send = () => this.#emit("warning", "send is not supported in WebSocket");
+        socket.sendFile = () => this.#emit("warning", "sendFile is not supported in WebSocket");
+        return middleware ? middleware.handler(request, socket, next) : next();
+      }
+      default:
+        return;
     }
   }
 

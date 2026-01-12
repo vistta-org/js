@@ -1,5 +1,5 @@
 import { Component, Ref } from "@vistta/js";
-import { TEXT_UPDATE_VALUE } from "../defaults.js";
+import { TEXT_UPDATE_VALUE } from "../../defaults.js";
 
 export default class extends Component {
   ref = new Ref();

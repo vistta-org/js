@@ -1,0 +1,115 @@
+/* eslint-disable no-undef */
+import { TestRunner } from "@vistta/cli";
+import {
+  Component,
+  Context,
+  Element,
+  Form,
+  Fragment,
+  Profiler,
+  Ref,
+  Render,
+  Safe,
+  ScopedFragment,
+  Suspense,
+} from "../core/classes.js";
+import { VirtualDom } from "../core/dom.js";
+import { File, HistoryContext, ThemeContext } from "../core/utils.js";
+import { defineReadonly, sleep } from "../utils/index.js";
+
+const FEEDBACK_TIMEOUT = 100;
+
+const runner = new TestRunner(__options);
+const vistta = {
+  Fragment,
+  Element,
+  Context,
+  Ref,
+  Component,
+  ScopedFragment,
+  Suspense,
+  Profiler,
+  Render,
+  Safe,
+  Form,
+  router: {
+    navigate() {
+      console.warn("Router is not available on apps.");
+    },
+    refresh() {
+      console.warn("Router is not available on apps.");
+    },
+  },
+  socket: {
+    emit(event, ...args) {
+      __app.send(event, { args });
+    },
+    on(event, callback) {
+      __app.on(event, (_, { args }) => callback(...args));
+    },
+  },
+  File,
+  ThemeContext,
+  HistoryContext,
+};
+let dom;
+
+defineReadonly(window, "vistta", vistta);
+defineReadonly(window, "suite", runner.suite);
+defineReadonly(window, "test", runner.test);
+defineReadonly(window, "expect", runner.expect);
+defineReadonly(document, "wait", sleep);
+defineReadonly(document, "mount", async (content, props = {}, config = {}) => {
+  dom?.disable();
+  await sleep(FEEDBACK_TIMEOUT);
+  dom = new VirtualDom("", document.body, config).render(new Element(content, props));
+  await sleep(FEEDBACK_TIMEOUT);
+  return dom;
+});
+if (process.env.NODE_DEBUG === "true")
+  defineReadonly(window, "requestAnimationFrame", (callback) => setTimeout(callback, 1));
+
+HTMLElement.prototype.write = async function (text, options) {
+  const { delay = FEEDBACK_TIMEOUT, clear = false, dispatchKeyboardEvents = true } = options;
+  if (!this || typeof this.value === "undefined") throw new Error("Target must be an input or textarea element");
+  if (clear) this.value = "";
+
+  this.focus();
+
+  for (const char of text) {
+    if (dispatchKeyboardEvents) {
+      this.dispatchEvent(new KeyboardEvent("keydown", { key: char, bubbles: true }));
+      this.dispatchEvent(new KeyboardEvent("keypress", { key: char, bubbles: true }));
+    }
+
+    this.value += char;
+
+    this.dispatchEvent(
+      new InputEvent("input", {
+        data: char,
+        inputType: "insertText",
+        bubbles: true,
+      }),
+    );
+
+    if (dispatchKeyboardEvents) {
+      this.dispatchEvent(new KeyboardEvent("keyup", { key: char, bubbles: true }));
+    }
+
+    await sleep(delay);
+  }
+
+  this.dispatchEvent(new Event("change", { bubbles: true }));
+  return sleep(FEEDBACK_TIMEOUT);
+};
+
+const click = HTMLElement.prototype.click;
+HTMLElement.prototype.click = async function () {
+  await sleep(FEEDBACK_TIMEOUT);
+  click.apply(this, arguments);
+  return sleep(FEEDBACK_TIMEOUT);
+};
+
+sleep(FEEDBACK_TIMEOUT)
+  .then(() => runner.run())
+  .then((results) => __app.send("test-results", results));

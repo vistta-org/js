@@ -1,6 +1,6 @@
-import { stringify } from "@/utils";
 import { Loader } from "@vistta/cli";
 import "../../core/adapter.js";
+import { stringify } from "../../utils/index.js";
 import { default as Controller, Method } from "../../web/server/controller.js";
 
 const PARAMS_REGEX = /:(\w+)/g;

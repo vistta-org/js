@@ -1,5 +1,5 @@
 import { Component, route } from "@vistta/js";
-import { URL } from "../defaults.js";
+import { URL } from "../../defaults.js";
 
 export default class extends Component {
   counter = 0;

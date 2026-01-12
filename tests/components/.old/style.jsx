@@ -1,5 +1,5 @@
 import { Component } from "@vistta/js";
-import { SIZE } from "../defaults.js";
+import { SIZE } from "../../defaults.js";
 import style from "./style.css";
 
 export default class extends Component {

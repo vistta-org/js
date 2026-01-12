@@ -1,5 +1,5 @@
 import { Component, Render } from "@vistta/js";
-import { TEXT_UPDATE_VALUE } from "../../defaults.js";
+import { TEXT_UPDATE_VALUE } from "../../../defaults.js";
 
 export default class extends Component {
   list = [1, 2, 3, 4, 5];

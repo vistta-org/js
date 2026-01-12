@@ -5,6 +5,7 @@
       "default": "./commands/default.js",
       "serve": "./commands/serve.js",
       "run": "./commands/run.js",
+      "test": "./commands/test.js",
       "build": "./commands/build.js"
     }
   },
