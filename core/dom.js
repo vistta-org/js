@@ -30,8 +30,6 @@ class VirtualDom {
   running = false;
   queue = [];
   keys = {};
-  affectedComponents = [];
-  profilers = [];
   stylesheets = {
     virtual: new VirtualStyleSheet(this.addStyleSheet.bind(this)),
   };
@@ -40,6 +38,9 @@ class VirtualDom {
     this.pathname = pathname;
     this.host = host;
     this.config = config || {};
+    this.stylesheets.virtual.add({
+      "[suspended]": { display: "none !important" },
+    });
     for (let i = 0, len = this.config?.styles?.length || 0; i < len; i++) {
       const keys = Object.keys(this.config.styles[i]);
       if (keys[0]?.startsWith("style-")) this.addStyleSheet(keys[0].slice(6));
@@ -49,7 +50,11 @@ class VirtualDom {
 
   createElement(type) {
     if (type === "fragment") return document.createDocumentFragment();
-    return document.createElement(type);
+    const element = document.createElement(type);
+    Object.defineProperty(element.style, "setProperty", {
+      value: (property, value, priority) => this.stylesheets.virtual.setProperty(element, property, value, priority),
+    });
+    return element;
   }
 
   createTextNode(value) {
@@ -101,27 +106,21 @@ class VirtualDom {
   }
 
   enqueue(mutations) {
-    if (!Array.isArray(mutations)) throw new VirtualDomError("Internal Error #001");
     this.queue.push(...mutations);
     if (!this.active || this.running) return;
     this.running = true;
     requestAnimationFrame(() => this.update());
   }
 
-  update() {
+  update(components = [], profilers = []) {
     const startTime = performance.now();
     while (this.queue.length > 0) {
       const mutation = this.queue.shift();
-      mutation.update?.();
-      // Break to avoid exceeding frame budget
-      if (performance.now() - startTime > 16) return requestAnimationFrame(() => this.update());
+      mutation.update?.(components, profilers);
+      if (performance.now() - startTime > 16) return requestAnimationFrame(() => this.update(components, profilers));
     }
 
-    const affectedComponents = this.affectedComponents;
-    this.affectedComponents = [];
-    for (let i = 0, len = affectedComponents.length; i < len; i++) affectedComponents[i].onUpdate?.();
-    const profilers = this.profilers;
-    this.profilers = [];
+    for (let i = 0, len = components.length; i < len; i++) components[i].onUpdate?.();
     for (let i = 0, len = profilers.length; i < len; i++) profilers[i].end();
     this.running = false;
   }
@@ -234,11 +233,11 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
       }
     }
     element.node = virtualDom.createElement(element.type);
+    if (context?.suspense && parent.mutation !== context.suspense.fallback) context.suspense.add(element);
     if (element.ref instanceof Mutation) throw new VirtualDomError("Internal Error #003");
     if (typeof element.ref === "function") element.ref(element.node);
     else if (element.ref instanceof Ref) element.ref.node = element.node;
     element.node._element = element;
-
     element.attributes = {};
     if (context.scoped) {
       Object.assign(element.props, context.scoped);
@@ -253,17 +252,14 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
           virtualDom,
           element,
           prop,
-          evalMutation(prop, (value) =>
+          (value) =>
             virtualDom.setAttribute(
               element,
               keys[i],
               value,
               getPropValue(element.props.disabled) || getPropValue(element.props.readOnly),
             ),
-          ),
-          evalMutationAsync(virtualDom, prop, (value) =>
-            virtualDom.setAttribute(element, keys[i], value, disabledOrReadOnly),
-          ),
+          (value) => virtualDom.setAttribute(element, keys[i], value, disabledOrReadOnly),
         );
       else virtualDom.setAttribute(element, keys[i], prop, disabledOrReadOnly);
     }
@@ -321,10 +317,8 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
     else if (element.Component === Form) {
       if (context.form) component.register(context.form);
       else context.form = component;
-    } else if (element.Component === Profiler && "production" !== process.env.NODE_ENV) {
-      addUnique(virtualDom.profilers, component);
-      context.profiler = component;
-    } else if (element.Component === Safe) context.safe = component;
+    } else if (element.Component === Profiler && "production" !== process.env.NODE_ENV) context.profiler = component;
+    else if (element.Component === Safe) context.safe = component;
     const keys = Object.keys(element.props);
     for (let i = 0, len = keys.length; i < len; i++) component[keys[i]] ??= true;
     const propertyNames = Object.getOwnPropertyNames(component);
@@ -374,21 +368,21 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
             virtualDom,
             element,
             mutation,
-            evalMutation(mutation, (value) => {
+            (value) => {
               element.attributes[propertyName] = value;
               virtualDom.enqueue(mutations);
-            }),
-            evalMutationAsync(virtualDom, mutation, (value) => (element.attributes[propertyName] = value)),
+            },
+            (value) => (element.attributes[propertyName] = value),
           );
         } else if (element.props[propertyName] != null) element.attributes[propertyName] = element.props[propertyName];
         if (element.attributes[propertyName] instanceof Promise) {
           let fulfilled = false;
-          let suspense;
+          let resolve;
           if (!window.isServer)
             element.attributes[propertyName].then((result) => {
               element.attributes[propertyName] = result;
               fulfilled = true;
-              suspense?.resolve?.();
+              resolve?.();
               virtualDom.enqueue(mutations);
             });
           Object.defineProperty(component, propertyName, {
@@ -396,7 +390,7 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
             enumerable: true,
             get: () => {
               if (virtualDom.mutation) addUnique(mutations, virtualDom.mutation);
-              if (!fulfilled && virtualDom.suspense) suspense = virtualDom.suspense.register();
+              if (!fulfilled && virtualDom.suspense) resolve = virtualDom.suspense();
               return element.attributes[propertyName];
             },
             set: (v) => {
@@ -430,57 +424,50 @@ function renderElement(virtualDom, parent, element, context, referenceNode) {
       });
 
     const mutation = new Mutation(`##${componentMutationCount++}`, () => component.render());
-
     if (element.Component === Suspense) {
-      const fragment = {
-        type: "Fragment",
-        node: virtualDom.createElement("fragment"),
-        children: [],
-      };
-      virtualDom.suspense = component;
-      const replaceChildren = () => {
-        const referenceNode = element.lastNode?.nextSibling;
-        for (let i = 0, len = element.children.length; i < len; i++) {
-          if (!element.children[i]) continue;
-          removeElement(element.children[i]);
-          traverseVirtualTree(
-            element.children[i],
-            (element) => element.type === Component.Node && component?.onDisconnect?.(),
-          );
+      let active = false;
+      let count = 0;
+      const fallback = new Mutation(`##${componentMutationCount++}`, () => active && component.fallback);
+      const nodes = [];
+      context.suspense = () => {
+        count++;
+        let newActive = count > 0;
+        if (active !== newActive) {
+          active = newActive;
+          virtualDom.enqueue([fallback]);
+          for (let i = 0, len = nodes.length; i < len; i++) nodes[i].setAttribute("suspended", "");
         }
-        element.children = fragment.children;
-        for (let i = 0, len = element.children.length; i < len; i++) element.children[i].parent = element;
-        while (fragment.node.firstChild) appendElement(element, { node: fragment.node.firstChild }, referenceNode);
+        return () => {
+          count--;
+          let newActive = count > 0;
+          if (active !== newActive) {
+            active = newActive;
+            virtualDom.enqueue([fallback]);
+            for (let i = 0, len = nodes.length; i < len; i++) nodes[i].removeAttribute("suspended");
+          }
+        };
       };
-      const result = mutation();
-      if (element instanceof Promise) throw new VirtualDomError("Suspense render cannot be async");
-      renderElementChildren(virtualDom, fragment, ensureArray(result), context, referenceNode);
-      virtualDom.suspense = null;
+      context.suspense.add = (element) => {
+        let parent = element.parent;
+        while (parent && !parent.node) parent = parent.parent;
+        if (nodes.includes(parent.node)) return;
+        nodes.push(element.node);
+      };
+      context.suspense.fallback = fallback;
       element.mutation = applyMutation(
         virtualDom,
         element,
         mutation,
-        () => updateElement(virtualDom, element, null, ensureArray(mutation())),
-        () =>
-          component.fulfilled
-            ? replaceChildren()
-            : renderElementChildren(
-                virtualDom,
-                element,
-                ensureArray(component.render(replaceChildren)),
-                context,
-                referenceNode,
-              ),
+        (value) => updateElement(virtualDom, element, null, [fallback, ...ensureArray(value)]),
+        (value) => renderElementChildren(virtualDom, element, [fallback, ...ensureArray(value)], context, referenceNode),
       );
     } else
       element.mutation = applyMutation(
         virtualDom,
         element,
         mutation,
-        evalMutation(mutation, (value) => updateElement(virtualDom, element, null, ensureArray(value))),
-        evalMutationAsync(virtualDom, mutation, (value) =>
-          renderElementChildren(virtualDom, element, ensureArray(value), context, referenceNode),
-        ),
+        (value) => updateElement(virtualDom, element, null, ensureArray(value)),
+        (value) => renderElementChildren(virtualDom, element, ensureArray(value), context, referenceNode),
       );
 
     if (!window.isServer && component.onConnect) preventMutation(virtualDom, () => component.onConnect?.());
@@ -509,15 +496,16 @@ function updateElement(virtualDom, element, props, children) {
           virtualDom,
           element,
           element.props[keys[i]],
-          evalMutation(props[keys[i]], (value) => {
+          (value) => {
             element.attributes[keys[i]] = value;
             if (mutations) virtualDom.enqueue(mutations);
-          }),
-          evalMutationAsync(virtualDom, props[keys[i]], (value) => {
+          },
+          (value) => {
             if (value === element.attributes[keys[i]]) return;
             element.attributes[keys[i]] = value;
             updateChildren = true;
-          }),
+          },
+          props[keys[i]],
         );
       } else element.component[keys[i]] = props[keys[i]];
     }
@@ -531,18 +519,18 @@ function updateElement(virtualDom, element, props, children) {
         virtualDom,
         element,
         element.props[keys[i]],
-        evalMutation(props[keys[i]], (value) =>
+        (value) =>
           virtualDom.setAttribute(
             element,
             keys[i],
             value,
             getPropValue(element.props.disabled) || getPropValue(element.props.readOnly),
           ),
-        ),
-        evalMutationAsync(virtualDom, props[keys[i]], (value) => {
+        (value) => {
           if (value === element.attributes[keys[i]]) return;
           virtualDom.setAttribute(element, keys[i], value, disabledOrReadOnly);
-        }),
+        },
+        props[keys[i]],
       );
     }
   }
@@ -606,15 +594,18 @@ function updateElement(virtualDom, element, props, children) {
         else if (changes[i].previous.mutation) {
           const result = changes[i].element.mutation();
           if (result instanceof Promise) {
+            const resolve = context?.suspense();
             element.children[i] = changes[i].previous;
             result.then(
-              (value) =>
+              (value) => (
                 (element.children[i] = updateElement(
                   virtualDom,
                   changes[i].previous,
                   changes[i].element.props,
                   ensureArray(value),
                 )),
+                resolve?.()
+              ),
             );
           } else
             element.children[i] = updateElement(
@@ -675,8 +666,8 @@ function convertToElement(virtualDom, element, ignoreMutation = false) {
         virtualDom,
         element,
         mutation,
-        evalMutation(mutation, (value) => updateElement(virtualDom, element, null, ensureArray(value))),
-        evalMutationAsync(virtualDom, mutation, (value) => (element.children = ensureArray(value))),
+        (value) => updateElement(virtualDom, element, null, ensureArray(value)),
+        (value) => (element.children = ensureArray(value)),
       );
     else element.mutation = mutation;
     return element;
@@ -714,28 +705,50 @@ function renderElementChildren(virtualDom, element, children, context, reference
     );
 }
 
-function applyMutation(virtualDom, element, mutation, update, init) {
-  const updateWrapper = () => {
+function applyMutation(virtualDom, element, mutation, update, init, replacer) {
+  const trigger = replacer || mutation;
+  mutation.update = (components, profilers) => {
     try {
       if (!element.active) return;
-      const components = element.context.components;
-      for (let i = 0, len = components.length; i < len; i++) addUnique(virtualDom.affectedComponents, components[i]);
-      update();
+      for (let i = 0, len = element.context.components.length; i < len; i++)
+        addUnique(components, element.context.components[i]);
+      const stop = element?.context?.profiler?.record?.();
+      const result = trigger();
+      if (result instanceof Promise) {
+        const resolve = element?.context?.suspense();
+        result.then((v) => {
+          virtualDom.enqueue([
+            {
+              update: () => {
+                const stop = element?.context?.profiler?.record?.();
+                update(v);
+                stop?.();
+              },
+            },
+          ]);
+          resolve?.();
+        });
+      } else update(result);
+      stop?.((profiler) => addUnique(profilers, profiler));
     } catch (e) {
       if (element?.context?.safe) element.context.safe.catch(e);
       else throw e;
     }
   };
-  if (element?.context?.profiler)
-    mutation.update = element.context.profiler.record(updateWrapper, (profiler) =>
-      addUnique(virtualDom.profilers, profiler),
-    );
-  else mutation.update = updateWrapper;
 
   const previousMutation = virtualDom.mutation;
   virtualDom.mutation = mutation;
   try {
-    init();
+    const result = trigger();
+    if (result instanceof Promise) {
+      const resolve = element?.context?.suspense();
+      if (!window.isServer)
+        result.then(() => {
+          virtualDom.enqueue([trigger]);
+          resolve?.();
+        });
+      init(null);
+    } else init(result);
   } catch (e) {
     if (element?.context?.safe) element.context.safe.catch(e);
     else throw e;
@@ -743,29 +756,6 @@ function applyMutation(virtualDom, element, mutation, update, init) {
   virtualDom.mutation = previousMutation;
   addUnique(element.mutations, mutation);
   return mutation;
-}
-
-function evalMutation(mutation, callback) {
-  return () => {
-    const result = mutation();
-    if (result instanceof Promise) result.then(callback);
-    else callback(result);
-  };
-}
-
-function evalMutationAsync(virtualDom, mutation, callback) {
-  return () => {
-    const result = mutation();
-    if (result instanceof Promise) {
-      const suspense = virtualDom?.suspense?.register();
-      if (!window.isServer)
-        result.then(() => {
-          virtualDom.enqueue([mutation]);
-          suspense?.resolve?.();
-        });
-      callback(null);
-    } else callback(result);
-  };
 }
 
 function preventMutation(virtualDom, callback) {

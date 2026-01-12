@@ -81,7 +81,6 @@ export class Context extends FunctionClass {
   static id = Symbol(encode(CONTEXT_CACHE_KEY.slice(0, -1), "hex"));
   #key;
   #shared = { listeners: [] };
-  #cache;
 
   constructor(key, value, cache, actions, controllers) {
     if (typeof key !== "string" || key.length == 0) throw new Error("TypeError: Invalid context key.");
@@ -92,31 +91,30 @@ export class Context extends FunctionClass {
     if (window[Context.id][encode(this.#key, "hex")]) this.#shared = window[Context.id][encode(this.#key, "hex")];
     else {
       window[Context.id][encode(this.#key, "hex")] = this.#shared;
-      this.#shared.cache = cache;
+      this.#shared.cache = getCache(cache);
       try {
         this.#shared.value = clone(value, true);
       } catch {
         throw new Error("TypeError: Cannot create context with a non serializable object as default value.");
       }
-      if (cache === "indexed" || cache === "db" || cache === "indexeddb") {
-        this.#cache = indexed;
-        this.#cache
+      if (this.#shared.cache === indexed) {
+        this.#shared.cache
           .getItem(encode(CONTEXT_CACHE_KEY + key, "hex"))
           .then((value) => (this.#shared.value = parse(decode(value, "hex")) ?? this.#shared.value))
           .catch(() => {
             /* Do nothing */
           });
-      } else if (cache === "session" || cache === "local" || cache === "storage") {
-        this.#cache = cache === "session" ? sessionStorage : localStorage;
+      } else if (this.#shared.cache === sessionStorage || this.#shared.cache === localStorage) {
         try {
           this.#shared.value =
-            parse(decode(this.#cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
+            parse(decode(this.#shared.cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
         } catch {
           /* Do nothing */
         }
       }
     }
-    if (this.#shared.cache !== cache) throw new Error("Error: Cannot create the same context with different cache types.");
+    if (this.#shared.cache !== getCache(cache))
+      throw new Error("Error: Cannot create the same context with different cache types.");
     const actionsNames = Object.keys(actions || {});
     if (actionsNames.length > 0) {
       const controllerFn = (target, status) => {
@@ -193,10 +191,13 @@ export class Context extends FunctionClass {
     if (typeof listener?.set === "function") listeners.push(listener.set);
     if (this.#shared.proxy) return this.#shared.proxy;
     const saveCache =
-      this.#cache &&
+      this.#shared.cache &&
       (() => {
         try {
-          this.#cache.setItem(encode(CONTEXT_CACHE_KEY + this.#key, "hex"), encode(stringify(this.#shared.value), "hex"));
+          this.#shared.cache.setItem(
+            encode(CONTEXT_CACHE_KEY + this.#key, "hex"),
+            encode(stringify(this.#shared.value), "hex"),
+          );
         } catch (e) {
           console.error(e);
         }
@@ -226,7 +227,7 @@ export class Context extends FunctionClass {
 
 export const indexed = {
   async setItem(key, value) {
-    const db = await openDB();
+    const db = await openIndexedDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       tx.objectStore(STORE_NAME).put(value, key);
@@ -236,7 +237,7 @@ export const indexed = {
   },
 
   async getItem(key) {
-    const db = await openDB();
+    const db = await openIndexedDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readonly");
       const req = tx.objectStore(STORE_NAME).get(key);
@@ -246,7 +247,7 @@ export const indexed = {
   },
 
   async removeItem(key) {
-    const db = await openDB();
+    const db = await openIndexedDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       tx.objectStore(STORE_NAME).delete(key);
@@ -256,7 +257,7 @@ export const indexed = {
   },
 
   async clear() {
-    const db = await openDB();
+    const db = await openIndexedDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       tx.objectStore(STORE_NAME).clear();
@@ -267,12 +268,13 @@ export const indexed = {
 };
 
 let dbPromise = null;
-
-function openDB() {
+function openIndexedDB() {
   if (dbPromise) return dbPromise;
-
   dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = (window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB).open(
+      DB_NAME,
+      DB_VERSION,
+    );
 
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -343,58 +345,39 @@ export class ScopedFragment extends Component {
 }
 
 export class Suspense extends Component {
-  #count = 0;
-  #callback;
-
-  get fulfilled() {
-    return this.#count == 0;
-  }
-
-  register() {
-    this.#count++;
-    return this;
-  }
-
-  resolve() {
-    this.#count--;
-    if (this.#count == 0) this.#callback(true);
-  }
-
-  render(callback) {
-    if (callback) this.#callback = callback;
-    if (this.#count == 0) return this.children;
-    return this.fallback;
+  fallback;
+  render() {
+    return this.children;
   }
 }
 
 export class Profiler extends Component {
   callback;
-  #start;
-  #total = 0;
+  #initial;
+  #update = 0;
 
   onConnect() {
-    this.callback(performance.now() - this.#start);
+    this.callback((this.#initial = performance.now() - this.#initial));
   }
 
   render() {
-    if (!this.callback || typeof process !== "undefined" || "production" === process.env.NODE_ENV) return this.children;
-    this.#start = performance.now();
+    if (!this.callback || "production" === process.env.NODE_ENV) return this.children;
+    this.#initial = performance.now();
     return this.children;
   }
 
-  record(updater, callback) {
-    return () => {
-      let initial = performance.now();
-      updater();
-      this.#total = performance.now() - initial;
-      callback(this);
+  record() {
+    let start = performance.now();
+    return (callback) => {
+      this.#update += performance.now() - start;
+      return callback?.(this);
     };
   }
 
   end() {
-    const total = this.#total;
-    this.#total = 0;
-    this.callback(total);
+    this.callback(this.#update);
+    this.#update = 0;
+    return this;
   }
 }
 
@@ -726,4 +709,18 @@ function getFieldValue(element) {
   if (element.type === "file") return element.files;
   if (element.type === "checkbox") return element.checked;
   return element.value;
+}
+
+function getCache(type) {
+  switch (type) {
+    case "indexed":
+    case "db":
+    case "indexeddb":
+      return indexed;
+    case "session":
+      return sessionStorage;
+    case "local":
+    case "storage":
+      return localStorage;
+  }
 }
