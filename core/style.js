@@ -201,6 +201,23 @@ export class VirtualStyleSheet extends BoundClass {
     return value.slice(0, -1);
   }
 
+  setProperty(element, property, value, priority) {
+    value = formatValue(value, priority === "important");
+    const styleAttr = element.attributes.style;
+    if (!styleAttr) return element.setAttribute("style", `${property}: ${value};`);
+    const current = styleAttr.nodeValue;
+    const searchStr = `${property}:`;
+    let start = current.indexOf(searchStr);
+    if (start === -1) {
+      const separator = current && !current.endsWith(";") ? "; " : "";
+      styleAttr.nodeValue = current + separator + `${property}: ${value};`;
+    } else {
+      const end = current.indexOf(";", start) + 1;
+      const newValue = current.slice(0, start) + `${property}: ${value};` + current.slice(end);
+      styleAttr.nodeValue = newValue.trim();
+    }
+  }
+
   #insertRule(rule) {
     this.#instance.insertRule(rule, this.#instance.cssRules.length);
   }

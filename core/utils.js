@@ -135,15 +135,19 @@ export function anchor(element, target) {
   let position = "bottom";
   if (typeof target === "object" && target.position) ({ position, target } = target);
   target = typeof target === "string" ? document.querySelector(target) : target;
-  const { changed, set } = getPositioning(position);
   if (target instanceof Ref) target = target.node;
   if (!target) return;
-  let last = target.getBoundingClientRect();
-  const observer = (force) => {
-    const rect = target.getBoundingClientRect();
-    if (!force && !changed(last, rect)) return;
-    last = set(element, rect);
-  };
+  let observer;
+  if (typeof position === "function") observer = () => position(element, target.getBoundingClientRect());
+  else {
+    const { changed, set } = getPositioning(position);
+    let last = target.getBoundingClientRect();
+    observer = (force) => {
+      const rect = target.getBoundingClientRect();
+      if (!force && !changed(last, rect)) return;
+      last = set(element, rect);
+    };
+  }
   if (eventObservers.length === 0) {
     window.addEventListener(
       "scroll",
@@ -172,12 +176,8 @@ function getPositioning(position) {
     return {
       changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.width !== last.width,
       set: (target, rect) => {
-        if (!target.attributes.style)
-          target.setAttribute("style", `bottom: ${rect.top}px; left: ${rect.left + rect.width / 2}px;`);
-        else {
-          const value = target.attributes.style.nodeValue.replace(/\b(?:bottom|left):[^;]+;/g, "").trim();
-          target.attributes.style.nodeValue = `${value}${value === "" ? "" : "; "}bottom: ${rect.top}px; left: ${rect.left + rect.width / 2}px;`;
-        }
+        target.style.setProperty("bottom", rect.top + "px");
+        target.style.setProperty("left", rect.left + rect.width / 2 + "px");
         return rect;
       },
     };
@@ -185,12 +185,8 @@ function getPositioning(position) {
     return {
       changed: (last, rect) => rect.bottom !== last.bottom || rect.left !== last.left || rect.width !== last.width,
       set: (target, rect) => {
-        if (!target.attributes.style)
-          target.setAttribute("style", `top: ${rect.bottom}px; left: ${rect.left + rect.width / 2}px;`);
-        else {
-          const value = target.attributes.style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
-          target.attributes.style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.bottom}px; left: ${rect.left + rect.width / 2}px;`;
-        }
+        target.style.setProperty("top", rect.bottom + "px");
+        target.style.setProperty("left", rect.left + rect.width / 2 + "px");
         return rect;
       },
     };
@@ -198,12 +194,8 @@ function getPositioning(position) {
     return {
       changed: (last, rect) => rect.top !== last.top || rect.right !== last.right || rect.height !== last.height,
       set: (target, rect) => {
-        if (!target.attributes.style)
-          target.setAttribute("style", `top: ${rect.top + rect.height / 2}px; left: ${rect.right}px;`);
-        else {
-          const value = target.attributes.style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
-          target.attributes.style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.top + rect.height / 2}px; left: ${rect.right}px;`;
-        }
+        target.style.setProperty("top", rect.top + rect.height / 2 + "px");
+        target.style.setProperty("left", rect.right + "px");
         return rect;
       },
     };
@@ -211,12 +203,8 @@ function getPositioning(position) {
     return {
       changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.height !== last.height,
       set: (target, rect) => {
-        if (!target.attributes.style)
-          target.setAttribute("style", `top: ${rect.top + rect.height / 2}px; left: ${rect.left}px;`);
-        else {
-          const value = target.attributes.style.nodeValue.replace(/\b(?:top|left):[^;]+;/g, "").trim();
-          target.attributes.style.nodeValue = `${value}${value === "" ? "" : "; "}top: ${rect.top + rect.height / 2}px; left: ${rect.left}px;`;
-        }
+        target.style.setProperty("top", rect.top + rect.height / 2 + "px");
+        target.style.setProperty("left", rect.left + "px");
         return rect;
       },
     };
