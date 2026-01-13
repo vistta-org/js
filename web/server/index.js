@@ -675,6 +675,7 @@ class Server {
       this.#register("middleware", subdomain, pathname, (req, res) => {
         req.__options = options;
         if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
+        console.log("debug", subdomain, pathname, req.pathname);
         this.#proxy.web(req, res, options, (error) => {
           throw new Error(error);
         });
@@ -1322,9 +1323,9 @@ function xForwardHeaders(proxyReq, originalReq) {
   proxyReq.setHeader("Connection", "keep-alive");
   proxyReq.setHeader("Host", originalReq.headers["host"]);
   proxyReq.setHeader("X-Forwarded-Host", originalReq.headers["x-forwarded-host"] || originalReq.headers["host"]);
-  proxyReq.setHeader("X-Forwarded-Proto", originalReq.headers["x-forwarded-proto"] || originalReq.protocol || "");
-  // proxyReq.setHeader("X-Forwarded-Port", originalReq.headers["x-forwarded-port"] || originalReq.port || "");
-  console.log(proxyReq.getHeaders(), originalReq.headers);
+  const xprotocol = originalReq.headers["x-forwarded-proto"];
+  proxyReq.setHeader("X-Forwarded-Proto", xprotocol || originalReq.protocol || "");
+  proxyReq.setHeader("X-Forwarded-Port", (xprotocol && (xprotocol === "https" ? 443 : 80)) || originalReq.port || "");
 }
 
 function defaultHeaders(request, response, type) {
