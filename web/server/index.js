@@ -675,7 +675,6 @@ class Server {
       this.#register("middleware", subdomain, pathname, (req, res) => {
         req.__options = options;
         if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
-        console.log("debug", subdomain, pathname, req.pathname);
         this.#proxy.web(req, res, options, (error) => {
           throw new Error(error);
         });
@@ -1320,7 +1319,6 @@ function checkIfMoreSpecific(segments, target) {
 }
 
 function xForwardHeaders(proxyReq, originalReq) {
-  proxyReq.setHeader("Connection", "keep-alive");
   proxyReq.setHeader("Host", originalReq.headers["host"]);
   proxyReq.setHeader("X-Forwarded-Host", originalReq.headers["x-forwarded-host"] || originalReq.headers["host"]);
   const xprotocol = originalReq.headers["x-forwarded-proto"];
@@ -1331,6 +1329,7 @@ function xForwardHeaders(proxyReq, originalReq) {
 function defaultHeaders(request, response, type) {
   const headers = Object.assign(
     {
+      Connection: "keep-alive",
       "X-DNS-Prefetch-Control": "off",
       "Expect-CT": "max-age=86400, enforce",
       "X-Frame-Options": "DENY",
@@ -1341,7 +1340,6 @@ function defaultHeaders(request, response, type) {
       "X-Permitted-Cross-Domain-Policies": "none",
       "Referrer-Policy": "no-referrer",
       "X-XSS-Protection": "1; mode=block",
-      Connection: "keep-alive",
       "Content-Type": type,
     },
     response.headers || {},
