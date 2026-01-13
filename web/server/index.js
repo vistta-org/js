@@ -208,7 +208,7 @@ class Server {
     this.#socket.use(this.#socketHandler.bind(this, "middleware"));
     this.#socket.on("connection", this.#socketHandler.bind(this, "connection"));
     this.#proxy.on("proxyReq", (proxyReq, req) => {
-      console.log(proxyReq.headers, req.headers);
+      console.log(proxyReq.getHeaders(), req.headers);
     });
     this.#proxy.on("proxyRes", (proxyRes, req) => {
       const location = proxyRes?.headers?.location;
@@ -659,7 +659,10 @@ class Server {
       this.#register("middleware", subdomain, pathname, (req, res) => {
         req.__options = options;
         if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
-        this.#proxy.web(req, res, options, (err) => res.reject(err?.message, 500));
+        this.#proxy.web(req, res, options, (err) => {
+          this.#emit("error", err?.stack || err?.message || err);
+          res.reject(err?.message || err, 500);
+        });
       }),
     );
     collection.add(
