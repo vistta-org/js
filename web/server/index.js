@@ -18,7 +18,6 @@ const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
 const BODY_IDLE_TIMEOUT_TIME = 5 * 1000; // 5 seconds
 const DEFAULT_PROXY_OPTIONS = {
   ws: true,
-  xfwd: false,
   secure: false,
   changeOrigin: true,
   preserveHeaderKeyCase: true,
@@ -182,7 +181,16 @@ class Server {
     if (httpPort)
       this.#http = {
         name: "http",
-        server: createServer((request, response) => this.#handler("http", request, response)),
+        server: createServer((request, response) =>
+          this.#handler(
+            {
+              protocol: "http",
+              port: httpPort,
+            },
+            request,
+            response,
+          ),
+        ),
         port: httpPort,
       };
     if (httpsPort) {
@@ -199,7 +207,15 @@ class Server {
               key: fs.readFileSync(key),
               cert: fs.readFileSync(cert),
             },
-            (request, response) => this.#handler("https", request, response),
+            (request, response) =>
+              this.#handler(
+                {
+                  protocol: "https",
+                  port: httpsPort,
+                },
+                request,
+                response,
+              ),
           ),
           port: httpsPort,
           certs: { cert, key },
@@ -207,9 +223,8 @@ class Server {
     }
     this.#socket.use(this.#socketHandler.bind(this, "middleware"));
     this.#socket.on("connection", this.#socketHandler.bind(this, "connection"));
-    this.#proxy.on("proxyReq", (proxyReq, req) => {
-      console.log(proxyReq.getHeaders(), req.headers);
-    });
+    this.#proxy.on("proxyReq", xForwardHeaders);
+    this.#proxy.on("proxyReqWs", xForwardHeaders);
     this.#proxy.on("proxyRes", (proxyRes, req) => {
       const location = proxyRes?.headers?.location;
       const { target, pathname, preservePathname } = req.__options;
@@ -621,7 +636,6 @@ class Server {
    * @typedef {Object} ProxyOptions
    * @property {string} target - Target url
    * @property {boolean} ws - Include websocket  Default: true
-   * @property {boolean} xfwd - Include x-forward header  Default: true
    * @property {boolean} secure - Allow only https  Default: false
    * @property {boolean} changeOrigin - Change origin  Default: false
    * @property {boolean} preservePathname - Preserve pathname in the target url  Default: false
@@ -648,10 +662,12 @@ class Server {
         ? {
             ...DEFAULT_PROXY_OPTIONS,
             target: targetOrOptions,
+            xfwd: false,
           }
         : {
             ...DEFAULT_PROXY_OPTIONS,
             ...targetOrOptions,
+            xfwd: false,
           };
     const collection = new Route(subdomain, pathname, "collection");
     options.pathname = pathname;
@@ -900,7 +916,7 @@ class Server {
     return (routes.push(route), route);
   }
 
-  #handler(protocol, request, response) {
+  #handler(config, request, response) {
     try {
       request.timeout = setTimeout(() => this.#send(request, response, 408, "Request timeout"), this.#timeout);
       const end = response.end.bind(response);
@@ -915,10 +931,11 @@ class Server {
           status: response.statusCode,
         })
       );
-      if (protocol === "https" && request.headers[":authority"]) request.headers.host = request.headers[":authority"];
+      if (config.protocol === "https" && request.headers[":authority"]) request.headers.host = request.headers[":authority"];
       if (!request.headers) return this.#reject(request, response, "Missing headers", 500);
       if (!request.headers.host) return this.#reject(request, response, "Missing host header", 500);
-      request.protocol = protocol;
+      request.protocol = config.protocol;
+      request.port = config.port;
       request.address = request.socket.remoteAddress;
       request.subdomain = getSubdomain(request.headers.host);
       request.resource = fs.extname(request.url) !== "";
@@ -1300,6 +1317,13 @@ function checkIfMoreSpecific(segments, target) {
     }
   }
   return false;
+}
+
+function xForwardHeaders(proxyReq, originalReq) {
+  proxyReq.setHeader("Host", originalReq.headers["host"]);
+  proxyReq.setHeader("X-Forwarded-Host", originalReq.headers["x-forwarded-host"] || originalReq.headers["host"]);
+  proxyReq.setHeader("X-Forwarded-Proto", originalReq.headers["x-forwarded-proto"] || originalReq.protocol);
+  proxyReq.setHeader("X-Forwarded-Port", originalReq.headers["x-forwarded-port"] || originalReq.port);
 }
 
 function defaultHeaders(request, response, type) {
