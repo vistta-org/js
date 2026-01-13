@@ -15,7 +15,8 @@ import { Component, createPage } from "./page.js";
 
 const dirname = import.meta.dirname;
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
-const BODY_IDLE_TIMEOUT_TIME = 5 * 1000; // 5 seconds
+const BODY_IDLE_TIMEOUT_TIME = 15 * 1000; // 15 seconds
+const MAX_BODY_SIZE = 50 * 1024 * 1024; // 50MB
 const DEFAULT_PROXY_OPTIONS = {
   ws: true,
   secure: false,
@@ -1245,8 +1246,19 @@ function removeFromPath(urlPath, target) {
 function getRequestBody(request) {
   return new Promise((resolve, reject) => {
     if (request.complete || request.readableEnded) return resolve("");
-    const contentLength = parseInt(request.headers["content-length"], 10);
-    if (!contentLength || contentLength === 0) return resolve("");
+    const contentLengthHeader = request?.headers?.["content-length"];
+    const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : 0;
+    const transferEncoding = request?.headers?.["transfer-encoding"];
+    const hasBody = (Number.isFinite(contentLength) && contentLength > 0) || !!transferEncoding;
+    if (!hasBody) return resolve("");
+    if (Number.isFinite(contentLength) && contentLength > MAX_BODY_SIZE) {
+      try {
+        request.destroy(new Error("BODY_TOO_LARGE"));
+      } catch {
+        /* ignore */
+      }
+      return reject(new Error("BODY_TOO_LARGE"));
+    }
 
     const chunks = [];
     let size = 0;
@@ -1258,15 +1270,21 @@ function getRequestBody(request) {
       request.removeListener("end", onEnd);
       request.removeListener("error", onError);
       request.removeListener("aborted", onAborted);
-      request.removeListener("closed", onEnd);
+      request.removeListener("close", onClose);
+    };
+
+    const fail = (err) => {
+      cleanup();
+      reject(err);
     };
 
     const onData = (chunk) => {
       size += chunk.length;
-      if (size > 1e6) return (cleanup(), reject(new Error("BODY_TOO_LARGE")));
+      if (size > MAX_BODY_SIZE) return fail(new Error("BODY_TOO_LARGE"));
       chunks.push(chunk);
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => (cleanup(), resolve("")), BODY_IDLE_TIMEOUT_TIME);
+      timeoutId = setTimeout(() => fail(new Error("BODY_TIMEOUT")), BODY_IDLE_TIMEOUT_TIME);
+      if (typeof request.resume === "function") request.resume();
     };
 
     const onEnd = () => {
@@ -1280,15 +1298,20 @@ function getRequestBody(request) {
       resolve(body);
     };
 
-    const onError = (err) => (cleanup(), reject(err));
-    const onAborted = () => (cleanup(), reject(new Error("REQUEST_ABORTED")));
+    const onError = (err) => fail(err);
+    const onAborted = () => fail(new Error("REQUEST_ABORTED"));
+    const onClose = () => {
+      if (request.complete || request.readableEnded) return;
+      fail(new Error("REQUEST_CLOSED"));
+    };
 
-    timeoutId = setTimeout(() => (cleanup(), resolve("")), BODY_IDLE_TIMEOUT_TIME);
+    timeoutId = setTimeout(() => fail(new Error("BODY_TIMEOUT")), BODY_IDLE_TIMEOUT_TIME);
     request.on("data", onData);
     request.on("end", onEnd);
     request.on("error", onError);
     request.on("aborted", onAborted);
-    request.on("closed", onEnd);
+    request.on("close", onClose);
+    if (typeof request.resume === "function") request.resume();
   });
 }
 
