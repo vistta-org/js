@@ -1323,7 +1323,7 @@ function xForwardHeaders(proxyReq, originalReq) {
   proxyReq.setHeader("Host", originalReq.headers["host"]);
   proxyReq.setHeader("X-Forwarded-Host", originalReq.headers["x-forwarded-host"] || originalReq.headers["host"]);
   proxyReq.setHeader("X-Forwarded-Proto", originalReq.headers["x-forwarded-proto"] || originalReq.protocol || "");
-  proxyReq.setHeader("X-Forwarded-Port", originalReq.headers["x-forwarded-port"] || originalReq.port || "");
+  // proxyReq.setHeader("X-Forwarded-Port", originalReq.headers["x-forwarded-port"] || originalReq.port || "");
   console.log(proxyReq.getHeaders());
 }
 
