@@ -102,8 +102,9 @@ export class HistoryContext extends Context {
       {
         set: (_, state) => state,
         update: (prev, state) => {
-          history.pushState(clone({ ...prev, ...state }, true), document.title, location.href);
-          return { ...prev, ...state };
+          const newState = clone({ ...prev, ...state }, true);
+          history.pushState(newState, document.title, location.href);
+          return newState;
         },
       },
       (_, status, value) => {
