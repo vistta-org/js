@@ -100,9 +100,8 @@ export class HistoryContext extends Context {
       initial,
       cache,
       {
-        set: (_, state, debug) => (console.log(debug, "HistoryContext set:", _, state), state),
-        update: (prev, state, debug) => {
-          console.log(debug, "HistoryContext update:", prev, state);
+        set: (_, state) => state,
+        update: (prev, state) => {
           history.pushState(clone({ ...prev, ...state }, true), document.title, location.href);
           return { ...prev, ...state };
         },
@@ -118,7 +117,7 @@ export class HistoryContext extends Context {
         }
       },
     );
-    window.addEventListener("popstate", ({ state: _state }) => this.set(_state, "-1"));
+    window.addEventListener("popstate", ({ state: _state }) => this.set(_state));
     // Timeout needed to wait for initial history and cache load
     if (typeof history !== "undefined")
       setTimeout(() => history.replaceState(JSON.parse(super.toString()), document.title, location.href), 250);
