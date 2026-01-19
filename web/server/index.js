@@ -430,18 +430,17 @@ class Server {
   }
 
   /**
-   * Uses a folder structure, a file or a middleware as the basis for defining different types of routes
+   * Uses a folder structure, a file, a middleware function or a config object as the basis for defining different types of routes
    *
    * @param {string} arg1 - Route subdomain or pathname
    * @param {string | Function} arg2 - Route pathname, directory or handler or function
-   * @param {string | Function} [arg3] - Directory, file, handler or function
+   * @param {string | Function} [arg3] - Directory, file, handler, function or object
    * @returns {Promise<Route>} The route object
    */
   async use(arg1, arg2, arg3) {
     let [subdomain, basepath, target] = parseArguments("use", arg1, arg2, arg3);
     const typeOfTarget = typeof target;
     if (typeOfTarget === "function") return this.#register("middleware", subdomain, basepath, target);
-    else if (typeOfTarget !== "string") throw new TypeError("Invalid argument type");
     if (basepath === "") basepath = "/";
     else if (basepath.endsWith("/*")) this.#emit("warning", "Use pathname does not need wildcard");
     const collection = new Route(subdomain, basepath, "collection");
@@ -582,6 +581,8 @@ class Server {
       }
     };
 
+    if (typeOfTarget === "object") return (await use("config", basepath, null, target), collection);
+    else if (typeOfTarget !== "string") throw new TypeError("Invalid argument type");
     if (!fs.isDirectory(target)) {
       const DefaultClass = (await import(target))?.default;
       if (Object.isPrototypeOf.call(Controller, DefaultClass)) await use("controller", basepath, target);
@@ -1014,7 +1015,6 @@ class Server {
       if (request.resource && resource) {
         if (method !== "get") return this.#reject(request, response, "Method not allowed", 405);
         const type = mime.getType(request.pathname) || "application/octet-stream";
-
         if (fs.isAbsolute(resource) && fs.existsSync(resource)) return response.sendFile(resource, type);
         return response.send(resource, type);
       } else {

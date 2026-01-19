@@ -3,10 +3,13 @@ import { RESOURCES_PATH, stringify } from "../../utils/index.js";
 import { Component, Element, VirtualDom } from "./dom.js";
 
 const IS_DEV = process.env.NODE_ENV === "development";
+const DEFAULT_CSP = {
+  "style-src": ["'unsafe-inline'"],
+  "img-src": ["data:"],
+};
 
 export async function createPage(type, filepath, pathname, layout, configs) {
   const { default: content, config } = await import(filepath);
-  const pwa = config?.pwa;
   const { code, errors, resources } = await import(filepath, {
     with: { type: "bundler", exports: "default" },
   });
@@ -29,7 +32,9 @@ export async function createPage(type, filepath, pathname, layout, configs) {
     },
     content,
     resources,
-    pwa,
+    get pwa() {
+      return !!this.config.pwa;
+    },
     cache: cache(),
     inherited: {
       configs,
@@ -55,7 +60,7 @@ export async function createPage(type, filepath, pathname, layout, configs) {
             <meta referrer="${config.referrer || "origin"}" />
             <meta http-equiv="Content-Type" content="${config.contentType || "text/html; charset=utf-8"}" />
             <meta name="viewport" content="${config?.viewport || "width=device-width,initial-scale=1" + (this.pwa ? ",interactive-widget=resizes-content,viewport-fit=cover" : "")}" />
-            <meta http-equiv="Content-Security-Policy" content="${config?.csp || "default-src 'self';script-src 'self';style-src 'self' 'unsafe-inline'; img-src 'self' data:;"}" />
+            <meta http-equiv="Content-Security-Policy" content="${convertCSP(config?.csp)}" />
             <meta name="description" content="${config.description || ""}" />
             <meta name="color-scheme" content="${config.colorScheme || "light dark"}" />
             <meta name="theme-color" content="${config.theme || "#ffffff"}" />
@@ -111,13 +116,18 @@ export async function createPage(type, filepath, pathname, layout, configs) {
           background_color: config.background,
           display: config.display || "standalone",
           scope: config.scope || config.href,
-          start_url: config.start_url || config.href,
+          start_url: config.start_url || config.href || "/",
           name: config.name || config.title,
           short_name: config.short_name || config.title,
           description: config.description,
           shortcuts: config.shortcuts,
+          screenshots: config.screenshots,
+          launch_handler: config.launch_handler || ({ "client_mode": "focus-existing" }),
+          file_handlers: config.file_handlers,
           icons: ((icon) => {
             if (!icon) return [];
+            console.log("icon", resources[fs.basename(icon)]);
+            // CHATGPT no dependency for any image type
             const type = fs.extname(icon).slice(1);
             return [
               {
@@ -150,4 +160,31 @@ function cache() {
       else Object.keys(storage).forEach((k) => delete storage[k]);
     },
   };
+}
+
+function convertCSP(target) {
+  const csp = Object.assign({}, DEFAULT_CSP);
+  const typeOf = typeof target;
+  if (typeOf === "string") {
+    const directives = target.split(";");
+    target = {};
+    for (let i = 0, len = directives.length; i < len; i++) {
+      const directive = directives[i].trim();
+      if (directive === "") continue;
+      const [key, ...values] = directive.split(" ").map((v) => v.trim());
+      if (key && values.length) target[key] = values;
+    }
+  } else if (typeOf !== "object") target = {};
+  const keys = Array.from(new Set([...Object.keys(csp), ...Object.keys(target)]));
+  if (keys.length === 0) return DEFAULT_CSP;
+  let result = "default-src 'self'; ";
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i];
+    if (key === "default-src") continue;
+    const value = ["'self'"];
+    if (csp[key]) value.push(...(!Array.isArray(csp[key]) ? csp[key].split(" ") : csp[key]));
+    if (target[key]) value.push(...(!Array.isArray(target[key]) ? target[key].split(" ") : target[key]));
+    result += key + " " + Array.from(new Set(value)).join(" ") + "; ";
+  }
+  return result;
 }
