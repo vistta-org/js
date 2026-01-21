@@ -133,22 +133,25 @@ const eventObservers = [];
 const elementObservers = {};
 
 export function anchor(element, target) {
-  let position = "bottom";
-  if (typeof target === "object" && target.position) ({ position, target } = target);
   target = typeof target === "string" ? document.querySelector(target) : target;
   if (target instanceof Ref) target = target.node;
   if (!target) return;
   let observer;
-  if (typeof position === "function") observer = () => position(element, target.getBoundingClientRect());
-  else {
-    const { changed, set } = getPositioning(position);
-    let last = target.getBoundingClientRect();
-    observer = (force) => {
-      const rect = target.getBoundingClientRect();
-      if (!force && !changed(last, rect)) return;
-      last = set(element, rect);
-    };
-  }
+  let last = {};
+  observer = (force) => {
+    let [x, y] = getComputedStyle(element.node).getPropertyValue("position-area").split(" ");
+    const anchorRect = target.getBoundingClientRect();
+    const elementRect = element.node.getBoundingClientRect();
+    if (x === "left" || x === "start") x = anchorRect.right - elementRect.width;
+    else if (x === "right" || x === "end") x = anchorRect.left;
+    else x = anchorRect.left - elementRect.width / 2;
+    if (y === "top" || y === "start") y = anchorRect.top - elementRect.height;
+    else if (y === "bottom" || y === "end") y = anchorRect.bottom;
+    else y = anchorRect.top - elementRect.height / 2;
+    if (!force && x === last.x && y === last.y) return;
+    element.node.style.setProperty("inset", `${y}px auto auto ${x}px`);
+    last = { x, y };
+  };
   if (eventObservers.length === 0) {
     window.addEventListener(
       "scroll",
@@ -170,39 +173,4 @@ export function anchor(element, target) {
   }
   eventObservers.push(observer);
   requestAnimationFrame(() => observer(true));
-}
-
-function getPositioning(position) {
-  if (position === "top")
-    return {
-      changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.width !== last.width,
-      set: (target, rect) => {
-        target.style.setProperty("inset", `auto auto ${window.innerHeight - rect.top}px ${rect.left + rect.width / 2}px`);
-        return rect;
-      },
-    };
-  else if (position === "bottom")
-    return {
-      changed: (last, rect) => rect.bottom !== last.bottom || rect.left !== last.left || rect.width !== last.width,
-      set: (target, rect) => {
-        target.style.setProperty("inset", `${rect.bottom}px auto auto ${rect.left + rect.width / 2}px`);
-        return rect;
-      },
-    };
-  else if (position === "left")
-    return {
-      changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.height !== last.height,
-      set: (target, rect) => {
-        target.style.setProperty("inset", `${rect.top + rect.height / 2}px ${window.innerWidth - rect.left}px auto auto`);
-        return rect;
-      },
-    };
-  else if (position === "right")
-    return {
-      changed: (last, rect) => rect.top !== last.top || rect.right !== last.right || rect.height !== last.height,
-      set: (target, rect) => {
-        target.style.setProperty("inset", `${rect.top + rect.height / 2}px auto auto ${rect.right}px`);
-        return rect;
-      },
-    };
 }

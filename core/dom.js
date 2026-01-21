@@ -65,7 +65,7 @@ class VirtualDom {
     if ((name === "validator" && typeof value === "function") || element.attributes[name] === value) return;
     element.attributes[name] = value;
     const node = element.node;
-    if (name === "anchor") return !window.isServer && anchor(node, value);
+    if (name === "anchor") return !window.isServer && anchor(element, value);
     if (!disabledOrReadOnly && /^on\w.*/.test(name) && typeof value === "function") {
       node[name.toLowerCase()] = (event, ...args) => {
         try {
