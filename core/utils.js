@@ -177,8 +177,7 @@ function getPositioning(position) {
     return {
       changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.width !== last.width,
       set: (target, rect) => {
-        target.style.setProperty("bottom", rect.top + "px");
-        target.style.setProperty("left", rect.left + rect.width / 2 + "px");
+        target.style.setProperty("inset", `auto auto ${window.innerHeight - rect.top}px ${rect.left + rect.width / 2}px`);
         return rect;
       },
     };
@@ -186,26 +185,23 @@ function getPositioning(position) {
     return {
       changed: (last, rect) => rect.bottom !== last.bottom || rect.left !== last.left || rect.width !== last.width,
       set: (target, rect) => {
-        target.style.setProperty("top", rect.bottom + "px");
-        target.style.setProperty("left", rect.left + rect.width / 2 + "px");
+        target.style.setProperty("inset", `${rect.bottom}px auto auto ${rect.left + rect.width / 2}px`);
         return rect;
       },
     };
   else if (position === "left")
     return {
-      changed: (last, rect) => rect.top !== last.top || rect.right !== last.right || rect.height !== last.height,
+      changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.height !== last.height,
       set: (target, rect) => {
-        target.style.setProperty("top", rect.top + rect.height / 2 + "px");
-        target.style.setProperty("left", rect.right + "px");
+        target.style.setProperty("inset", `${rect.top + rect.height / 2}px ${window.innerWidth - rect.left}px auto auto`);
         return rect;
       },
     };
   else if (position === "right")
     return {
-      changed: (last, rect) => rect.top !== last.top || rect.left !== last.left || rect.height !== last.height,
+      changed: (last, rect) => rect.top !== last.top || rect.right !== last.right || rect.height !== last.height,
       set: (target, rect) => {
-        target.style.setProperty("top", rect.top + rect.height / 2 + "px");
-        target.style.setProperty("left", rect.left + "px");
+        target.style.setProperty("inset", `${rect.top + rect.height / 2}px auto auto ${rect.right}px`);
         return rect;
       },
     };
