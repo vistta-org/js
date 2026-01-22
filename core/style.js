@@ -67,6 +67,7 @@ export class VirtualStyleSheet extends BoundClass {
   #instance;
   #styles = {};
   #count = 0;
+  #animations = 0;
   #properties = {};
   #queries = {};
   #addExternalStylesheet;
@@ -149,10 +150,14 @@ export class VirtualStyleSheet extends BoundClass {
       for (let j = 0, vlen = values.length; j < vlen; j++) {
         const value = properties[keys[i]][values[j]];
         const typeofValue = typeof value;
-        if (typeofValue === "string") styleValues[values[j]] = stringToStyle(value)[1];
+        if (typeofValue === "string")
+          styleValues[values[j]] = stringToStyle(value, { createAnimation: (value) => this.createAnimation(value) })[1];
         else if (typeofValue === "object") {
-          if (Array.isArray(value)) styleValues[values[j]] = stringToStyle(join(value, "; "))[1];
-          else styleValues[values[j]] = objectToStyle(value)[1];
+          if (Array.isArray(value))
+            styleValues[values[j]] = stringToStyle(join(value, "; "), {
+              createAnimation: (value) => this.createAnimation(value),
+            })[1];
+          else styleValues[values[j]] = objectToStyle(value, { createAnimation: (value) => this.createAnimation(value) })[1];
         }
       }
       this.#properties[keys[i]] = (value) => {
@@ -176,18 +181,21 @@ export class VirtualStyleSheet extends BoundClass {
       [value, style] = stringToStyle(value, {
         properties: this.#properties,
         queries: this.#queries,
+        createAnimation: (value) => this.createAnimation(value),
       });
     else if (typeofValue === "object") {
       if (Array.isArray(value))
         [value, style] = stringToStyle(join(value, "; "), {
           properties: this.#properties,
           queries: this.#queries,
+          createAnimation: (value) => this.createAnimation(value),
         });
       else
         [value, style] = objectToStyle(value, {
           properties: this.#properties,
           queries: this.#queries,
           addScope: (style) => this.#addExternalStylesheet(style, true),
+          createAnimation: (value) => this.createAnimation(value),
         });
     } else return "";
     if (style) {
@@ -218,6 +226,33 @@ export class VirtualStyleSheet extends BoundClass {
     }
   }
 
+  createAnimation(value) {
+    const matches = {
+      "animation-composition": value.match(/composition:([^;]+);/),
+      "animation-delay": value.match(/delay:([^;]+);/),
+      "animation-direction": value.match(/direction:([^;]+);/),
+      "animation-duration": value.match(/duration:([^;]+);/),
+      "animation-iteration-count": value.match(/iteration-count:([^;]+);/),
+      "animation-fill-mode": value.match(/fill-mode:([^;]+);/),
+      "animation-play-state": value.match(/play-state:([^;]+);/),
+      "animation-range": value.match(/range:([^;]+);/),
+      "animation-range-end": value.match(/range-end:([^;]+);/),
+      "animation-range-start": value.match(/range-start:([^;]+);/),
+      "animation-timeline": value.match(/timeline:([^;]+);/),
+      "animation-timing-function": value.match(/timing-function:([^;]+);/),
+    };
+    let style = "";
+    const keys = Object.keys(matches);
+    for (let i = 0, len = keys.length; i < len; i++) {
+      if (!matches[keys[i]]) continue;
+      value = value.replace(matches[keys[i]][0], "");
+      style += `${keys[i]}: ${matches[keys[i]][1].trim()}; `;
+    }
+    const name = "custom-animation-" + this.#animations++;
+    this.#insertRule(`@keyframes ${name} { ${value}}`);
+    return `animation-name: ${name}; ${style}`;
+  }
+
   #insertRule(rule) {
     this.#instance.insertRule(rule, this.#instance.cssRules.length);
   }
@@ -236,7 +271,7 @@ function stringToStyle(value, options = {}) {
   return [selectors, style];
 }
 
-function objectToStyle(value, { properties, queries, addScope } = {}) {
+function objectToStyle(value, { properties, queries, addScope, createAnimation } = {}) {
   let selectors = "";
   let style = "";
   const keys = Object.keys(value);
@@ -251,24 +286,25 @@ function objectToStyle(value, { properties, queries, addScope } = {}) {
       continue;
     }
     if (typeofValue === "string" || typeofValue === "number")
-      style += format(key, cur, { properties, queries, selector: false })[1] + " ";
+      style += format(key, cur, { properties, queries, selector: false, createAnimation })[1] + " ";
     else if (typeofValue === "boolean" && cur === true)
-      style += format(key, "default", { properties, queries, selector: false })[1] + " ";
+      style += format(key, "default", { properties, queries, selector: false, createAnimation })[1] + " ";
     else if (typeofValue === "object") {
-      if (Array.isArray(cur)) style += format(key, join(cur, " "), { properties, queries, selector: false })[1] + " ";
+      if (Array.isArray(cur)) style += format(key, join(cur, " "), { properties, queries, selector: false, createAnimation })[1] + " ";
       else
         style +=
-          format(key, objectToStyle(cur, { properties, queries })[1], { properties, queries, selector: true })[1] + " ";
+          format(key, objectToStyle(cur, { properties, queries, createAnimation })[1], { properties, queries, selector: true, createAnimation })[1] + " ";
     }
   }
   return [selectors, style];
 }
 
-function format(key, value, { properties = {}, queries = {}, selector }) {
+function format(key, value, { properties = {}, queries = {}, selector, createAnimation } = {}) {
   if (!selector) {
     if (properties[key]) return [null, properties[key](value)];
     return [null, `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value)};`];
   }
+  if (key === "animation") return [null, createAnimation(value)];
   if (queries[key]) return [null, queries[key](value) + " "];
   if (PSEUDO_CLASSES[key]) return [null, `${PSEUDO_CLASSES[key]} { ${value}}`];
   for (let i = 0, len = PSEUDO_FUCTIONS.length; i < len; i++)
