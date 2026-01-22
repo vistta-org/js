@@ -136,9 +136,9 @@ export function anchor(element, target) {
   target = typeof target === "string" ? document.querySelector(target) : target;
   if (target instanceof Ref) target = target.node;
   if (!target) return;
-  let observer;
   let last = {};
-  observer = (force) => {
+  const callback = (force) => {
+    if (!element.active) return;
     let [x, y] = getComputedStyle(element.node).getPropertyValue("position-area").split(" ");
     const anchorRect = target.getBoundingClientRect();
     const elementRect = element.node.getBoundingClientRect();
@@ -164,13 +164,25 @@ export function anchor(element, target) {
       for (let i = 0, len = eventObservers.length; i < len; i++) eventObservers[i]();
     });
   }
-  if (elementObservers[target]) elementObservers[target].push(observer);
-  else {
-    elementObservers[target] = [observer];
-    new ResizeObserver(() => {
-      for (let i = 0, len = elementObservers[target].length; i < len; i++) elementObservers[target][i]();
-    }).observe(target);
+  observe(target, callback);
+  observe(element.node, callback);
+  eventObservers.push(callback);
+  requestAnimationFrame(() => callback(true));
+  return {
+    destroy: () => {
+      const index = eventObservers.indexOf(callback);
+      if (index !== -1) eventObservers.splice(index, 1);
+    },
+    update: () => callback(true),
   }
-  eventObservers.push(observer);
-  requestAnimationFrame(() => observer(true));
+}
+
+function observe(node, callback) {
+  if (elementObservers[node]) elementObservers[node].push(callback);
+  else {
+    elementObservers[node] = [callback];
+    new ResizeObserver(() => {
+      for (let i = 0, len = elementObservers[node].length; i < len; i++) elementObservers[node][i]();
+    }).observe(node);
+  }
 }
