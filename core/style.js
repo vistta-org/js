@@ -67,7 +67,7 @@ export class VirtualStyleSheet extends BoundClass {
   #instance;
   #styles = {};
   #count = 0;
-  #animations = 0;
+  #animations = {};
   #properties = {};
   #queries = {};
   #addExternalStylesheet;
@@ -248,9 +248,13 @@ export class VirtualStyleSheet extends BoundClass {
       value = value.replace(matches[keys[i]][0], "");
       style += `${keys[i]}: ${matches[keys[i]][1].trim()}; `;
     }
-    const name = "custom-animation-" + this.#animations++;
-    this.#insertRule(`@keyframes ${name} { ${value}}`);
-    return `animation-name: ${name}; ${style}`;
+    value = value.trim();
+    if (!this.#animations[value]) {
+      const name = "custom-animation-" + Object.keys(this.#animations).length;
+      this.#animations[value] = name;
+      this.#insertRule(`@keyframes ${name} { ${value}}`);
+    }
+    return `animation-name: ${this.#animations[value]}; ${style}`;
   }
 
   #insertRule(rule) {
