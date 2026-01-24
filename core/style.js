@@ -294,16 +294,23 @@ function objectToStyle(value, { properties, queries, addScope, createAnimation }
     else if (typeofValue === "boolean" && cur === true)
       style += format(key, "default", { properties, queries, selector: false, createAnimation })[1] + " ";
     else if (typeofValue === "object") {
-      if (Array.isArray(cur)) style += format(key, join(cur, " "), { properties, queries, selector: false, createAnimation })[1] + " ";
+      if (Array.isArray(cur))
+        style += format(key, join(cur, " "), { properties, queries, selector: false, createAnimation })[1] + " ";
       else
         style +=
-          format(key, objectToStyle(cur, { properties, queries, createAnimation })[1], { properties, queries, selector: true, createAnimation })[1] + " ";
+          format(key, objectToStyle(cur, { properties, queries, createAnimation })[1], {
+            properties,
+            queries,
+            selector: true,
+            createAnimation,
+          })[1] + " ";
     }
   }
   return [selectors, style];
 }
 
 function format(key, value, { properties = {}, queries = {}, selector, createAnimation } = {}) {
+  key = camelToKebab(key);
   if (!selector) {
     if (properties[key]) return [null, properties[key](value)];
     return [null, `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value)};`];
@@ -379,4 +386,8 @@ function ensureObject(value) {
     return Object.assign({}, ...value.map(ensureObject));
   } else if (typeofValue === "string") return stringStyleToObjectStyle(value);
   return {};
+}
+
+function camelToKebab(str) {
+  return str.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
 }

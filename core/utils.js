@@ -174,7 +174,7 @@ export function anchor(element, target) {
       if (index !== -1) eventObservers.splice(index, 1);
     },
     update: () => callback(true),
-  }
+  };
 }
 
 function observe(node, callback) {
