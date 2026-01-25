@@ -465,20 +465,6 @@ export class Form extends Component {
     return this.#path;
   }
 
-  onConnect() {
-    if (this.#parent || !this.ref || this.ref.node) return;
-    Object.assign(this.ref, {
-      node: this.#node,
-      watch: (...args) => this.watch(...args),
-      unwatch: (...args) => this.unwatch(...args),
-      reset: (name) => this.reset(name),
-      clear: (name) => this.clear(name),
-      submit: () => this.submit(),
-      values: () => this.values(),
-      validate: (name) => this.validate(name),
-    });
-  }
-
   render() {
     if (this.#parent) {
       if (!this.name) {
@@ -492,7 +478,18 @@ export class Form extends Component {
     return new Element(
       "form",
       {
-        ref: (element) => (this.#node = element),
+        ref: Ref.forward(this.ref, (element) => {
+          if (this.#parent || !element) return;
+          Object.assign(element, {
+            watch: (...args) => this.watch(...args),
+            unwatch: (...args) => this.unwatch(...args),
+            reset: (name) => this.reset(name),
+            clear: (name) => this.clear(name),
+            submit: () => this.submit(),
+            values: () => this.values(),
+            validate: (name) => this.validate(name),
+          });
+        }),
         class: this.class,
         autocomplete: this.autocomplete,
         onreset: () => this.reset(),
