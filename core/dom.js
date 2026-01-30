@@ -65,11 +65,11 @@ class VirtualDom {
     if ((name === "validator" && typeof value === "function") || element.attributes[name] === value) return;
     element.attributes[name] = value;
     const node = element.node;
-    if (name === "anchor") return node.anchor = !window.isServer && anchor(element, value);
+    if (name === "anchor") return (node.anchor = !window.isServer && anchor(element, value));
     if (!disabledOrReadOnly && /^on\w.*/.test(name) && typeof value === "function") {
       node[name.toLowerCase()] = (event, ...args) => {
         try {
-          event.stritMode = () => {
+          event.strictMode = () => {
             if (event.target !== node) throw STRICT_MODE;
           };
           value(event, ...args);
