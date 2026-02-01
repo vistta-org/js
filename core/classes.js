@@ -136,7 +136,7 @@ export class Context extends FunctionClass {
               resolve();
             };
             try {
-              let value = action(this.value, ...args);
+              let value = action(clone(this.#shared.value, true), ...args);
               if (isPromise(value))
                 value
                   .then((result) => {
@@ -429,6 +429,13 @@ export class Safe extends Component {
 
 export class Form extends Component {
   static Ref = Ref;
+  static Context = class extends Context {
+    constructor(key, cache) {
+      super(key, {}, cache, {
+        update: (prev, path, element) => copyFieldValue(prev, path, element),
+      });
+    }
+  };
 
   static get DEFAULT_ERROR_MESSAGE() {
     if (window.isServer) return "";
@@ -450,22 +457,16 @@ export class Form extends Component {
   #validators = {};
   #listeners = {};
   #invalidEvent;
-  ref;
-  id;
-  name;
-  class;
-  autocomplete;
-  style;
-  onsubmit;
-  onSubmit;
-  oninvalid;
-  onInvalid;
 
   get path() {
     return this.#path;
   }
 
   render() {
+    if (this.context && !(this.context instanceof Form.Context)) {
+      console.warn("Form 'context' needs to be an instance of Form.Context.");
+      this.context = null;
+    }
     if (this.#parent) {
       if (!this.name) {
         if ("production" !== process.env.NODE_ENV) console.warn("Nested Forms require a 'name' property to be specified.");
@@ -541,8 +542,10 @@ export class Form extends Component {
       });
     this.#required[path] = attributes.required;
     this.#validators[path] = attributes.validator instanceof Mutation ? attributes.validator() : attributes.validator;
+    this.context?.update?.(path, node);
     node.addEventListener(type === "select" ? "change" : "input", (e) => {
       if (!this.#invalidEvent) node.setCustomValidity?.("");
+      this.context?.update?.(path, node);
       for (let i = 0, len = this.#listeners[path]?.length; i < len; i++) this.#listeners[path][i](e);
       for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
     });
@@ -617,7 +620,7 @@ export class Form extends Component {
         else field.setCustomValidity?.(Form.DEFAULT_ERROR_MESSAGE);
       } else if (!this.#invalidEvent) field.setCustomValidity?.("");
     }
-    if (!this.#invalidEvent) return this.#node.reportValidity();
+    if (!this.#invalidEvent && this.#node?.reportValidity) return this.#node.reportValidity();
     if (errors.length === 0) return true;
     const invalidEvent = new Event("invalid");
     invalidEvent.errors = errors;
@@ -650,16 +653,9 @@ export class Form extends Component {
     const values = {};
     const inputs = Object.keys(this.#fields);
     for (let i = 0, len = inputs.length; i < len; i++) {
-      const cur = inputs[i];
-      if (cur.includes(".")) {
-        let temp = values;
-        const paths = cur.split(".");
-        for (let n = 0, pathsLen = paths.length; n < pathsLen; n++) {
-          const key = paths[n];
-          if (n === pathsLen - 1) temp[key] = getFieldValue(this.#fields[cur]);
-          else ((temp[key] = temp[key] || {}), (temp = temp[key]));
-        }
-      } else values[cur] = getFieldValue(this.#fields[cur]);
+      const element = this.#fields[inputs[i]];
+      if (!element || element.disabled || !document.body.contains(element)) continue;
+      copyFieldValue(values, inputs[i], this.#fields[inputs[i]]);
     }
     return values;
   }
@@ -694,6 +690,19 @@ function cloneProps(props) {
     } else return value;
   };
   return clone(props);
+}
+
+function copyFieldValue(obj, path, element) {
+  if (path.includes(".")) {
+    let temp = obj;
+    const paths = path.split(".");
+    for (let n = 0, pathsLen = paths.length; n < pathsLen; n++) {
+      const key = paths[n];
+      if (n === pathsLen - 1) temp[key] = getFieldValue(element);
+      else ((temp[key] = temp[key] || {}), (temp = temp[key]));
+    }
+  } else obj[path] = getFieldValue(element);
+  return obj;
 }
 
 function getFieldValue(element) {

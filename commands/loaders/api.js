@@ -3,8 +3,6 @@ import "../../core/adapter.js";
 import { stringify } from "../../utils/index.js";
 import { default as Controller, Method } from "../../web/server/controller.js";
 
-const PARAMS_REGEX = /:(\w+)/g;
-
 export default class APILoader extends Loader {
   async load(_, options) {
     try {
@@ -53,17 +51,31 @@ export default class APILoader extends Loader {
 //
 
 function convertMethodToRequest(method) {
-  let match;
-  let target = method.url;
   const params = [];
   const parts = [];
-  while ((match = PARAMS_REGEX.exec(target)) !== null) {
-    params.push(match[1]);
-    const [url, remaining] = target.split(":" + match[1]);
-    parts.push(`"${url}"`, match[1] + " ?? ''");
-    target = remaining;
+  let last = 0;
+  let param = false;
+  for (let i = 0, len = method.url.length; i < len; i++) {
+    if (method.url[i] === ":") {
+      parts.push(`"${method.url.slice(last, i)}"`);
+      last = i + 1;
+      param = true;
+    } else if (param && method.url[i] === "/") {
+      const name = method.url.slice(last, i);
+      params.push(name);
+      parts.push(name + " ?? ''");
+      last = i;
+      param = false;
+    }
   }
-  if (target.length > 0) parts.push(`"${target}"`);
+  if (last < method.url.length) {
+    if (param) {
+      const name = method.url.slice(last);
+      params.push(name);
+      parts.push(name + " ?? ''");
+    } else parts.push(`"${method.url.slice(last)}"`);
+  }
+
   const arg = method.type === "get" || method.type === "delete" ? "params" : "body";
   if (params.length == 0) return `(${arg}) => request.${method.type}(createUrl("${method.url}"), { ${arg} })`;
   return `({ ${params.join(", ")}, ...${arg} } = {}) => request.${method.type}(createUrl(${parts.join(", ")}), { ${arg} })`;
