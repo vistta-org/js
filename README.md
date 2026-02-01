@@ -1,11 +1,24 @@
 # **VISTTA JS**
 
-Vistta.js JavaScript framework providing:
+Vistta.js is a convention-driven JavaScript framework for building web (SSR + hydration) and desktop (Electron) apps with an instance-based JSX UI model, file-based routing, and built-in server features.
 
-- JSX-first UI components (class components + function components)
-- File-based routing with SSR (HTML) + client hydration/navigation
-- Built-in web server (HTTP/HTTPS), API routing and WebSockets
-- Optional Electron runner for desktop apps
+## **Features**
+
+- **Component-first UI (instance-based)**: components are `Component` instances. Use class components that extend `Component` (recommended), or function components that return an object with `render()` (adapted into a `Component` internally).
+- **Props-as-state model**: there is no strict props/state split — any component instance property is reactive state, and any prop you pass in JSX is assigned onto the component instance.
+- **Convention-driven app structure**: routing, layouts, errors, middleware, and config are discovered from files (`page`, `layout`, `error`, `middleware`, `config`).
+- **File-based routing**: `page`, `layout`, `error`, `middleware`, `config` conventions.
+- **SSR + hydration**: server renders HTML, client router hydrates and navigates.
+- **API routes/controllers**: structured endpoints with `get/post/put/...` helpers.
+- **Typed API imports (loader-powered)**: import a controller file in the frontend `with { type: "api" }` to get a client request wrapper generated automatically.
+- **WebSockets**: server-side events via `socket.on(...)`.
+- **Client router**: SPA-like navigation, link interception, refresh, events.
+- **Shared state (`Context`)**: shared state container with optional persistence (`local`, `session`, `indexed`) and reactive proxying.
+- **Async UI**: `Suspense` for Promise-backed reactive values.
+- **Error boundaries & forms**: `Safe` error boundary, `Form` value collection + validation.
+- **CSS-in-JS styling**: built-in style engine via the `style` prop (string/object/array) plus optional `@vistta/ui` presets.
+- **Desktop option**: Electron runner for desktop apps.
+- **CLI + loaders**: works with `@vistta/cli` (bundler/loaders like `api`) and enables extra commands (`serve`, `build`, `run`, `test`).
 
 This package is designed to be used with `@vistta/cli` (peer dependency), which provides the loader/bundler features used by Vistta (e.g. `import ... with { type: "bundler" }`).
 
@@ -242,10 +255,15 @@ Link clicks (`<a href="...">`) are intercepted automatically unless they have `t
 
 ### `Component`
 
+Vistta components are **instance-based** and are expected to be `Component` instances.
+
 Create components as either:
 
-- class components extending `Component` with a `render()` method
-- function components returning an object with `render()` (Vistta will adapt it)
+- **Class components** extending `Component` with a `render()` method (recommended)
+- **Function components** returning an object with `render()` (Vistta adapts it into a `Component`)
+
+Key concept: **props become instance fields**, and any instance field is treated as reactive state.
+That means values you pass in JSX (e.g. `<Widget value={123} />`) are assigned to `this.value` on the component instance.
 
 In a component instance, `this.children` contains the nested children passed through JSX.
 

@@ -2,11 +2,11 @@
   "extends": "@vistta/cli/config",
   "cliOptions": {
     "commands": {
-      "default": "./commands/default.js",
-      "serve": "./commands/serve.js",
-      "run": "./commands/run.js",
-      "test": "./commands/test.js",
-      "build": "./commands/build.js"
+      "default": "./cli/default.js",
+      "serve": "./cli/serve.js",
+      "run": "./cli/run.js",
+      "test": "./cli/test.js",
+      "build": "./cli/build.js"
     }
   },
   "bundlerOptions": {
