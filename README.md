@@ -1,8 +1,21 @@
-# **[Project Name]**
+# **VISTTA JS**
 
-[Project Name] description
+Vistta.js JavaScript framework providing:
 
-## **Getting Started**
+- JSX-first UI components (class components + function components)
+- File-based routing with SSR (HTML) + client hydration/navigation
+- Built-in web server (HTTP/HTTPS), API routing and WebSockets
+- Optional Electron runner for desktop apps
+
+This package is designed to be used with `@vistta/cli` (peer dependency), which provides the loader/bundler features used by Vistta (e.g. `import ... with { type: "bundler" }`).
+
+## **Requirements**
+
+- Node.js `>= 22`
+- `@vistta/cli` installed in your project (peer dependency)
+- For desktop apps: `electron` (peer dependency)
+
+## **Getting Started (Web App)**
 
 ### **Install**
 
@@ -10,13 +23,462 @@
 npm install @vistta/js
 ```
 
-### **Usage**
+### **Create a pages folder**
 
-Usage
+Create a folder (example: `./app`) and add a root page:
 
-## **API**
+`app/page.jsx`
 
-API
+```jsx
+import { Component } from "@vistta/js";
+
+export default class Home extends Component {
+  render() {
+    return (
+      <main>
+        <h1>Hello from Vistta.js</h1>
+        <a href="/about">Go to About</a>
+      </main>
+    );
+  }
+}
+
+export const config = {
+  title: "Home",
+  description: "My first Vistta.js page",
+};
+```
+
+Add a second page:
+
+`app/about/page.jsx`
+
+```jsx
+import { Component } from "@vistta/js";
+
+export default class About extends Component {
+  render() {
+    return (
+      <main>
+        <h1>About</h1>
+        <a href="/">Back</a>
+      </main>
+    );
+  }
+}
+
+export const config = {
+  title: "About",
+};
+```
+
+### **Run the dev server**
+
+Vistta CLI only has a few built-in commands. `@vistta/js` provides additional commands (like `serve`) that you enable via your project's `tsconfig.json` (or `jsconfig.json`).
+
+Add this to your project config:
+
+```json
+{
+  "extends": "@vistta/js/config"
+}
+```
+
+```sh
+npx vistta serve ./app
+```
+
+Then open `http://localhost:3000`.
+
+## **File-Based Routing**
+
+Vistta maps folder structure to routes.
+
+Given a base folder passed to `server.use("/", folder)`, Vistta detects the following route files:
+
+- `page.(js|jsx|ts|tsx)` → page route (SSR + client navigation)
+- `layout.(js|jsx|ts|tsx)` → layout wrapper for pages in/under that path
+- `config.(js|ts)` → config object merged into page config for that path
+- `api.(js|ts)` or `controller.(js|ts)` → API/controller route under `/api/...`
+- `middleware.(js|ts)` → middleware for that path
+- `error.(js|jsx|ts|tsx)` → error page handler
+
+### **Dynamic routes**
+
+Use bracket folders:
+
+- `app/users/[id]/page.jsx` → `/users/:id`
+- `app/docs/[...slug]/page.jsx` → `/docs/*`
+
+### **Static assets**
+
+Files inside an `assets/` folder are served as static resources.
+
+Example:
+
+- `app/assets/logo.svg` → `/assets/logo.svg` (relative to the mounted basepath)
+
+## **Layouts**
+
+Add a `layout.jsx` to wrap pages below that path.
+
+`app/layout.jsx`
+
+```jsx
+import { Component } from "@vistta/js";
+
+export default class Layout extends Component {
+  render() {
+    return (
+      <>
+        <header>My App</header>
+        {this.children}
+      </>
+    );
+  }
+}
+```
+
+## **Page Config / SEO / PWA**
+
+Pages can export `config` which is merged with inherited configs and defaults.
+
+```js
+export const config = {
+  title: "My Page",
+  description: "...",
+  theme: "#ffffff",
+  icon: "/assets/icon.png",
+
+  // Enable PWA features when present
+  pwa: true,
+  short_name: "MyApp",
+};
+```
+
+When `pwa: true`, Vistta will expose `./manifest.json` for the route and serve `./worker.js`.
+
+## **API Routes (Controllers)**
+
+Create an `api.js` or `controller.js` file to expose API endpoints under `/api`.
+
+Example:
+
+`app/users/api.js` → `/api/users`
+
+```js
+import { Controller, get, post, put } from "@vistta/js";
+
+export default class UsersApi extends Controller {
+  // You can pass a method-local url (relative to this controller route)
+  list = get("/", async function () {
+    // Use `function` if you want access to `this.request` / `this.response`
+    return { users: [{ id: 1, name: "Ada" }] };
+  });
+
+  create = post("/", async ({ name }) => {
+    // Arrow functions work fine if you only need params/body
+    return { created: true, name };
+  });
+
+  update = put("/:id", async function ({ id, ...body }) {
+    return { ok: true, id, body };
+  });
+}
+```
+
+Notes:
+
+- If the method url includes params (e.g. `"/:id"`), the handler receives them merged into the argument object.
+- For `get`/`delete`, the argument is treated as `params`; for others it's treated as `body`.
+- Inside handlers, `this` is a context object: `{ request, response, socket }` (only available when using `function`, not arrow functions).
+
+### **Importing a controller in the frontend**
+
+Vistta can generate a client-side request wrapper for your controller via the loader:
+
+```js
+import UsersApi from "./users/api.js" with { type: "api" };
+
+const { data } = await UsersApi.list();
+await UsersApi.update({ id: "123", value: "hello" });
+```
+
+This works because the server shares each controller route with the loader, and the `api` loader converts `get/post/put/...` methods into HTTP requests.
+
+## **WebSockets**
+
+On the server, you can register listeners using the exported `socket.on` helper inside a controller file.
+
+```js
+import { Controller, socket } from "@vistta/js";
+
+export default class Ws extends Controller {
+  join = socket.on("join", function ({ room }) {
+    // `this` depends on socket.io context
+    this.join(room);
+  });
+}
+```
+
+## **Client Router**
+
+Vistta includes a client router used for SPA-style navigation.
+
+```js
+import { router } from "@vistta/js";
+
+await router.navigate("/about");
+await router.refresh();
+
+router.on("some-event", (e) => {
+  console.log(e.detail);
+});
+```
+
+Link clicks (`<a href="...">`) are intercepted automatically unless they have `target`, `download`, or point to a different host.
+
+## **UI API**
+
+### `Component`
+
+Create components as either:
+
+- class components extending `Component` with a `render()` method
+- function components returning an object with `render()` (Vistta will adapt it)
+
+In a component instance, `this.children` contains the nested children passed through JSX.
+
+### `Element` / `Fragment`
+
+JSX compiles to `Element` instances at runtime (and uses the global `element/prop/child` helpers).
+You can also create elements directly:
+
+```js
+import { Element, Fragment } from "@vistta/js";
+
+const tree = new Element("div", { class: "box" }, "Hello");
+const group = new Element(Fragment, {}, "A", "B");
+```
+
+### `Render.If` and `Render.Each`
+
+```jsx
+import { Render } from "@vistta/js";
+
+import { Component } from "@vistta/js";
+
+export default class Example extends Component {
+  render() {
+    return (
+      <>
+        <Render.If condition={true}>Visible</Render.If>
+
+        <Render.Each of={["a", "b"]} as={(item, index) => <div key={index}>{item}</div>} />
+      </>
+    );
+  }
+}
+```
+
+### `Context`
+
+`Context` is a shared state container with optional persistence (`local`, `session`, `indexed`). The default value must be an object and must be serializable.
+
+In Vistta components, the intended pattern is to store the **Context instance** on the component. The renderer will automatically expose a reactive proxy for that context field.
+
+```jsx
+import { Component, Context } from "@vistta/js";
+
+const ctx = new Context("global_state", { count: 0 }, "indexed");
+
+export default class Example extends Component {
+  // Calling the Context instance returns itself; Vistta detects it and injects a reactive proxy.
+  state = ctx();
+
+  render() {
+    return (
+      <>
+        <p>{this.state.count}</p>
+        <button onClick={() => this.state.count++}>Increment</button>
+      </>
+    );
+  }
+}
+```
+
+If you define actions (4th argument), call them on the Context instance (e.g. `ctx.increment()`), and read/mutate state through the injected proxy in your component (e.g. `this.state.count++`).
+
+### `Ref`
+
+```jsx
+import { Component, Ref } from "@vistta/js";
+
+const inputRef = new Ref();
+
+export default class Example extends Component {
+  render() {
+    return <input ref={inputRef} />;
+  }
+}
+```
+
+### `Form`
+
+`Form` helps with nested forms, collecting values, and validation.
+
+```jsx
+import { Component, Form } from "@vistta/js";
+
+export default class Example extends Component {
+  render() {
+    return (
+      <Form
+        onSubmit={(event) => {
+          console.log(event.values);
+        }}
+      >
+        <input name="email" type="email" required />
+        <button type="submit">Submit</button>
+      </Form>
+    );
+  }
+}
+```
+
+### `Safe` (error boundary)
+
+Wrap UI with `Safe` to catch errors thrown during rendering/updates.
+
+```jsx
+import { Component, Safe } from "@vistta/js";
+
+class MyWidget extends Component {
+  render() {
+    return <div>Widget</div>;
+  }
+}
+
+export default class Example extends Component {
+  render() {
+    return (
+      <Safe fallback={(error) => <div>Something went wrong: {error.message}</div>}>
+        <MyWidget />
+      </Safe>
+    );
+  }
+}
+```
+
+`fallback` can be a node or a function `(error) => node`.
+
+### `Suspense` (async rendering)
+
+`Suspense` shows `fallback` while reactive values are pending Promises.
+
+This works especially well with API loader imports:
+
+```jsx
+import { Component, Suspense } from "@vistta/js";
+import UsersApi from "./users/api.js" with { type: "api" };
+
+export default class Page extends Component {
+  users = UsersApi.list().then((r) => r.data?.users ?? []);
+
+  render() {
+    return (
+      <Suspense fallback={<p>Loading…</p>}>
+        <ul>
+          {this.users.map((u) => (
+            <li key={u.id}>{u.name}</li>
+          ))}
+        </ul>
+      </Suspense>
+    );
+  }
+}
+```
+
+When a component property is a Promise, accessing it during render triggers the nearest `Suspense` boundary.
+
+### Styling (`style` prop + `@vistta/ui` presets)
+
+Vistta includes a style engine that supports `style` as a string, object, or array.
+
+To get a great default UI baseline, add `@vistta/ui` styles to your page config:
+
+```js
+import { style } from "@vistta/ui";
+
+export const config = {
+  styles: [style()],
+};
+```
+
+Examples:
+
+```jsx
+import { Component } from "@vistta/js";
+
+export default class Example extends Component {
+  render() {
+    return (
+      <>
+        <div style={{ container: true, gap: "1rem" }} />
+        <div style="col:full; button:(color: red)" />
+      </>
+    );
+  }
+}
+```
+
+## **Programmatic Server Usage**
+
+You can use the server directly (without the CLI command):
+
+```js
+import Server from "@vistta/js/server";
+import fs from "node:fs";
+
+const server = new Server({ http: 3000 });
+await server.use("/", fs.realpathSync("./app"));
+```
+
+## **CLI Commands**
+
+After registering the commands in `tsconfig.json` / `jsconfig.json` (see above), you can run:
+
+```sh
+# Start a web server from a folder router
+npx vistta serve ./app --http=3000
+
+# Build static output
+npx vistta build ./app dist
+
+# Run an Electron app entry
+npx vistta run ./desktop/main.js
+
+# Run tests (using the Vistta test runner)
+npx vistta test
+```
+
+## **Exports**
+
+### Main (`@vistta/js`)
+
+- UI: `Component`, `Element`, `Fragment`, `ScopedFragment`, `Suspense`, `Profiler`, `Safe`, `Form`, `Ref`, `Render`
+- State: `Context`
+- Client: `router`
+- Server/controller helpers: `Controller`, `get`, `post`, `put`, `patch`, `del`, `copy`, `move`, `socket`
+
+### Server (`@vistta/js/server`)
+
+- Default export: `Server`
+
+## **Notes / Caveats**
+
+- `@vistta/js` relies on Vistta's loader/bundler features; use it through `@vistta/cli` for development.
+- The exported `worker` is only available in the browser (in server environment it throws).
 
 ## Benchmarks
 
