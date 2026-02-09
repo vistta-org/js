@@ -11,7 +11,6 @@ export {
   Ref,
   Render,
   Safe,
-  ScopedFragment,
   Suspense,
 } from "./core/classes";
 export { router } from "./web/client/router";

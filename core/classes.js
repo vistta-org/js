@@ -336,14 +336,6 @@ export class Component {
   }
 }
 
-export class ScopedFragment extends Component {
-  style;
-
-  render() {
-    return this.children;
-  }
-}
-
 export class Suspense extends Component {
   fallback;
   render() {
@@ -413,16 +405,8 @@ export const Render = {
 };
 
 export class Safe extends Component {
-  error;
   fallback;
-
-  catch(error) {
-    console.error(error);
-    this.error = error;
-  }
-
   render() {
-    if (this.error) return typeof this.fallback === "function" ? this.fallback(this.error) : this.fallback;
     return this.children;
   }
 }

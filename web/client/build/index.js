@@ -9,7 +9,6 @@ import {
   Ref,
   Render,
   Safe,
-  ScopedFragment,
   Suspense,
 } from "../../../core/classes.js";
 import { File, HistoryContext, ThemeContext, assignStyle } from "../../../core/utils.js";
@@ -22,7 +21,6 @@ const vistta = {
   Context,
   Ref,
   Component,
-  ScopedFragment,
   Suspense,
   Profiler,
   Render,

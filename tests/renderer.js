@@ -1,18 +1,6 @@
 /* eslint-disable no-undef */
 import { TestRunner } from "@vistta/cli";
-import {
-  Component,
-  Context,
-  Element,
-  Form,
-  Fragment,
-  Profiler,
-  Ref,
-  Render,
-  Safe,
-  ScopedFragment,
-  Suspense,
-} from "../core/classes.js";
+import { Component, Context, Element, Form, Fragment, Profiler, Ref, Render, Safe, Suspense } from "../core/classes.js";
 import { VirtualDom } from "../core/dom.js";
 import { File, HistoryContext, ThemeContext } from "../core/utils.js";
 import { defineReadonly, sleep } from "../utils/index.js";
@@ -26,7 +14,6 @@ const vistta = {
   Context,
   Ref,
   Component,
-  ScopedFragment,
   Suspense,
   Profiler,
   Render,
