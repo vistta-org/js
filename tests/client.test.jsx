@@ -1,9 +1,10 @@
 import * as basic from "./components/basic.jsx";
-import { TEXT_UPDATE_VALUE, TEXT_VALUE, TIMEOUT } from "./defaults.js";
+import * as components from "./components/components.jsx";
+import { FALLBACK_VALUE, LOADED_VALUE, LOADING_VALUE, TEXT_UPDATE_VALUE, TEXT_VALUE, TIMEOUT } from "./defaults.js";
 
 const TIMEOUT_WITH_DELAY = TIMEOUT * 1.1;
 
-suite("VisttaJS Client Unit Tests", async () => {
+suite.only("VisttaJS Client Unit Tests", async () => {
   await test("Basic: State Counter", async () => {
     await document.mount(basic.StateCounter);
 
@@ -113,6 +114,176 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(output.innerText).toEqual("disconnected");
   });
 
+  await test("Basic: Component Children Update", async () => {
+    await document.mount(basic.ComponentChildrenUpdate);
+    const count = document.querySelector("#count");
+    const toggle = document.querySelector("#toggle");
+    const increment = document.querySelector("#increment");
+
+    expect(count.innerText).toEqual("1");
+    expect(document.querySelector("#display")).toEqual(null);
+
+    await toggle.click();
+    expect(document.querySelector("#content").innerText).toEqual("1");
+
+    await increment.click();
+    expect(count.innerText).toEqual("2");
+    expect(document.querySelector("#content").innerText).toEqual("2");
+
+    await toggle.click();
+    expect(document.querySelector("#display")).toEqual(null);
+
+    await increment.click();
+    await toggle.click();
+    expect(count.innerText).toEqual("3");
+    expect(document.querySelector("#content").innerText).toEqual("3");
+  });
+
+  await test("Basic: Ref", async () => {
+    await document.mount(basic.RefExample);
+
+    expect(document.querySelector("#input").value).toEqual(TEXT_UPDATE_VALUE);
+    expect(document.querySelector("#output").value).toEqual("");
+    await document.querySelector("#update").click();
+    expect(document.querySelector("#output").value).toEqual(TEXT_UPDATE_VALUE);
+  });
+
+  await test("Basic: Context Basic", async () => {
+    await document.mount(basic.ContextBasic);
+    const output = document.querySelector("#output");
+
+    expect(output.innerText).toEqual("0");
+    await document.querySelector("#increment").click();
+    expect(output.innerText).toEqual("1");
+    await document.querySelector("#decrement").click();
+    expect(output.innerText).toEqual("0");
+  });
+
+  await test("Basic: Context Actions", async () => {
+    await document.mount(basic.ContextActions);
+    const output = document.querySelector("#output");
+
+    expect(output.innerText).toEqual("0");
+    await document.querySelector("#increment").click();
+    expect(output.innerText).toEqual("1");
+    await document.querySelector("#decrement").click();
+    expect(output.innerText).toEqual("0");
+  });
+
+  await test("Components: Render.If", async () => {
+    await document.mount(components.RenderIf);
+    const toggle = document.querySelector("#toggle");
+
+    expect(document.querySelector("#output")).toEqual(null);
+    await toggle.click();
+    expect(document.querySelector("#output").innerText).toEqual(TEXT_UPDATE_VALUE);
+    await toggle.click();
+    expect(document.querySelector("#output")).toEqual(null);
+  });
+
+  await test("Components: Render.Each", async () => {
+    await document.mount(components.RenderEach);
+    const toggle = document.querySelector("#toggle");
+
+    expect(document.querySelector("#list > input:first-child").value).toEqual("1");
+    expect(document.querySelector("#list > input:last-child").value).toEqual("5");
+    expect(document.querySelector("#object > input:first-child").value).toEqual("1: " + TEXT_UPDATE_VALUE[1]);
+    expect(document.querySelector("#object > input:last-child").value).toEqual("5: " + TEXT_UPDATE_VALUE[5]);
+
+    await toggle.click();
+    expect(document.querySelector("#list > input:first-child").value).toEqual("5");
+    expect(document.querySelector("#list > input:last-child").value).toEqual("1");
+    expect(document.querySelector("#object > input:first-child").value).toEqual("1: " + TEXT_UPDATE_VALUE[5]);
+    expect(document.querySelector("#object > input:last-child").value).toEqual("5: " + TEXT_UPDATE_VALUE[1]);
+
+    await toggle.click();
+    expect(document.querySelector("#list > input:first-child").value).toEqual("1");
+    expect(document.querySelector("#list > input:last-child").value).toEqual("5");
+    expect(document.querySelector("#object > input:first-child").value).toEqual("1: " + TEXT_UPDATE_VALUE[1]);
+    expect(document.querySelector("#object > input:last-child").value).toEqual("5: " + TEXT_UPDATE_VALUE[5]);
+  });
+
+  await test("Components: Safe", async () => {
+    await document.mount(components.SafeExample);
+
+    expect(document.querySelector("#output").innerText).toEqual(TEXT_VALUE);
+    await document.querySelector("#increment").click();
+    expect(document.querySelector("#output").innerText).toEqual(FALLBACK_VALUE);
+    await document.querySelector("#increment").click();
+    expect(document.querySelector("#output").innerText).toEqual(TEXT_VALUE);
+
+    await document.querySelector("#toggle").click();
+    expect(document.querySelector("#output").innerText).toEqual("");
+    await document.querySelector("#toggle").click();
+    expect(document.querySelector("#output").innerText).toEqual(TEXT_VALUE);
+  });
+
+  await test("Components: Suspense Basic", async () => {
+    await document.mount(components.SuspenseBasic);
+    expect(document.querySelector("#output").innerText).toEqual(LOADED_VALUE);
+  });
+
+  await test("Components: Suspense Promises", async () => {
+    await document.mount(components.SuspensePromises);
+    const output = document.querySelector("#output");
+
+    expect(output.innerText).toEqual(LOADING_VALUE);
+    await document.wait(TIMEOUT_WITH_DELAY);
+    expect(output.innerText).toEqual(LOADING_VALUE);
+    await document.wait(TIMEOUT_WITH_DELAY);
+    expect(output.innerText).toEqual(LOADED_VALUE + "/" + LOADED_VALUE);
+  });
+
+  await test("Components: Suspense Toggle", async () => {
+    await document.mount(components.SuspenseToggle);
+    const output = document.querySelector("#output");
+    const increment = document.querySelector("#increment");
+
+    expect(output.innerText).toEqual(LOADING_VALUE);
+    await document.wait(TIMEOUT_WITH_DELAY);
+    expect(output.innerText).toEqual(LOADING_VALUE);
+    await document.wait(TIMEOUT_WITH_DELAY * 4);
+    expect(output.innerText).toEqual(LOADED_VALUE + "/" + LOADED_VALUE);
+
+    await increment.click();
+    expect(output.innerText).toEqual(LOADING_VALUE);
+    await document.wait(TIMEOUT_WITH_DELAY * 2);
+    expect(output.innerText).toEqual(LOADING_VALUE);
+    await document.wait(TIMEOUT_WITH_DELAY * 2);
+    expect(output.innerText).toEqual(LOADED_VALUE + "/" + LOADED_VALUE);
+  });
+
+  await test("Components: Form Basic", async () => {
+    await document.mount(components.FormBasic);
+    const input = document.querySelector("#input");
+    const output = document.querySelector("#output");
+
+    expect(output.innerText).toEqual("");
+    await input.write("hello@world.com", { clear: true });
+    await document.querySelector("#submit").click();
+    expect(output.innerText).toEqual("hello@world.com");
+  });
+
+  await test("Components: Form Validation", async () => {
+    await document.mount(components.FormValidation);
+    const output = document.querySelector("#output");
+
+    await document.querySelector("#submit").click();
+    expect(output.innerText).toEqual("");
+
+    await document.querySelector("#name").write("name", { clear: true });
+    await document.querySelector("#submit").click();
+    expect(output.innerText).toEqual("invalid");
+
+    await document.querySelector("#email").write("email@mail.com", { clear: true });
+    await document.querySelector("#submit").click();
+    expect(output.innerText).toEqual("invalid");
+
+    await document.querySelector("#password").write("987654321", { clear: true });
+    await document.querySelector("#submit").click();
+    expect(output.innerText).toEqual("valid");
+  });
+
   /*test("Style", async () => {
     const page = await browser.mount("./components/style.jsx");
     const target = await (await page.get("#target", { wait: true })).boundingBox();
@@ -133,45 +304,6 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(await page.get(output, "innerText")).toEqual("1");
     await page.click("#navigate");
     expect(await page.url()).toEqual(URL);
-  });
-
-  test("Ref", async () => {
-    const page = await browser.mount("./components/ref.jsx");
-
-    expect(await page.get("#input", "value")).toEqual(TEXT_UPDATE_VALUE);
-
-    const output = await page.get("#output", { wait: true });
-    expect(await output.get("value")).toEqual("");
-    await page.click("#update");
-    expect(await output.get("value")).toEqual(TEXT_UPDATE_VALUE);
-  });
-
-  test("Context: Basic", async () => {
-    const page = await browser.mount("./components/context/basic.jsx");
-    const output = await page.get("#output", { wait: true });
-
-    expect(await output.get("innerText")).toEqual("0");
-    await page.click("#increment");
-    expect(await output.get("innerText")).toEqual("1");
-    await page.click("#decrement");
-    expect(await output.get("innerText")).toEqual("0");
-    await page.click("#increment");
-    await page.click("#increment");
-    expect(await output.get("innerText")).toEqual("2");
-  });
-
-  test("Context: Actions", async () => {
-    const page = await browser.mount("./components/context/actions.jsx");
-    const output = await page.get("#output", { wait: true });
-
-    expect(await output.get("innerText")).toEqual("0");
-    await page.click("#increment");
-    expect(await output.get("innerText")).toEqual("1");
-    await page.click("#decrement");
-    expect(await output.get("innerText")).toEqual("0");
-    await page.click("#increment");
-    await page.click("#increment");
-    expect(await output.get("innerText")).toEqual("2");
   });
 
   test("Context: Cached", async () => {
@@ -202,180 +334,5 @@ suite("VisttaJS Client Unit Tests", async () => {
     await page.wait(TIMEOUT);
     expect(await output.get("innerText")).toEqual("1");
     expect(await status.get("innerText")).toEqual("completed");
-  });
-
-  test("Suspense: No Promises", async () => {
-    const page = await browser.mount("./components/suspense/basic.jsx");
-    const output = await page.get("#output", { wait: true });
-    expect(await output.get("innerText")).toEqual(LOADED_VALUE);
-  });
-
-  test("Suspense: Promises", async () => {
-    const page = await browser.mount("./components/suspense/promises.jsx");
-    const output = await page.get("#output", { wait: true });
-
-    expect(await output.get("innerText")).toEqual(LOADING_VALUE);
-    await page.wait(TIMEOUT_WITH_DELAY);
-    expect(await output.get("innerText")).toEqual(LOADING_VALUE);
-    await page.wait(TIMEOUT_WITH_DELAY);
-    expect(await output.get("innerText")).toEqual(LOADED_VALUE + "/" + LOADED_VALUE);
-  });
-
-  test("Suspense: Toggle", async () => {
-    const page = await browser.mount("./components/suspense/toggle.jsx");
-    const output = await page.get("#output", { wait: true });
-
-    expect(await output.get("innerText")).toEqual(LOADING_VALUE);
-    await page.wait(TIMEOUT_WITH_DELAY);
-    expect(await output.get("innerText")).toEqual(LOADED_VALUE);
-    await page.click("#toggle");
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual(LOADED_VALUE);
-    await page.click("#toggle");
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual(LOADED_VALUE);
-  });
-
-  test("Safe", async () => {
-    const page = await browser.mount("./components/safe.jsx");
-    const output = await page.get("#output", { wait: true });
-    const counter = await page.get("#counter", { wait: true });
-
-    expect(await output.get("innerText")).toEqual(TEXT_VALUE);
-    expect(await counter.get("innerText")).toEqual("0");
-    await page.click("#increment");
-    expect(await output.get("innerText")).toEqual(TEXT_VALUE);
-    expect(await counter.get("innerText")).toEqual("1");
-
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual("");
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual(FALLBACK_VALUE);
-    await page.click("#increment");
-    expect(await output.get("innerText")).toEqual(FALLBACK_VALUE);
-    expect(await counter.get("innerText")).toEqual("2");
-
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual("");
-    await page.click("#toggle");
-    expect(await output.get("innerText")).toEqual(TEXT_VALUE);
-    await page.click("#increment");
-    expect(await output.get("innerText")).toEqual(TEXT_VALUE);
-    expect(await counter.get("innerText")).toEqual("3");
-  });
-
-  test("Render.If", async () => {
-    const page = await browser.mount("./components/render/if.jsx");
-    await page.get("#toggle", { wait: true });
-
-    expect(await page.get("#output")).toEqual(null);
-    await page.click("#toggle");
-    expect(await page.get("#output", "innerText")).toEqual(TEXT_UPDATE_VALUE);
-    await page.click("#toggle");
-    expect(await page.get("#output")).toEqual(null);
-  });
-
-  test("Render.Each", async () => {
-    const page = await browser.mount("./components/render/each.jsx");
-    await page.get("#toggle", { wait: true });
-
-    expect(await page.get("#list > input:first-child", "value")).toEqual("1");
-    expect(await page.get("#list > input:last-child", "value")).toEqual("5");
-    expect(await page.get("#object > input:first-child", "value")).toEqual("1: " + TEXT_UPDATE_VALUE[1]);
-    expect(await page.get("#object > input:last-child", "value")).toEqual("5: " + TEXT_UPDATE_VALUE[5]);
-    await page.click("#toggle");
-    expect(await page.get("#list > input:first-child", "value")).toEqual("5");
-    expect(await page.get("#list > input:last-child", "value")).toEqual("1");
-    expect(await page.get("#object > input:first-child", "value")).toEqual("1: " + TEXT_UPDATE_VALUE[5]);
-    expect(await page.get("#object > input:last-child", "value")).toEqual("5: " + TEXT_UPDATE_VALUE[1]);
-    await page.click("#toggle");
-    expect(await page.get("#list > input:first-child", "value")).toEqual("1");
-    expect(await page.get("#list > input:last-child", "value")).toEqual("5");
-    expect(await page.get("#object > input:first-child", "value")).toEqual("1: " + TEXT_UPDATE_VALUE[1]);
-    expect(await page.get("#object > input:last-child", "value")).toEqual("5: " + TEXT_UPDATE_VALUE[5]);
-  });
-
-  test("Profiler", async () => {
-    const page = await browser.mount("./components/profiler.jsx");
-    const output = await page.get("#output", { wait: true });
-
-    expect(parseFloat(await output.get("innerText")) > 0).toEqual(true);
-    await page.click("#update");
-    expect(parseFloat(await output.get("innerText")) > 0).toEqual(true);
-    await page.click("#update");
-    expect(parseFloat(await output.get("innerText")) > 0).toEqual(true);
-  });
-
-  test("Form: Basic", async () => {
-    const page = await browser.mount("./components/form/basic.jsx");
-    const output = await page.get("#output", { wait: true });
-
-    expect(await output.get("innerText")).toEqual("");
-    const email = "hello@world.com";
-    await page.type("#input", email, { clear: true, submit: false });
-    await page.click("#submit");
-    expect(await output.get("innerText")).toEqual(email);
-  });
-
-  test("Form: Actions", async () => {
-    const page = await browser.mount("./components/form/actions.jsx");
-    const output = await page.get("#output", { wait: true });
-    expect(await output.get("innerText")).toEqual("0");
-
-    await page.click("#toggle");
-    await page.press("#input", "ArrowUp");
-    expect(await output.get("innerText")).toEqual("0");
-    await page.click("#values");
-    expect(await page.get("#value", "innerText")).toEqual("1");
-
-    await page.click("#watch");
-    await page.press("#input", "ArrowUp");
-    expect(await output.get("innerText")).toEqual("2");
-    await page.click("#unwatch");
-    await page.press("#input", "ArrowUp");
-    expect(await output.get("innerText")).toEqual("2");
-
-    await page.click("#clear");
-    expect(await output.get("innerText")).toEqual("2");
-    await page.click("#reset");
-    expect(await output.get("innerText")).toEqual("2");
-
-    await page.click("#watch");
-    await page.press("#input", "ArrowUp");
-    expect(await output.get("innerText")).toEqual("1");
-    await page.click("#clear");
-    expect(await output.get("innerText")).toEqual("");
-    await page.click("#reset");
-    expect(await output.get("innerText")).toEqual("0");
-
-    await page.click("#validate");
-    expect(await page.get("#validation", "innerText")).toEqual("valid");
-
-    await page.press("#input", "ArrowUp");
-    const submitted = await page.get("#submitted", { wait: true });
-    expect(await submitted.get("innerText")).toEqual("");
-    await page.click("#submit");
-    expect(await submitted.get("innerText")).toEqual("1");
-  });
-
-  test("Form: Validation", async () => {
-    const page = await browser.mount("./components/form/validation.jsx");
-    const output = await page.get("#output", { wait: true });
-    expect(await output.get("innerText")).toEqual("");
-
-    await page.click("#submit");
-    expect(await output.get("innerText")).toEqual("");
-
-    await page.type("#name", "name");
-    await page.click("#submit");
-    expect(await output.get("innerText")).toEqual("invalid");
-
-    await page.type("#email", "email@mail.com");
-    await page.click("#submit");
-    expect(await output.get("innerText")).toEqual("invalid");
-
-    await page.type("#password", "987654321");
-    await page.click("#submit");
-    expect(await output.get("innerText")).toEqual("valid");
   });*/
 });

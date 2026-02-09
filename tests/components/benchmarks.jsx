@@ -2,22 +2,26 @@ import { Component, Profiler } from "@vistta/js";
 
 const ITERATIONS = 1000;
 class Runner extends Component {
-  running = false;
+  running;
   run = 0;
   result = 0;
+  #results = {};
 
   start() {
-    this.result = 0;
+    this.#results.start = Date.now();
+    this.#results.total = 0;
     this.run++;
     this.running = true;
   }
 
   stop() {
+    this.#results.runs = this.run;
     this.running = false;
   }
 
   next(time) {
-    this.result += time;
+    if (!this.#results.initial) this.#results.initial = time;
+    this.#results.total += time;
     if (this.running) setTimeout(() => this.run++, 0);
   }
 
@@ -34,15 +38,18 @@ class Runner extends Component {
         <button id="stop" onClick={this.stop}>
           stop
         </button>
-        {!this.running && (
-          <div>
-            <p key="runs" id="runs">
-              {this.run}
+        {this.running === false && (
+          <>
+            <p>
+              Initial Time (ms): <span id="initial">{round(this.#results.initial)}</span>
             </p>
-            <p key="time" id="time">
-              {this.result}
+            <p>
+              Average Time (ms): <span id="average">{round(this.#results.total / this.#results.runs)}</span>
             </p>
-          </div>
+            <p>
+              Runs: <span id="runs">{this.#results.runs}</span>
+            </p>
+          </>
         )}
       </>
     );
@@ -172,4 +179,11 @@ export class RecursiveUpdate extends Component {
       />
     );
   }
+}
+
+function round(num) {
+  if (num === 0) return 0;
+  if (Math.abs(num) >= 1) return Math.round(num * 100) / 100;
+  const precision = Math.pow(10, Math.abs(Math.floor(Math.log10(Math.abs(num)))));
+  return Math.round(num * precision) / precision;
 }

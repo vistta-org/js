@@ -1,4 +1,4 @@
-import { Component } from "@vistta/js";
+import { Component, Context, Ref } from "@vistta/js";
 import { TEXT_UPDATE_VALUE, TEXT_VALUE, TIMEOUT } from "../defaults.js";
 
 export class ComponentLifecycle extends Component {
@@ -131,6 +131,101 @@ export class StateText extends Component {
         <input id="input" value={this.defaultValue} onChange={({ target: { value } }) => (this.outputValue = value)} />
         <span id="output">{this.outputValue || this.defaultValue}</span>
       </>
+    );
+  }
+}
+
+export class RefExample extends Component {
+  ref = new Ref();
+  render() {
+    return (
+      <>
+        <input id="input" ref={(node) => node && (node.value = TEXT_UPDATE_VALUE)} />
+        <button
+          id="update"
+          onClick={() => {
+            if (this.ref.node) this.ref.node.value = TEXT_UPDATE_VALUE;
+          }}
+        >
+          update
+        </button>
+        <input id="output" ref={this.ref} readOnly />
+      </>
+    );
+  }
+}
+
+const contextBasic = new Context("context_basic_test", { counter: 0 }, "none");
+export class ContextBasic extends Component {
+  context = contextBasic();
+  render() {
+    return (
+      <>
+        <p id="output">{this.context.counter}</p>
+        <button id="increment" onClick={() => this.context.counter++}>
+          increment
+        </button>
+        <button id="decrement" onClick={() => this.context.counter--}>
+          decrement
+        </button>
+      </>
+    );
+  }
+}
+
+const contextActions = new Context("context_actions_test", { counter: 0 }, "none", {
+  increment: (prev) => ((prev.counter += 1), prev),
+  decrement: (prev) => ((prev.counter -= 1), prev),
+});
+export class ContextActions extends Component {
+  context = contextActions();
+  render() {
+    return (
+      <>
+        <p id="output">{this.context.counter}</p>
+        <button id="increment" onClick={() => contextActions.increment()}>
+          increment
+        </button>
+        <button id="decrement" onClick={() => contextActions.decrement()}>
+          decrement
+        </button>
+      </>
+    );
+  }
+}
+
+export class ComponentChildrenUpdate extends Component {
+  count = 1;
+  open = false;
+
+  render() {
+    return (
+      <>
+        <button id="toggle" onClick={() => (this.open = !this.open)}>
+          toggle
+        </button>
+        <button id="increment" onClick={() => this.count++}>
+          increment
+        </button>
+        <p id="count">{this.count}</p>
+        <ComponentChildrenTest content={this.open && `${this.count}`} />
+      </>
+    );
+  }
+}
+
+class ComponentChildrenDisplay extends Component {
+  render() {
+    return this.open ? <div id="display">{this.children}</div> : null;
+  }
+}
+
+class ComponentChildrenTest extends Component {
+  render() {
+    return (
+      <ComponentChildrenDisplay open={!!this.content}>
+        <div id="content">{this.content}</div>
+      </ComponentChildrenDisplay>
     );
   }
 }
