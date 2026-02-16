@@ -12,10 +12,6 @@ class ServerVirtualDom extends VirtualDom {
   next() {}
 
   replaceStyleSheets() {}
-
-  addStyleSheet(style, scoped) {
-    this.stylesheets[style + (scoped ? ".scoped" : "")] = true;
-  }
 }
 
 export { Component, Element, ServerVirtualDom as VirtualDom };

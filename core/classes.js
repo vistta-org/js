@@ -405,8 +405,10 @@ export const Render = {
 };
 
 export class Safe extends Component {
+  error;
   fallback;
   render() {
+    if (this.error) return typeof this.fallback === "function" ? this.fallback(this.error) : this.fallback;
     return this.children;
   }
 }
@@ -431,6 +433,16 @@ export class Form extends Component {
     }
     return this._defaultErrorMessage;
   }
+
+  ref;
+  context;
+  class;
+  autocomplete;
+  onsubmit;
+  onSubmit;
+  oninvalid;
+  onInvalid;
+  style;
 
   #node;
   #path = [];
@@ -465,6 +477,7 @@ export class Form extends Component {
       {
         ref: Ref.forward(this.ref, (element) => {
           if (this.#parent || !element) return;
+          this.#node = element;
           Object.assign(element, {
             watch: (...args) => this.watch(...args),
             unwatch: (...args) => this.unwatch(...args),

@@ -108,7 +108,7 @@ function transformElement(code) {
         const [value, expressionEnd] = transformJSExpression(code.slice(i));
         if (!value) return [];
         if ((value[0] === '"' || value[0] === "'" || value[0] === "`") && value[0] === value[value.length - 1])
-          children += `${value}, `;
+          children += `child("#${id++}", () => ${value}), `;
         else if (value[0] === "/" && value[value.length - 1] === "/") children += value;
         else children += `child("#${id++}", () => ${value}), `;
         i += expressionEnd - 1;

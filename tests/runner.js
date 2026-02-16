@@ -17,6 +17,7 @@ for (let i = 0, len = envKeys.length; i < len; i++) {
     /* Ignore */
   }
 }
+if (process.env.NODE_DEBUG === "true") ipcMain.on("console", (_, { level, args }) => console[level]?.(...args));
 const bundler = new Bundler();
 let renderer;
 const results = [];
@@ -64,30 +65,32 @@ async function main() {
 
 async function load(file, options) {
   if (!renderer)
-    renderer = `const { ipcRenderer: __app } = require('electron');\nconst __options = ${JSON.stringify(options)};\n${
-      (
-        await bundler.run(fs.resolve(import.meta.dirname, "renderer.js"), {
-          write: false,
-          platform: "node",
-          importAttributes: {
-            app: true,
-          },
-          format: "iife",
-        })
-      )?.code
-    }`;
-  const win = new BrowserWindow({
-    title: "Vistta JS Tests",
-    show: process.env.NODE_DEBUG === "true",
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      webviewTag: true,
-    },
-  });
-  win.loadFile(fs.resolve(import.meta.dirname, "template.html"));
-  win.webContents.executeJavaScript(
-    renderer +
+    renderer = {
+      window: new BrowserWindow({
+        title: "Vistta JS Tests",
+        show: process.env.NODE_DEBUG === "true",
+        webPreferences: {
+          nodeIntegration: true,
+          contextIsolation: false,
+          webviewTag: true,
+        },
+      }),
+      code: `const { ipcRenderer: __app } = require('electron');\nconst __options = ${JSON.stringify(options)};\n${
+        (
+          await bundler.run(fs.resolve(import.meta.dirname, "renderer.js"), {
+            write: false,
+            platform: "node",
+            importAttributes: {
+              app: true,
+            },
+            format: "iife",
+          })
+        )?.code
+      }`,
+    };
+  renderer.window.loadFile(fs.resolve(import.meta.dirname, "template.html"));
+  renderer.window.webContents.executeJavaScript(
+    renderer.code +
       (
         await bundler.run(file, {
           write: false,

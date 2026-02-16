@@ -56,8 +56,33 @@ defineReadonly(document, "mount", async (content, props = {}, config = {}) => {
 if (process.env.NODE_DEBUG === "true")
   defineReadonly(window, "requestAnimationFrame", (callback) => setTimeout(callback, 1));
 
+const consoleLevels = ["log", "info", "warn", "error", "debug"];
+const originalConsole = {};
+const serializeConsoleArgs = (args) =>
+  args.map((value) => {
+    if (value instanceof Error) return { name: value.name, message: value.message, stack: value.stack };
+    if (typeof value === "string") return value;
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return String(value);
+    }
+  });
+
+for (const level of consoleLevels) {
+  originalConsole[level] = console[level]?.bind(console);
+  console[level] = (...args) => {
+    originalConsole[level]?.(...args);
+    try {
+      __app.send("console", { level, args: serializeConsoleArgs(args) });
+    } catch {
+      // Ignore forwarding errors to avoid breaking tests.
+    }
+  };
+}
+
 HTMLElement.prototype.write = async function (text, options) {
-  const { delay = FEEDBACK_TIMEOUT, clear = false, dispatchKeyboardEvents = true } = options;
+  const { delay = FEEDBACK_TIMEOUT, clear = false, dispatchKeyboardEvents = true } = options || {};
   if (!this || typeof this.value === "undefined") throw new Error("Target must be an input or textarea element");
   if (clear) this.value = "";
 

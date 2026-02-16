@@ -501,6 +501,7 @@ npx vistta test
 
 - `@vistta/js` relies on Vistta's loader/bundler features; use it through `@vistta/cli` for development.
 - The exported `worker` is only available in the browser (in server environment it throws).
+- Values captured in `render()` (and then referenced inside elements) will not re-trigger rendering and can become stale. Avoid mixing captured values with live reads inside the same any element.
 
 ## Benchmarks
 
@@ -520,23 +521,23 @@ Bytes/Sec (MB): 38.8
 
 Attribute Update:
 
-- Total (runs/sec): 239.8; Average Time (ms): 0.4; Initial Time (ms): 3.6;
+- Initial Time (ms): 4.8; Average Time (ms): 0.4; Total (runs/sec): 101
 
 Content Update:
 
-- Total (runs/sec): 180; Average Time (ms): 0.8; Initial Time (ms): 2.5;
+- Initial Time (ms): 5.2; Average Time (ms): 0.8; Total (runs/sec): 94
 
 Element Update With Keys:
 
-- Total (runs/sec): 40.35; Average Time (ms): 9.3; Initial Time (ms): 2.7;
+- Initial Time (ms): 4; Average Time (ms): 7.5; Total (runs/sec): 38
 
 Element Update Without Keys:
 
-- Total (runs/sec): 37.05; Average Time (ms): 10.45; Initial Time (ms): 1.4;
+- Initial Time (ms): 3.1; Average Time (ms): 10.2; Total (runs/sec): 33
 
 Recursive Update:
 
-- Total (runs/sec): 239.8; Average Time (ms): 0.04; Initial Time (ms): 4.9;
+- Initial Time (ms): 11.3; Average Time (ms): 0.1; Total (runs/sec): 109
 
 ## **License**
 

@@ -44,20 +44,6 @@ export class RenderEach extends Component {
   }
 }
 
-class SafeChild extends Component {
-  input;
-  render() {
-    if (this.input % 2 == 1) throw new Error("Dummy Error");
-    return <span>{TEXT_VALUE}</span>;
-  }
-}
-
-class SafeFallback extends Component {
-  render() {
-    return <>{FALLBACK_VALUE}</>;
-  }
-}
-
 export class SafeExample extends Component {
   visible = true;
   counter = 0;
@@ -72,8 +58,14 @@ export class SafeExample extends Component {
         </button>
         <div id="output">
           {this.visible && (
-            <Safe fallback={<SafeFallback />}>
-              <SafeChild input={this.counter} />
+            <Safe fallback={FALLBACK_VALUE}>
+              <span>
+                {this.counter % 2 == 1
+                  ? (() => {
+                      throw new Error("Dummy Error");
+                    })()
+                  : TEXT_VALUE}
+              </span>
             </Safe>
           )}
         </div>
@@ -109,28 +101,11 @@ export class SuspensePromises extends Component {
 export class SuspenseToggle extends Component {
   count = 1;
   get content1() {
-    const test = Date.now();
-    console.log("content1 started");
-    return new Promise((resolve) =>
-      setTimeout(() => {
-        console.log("content1 resolved in " + (Date.now() - test) + "ms");
-        resolve(LOADED_VALUE);
-      }, TIMEOUT * this.count),
-    );
+    return new Promise((resolve) => setTimeout(() => resolve(LOADED_VALUE), TIMEOUT * this.count));
   }
 
   get content2() {
-    const test = Date.now();
-    console.log("content2 started");
-    return new Promise((resolve) =>
-      setTimeout(
-        () => {
-          console.log("content2 resolved in " + (Date.now() - test) + "ms");
-          resolve(LOADED_VALUE);
-        },
-        TIMEOUT * 2 * this.count,
-      ),
-    );
+    return new Promise((resolve) => setTimeout(() => resolve(LOADED_VALUE), TIMEOUT * 2 * this.count));
   }
 
   render() {
@@ -159,6 +134,22 @@ export class FormBasic extends Component {
           <input id="submit" type="submit" />
         </Form>
         <p id="output">{this.output}</p>
+      </>
+    );
+  }
+}
+
+const form = new Form.Context("form");
+
+export class FormContext extends Component {
+  output = form();
+  render() {
+    return (
+      <>
+        <Form context={form}>
+          <input id="input" name="text" />
+        </Form>
+        <p id="output">{this.output.text}</p>
       </>
     );
   }

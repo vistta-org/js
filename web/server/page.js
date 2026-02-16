@@ -75,9 +75,8 @@ export async function createPage(type, filepath, pathname, layout, configs) {
             ${config.icon ? `<link rel="icon" href="${config.icon}" />` : ""}
             ${config.icon ? `<link rel="apple-touch-icon" href="${config.icon}" />` : ""}
             ${this.pwa ? `<link rel="manifest" href=".${pathname + (pathname.endsWith("/") ? "" : "/")}manifest.json" />` : ""}
-            <style data-ssr>${virtualDom.stylesheets.virtual.stylesheet.cssRules.join(" ")}</style>
-            ${Object.keys(virtualDom.stylesheets).reduce((acc, key) => acc + (key === "virtual" ? "" : `\n\t<link rel="preload" href="/${RESOURCES_PATH}/${key}.css" as="style" />`), "")}
-            ${Object.keys(virtualDom.stylesheets).reduce((acc, key) => acc + (key === "virtual" ? "" : `\n\t<link rel="stylesheet" href="/${RESOURCES_PATH}/${key}.css" />`), "")}  
+            <style data-ssr>${virtualDom.stylesheet.rules.join(" ")}</style>
+            ${config.links?.reduce((acc, obj) => acc + `\n\t<link ${convertToAttributes(obj)} />`, "") || ""}
             <script src="/${RESOURCES_PATH}/client.js" defer></script>
           </head>
           <body>
@@ -122,7 +121,7 @@ export async function createPage(type, filepath, pathname, layout, configs) {
           description: config.description,
           shortcuts: config.shortcuts,
           screenshots: config.screenshots,
-          launch_handler: config.launch_handler || ({ "client_mode": "focus-existing" }),
+          launch_handler: config.launch_handler || { client_mode: "focus-existing" },
           file_handlers: config.file_handlers,
           icons: ((icon) => {
             if (!icon) return [];
@@ -187,4 +186,11 @@ function convertCSP(target) {
     result += key + " " + Array.from(new Set(value)).join(" ") + "; ";
   }
   return result;
+}
+
+function convertToAttributes(obj) {
+  if (!obj || typeof obj !== "object") return "";
+  return Object.keys(obj)
+    .map((key) => `${key}="${obj[key]}"`)
+    .join(" ");
 }

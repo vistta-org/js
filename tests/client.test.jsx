@@ -4,7 +4,7 @@ import { FALLBACK_VALUE, LOADED_VALUE, LOADING_VALUE, TEXT_UPDATE_VALUE, TEXT_VA
 
 const TIMEOUT_WITH_DELAY = TIMEOUT * 1.1;
 
-suite.only("VisttaJS Client Unit Tests", async () => {
+suite("VisttaJS Client Unit Tests", async () => {
   await test("Basic: State Counter", async () => {
     await document.mount(basic.StateCounter);
 
@@ -210,7 +210,7 @@ suite.only("VisttaJS Client Unit Tests", async () => {
     await document.querySelector("#increment").click();
     expect(document.querySelector("#output").innerText).toEqual(FALLBACK_VALUE);
     await document.querySelector("#increment").click();
-    expect(document.querySelector("#output").innerText).toEqual(TEXT_VALUE);
+    expect(document.querySelector("#output").innerText).toEqual(FALLBACK_VALUE);
 
     await document.querySelector("#toggle").click();
     expect(document.querySelector("#output").innerText).toEqual("");
@@ -262,6 +262,18 @@ suite.only("VisttaJS Client Unit Tests", async () => {
     await input.write("hello@world.com", { clear: true });
     await document.querySelector("#submit").click();
     expect(output.innerText).toEqual("hello@world.com");
+  });
+
+  await test("Components: Form Context", async () => {
+    await document.mount(components.FormContext);
+    const input = document.querySelector("#input");
+    const output = document.querySelector("#output");
+
+    expect(output.innerText).toEqual("");
+    await input.write("hello");
+    expect(output.innerText).toEqual("hello");
+    await input.write(" world");
+    expect(output.innerText).toEqual("hello world");
   });
 
   await test("Components: Form Validation", async () => {

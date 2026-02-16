@@ -1,5 +1,4 @@
 import { BoundClass, join } from "@vistta/utils";
-
 /**
  * Style definition object ruke.
  * @typedef {Object<string, StyleDefinition|string>} StyleDefinition
@@ -70,16 +69,18 @@ export class VirtualStyleSheet extends BoundClass {
   #animations = {};
   #properties = {};
   #queries = {};
-  #addExternalStylesheet;
 
-  get stylesheet() {
+  get rules() {
+    return this.#instance.cssRules;
+  }
+
+  get content() {
     return this.#instance;
   }
 
-  constructor(addStyleSheet) {
+  constructor() {
     super();
     this.#instance = new CSSStyleSheet();
-    this.#addExternalStylesheet = addStyleSheet;
   }
 
   add(style) {
@@ -194,7 +195,6 @@ export class VirtualStyleSheet extends BoundClass {
         [value, style] = objectToStyle(value, {
           properties: this.#properties,
           queries: this.#queries,
-          addScope: (style) => this.#addExternalStylesheet(style, true),
           createAnimation: (value) => this.createAnimation(value),
         });
     } else return "";
@@ -275,7 +275,7 @@ function stringToStyle(value, options = {}) {
   return [selectors, style];
 }
 
-function objectToStyle(value, { properties, queries, addScope, createAnimation } = {}) {
+function objectToStyle(value, { properties, queries, createAnimation } = {}) {
   let selectors = "";
   let style = "";
   const keys = Object.keys(value);
@@ -283,12 +283,6 @@ function objectToStyle(value, { properties, queries, addScope, createAnimation }
     let key = keys[i];
     let cur = value[key];
     const typeofValue = typeof cur;
-    if (key.startsWith("style-") && addScope) {
-      key = key.slice(6);
-      addScope(key);
-      selectors += `${key} `;
-      continue;
-    }
     if (typeofValue === "string" || typeofValue === "number")
       style += format(key, cur, { properties, queries, selector: false, createAnimation })[1] + " ";
     else if (typeofValue === "boolean" && cur === true)
