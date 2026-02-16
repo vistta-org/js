@@ -11,7 +11,7 @@ export default class extends DefaultCommand {
     this.register(fs.resolve(dirname, "./loaders/file.js"), { type: "url" });
     this.register(fs.resolve(dirname, "./loaders/jsx.js"), { filter: ".*\\.(jsx|mjsx|cjsx|tsx|mtsx|ctsx)" });
     this.register(fs.resolve(dirname, "./loaders/api.js"), { type: "api" });
-    this.register(fs.resolve(dirname, "./loaders/style.js"), { filter: ".*\\.(css|sass|scss)" });
+    this.register(fs.resolve(dirname, "./loaders/style.js"), { filter: ".*\\.css" });
     this.register(fs.resolve(dirname, "./loaders/template.js"), { type: "template" });
     this.resolve("jsx", "tsx");
   }

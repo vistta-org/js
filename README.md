@@ -16,7 +16,7 @@ Vistta.js is a convention-driven JavaScript framework for building web (SSR + hy
 - **Shared state (`Context`)**: shared state container with optional persistence (`local`, `session`, `indexed`) and reactive proxying.
 - **Async UI**: `Suspense` for Promise-backed reactive values.
 - **Error boundaries & forms**: `Safe` error boundary, `Form` value collection + validation.
-- **CSS-in-JS styling**: built-in style engine via the `style` prop (string/object/array) plus optional `@vistta/ui` presets.
+- **CSS-in-JS styling**: built-in style engine via the `style` prop (string/object/array) plus optional `@vistta/ui` presets, plus a CSS loader that converts `.css` into style objects.
 - **Desktop option**: Electron runner for desktop apps.
 - **CLI + loaders**: works with `@vistta/cli` (bundler/loaders like `api`) and enables extra commands (`serve`, `build`, `run`, `test`).
 
@@ -423,6 +423,8 @@ When a component property is a Promise, accessing it during render triggers the 
 
 Vistta includes a style engine that supports `style` as a string, object, or array.
 
+You can also import `.css` files directly. The CSS loader converts rules into a style object and exports it as the default export. For simple top-level selectors (like `.my-style` or `button`) it also emits named exports when the selector maps to an object. Nested blocks are supported, and `:scope { ... }` merges its contents into the current level.
+
 To get a great default UI baseline, add `@vistta/ui` styles to your page config:
 
 ```js
@@ -437,6 +439,7 @@ Examples:
 
 ```jsx
 import { Component } from "@vistta/js";
+import style, { my_style } from "./style.css";
 
 export default class Example extends Component {
   render() {
@@ -444,6 +447,7 @@ export default class Example extends Component {
       <>
         <div style={{ container: true, gap: "1rem" }} />
         <div style="col:full; button:(color: red)" />
+        <button style={my_style}>Styled from CSS</button>
       </>
     );
   }
@@ -484,7 +488,7 @@ npx vistta test
 
 ### Main (`@vistta/js`)
 
-- UI: `Component`, `Element`, `Fragment`, `ScopedFragment`, `Suspense`, `Profiler`, `Safe`, `Form`, `Ref`, `Render`
+- UI: `Component`, `Element`, `Fragment`, `Suspense`, `Profiler`, `Safe`, `Form`, `Ref`, `Render`
 - State: `Context`
 - Client: `router`
 - Server/controller helpers: `Controller`, `get`, `post`, `put`, `patch`, `del`, `copy`, `move`, `socket`
