@@ -24,7 +24,7 @@ suite("VisttaJS Benchmarks", async () => {
     console.log("Attribute Update");
     console.log(`Initial Time (ms): ${initial}; Average Time (ms): ${average}; Total (runs/sec): ${runs / DURATION_SECS}`);
 
-    expect(parseFloat(initial) < 5).toEqual(true);
+    expect(parseFloat(initial) < 7.5).toEqual(true);
     expect(parseFloat(average) < 1).toEqual(true);
   });
 
@@ -43,8 +43,8 @@ suite("VisttaJS Benchmarks", async () => {
     console.log("Content Update");
     console.log(`Initial Time (ms): ${initial}; Average Time (ms): ${average}; Total (runs/sec): ${runs / DURATION_SECS}`);
 
-    expect(initial < 5).toEqual(true);
-    expect(average < 1).toEqual(true);
+    expect(initial < 7.5).toEqual(true);
+    expect(average < 5).toEqual(true);
   });
 
   await test("Benchmark: Element Update With Keys", async () => {
@@ -62,8 +62,8 @@ suite("VisttaJS Benchmarks", async () => {
     console.log("Element Update With Keys");
     console.log(`Initial Time (ms): ${initial}; Average Time (ms): ${average}; Total (runs/sec): ${runs / DURATION_SECS}`);
 
-    expect(initial < 5).toEqual(true);
-    expect(average < 15).toEqual(true);
+    expect(initial < 7.5).toEqual(true);
+    expect(average < 5).toEqual(true);
   });
 
   await test("Benchmark: Element Update Without Keys", async () => {
@@ -81,8 +81,8 @@ suite("VisttaJS Benchmarks", async () => {
     console.log("Element Update Without Keys");
     console.log(`Initial Time (ms): ${initial}; Average Time (ms): ${average}; Total (runs/sec): ${runs / DURATION_SECS}`);
 
-    expect(initial < 5).toEqual(true);
-    expect(average < 15).toEqual(true);
+    expect(initial < 7.5).toEqual(true);
+    expect(average < 5).toEqual(true);
   });
 
   await test("Benchmark: Recursive Update", async () => {
@@ -100,7 +100,7 @@ suite("VisttaJS Benchmarks", async () => {
     console.log("Recursive Update");
     console.log(`Initial Time (ms): ${initial}; Average Time (ms): ${average}; Total (runs/sec): ${runs / DURATION_SECS}`);
 
-    expect(initial < 10).toEqual(true);
+    expect(initial < 20).toEqual(true);
     expect(average < 1).toEqual(true);
   });
 

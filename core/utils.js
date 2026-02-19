@@ -138,7 +138,7 @@ export function anchor(element, target) {
   if (!target) return;
   let last = {};
   const callback = (force) => {
-    if (!element.active) return;
+    if (!element.node.isConnected) return;
     let [x, y] = getComputedStyle(element.node).getPropertyValue("position-area").split(" ");
     const anchorRect = target.getBoundingClientRect();
     const elementRect = element.node.getBoundingClientRect();

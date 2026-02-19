@@ -18,7 +18,6 @@ import { anchor } from "./utils.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
 const INTERNAL_COMPONENTS = new Set([Form, Profiler, Render.If, Render.Each, Safe, Suspense]);
-let componentMutationCount = 0;
 class VirtualDomError extends Error {
   constructor(message) {
     super(message);
@@ -88,10 +87,10 @@ class VirtualDom {
 
   disable() {
     if (!this.virtualTree) throw new VirtualDomError("Virtual Dom not rendered");
-    traverseVirtualTree(
-      this.virtualTree,
-      (element) => element.type === Component.Node && element.component?.onDisconnect?.(),
-    );
+    traverseVirtualTree(this.virtualTree, (element) => {
+      if (element.mutations) for (const mutation of element.mutations) this.disableMutation(mutation);
+      element.component?.onDisconnect?.();
+    });
     this.active = false;
     this.running = false;
   }
@@ -100,7 +99,10 @@ class VirtualDom {
     if (!this.virtualTree) throw new VirtualDomError("Virtual Dom not rendered");
     this.active = true;
     this.running = true;
-    traverseVirtualTree(this.virtualTree, (element) => element.type === Component.Node && element.component?.onConnect?.());
+    traverseVirtualTree(this.virtualTree, (element) => {
+      if (element.mutations) for (const mutation of element.mutations) this.enableMutation(mutation);
+      element.component?.onConnect?.();
+    });
     const fragment = this.createElement("fragment");
     const firstNode = this.virtualTree.node || this.virtualTree.firstNode;
     if (firstNode) {
@@ -171,6 +173,10 @@ class VirtualDom {
         else {
           element = this.updateElement(this.keys[element.key], element.props, element.children);
           appendElement(parent, element, referenceNode);
+          traverseVirtualTree(element, (element) => {
+            if (element.mutations) for (const mutation of element.mutations) this.enableMutation(mutation);
+            element.component?.onConnect?.();
+          });
           return element;
         }
       }
@@ -225,7 +231,10 @@ class VirtualDom {
               else stack.push(child);
             }
           }
-          traverseVirtualTree(previous, (element) => element.type === Component.Node && element.component?.onConnect?.());
+          traverseVirtualTree(previous, (element) => {
+            if (element.mutations) for (const mutation of element.mutations) this.enableMutation(mutation);
+            element.component?.onConnect?.();
+          });
           return {
             ...previous,
             ...element,
@@ -243,7 +252,7 @@ class VirtualDom {
       if (hasKey) this.keys[element.key] = { type: element.Component, element };
       element.component = component;
       element.attributes = {};
-      const mutation = new Mutation(`##${componentMutationCount++}`, () => component.render());
+      const mutation = new Mutation(() => component.render());
       const internal = INTERNAL_COMPONENTS.has(element.Component);
       if (element.Component === Profiler && "production" !== process.env.NODE_ENV) context.profiler = component;
       else if (element.Component === Form) {
@@ -343,8 +352,8 @@ class VirtualDom {
               if (!element.children[i]) continue;
               removeElement(element.children[i]);
               traverseVirtualTree(element.children[i], (element) => {
-                if (element.mutations) for (const mutation of element.mutations) this.removeMutation(mutation);
-                if (element.type === Component.Node) element.component?.onDisconnect?.();
+                if (element.mutations) for (const mutation of element.mutations) this.disableMutation(mutation);
+                element.component?.onDisconnect?.();
               });
             }
             element.children = fragment.children;
@@ -380,87 +389,50 @@ class VirtualDom {
       return element;
     }
 
-    if (element.type !== Component.Node && element.type !== Fragment && props?.["anchor"] !== undefined)
-      element.node.anchor?.update();
-
-    if (children) {
-      const previous = [...element.children];
-      const changes = [];
-      element.children = [];
-      for (let i = 0, len = children.length; i < len; i++) {
-        let child = children[i];
-        if (!(child instanceof Element)) child = convertToElement(child);
-        let matches = [];
-        for (let j = 0, len = previous.length; j < len; j++) if (elementEquals(child, previous[j])) matches.push(j);
-        if (matches.length !== 1) changes[i] = { type: "insert", element: child };
-        else {
-          const match = matches[0];
-          changes[i] = {
-            type: "update",
-            element: child,
-            previous: previous[match],
-            previousIndex: match,
-          };
-          previous[match] = null;
+    if (element.type !== Component.Node && element.type !== Fragment) {
+      const keys = Object.keys(props);
+      for (let i = 0, len = keys.length; i < len; i++) {
+        const prop = props[keys[i]];
+        if (prop instanceof Mutation && element.props[keys[i]] !== prop) {
+          element.props[keys[i]].callback = prop.callback;
+          this.enqueue([element.props[keys[i]]]);
         }
       }
-      let referenceNode = element.node ? null : element.lastNode?.nextSibling;
+      if (props?.["anchor"] !== undefined) element.node.anchor?.update();
+    }
 
-      const matchedOldIndicesByNewIndex = new Array(changes.length).fill(-1);
-      for (let i = 0, len = changes.length; i < len; i++) {
-        if (changes[i]?.type !== "update") continue;
-        matchedOldIndicesByNewIndex[i] = changes[i].previousIndex;
-      }
-      const keepInPlacePositions = new Set(longestIncreasingSubsequencePositions(matchedOldIndicesByNewIndex));
+    const previous = [...element.children];
+    element.children = [];
+    for (let i = 0, len = children.length; i < len; i++) {
+      let child = children[i];
+      if (!(child instanceof Element)) child = convertToElement(child);
+      if (!previous[i]?.key || !child.key || previous[i].key !== child.key) continue;
+      element.children[i] = previous[i];
+      previous[i] = null;
+    }
+    let referenceNode = element.node ? null : element.lastNode?.nextSibling;
 
-      for (let i = 0, len = previous.length; i < len; i++) {
-        if (!previous[i]) continue;
-        removeElement(previous[i]);
-        traverseVirtualTree(previous[i], (element) => {
-          if (element.mutations) for (const mutation of element.mutations) this.removeMutation(mutation);
-          if (element.type === Component.Node) element.component?.onDisconnect?.();
-        });
-      }
+    for (let i = 0, len = previous.length; i < len; i++) {
+      if (!previous[i]) continue;
+      removeElement(previous[i]);
+      traverseVirtualTree(previous[i], (element) => {
+        if (element.mutations) for (const mutation of element.mutations) this.disableMutation(mutation);
+        element.component?.onDisconnect?.();
+      });
+    }
 
-      for (let i = changes.length - 1; i >= 0; i--) {
-        if (!changes[i]) continue;
-        if (changes[i].type === "insert") {
-          element.children[i] = this.renderElement(
-            element,
-            changes[i].element,
-            {
-              ...element.context,
-              components: [...element.context.components],
-            },
-            referenceNode,
-          );
-        } else if (changes[i].type === "update") {
-          if (changes[i].previous.type === Component.Node || changes[i].previous.mutation)
-            element.children[i] = changes[i].previous;
-          else
-            element.children[i] = this.updateElement(
-              changes[i].previous,
-              changes[i].element.props,
-              changes[i].element.children.length > 0 ? changes[i].element.children : [null],
-            );
-
-          const shouldMove = !keepInPlacePositions.has(i);
-          if (shouldMove && !isAlreadyBeforeReferenceNode(changes[i].previous, referenceNode))
-            appendElement(element, changes[i].previous, referenceNode);
-        }
-        referenceNode = element.children[i].node || element.children[i].firstNode;
-      }
-    } else {
-      for (let i = 0, len = element.children.length; i < len; i++) {
-        if (!element.children[i]) continue;
-        const type = element.children[i].type;
-        if (type !== Component.Node && !element.children[i].mutation)
-          element.children[i] = this.updateElement(
-            element.children[i],
-            element.children[i].props,
-            element.children[i].children,
-          );
-      }
+    for (let i = children.length - 1; i >= 0; i--) {
+      if (!element.children[i])
+        element.children[i] = this.renderElement(
+          element,
+          children[i],
+          {
+            ...element.context,
+            components: [...element.context.components],
+          },
+          referenceNode,
+        );
+      referenceNode = element.children[i].node || element.children[i].firstNode;
     }
 
     return element;
@@ -585,6 +557,7 @@ class VirtualDom {
 
   applyMutation({ element, mutation, init, update }) {
     mutation.update = (components, profilers) => {
+      if (mutation.disabled) return;
       const previousMutation = this.mutation;
       this.mutation = mutation;
       try {
@@ -637,17 +610,21 @@ class VirtualDom {
   }
 
   trackMutation(mutation, set) {
-    if (!mutation.__trackedSets) mutation.__trackedSets = new Set();
+    if (!mutation.tracked) mutation.tracked = new Set();
+    mutation.tracked.add(set);
     set.add(mutation);
-    mutation.__trackedSets.add(set);
   }
 
-  removeMutation(mutation) {
-    const sets = mutation.__trackedSets;
-    if (sets) {
-      for (const set of sets) set.delete(mutation);
-      mutation.__trackedSets = null;
-    }
+  enableMutation(mutation) {
+    if (!mutation.tracked) return;
+    mutation.disabled = undefined;
+    for (const set of mutation.tracked) set.add(mutation);
+  }
+
+  disableMutation(mutation) {
+    if (!mutation.tracked) return;
+    mutation.disabled = true;
+    for (const set of mutation.tracked) set.delete(mutation);
   }
 
   preventMutation(callback) {
@@ -666,7 +643,6 @@ function convertToElement(element) {
   else if (element instanceof Mutation) {
     const mutation = element;
     element = new Element(Fragment);
-    element.id = mutation.id;
     element.mutation = mutation;
     return element;
   } else if (typeof element === "function") return new Element(element);
@@ -782,28 +758,13 @@ function removeElement(element) {
   }
 }
 
-function isAlreadyBeforeReferenceNode(virtualElement, referenceNode) {
-  const lastNode = virtualElement?.lastNode || virtualElement?.node || virtualElement?.firstNode;
-  if (!lastNode) return false;
-  if (referenceNode) return lastNode.nextSibling === referenceNode;
-  return lastNode.nextSibling === null;
-}
-
-function elementEquals(a, b) {
-  return (
-    a?.type === b?.type &&
-    (a.type === null ||
-      a.type === TextNode ||
-      (a.key || b.key ? a.key === b.key : a.id === b.id && (a.type !== Component.Node || a.Component === b.Component)))
-  );
-}
-
 function traverseVirtualTree(element, callback) {
   if (!element) return;
   const stack = [element];
   while (stack.length > 0) {
     const current = stack.pop();
     callback(current);
+    if (current.type === TextNode) continue;
     const children = current.children;
     if (children && children.length) {
       for (let i = 0, len = children.length; i < len; i++) {
@@ -812,38 +773,6 @@ function traverseVirtualTree(element, callback) {
       }
     }
   }
-}
-
-function longestIncreasingSubsequencePositions(matchedOldIndicesByNewIndex) {
-  const count = matchedOldIndicesByNewIndex.length;
-  const previousPositionInLis = new Array(count).fill(-1);
-  const lisTailPositions = [];
-
-  for (let newIndex = 0; newIndex < count; newIndex++) {
-    const oldIndex = matchedOldIndicesByNewIndex[newIndex];
-    if (oldIndex < 0) continue;
-
-    let left = 0;
-    let right = lisTailPositions.length;
-    while (left < right) {
-      const mid = (left + right) >> 1;
-      const midTailNewIndex = lisTailPositions[mid];
-      const midTailOldIndex = matchedOldIndicesByNewIndex[midTailNewIndex];
-      if (midTailOldIndex < oldIndex) left = mid + 1;
-      else right = mid;
-    }
-
-    if (left > 0) previousPositionInLis[newIndex] = lisTailPositions[left - 1];
-    lisTailPositions[left] = newIndex;
-  }
-
-  const lisPositions = [];
-  let currentPosition = lisTailPositions.length ? lisTailPositions[lisTailPositions.length - 1] : -1;
-  while (currentPosition >= 0) {
-    lisPositions.push(currentPosition);
-    currentPosition = previousPositionInLis[currentPosition];
-  }
-  return lisPositions.reverse();
 }
 
 function getPropValue(prop) {

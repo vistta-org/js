@@ -70,9 +70,8 @@ export class Element {
 }
 
 export class Mutation extends FunctionClass {
-  constructor(id, callback) {
+  constructor(callback) {
     super(callback);
-    this.id = id;
     this.callback = callback;
   }
 }
@@ -661,13 +660,9 @@ export class Form extends Component {
 // Global
 
 defineReadonly(window, "Fragment", Fragment);
-defineReadonly(window, "prop", (id, caller) => new Mutation(id, caller));
-defineReadonly(window, "child", (id, caller) => new Mutation(id, caller));
-defineReadonly(window, "element", (id, ...args) => {
-  const element = new Element(...args);
-  element.id = id;
-  return element;
-});
+defineReadonly(window, "prop", (caller) => new Mutation(caller));
+defineReadonly(window, "child", (caller) => new Mutation(caller));
+defineReadonly(window, "element", (...args) => new Element(...args));
 
 //
 

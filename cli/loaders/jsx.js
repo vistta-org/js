@@ -1,5 +1,4 @@
 import TypescriptLoader from "@vistta/cli/loaders/typescript";
-let id = 0;
 
 export default class JSXLoader extends TypescriptLoader {
   async load(source, options) {
@@ -71,7 +70,7 @@ function transformElement(code) {
         const [value, propsEnd, isQuote] = transformProps(code.slice(i + 1));
         if (!value) return [];
         if (isQuote) props += `"${context.prop}": ${value}, `;
-        else props += `"${context.prop}": prop("#${id++}", () => ${value}), `;
+        else props += `"${context.prop}": prop(() => ${value}), `;
         context.prop = "";
         i += propsEnd;
       } else if (code[i] === "{") {
@@ -108,9 +107,9 @@ function transformElement(code) {
         const [value, expressionEnd] = transformJSExpression(code.slice(i));
         if (!value) return [];
         if ((value[0] === '"' || value[0] === "'" || value[0] === "`") && value[0] === value[value.length - 1])
-          children += `child("#${id++}", () => ${value}), `;
+          children += `child(() => ${value}), `;
         else if (value[0] === "/" && value[value.length - 1] === "/") children += value;
-        else children += `child("#${id++}", () => ${value}), `;
+        else children += `child(() => ${value}), `;
         i += expressionEnd - 1;
       } else context.child += code[i];
     } else throw new Error("Error while parsing JSX. [Code: 0]");
@@ -123,7 +122,7 @@ function transformElement(code) {
   if (props.length == 0) props = "null";
   else props = `{ ${props.slice(0, -2)} }`;
   if (children.length > 0) children = ", " + children;
-  return [`element("#${id++}", ${tagName}, ${props}${children.slice(0, -2)})`, end];
+  return [`element(${tagName}, ${props}${children.slice(0, -2)})`, end];
 }
 
 function transformProps(code) {
