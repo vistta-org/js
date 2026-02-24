@@ -140,7 +140,7 @@ export class Context extends FunctionClass {
                 value
                   .then((result) => {
                     if (controller.signal?.aborted) return;
-                    assign(this.proxy(), clone(result, true));
+                    this.#replace(this.proxy(), clone(result, true));
                     resolve();
                     controllerFn(actionName, "completed");
                   })
@@ -149,7 +149,7 @@ export class Context extends FunctionClass {
                     resolve();
                   });
               else if (!controller.signal?.aborted) {
-                assign(this.proxy(), clone(value, true));
+                this.#replace(this.proxy(), clone(value, true));
                 resolve();
                 controllerFn(actionName, "completed");
               }
@@ -209,9 +209,12 @@ export class Context extends FunctionClass {
         return value;
       },
       set(path, newValue, oldValue, next) {
-        if (oldValue === newValue || stringify(oldValue, true) === stringify(newValue, true)) return true;
+        if (oldValue === newValue) return true;
         const result = next();
-        for (let i = 0, len = listeners.length; i < len; i++) listeners[i](path.join("."), newValue);
+        while (path.length >= 1) {
+          for (let i = 0, len = listeners.length; i < len; i++) listeners[i](path.join("."), newValue);
+          path.pop();
+        }
         if (!saveCache) return result;
         clearTimeout(debounce);
         debounce = setTimeout(saveCache, 100);
@@ -219,6 +222,29 @@ export class Context extends FunctionClass {
       },
     });
     return this.#shared.proxy;
+  }
+
+  #replace(object, target) {
+    if (typeof object !== "object" || object === null) return;
+    const keysToRemove = Object.keys(object);
+    if (target) {
+      const keysToAssign = Object.keys(target);
+      for (let i = 0, len = keysToAssign.length; i < len; i++) {
+        const key = keysToAssign[i];
+        if (typeof target[key] === "object" && target[key] !== null) {
+          if (!Array.isArray(target[key])) {
+            if (!object[key]) object[key] = {};
+            this.#replace(object[key], target[key]);
+          } else object[key] = target[key].slice();
+        } else object[key] = target[key];
+        keysToRemove.splice(keysToRemove.indexOf(key), 1);
+      }
+    }
+    for (let i = 0, len = keysToRemove.length; i < len; i++) {
+      this.#replace(object[keysToRemove[i]], null);
+      const key = keysToRemove[i];
+      object[key] = undefined;
+    }
   }
 }
 

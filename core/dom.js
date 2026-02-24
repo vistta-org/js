@@ -305,7 +305,79 @@ class VirtualDom {
             configurable: false,
             enumerable: false,
           });
-        } else this.defineComponentProperty(element, component, propertyName);
+        } else if (component[propertyName] instanceof Context) {
+          const instance = component[propertyName];
+          if (!element.context["#" + instance.key]) {
+            const mutations = {};
+            element.context["#" + instance.key] = instance.proxy({
+              get: (path) => {
+                if (!this.mutation) return;
+                if (!mutations[path]) mutations[path] = new Set();
+                this.trackMutation(this.mutation, mutations[path]);
+              },
+              set: (path) => mutations[path] && this.enqueue(mutations[path]),
+            });
+          }
+          Object.defineProperty(component, propertyName, {
+            configurable: false,
+            enumerable: false,
+            get: () => element.context["#" + instance.key],
+          });
+        } else {
+          const mutations = new Set();
+          element.attributes[propertyName] = component[propertyName];
+          if (element.props[propertyName] instanceof Mutation) {
+            const mutation = element.props[propertyName];
+            this.applyMutation({
+              element,
+              mutation,
+              init: (value) => (element.attributes[propertyName] = value),
+              update: (value) => {
+                element.attributes[propertyName] = value;
+                if (mutations.size > 0) this.enqueue(mutations);
+              },
+            });
+          } else if (element.props[propertyName] != null) element.attributes[propertyName] = element.props[propertyName];
+
+          if (element.attributes[propertyName] instanceof Promise) {
+            let fulfilled = false;
+            let resolve;
+            if (!window.isServer)
+              element.attributes[propertyName].then((result) => {
+                element.attributes[propertyName] = result;
+                fulfilled = true;
+                resolve?.();
+                if (mutations.size > 0) this.enqueue(mutations);
+              });
+            Object.defineProperty(component, propertyName, {
+              configurable: false,
+              enumerable: true,
+              get: () => {
+                if (this.mutation) this.trackMutation(this.mutation, mutations);
+                if (!fulfilled && this.suspense) resolve = this.suspense();
+                return element.attributes[propertyName];
+              },
+              set: (v) => {
+                if (v === element.attributes[propertyName]) return;
+                element.attributes[propertyName] = v;
+                if (mutations.size > 0) this.enqueue(mutations);
+              },
+            });
+          } else
+            Object.defineProperty(component, propertyName, {
+              configurable: false,
+              enumerable: true,
+              get: () => {
+                if (this.mutation) this.trackMutation(this.mutation, mutations);
+                return element.attributes[propertyName];
+              },
+              set: (v) => {
+                if (v === element.attributes[propertyName]) return;
+                element.attributes[propertyName] = v;
+                if (mutations.size > 0) this.enqueue(mutations);
+              },
+            });
+        }
       }
 
       let init = (value) => this.renderElementChildren(element, ensureArray(value), context, referenceNode);
@@ -478,81 +550,6 @@ class VirtualDom {
     else if (name === "style") node.setAttribute(name, this.stylesheet.resolve(value));
     else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(" ", value));
     else node.setAttribute(name, typeof value === "boolean" ? "" : value);
-  }
-
-  defineComponentProperty(element, component, name) {
-    if (component[name] instanceof Context) {
-      const instance = component[name];
-      if (!element.context["#" + instance.key]) {
-        const mutations = {};
-        element.context["#" + instance.key] = instance.proxy({
-          get: (path) => {
-            if (!this.mutation) return;
-            if (!mutations[path]) mutations[path] = new Set();
-            this.trackMutation(this.mutation, mutations[path]);
-          },
-          set: (path) => mutations[path] && this.enqueue(mutations[path]),
-        });
-      }
-      return Object.defineProperty(component, name, {
-        configurable: false,
-        enumerable: false,
-        get: () => element.context["#" + instance.key],
-      });
-    }
-    const mutations = new Set();
-    element.attributes[name] = component[name];
-    if (element.props[name] instanceof Mutation) {
-      const mutation = element.props[name];
-      this.applyMutation({
-        element,
-        mutation,
-        init: (value) => (element.attributes[name] = value),
-        update: (value) => {
-          element.attributes[name] = value;
-          if (mutations.size > 0) this.enqueue(mutations);
-        },
-      });
-    } else if (element.props[name] != null) element.attributes[name] = element.props[name];
-
-    if (element.attributes[name] instanceof Promise) {
-      let fulfilled = false;
-      let resolve;
-      if (!window.isServer)
-        element.attributes[name].then((result) => {
-          element.attributes[name] = result;
-          fulfilled = true;
-          resolve?.();
-          if (mutations.size > 0) this.enqueue(mutations);
-        });
-      Object.defineProperty(component, name, {
-        configurable: false,
-        enumerable: true,
-        get: () => {
-          if (this.mutation) this.trackMutation(this.mutation, mutations);
-          if (!fulfilled && this.suspense) resolve = this.suspense();
-          return element.attributes[name];
-        },
-        set: (v) => {
-          if (v === element.attributes[name]) return;
-          element.attributes[name] = v;
-          if (mutations.size > 0) this.enqueue(mutations);
-        },
-      });
-    } else
-      Object.defineProperty(component, name, {
-        configurable: false,
-        enumerable: true,
-        get: () => {
-          if (this.mutation) this.trackMutation(this.mutation, mutations);
-          return element.attributes[name];
-        },
-        set: (v) => {
-          if (v === element.attributes[name]) return;
-          element.attributes[name] = v;
-          if (mutations.size > 0) this.enqueue(mutations);
-        },
-      });
   }
 
   applyMutation({ element, mutation, init, update }) {
