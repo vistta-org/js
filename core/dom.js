@@ -185,10 +185,6 @@ class VirtualDom {
       if (typeof element.ref === "function") element.ref(element.node);
       else if (element.ref instanceof Ref) element.ref.node = element.node;
       element.attributes = {};
-      if (context.scoped) {
-        Object.assign(element.props, context.scoped);
-        context.scoped = null;
-      }
       const keys = Object.keys(element.props);
       const getDisabledOrReadOnly = () => getPropValue(element.props.disabled) || getPropValue(element.props.readOnly);
       const disabledOrReadOnly = getDisabledOrReadOnly();
@@ -494,16 +490,11 @@ class VirtualDom {
     }
 
     for (let i = children.length - 1; i >= 0; i--) {
-      if (!element.children[i])
-        element.children[i] = this.renderElement(
-          element,
-          children[i],
-          {
-            ...element.context,
-            components: [...element.context.components],
-          },
-          referenceNode,
-        );
+      if (!element.children[i]) {
+        const childContext = Object.create(element.context);
+        childContext.components = childContext.components.slice();
+        element.children[i] = this.renderElement(element, children[i], childContext, referenceNode);
+      }
       referenceNode = element.children[i].node || element.children[i].firstNode;
     }
 

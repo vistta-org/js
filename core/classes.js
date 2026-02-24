@@ -676,7 +676,7 @@ export class Form extends Component {
     const inputs = Object.keys(this.#fields);
     for (let i = 0, len = inputs.length; i < len; i++) {
       const element = this.#fields[inputs[i]];
-      if (!element || element.disabled || !document.body.contains(element)) continue;
+      if (!element || !element.isConnected || element.disabled) continue;
       copyFieldValue(values, inputs[i], this.#fields[inputs[i]]);
     }
     return values;
