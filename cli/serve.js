@@ -8,7 +8,7 @@ const dirname = import.meta.dirname;
 export default class ServeCommand extends DefaultCommand {
   #announcer;
 
-  help() {
+  async help() {
     console.print("Vistta JS Serve CLI");
     console.print("\nUsage:");
     console.print("vistta serve [folder]\tStart a web server using the specified folder as the router.");

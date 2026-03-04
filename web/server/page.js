@@ -46,12 +46,12 @@ export async function createPage(type, filepath, pathname, layout, configs) {
       let html = this.cache.get(key);
       if (!html) {
         const config = this.config;
-        window.page = this;
+        /** @type {any} */ (window).page = this;
         const virtualDom = new VirtualDom(config);
         if (this.inherited.layout)
           virtualDom.render(new Element(this.inherited.layout.layout.component, {}, new Element(content, props)));
         else virtualDom.render(new Element(content, props));
-        window.page = null;
+        /** @type {any} */ (window).page = null;
         const pathname = build ? this.pathname : this.location?.pathname;
         html = `<!doctype html>
         <html lang="${config?.lang || "en"}">
@@ -75,7 +75,7 @@ export async function createPage(type, filepath, pathname, layout, configs) {
             ${config.icon ? `<link rel="icon" href="${config.icon}" />` : ""}
             ${config.icon ? `<link rel="apple-touch-icon" href="${config.icon}" />` : ""}
             ${this.pwa ? `<link rel="manifest" href=".${pathname + (pathname.endsWith("/") ? "" : "/")}manifest.json" />` : ""}
-            <style data-ssr>${virtualDom.stylesheet.rules.join(" ")}</style>
+            <style data-ssr>${Array.from(virtualDom.stylesheet.rules).join(" ")}</style>
             ${config.links?.reduce((acc, obj) => acc + `\n\t<link ${convertToAttributes(obj)} />`, "") || ""}
             <script src="/${RESOURCES_PATH}/client.js" defer></script>
           </head>
@@ -87,7 +87,7 @@ export async function createPage(type, filepath, pathname, layout, configs) {
       }
       return html;
     },
-    async js(_, props) {
+    async js(req, props) {
       const key = stringify(props);
       const js = this.cache.get("js." + key);
       if (js) return js;
@@ -102,7 +102,8 @@ export async function createPage(type, filepath, pathname, layout, configs) {
       script.push(`const __app_config = ${stringify(this.config, IS_DEV)};`, "export { __app_config as config };");
       return this.cache.set("js." + key, script.join(IS_DEV ? "\n" : " "));
     },
-    async manifest() {
+    // eslint-disable-next-line no-unused-vars
+    async manifest(req, props) {
       const manifest = this.cache.get("manifest");
       if (manifest) return manifest;
       const config =

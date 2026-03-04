@@ -6,6 +6,7 @@ export default class TemplateLoader extends JSXLoader {
     if (!source)
       return {
         code: `export default () => null;`,
+        errors: null,
       };
     source = source.replace(/(\r\n|\n|\r)/gm, "");
     source = source.replace(/<!--[\s\S]*?-->/gm, "");

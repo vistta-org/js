@@ -5,9 +5,11 @@ import { VirtualDom } from "../core/dom.js";
 import { File, HistoryContext, ThemeContext } from "../core/utils.js";
 import { defineReadonly, sleep } from "../utils/index.js";
 
+const app = /** @type {any} */ (globalThis.__app);
+
 const FEEDBACK_TIMEOUT = 100;
 
-const runner = new TestRunner(__options);
+const runner = new TestRunner(/** @type {any} */ (globalThis.__options));
 const vistta = {
   Fragment,
   Element,
@@ -29,10 +31,10 @@ const vistta = {
   },
   socket: {
     emit(event, ...args) {
-      __app.send(event, { args });
+      app.send(event, { args });
     },
     on(event, callback) {
-      __app.on(event, (_, { args }) => callback(...args));
+      app.on(event, (_, { args }) => callback(...args));
     },
   },
   File,
@@ -74,7 +76,7 @@ for (const level of consoleLevels) {
   console[level] = (...args) => {
     originalConsole[level]?.(...args);
     try {
-      __app.send("console", { level, args: serializeConsoleArgs(args) });
+      app.send("console", { level, args: serializeConsoleArgs(args) });
     } catch {
       // Ignore forwarding errors to avoid breaking tests.
     }
@@ -124,4 +126,4 @@ HTMLElement.prototype.click = async function () {
 
 sleep(FEEDBACK_TIMEOUT)
   .then(() => runner.run())
-  .then((results) => __app.send("test-results", results));
+  .then((results) => app.send("test-results", results));

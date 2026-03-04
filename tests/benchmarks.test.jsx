@@ -24,8 +24,8 @@ suite("VisttaJS Benchmarks", async () => {
     console.log("Attribute Update");
     console.log(`Initial Time (ms): ${initial}; Average Time (ms): ${average}; Total (runs/sec): ${runs / DURATION_SECS}`);
 
-    expect(parseFloat(initial) < 7.5).toEqual(true);
-    expect(parseFloat(average) < 1).toEqual(true);
+    expect(initial < 7.5).toEqual(true);
+    expect(average < 1).toEqual(true);
   });
 
   await test("Benchmark: Content Update", async () => {
@@ -103,6 +103,4 @@ suite("VisttaJS Benchmarks", async () => {
     expect(initial < 20).toEqual(true);
     expect(average < 1).toEqual(true);
   });
-
-  console.table(results);
 });

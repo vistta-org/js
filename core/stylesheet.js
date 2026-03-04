@@ -1,7 +1,7 @@
 import { BoundClass, join } from "@vistta/utils";
 /**
  * Style definition object ruke.
- * @typedef {Object<string, StyleDefinition|string>} StyleDefinition
+ * @typedef {Object<string, any>} StyleDefinition
  */
 
 /**
@@ -62,6 +62,14 @@ const PSEUDO_FUCTIONS = [
 
 const VALUE_REGEX = new RegExp("\\$[^,){}\\s]+");
 
+/**
+ * @typedef {Object} StyleFormatOptions
+ * @property {any} [properties]
+ * @property {any} [queries]
+ * @property {boolean} [selector]
+ * @property {(value: string) => string} [createAnimation]
+ */
+
 export class VirtualStyleSheet extends BoundClass {
   #instance;
   #styles = {};
@@ -111,8 +119,7 @@ export class VirtualStyleSheet extends BoundClass {
           );
         else
           this.#insertRule(
-            `@property --${keys[i]} { initial-value: ${formatValue(value.value || value["initial-value"])}; inherits: ${
-              value.inherits ?? "true"
+            `@property --${keys[i]} { initial-value: ${formatValue(value.value || value["initial-value"])}; inherits: ${value.inherits ?? "true"
             }; syntax: '${value.syntax ?? "*"}'; }`,
           );
       }
@@ -262,7 +269,7 @@ export class VirtualStyleSheet extends BoundClass {
   }
 }
 
-function stringToStyle(value, options = {}) {
+function stringToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) {
   let selectors = "";
   let style = "";
   let [key, val, rest] = extractKeyValueFromString(value);
@@ -275,7 +282,8 @@ function stringToStyle(value, options = {}) {
   return [selectors, style];
 }
 
-function objectToStyle(value, { properties, queries, createAnimation } = {}) {
+function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) {
+  const { properties, queries, createAnimation } = options;
   let selectors = "";
   let style = "";
   const keys = Object.keys(value);
@@ -303,13 +311,14 @@ function objectToStyle(value, { properties, queries, createAnimation } = {}) {
   return [selectors, style];
 }
 
-function format(key, value, { properties = {}, queries = {}, selector, createAnimation } = {}) {
+function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
+  const { properties = {}, queries = {}, selector, createAnimation } = options;
   key = camelToKebab(key);
   if (!selector) {
     if (properties[key]) return [null, properties[key](value)];
     return [null, `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value)};`];
   }
-  if (key === "animation") return [null, createAnimation(value)];
+  if (key === "animation") return [null, createAnimation ? createAnimation(value) : ""];
   if (queries[key]) return [null, queries[key](value) + " "];
   if (PSEUDO_CLASSES[key]) return [null, `${PSEUDO_CLASSES[key]} { ${value}}`];
   for (let i = 0, len = PSEUDO_FUCTIONS.length; i < len; i++)

@@ -4,8 +4,8 @@ import fs from "@vistta/fs";
 const dirname = import.meta.dirname;
 
 export default class extends DefaultCommand {
-  constructor(config) {
-    super(config);
+  constructor() {
+    super();
     this.register(fs.resolve(dirname, "./loaders/file.js"));
     this.register(fs.resolve(dirname, "./loaders/file.js"), { type: "reader" });
     this.register(fs.resolve(dirname, "./loaders/file.js"), { type: "url" });
@@ -17,7 +17,7 @@ export default class extends DefaultCommand {
   }
 
   async main(...argv) {
-    const [[file], options] = parseArgs(argv);
+    const [[file], options] = (parseArgs(argv));
     if (process.env.NODE_ENV === "development") await this.outdated();
     const filepath = fs.resolve(process.cwd(), file);
     if (!fs.existsSync(filepath)) {
@@ -29,7 +29,7 @@ export default class extends DefaultCommand {
   }
 
   async app(...args) {
-    const electronPath = (await import("electron"))?.default;
+    const electronPath = String((await import("electron"))?.default || "electron");
     const { spawn } = await import("node:child_process");
     const keys = Object.keys(process.vistta || {});
     for (let i = 0, len = keys.length; i < len; i++)

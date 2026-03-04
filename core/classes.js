@@ -20,37 +20,37 @@ export const TextNode = Symbol("TextNode");
 const ComponentNode = Symbol("Component");
 
 /**
+ * @template Props
  * @extends {JSX.Element}
  */
 export class Element {
   /**
-   * @template Props
    * Represents a virtual DOM element.
    * @param {string|Symbol|Function} type - The type of the element, can be a string (HTML tag), a Symbol (custom element), or a Function (Component).
    * @param {Props} [props] - The properties of the element.
-   * @param {JSX.Node} [children] - The children of the element, can be other Elements, strings, numbers, or any other type.
+   * @param {JSX.Node[]} [children] - The children of the element, can be other Elements, strings, numbers, or any other type.
    */
   constructor(type, props, ...children) {
-    this.props = props || {};
+    this.props = /** @type {any} */ (props || {});
     this.children = children;
     const typeOf = typeof type;
-    if (type?.prototype instanceof Component || typeOf === "function") {
+    if (typeOf === "function") {
       this.type = Component.Node;
       this.props.children = children;
       this.Component = type;
     } else if (typeOf !== "string" && typeOf !== "symbol") this.type = null;
     else {
-      if (props?.ref != null) {
-        if (props.ref instanceof Mutation) props.ref = props.ref();
-        this.ref = props.ref;
+      if (props?.["ref"] != null) {
+        if (props["ref"] instanceof Mutation) this.ref = props["ref"]();
+        else this.ref = props["ref"];
         delete this.props.ref;
       }
       this.type = type;
     }
-    if (props?.key != null) {
-      if (props.key instanceof Mutation) props.key = props.key();
-      if (typeof props.key === "number") this.key = "" + props?.key;
-      else this.key = props?.key;
+    if (props?.["key"] != null) {
+      if (props["key"] instanceof Mutation) props["key"] = props["key"]();
+      if (typeof props["key"] === "number") this.key = "" + props["key"];
+      else this.key = props["key"];
       delete this.props.key;
     }
   }
@@ -65,7 +65,7 @@ export class Element {
     }
     if (children !== false)
       children = this?.children?.map((child) => (child instanceof Element ? child.clone(undefined, true) : child));
-    return new Element(this.type, props, children);
+    return new Element(this.type, props, ...children);
   }
 }
 
@@ -158,7 +158,7 @@ export class Context extends FunctionClass {
               throw e;
             }
           });
-          promise.abort = (...args) => controller.abort(...args);
+          /** @type {any} */ (promise).abort = (...args) => controller.abort(...args);
           return promise;
         }).bind(this);
       }
@@ -296,7 +296,8 @@ let dbPromise = null;
 function openIndexedDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
-    const req = (window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB).open(
+    const browserWindow = /** @type {any} */ (window);
+    const req = (browserWindow.indexedDB || browserWindow.mozIndexedDB || browserWindow.webkitIndexedDB || browserWindow.msIndexedDB).open(
       DB_NAME,
       DB_VERSION,
     );
@@ -449,7 +450,7 @@ export class Form extends Component {
   };
 
   static get DEFAULT_ERROR_MESSAGE() {
-    if (window.isServer) return "";
+    if (/** @type {any} */ (window).isServer) return "";
     if (!this._defaultErrorMessage) {
       const inputElement = document.createElement("input");
       inputElement.type = "text";
@@ -460,6 +461,8 @@ export class Form extends Component {
   }
 
   ref;
+  name;
+  id;
   context;
   class;
   autocomplete;
@@ -552,7 +555,7 @@ export class Form extends Component {
       return;
     }
     if (attributes.type === "radio") {
-      if (!this.#fields[path]) this.fields[path] = [];
+      if (!this.#fields[path]) this.#fields[path] = [];
       this.#fields[path].push(node);
     } else this.#fields[path] = node;
     this.#defaultValues[path] = getFieldValue(node);
@@ -645,7 +648,7 @@ export class Form extends Component {
     if (!this.#invalidEvent && this.#node?.reportValidity) return this.#node.reportValidity();
     if (errors.length === 0) return true;
     const invalidEvent = new Event("invalid");
-    invalidEvent.errors = errors;
+    /** @type {any} */ (invalidEvent).errors = errors;
     this.#node.dispatchEvent(invalidEvent);
     return false;
   }
@@ -688,7 +691,7 @@ export class Form extends Component {
 defineReadonly(window, "Fragment", Fragment);
 defineReadonly(window, "prop", (caller) => new Mutation(caller));
 defineReadonly(window, "child", (caller) => new Mutation(caller));
-defineReadonly(window, "element", (...args) => new Element(...args));
+defineReadonly(window, "element", (type, props, ...children) => new Element(type, props, ...children));
 
 //
 

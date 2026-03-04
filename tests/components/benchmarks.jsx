@@ -2,6 +2,7 @@ import { Component, Profiler } from "@vistta/js";
 
 const ITERATIONS = 1000;
 class Runner extends Component {
+  Test;
   running;
   run = 0;
   result = 0;

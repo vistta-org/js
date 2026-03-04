@@ -4,7 +4,7 @@ import { default as DefaultCommand } from "./default.js";
 const dirname = import.meta.dirname;
 
 export default class extends DefaultCommand {
-  help() {
+  async help() {
     console.print("Runs all the tests files that match the pattern/s in the current project");
     console.print("\nUsage:");
     console.print("vistta test [...patterns]\tRuns all the tests files that match the pattern/s in the current project");

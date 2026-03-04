@@ -128,7 +128,11 @@ export class StateText extends Component {
   render() {
     return (
       <>
-        <input id="input" value={this.defaultValue} onChange={({ target: { value } }) => (this.outputValue = value)} />
+        <input
+          id="input"
+          value={this.defaultValue}
+          onChange={(event) => (this.outputValue = /** @type {HTMLInputElement} */ (event.target).value)}
+        />
         <span id="output">{this.outputValue || this.defaultValue}</span>
       </>
     );
@@ -183,10 +187,10 @@ export class ContextActions extends Component {
     return (
       <>
         <p id="output">{this.context.counter}</p>
-        <button id="increment" onClick={() => contextActions.increment()}>
+        <button id="increment" onClick={() => /** @type {any} */ (contextActions).increment()}>
           increment
         </button>
-        <button id="decrement" onClick={() => contextActions.decrement()}>
+        <button id="decrement" onClick={() => /** @type {any} */ (contextActions).decrement()}>
           decrement
         </button>
       </>
@@ -215,12 +219,16 @@ export class ComponentChildrenUpdate extends Component {
 }
 
 class ComponentChildrenDisplay extends Component {
+  open = false;
+
   render() {
     return this.open ? <div id="display">{this.children}</div> : null;
   }
 }
 
 class ComponentChildrenTest extends Component {
+  content;
+
   render() {
     return (
       <ComponentChildrenDisplay open={!!this.content}>

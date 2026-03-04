@@ -8,9 +8,11 @@ import { Server as SocketIO } from "socket.io";
 import { URL } from "url";
 import zlib from "zlib";
 import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from "../../utils/index.js";
+// @ts-ignore bundler attribute injects virtual "code" export
 import { code as client } from "../client/index.js" with { type: "bundler" };
+// @ts-ignore bundler attribute compiles worker source as string code
 import { code as worker } from "../client/worker.js" with { type: "bundler" };
-import { default as Controller, Method, shareToLoader, WebSocketListener } from "./controller.js";
+import { default as Controller, Method, shareToLoader, WebSocketMethod } from "./controller.js";
 import { Component, createPage } from "./page.js";
 
 const dirname = import.meta.dirname;
@@ -239,13 +241,18 @@ class Server {
   /**
    * Starts the server using the specified protocol (http or https). If no protocol is specified, both http and https are started.
    *
-   * @param {string} [protocol] The protocol to use for the server (http or https)
-   * @returns {number|null} The port number that the server is listening on, or null if an error occurred
+   * @param {string} [target] The protocol to use for the server (http or https)
+   * @returns {Promise<void>} The port number that the server is listening on, or null if an error occurred
    */
-  async start(protocol) {
-    if (protocol === "http") protocol = this.#http;
-    else if (protocol === "https") protocol = this.#https;
-    else return (await this.start("http"), await this.start("https"), this.ports);
+  async start(target) {
+    let protocol;
+    if (target === "http") protocol = this.#http;
+    else if (target === "https") protocol = this.#https;
+    else {
+      await this.start("http");
+      await this.start("https");
+      return;
+    }
     if (protocol?.warning) this.#emit("warning", protocol.warning);
     if (!protocol?.server) return null;
     if (protocol.active) throw new Error(protocol.name.toUpperCase() + " Server already running");
@@ -256,24 +263,26 @@ class Server {
     shareToLoader("host", { protocol: protocol.name, port });
     protocol.active = true;
     this.#emit("ready", { type: protocol.name, port });
-    return port;
   }
 
   /**
    * Stops the server using the specified protocol (http or https). If no protocol is specified, both http and https are stopped.
    *
-   * @param {string} [protocol] The protocol to use for stopping the server (http or https)
-   * @returns {boolean} True if the server was successfully stopped, false otherwise
+   * @param {string} [target] The protocol to use for stopping the server (http or https)
+   * @returns {Promise<void>} True if the server was successfully stopped, false otherwise
    */
-  async stop(protocol) {
-    if (protocol === "http") protocol = this.#http;
-    else if (protocol === "https") protocol = this.#https;
-    else return (await this.stop("http")) && (await this.stop("https"));
-    if (!protocol?.server) return true;
-    if (!protocol.active) return false;
+  async stop(target) {
+    let protocol;
+    if (target === "http") protocol = this.#http;
+    else if (target === "https") protocol = this.#https;
+    else {
+      await this.stop("http");
+      await this.stop("https");
+      return;
+    }
+    if (!protocol?.server || !protocol.active) return;
     await async((resolve) => protocol.server.close(resolve));
     protocol.active = false;
-    return true;
   }
 
   /**
@@ -662,15 +671,15 @@ class Server {
     const options =
       typeOfTargetOrOptions === "string"
         ? {
-            ...DEFAULT_PROXY_OPTIONS,
-            target: targetOrOptions,
-            xfwd: false,
-          }
+          ...DEFAULT_PROXY_OPTIONS,
+          target: targetOrOptions,
+          xfwd: false,
+        }
         : {
-            ...DEFAULT_PROXY_OPTIONS,
-            ...targetOrOptions,
-            xfwd: false,
-          };
+          ...DEFAULT_PROXY_OPTIONS,
+          ...targetOrOptions,
+          xfwd: false,
+        };
     const collection = new Route(subdomain, pathname, "collection");
     options.pathname = pathname;
     collection.add(
@@ -709,7 +718,7 @@ class Server {
     if (typeOfTarget !== "object" && typeOfTarget !== "string") throw new TypeError("Invalid argument type");
     if (pathname === "") pathname = "/";
     else if (pathname.endsWith("/*")) this.#emit("warning", "Redirect pathname does not need wildcard");
-    const options = typeOfTarget === "object" ? typeOfTarget : { target: typeOfTarget };
+    const options = /** @type {RedirectOptions} */ (typeOfTarget === "object" ? typeOfTarget : { target: typeOfTarget });
     return this.#register("middleware", subdomain, pathname, (req, res) => {
       if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
       res.redirect(new URL(req.url || "/", options.target).toString(), true);
@@ -828,25 +837,16 @@ class Server {
               writable: false,
               configurable: false,
             });
-            const value = await arg.handler(req, res);
+            const value = await arg(req, res);
             if (!res.writableEnded) res.send(value);
           } catch (e) {
             this.#emit("error", e?.stack || e?.message || e);
             res.reject(e.message || "Internal Server Error", 500);
           }
         });
-      else if (arg instanceof WebSocketListener) {
-        const events = Object.keys(arg.events || {});
-        for (let j = 0, jlen = events.length; j < jlen; j++)
-          this.on(subdomain, events[j], function (...args) {
-            arg.events[events[j]].call(
-              {
-                emit: this.emit.bind(this, subdomain),
-              },
-              ...args,
-            );
-          });
-      } else if (typeof handler === "function") return this.#register("all", subdomain, pathname, arg);
+      else if (arg instanceof WebSocketMethod)
+        this.on(subdomain, arg.name, arg);
+      else if (typeof arg === "function") return this.#register("all", subdomain, pathname, arg);
       else throw new TypeError("Invalid api type");
     }
     if (type === "controller") {
@@ -878,18 +878,8 @@ class Server {
               res.reject(e.message || "Internal Server Error", 500);
             }
           });
-        } else if (handler instanceof WebSocketListener) {
-          const events = Object.keys(handler.events || {});
-          for (let j = 0, jlen = events.length; j < jlen; j++)
-            this.on(subdomain, events[j], function (...args) {
-              handler.events[events[j]].call(
-                {
-                  emit: this.emit.bind(this, subdomain),
-                },
-                ...args,
-              );
-            });
-        }
+        } else if (handler instanceof WebSocketMethod)
+          this.on(subdomain, handler.name, handler);
       }
       return null;
     }
@@ -1195,11 +1185,12 @@ function getSubdomain(input) {
   return "";
 }
 
-function matchRoute(routes, pathname, { exact, filter } = {}) {
-  exact = exact !== false ? "$" : "";
+function matchRoute(routes, pathname, options = {}) {
+  let { exact, filter } = /** @type {{ exact?: boolean, filter?: (route: any) => boolean }} */ (options);
+  const exactSuffix = exact !== false ? "$" : "";
   filter ||= (route) => route.active;
   for (let i = 0, len = routes?.length || 0; i < len; i++) {
-    routes[i].match = pathname.match(new RegExp("^" + routes[i].route + exact));
+    routes[i].match = pathname.match(new RegExp("^" + routes[i].route + exactSuffix));
     if (routes[i].match && filter(routes[i])) return routes[i];
   }
   return null;

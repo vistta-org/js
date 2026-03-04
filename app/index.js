@@ -16,7 +16,7 @@ for (let i = 0, len = envKeys.length; i < len; i++) {
   const key = envKeys[i].toLowerCase();
   if (!key.startsWith("vistta_")) continue;
   try {
-    process.vistta = process.vistta || {};
+    if (!process.vistta) process.vistta = { loaders: [], resolvers: [], options: {} };
     process.vistta[key.substring(7).toLowerCase()] = JSON.parse(process.env[envKeys[i]]);
   } catch {
     /* Ignore */

@@ -23,5 +23,6 @@
     "define": {
       "window.isServer": "false"
     }
-  }
+  },
+  "include": ["./**/*.js", "./**/*.jsx", "./global.d.ts"]
 }

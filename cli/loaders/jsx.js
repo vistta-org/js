@@ -4,14 +4,14 @@ export default class JSXLoader extends TypescriptLoader {
   async load(source, options) {
     try {
       if (options.extension === "tsx") return super.load(transform(source), options);
-      return { code: transform(source) };
+      return { code: transform(source), errors: null };
     } catch (e) {
       return { errors: [`${options.path}(0,0): jsx error: ${e.stack}`] };
     }
   }
 }
 
-function transform(code, debug) {
+function transform(code) {
   let skip = null;
   let i = 0;
   while (i < code.length) {
@@ -20,8 +20,8 @@ function transform(code, debug) {
       else if (code[i] === "/" && code[i + 1] === "/") ((skip = "line_comment"), i++);
       else if (code[i] === '"' || code[i] === "'" || code[i] === "`") skip = code[i];
       if (!skip && code[i] === "<" && />|\w/.test(code[i + 1])) {
-        const [element, end] = transformElement(code.slice(i), debug);
-        if (element) return code.slice(0, i) + element + transform(code.slice(i + end), debug);
+        const [element, end] = transformElement(code.slice(i));
+        if (element) return code.slice(0, i) + element + transform(code.slice(i + end));
       }
     } else if (skip === "block_comment") {
       if (code[i] === "*" && code[i + 1] === "/") ((skip = null), i++);

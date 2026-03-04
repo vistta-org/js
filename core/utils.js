@@ -22,11 +22,10 @@ export class File {
 
   /**
    * Upload a file
-   * @param {Object} [options]
-   * @param {boolean} [options.multiple=false]
-   * @param {string} [options.accept='']
+   * @template {boolean | undefined} T
+   * @param {{ multiple?: T, accept?: string }} [options]
    *
-   * @returns {Promise<FileList>}
+   * @returns {Promise<T extends true ? FileList : File | null>}
    */
   static upload(options = {}) {
     const element = document.createElement("input");
@@ -37,7 +36,8 @@ export class File {
     document.body.appendChild(element);
     return new Promise((resolve) => {
       element.addEventListener("change", () => {
-        resolve(options?.multiple ? element.files : element.files[0]);
+        const result = options?.multiple ? element.files : element.files[0];
+        resolve(/** @type {any} */ (result));
         document.body.removeChild(element);
       });
       element.click();
@@ -47,7 +47,7 @@ export class File {
   /**
    * Read a file as text
    *
-   * @param {File} file
+   * @param {Blob} file
    * @param {Object} [options]
    * @param {"text" | "arraybuffer" | "data"} [options.type='text']
    * @returns {Promise<any>}
@@ -118,7 +118,7 @@ export class HistoryContext extends Context {
         }
       },
     );
-    window.addEventListener("popstate", ({ state: _state }) => this.set(_state));
+    window.addEventListener("popstate", ({ state: _state }) => /** @type {any} */ (this).set(_state));
     // Timeout needed to wait for initial history and cache load
     if (typeof history !== "undefined")
       setTimeout(() => history.replaceState(JSON.parse(super.toString()), document.title, location.href), 250);
@@ -139,7 +139,7 @@ export function anchor(element, target) {
   let last = {};
   const callback = (force) => {
     if (!element.node.isConnected) return;
-    let [x, y] = getComputedStyle(element.node).getPropertyValue("position-area").split(" ");
+    let [x, y] = /** @type {any} */ (getComputedStyle(element.node).getPropertyValue("position-area")).split(" ");
     const anchorRect = target.getBoundingClientRect();
     const elementRect = element.node.getBoundingClientRect();
     if (x === "left" || x === "start") x = anchorRect.right - elementRect.width;

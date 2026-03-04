@@ -1,14 +1,6 @@
 class Socket {
   #instance;
 
-  /**
-   * Gets the current router pathname.
-   * @returns {string} The current pathname.
-   */
-  get href() {
-    return this.router.pathname;
-  }
-
   constructor() {
     if (typeof process === "undefined")
       import("@socket")

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "description": "Vistta.js Javascript Framework",
   "main": "index.js",
-  "types": "index.d.ts",
   "exports": {
     ".": "./index.js",
+    "./global": "./global.d.ts",
     "./server": "./web/server/index.js",
     "./loader": "./cli/default.js",
     "./config": "./tsconfig.json"
@@ -13,7 +13,7 @@
   "type": "module",
   "scripts": {
     "postinstall": "",
-    "tests": "vistta start ./tests --dev --watch"
+    "tests": "vistta test --debug"
   },
   "repository": {
     "type": "git",

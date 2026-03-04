@@ -31,7 +31,7 @@ export class Method extends FunctionClass {
   }
 }
 
-export class WebSocketListener extends FunctionClass {
+export class WebSocketMethod extends FunctionClass {
   #name;
 
   get name() {
@@ -126,14 +126,14 @@ export const put = (url, callback) => new Method("put", url, callback);
  *
  * @param {string} event - The event name to listen for.
  * @param {Function} callback - The callback function to execute when the event is triggered.
- * @returns {Method} A new Method instance representing the WebSocket event listener.
+ * @returns {WebSocketMethod} A new WebSocket listener instance.
  */
-socket.on = (event, callback) => new WebSocketListener(event, callback);
-socket.emit = () => {}; // Dummy function to avoid errors in server environment
+socket.on = (event, callback) => new WebSocketMethod(event, callback);
+socket.emit = () => { }; // Dummy function to avoid errors in server environment
 
 export { socket };
 
-export default class Controller {}
+export default class Controller { }
 
 export function shareToLoader(filepath, value) {
   if (global.loaders.shared[filepath]) return;

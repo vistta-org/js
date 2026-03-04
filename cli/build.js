@@ -5,7 +5,7 @@ import { default as DefaultCommand } from "./default.js";
 const dirname = import.meta.dirname;
 
 export default class BuildCommand extends DefaultCommand {
-  help() {
+  async help() {
     console.print("Vistta JS Build CLI");
     console.print("\nUsage:");
     console.print("vistta server build [folder]\tBuilds the specified folder into a static web page files.");
@@ -13,8 +13,8 @@ export default class BuildCommand extends DefaultCommand {
 
   async main(_, ...argv) {
     const Server = (await import("../web/server/index.js")).default;
-    let [[folder, output = "dist"], options] = parseArgs(argv);
-    if (!(folder?.length > 0)) return this.help("build");
+    const [[folder, output = "dist"], options] = parseArgs(argv);
+    if (!(folder?.length > 0)) return this.help();
     if (process.env.NODE_ENV === "development") await this.outdated();
     const { version } = (await import(fs.resolve(dirname, "../package.json"))).default;
     console.clear();

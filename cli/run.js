@@ -5,7 +5,7 @@ import { default as DefaultCommand } from "./default.js";
 const dirname = import.meta.dirname;
 
 export default class extends DefaultCommand {
-  help() {
+  async help() {
     console.print("Vistta JS Run CLI");
     console.print("\nUsage:");
     console.print("vistta run [file]\tRun the specified file as a standalone application.");

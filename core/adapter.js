@@ -1,6 +1,7 @@
 (() => {
   if (typeof window !== "undefined") return;
-  global.window = global;
+  const globalRef = /** @type {any} */ (globalThis);
+  globalRef.window = globalRef;
   const storage = { session: {}, local: {} };
   const readonly = { writable: false, configurable: false };
   Object.defineProperties(window, {
@@ -108,7 +109,7 @@
     addEventListener: { value: () => null, ...readonly },
     removeEventListener: { value: () => null, ...readonly },
     requestAnimationFrame: { value: () => null, ...readonly },
-    getComputedStyle: { value: () => new CSSStyleDeclaration(), ...readonly },
+    getComputedStyle: { value: () => new NodeCSSStyleDeclaration(), ...readonly },
   });
 })();
 
@@ -174,7 +175,7 @@ function styleToString(style) {
   return result === "" ? null : result;
 }
 
-class CSSStyleDeclaration {
+class NodeCSSStyleDeclaration {
   constructor() {
     this.cssText = "";
   }

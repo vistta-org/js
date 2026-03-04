@@ -9,6 +9,7 @@ export const defineReadonly = (obj, key, value) =>
 export const noCache = (path) => path + `?noCache=${Date.now()}`;
 
 export class FunctionClass extends Function {
+  // @ts-ignore
   constructor(f) {
     return Object.setPrototypeOf(f, new.target.prototype);
   }

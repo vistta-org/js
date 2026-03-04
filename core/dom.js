@@ -18,6 +18,7 @@ import { anchor } from "./utils.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
 const INTERNAL_COMPONENTS = new Set([Form, Profiler, Render.If, Render.Each, Safe, Suspense]);
+const isServer = !!/** @type {any} */ (window).isServer;
 class VirtualDomError extends Error {
   constructor(message) {
     super(message);
@@ -55,7 +56,7 @@ class VirtualDom {
     this.replaceStyleSheets();
     this.host.replaceChildren(host.node);
     host.node = this.host;
-    if (!window.isServer) requestAnimationFrame(() => this.update());
+    if (!isServer) requestAnimationFrame(() => this.update());
     return this;
   }
 
@@ -120,7 +121,7 @@ class VirtualDom {
     }
     this.replaceStyleSheets();
     this.host.replaceChildren(fragment);
-    this.next();
+    this.update();
     return this;
   }
 
@@ -338,7 +339,7 @@ class VirtualDom {
           if (element.attributes[propertyName] instanceof Promise) {
             let fulfilled = false;
             let resolve;
-            if (!window.isServer)
+            if (!isServer)
               element.attributes[propertyName].then((result) => {
                 element.attributes[propertyName] = result;
                 fulfilled = true;
@@ -350,7 +351,7 @@ class VirtualDom {
               enumerable: true,
               get: () => {
                 if (this.mutation) this.trackMutation(this.mutation, mutations);
-                if (!fulfilled && this.suspense) resolve = this.suspense();
+                if (!fulfilled && context.suspense) resolve = context.suspense();
                 return element.attributes[propertyName];
               },
               set: (v) => {
@@ -434,7 +435,7 @@ class VirtualDom {
           this.renderElementChildren(element, [component.fallback], context, referenceNode);
           this.renderElementChildren(fragment, ensureArray(value), context, referenceNode);
         };
-        update = () => {};
+        update = () => { };
       }
 
       element.mutation = this.applyMutation({
@@ -443,7 +444,7 @@ class VirtualDom {
         init,
         update,
       });
-      if (!window.isServer && component.onConnect) this.preventMutation(() => component.onConnect?.());
+      if (!isServer && component.onConnect) this.preventMutation(() => component.onConnect?.());
       return element;
     }
 
@@ -521,7 +522,7 @@ class VirtualDom {
     element.attributes[name] = value;
     if (name === "validator" && typeof value === "function") return;
     const node = element.node;
-    if (name === "anchor") return (node.anchor = !window.isServer && anchor(element, value));
+    if (name === "anchor") return (node.anchor = !isServer && anchor(element, value));
     if (!disabledOrReadOnly && name[0] === "o" && name[1] === "n" && typeof value === "function") {
       node[name.toLowerCase()] = (event, ...args) => {
         try {
@@ -539,7 +540,7 @@ class VirtualDom {
     if (value == null || value === false) node.removeAttribute(name);
     else if (name === "value") node.value = value;
     else if (name === "style") node.setAttribute(name, this.stylesheet.resolve(value));
-    else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(" ", value));
+    else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(value, " "));
     else node.setAttribute(name, typeof value === "boolean" ? "" : value);
   }
 
@@ -581,7 +582,7 @@ class VirtualDom {
       const result = mutation();
       if (result instanceof Promise) {
         const resolve = element?.context?.suspense?.();
-        if (!window.isServer)
+        if (!isServer)
           result.then(() => {
             this.enqueue([mutation]);
             resolve?.();

@@ -4,6 +4,9 @@ import { VirtualDom } from "../core/dom.js";
 import { File, HistoryContext, ThemeContext } from "../core/utils.js";
 import { defineReadonly } from "../utils/index.js";
 
+const app = /** @type {any} */ (globalThis.__app);
+const appMain = /** @type {any} */ (globalThis.main);
+
 const vistta = {
   Fragment,
   Element,
@@ -25,10 +28,10 @@ const vistta = {
   },
   socket: {
     emit(event, ...args) {
-      __app.send(event, { args });
+      app.send(event, { args });
     },
     on(event, callback) {
-      __app.on(event, (_, { args }) => callback(...args));
+      app.on(event, (_, { args }) => callback(...args));
     },
   },
   File,
@@ -39,9 +42,9 @@ const vistta = {
 defineReadonly(window, "vistta", vistta);
 
 setTimeout(() => {
-  new VirtualDom("", document.body, main.config).render(
-    main.layout
-      ? new Element(main.layout.component, {}, new Element(main.default, main.props))
-      : new Element(main.default, main.props),
+  new VirtualDom("", document.body, appMain.config).render(
+    appMain.layout
+      ? new Element(appMain.layout.component, {}, new Element(appMain.default, appMain.props))
+      : new Element(appMain.default, appMain.props),
   );
 }, 0);

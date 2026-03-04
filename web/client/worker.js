@@ -1,13 +1,15 @@
+const sw = /** @type {any} */ (self);
+
 // Install: activate immediately
-self.addEventListener("install", () => self.skipWaiting());
+sw.addEventListener("install", () => sw.skipWaiting());
 
 // Activate: take control of all pages and notify clients
-self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+sw.addEventListener("activate", (event) => {
+  event.waitUntil(sw.clients.claim());
 });
 
 // Push Notification
-self.addEventListener("push", (event) => {
+sw.addEventListener("push", (event) => {
   let data;
   try {
     data = event.data.json();
@@ -19,7 +21,7 @@ self.addEventListener("push", (event) => {
   }
 
   event.waitUntil(
-    self.registration
+    sw.registration
       .showNotification(data.title || "New Notification", {
         body: data.body || "",
         icon: data.icon || "",
@@ -29,7 +31,7 @@ self.addEventListener("push", (event) => {
         renotify: data.renotify,
         vibrate: data.vibrate || [200, 100, 200],
         data: {
-          url: data.url || self.location.origin,
+          url: data.url || sw.location.origin,
         },
         actions: data.actions || [],
       })
@@ -40,30 +42,30 @@ self.addEventListener("push", (event) => {
 });
 
 // Notification click: open or focus the tab
-self.addEventListener("notificationclick", (event) => {
+sw.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const urlToOpen = event.notification?.data?.url || self.location.origin;
+  const urlToOpen = event.notification?.data?.url || sw.location.origin;
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+    sw.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
         if (client.url === urlToOpen) {
           return client.focus();
         }
       }
-      return self.clients.openWindow(urlToOpen);
+      return sw.clients.openWindow(urlToOpen);
     }),
   );
 });
 
 // Message handler
-self.addEventListener("message", (event) => {
+sw.addEventListener("message", (event) => {
   if (event.data?.action === "skipWaiting") {
-    self.skipWaiting();
+    sw.skipWaiting();
   }
 
   if (event.data?.action === "unsubscribe") {
-    self.registration.pushManager.getSubscription().then((subscription) => {
+    sw.registration.pushManager.getSubscription().then((subscription) => {
       if (subscription) {
         subscription
           .unsubscribe()

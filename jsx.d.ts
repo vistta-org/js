@@ -229,14 +229,27 @@ declare namespace JSX {
   type Node = Element | Element[] | null;
   type Anchor = string | HTMLElement | Object | { target: string | HTMLElement | Object; position?: string };
 
+  type InputProps = Omit<HTMLProps<HTMLInputElement>, "value"> & {
+    value?: string | number;
+  };
+
+  type TextareaProps = Omit<HTMLProps<HTMLTextAreaElement>, "value"> & {
+    value?: string | number;
+  };
+
   class Component<T extends Record<string, any> = {}> {
     constructor(props?: T);
   }
 
   type Style = string | string[] | Record<string, Style>;
 
-  type IntrinsicElementMap = {
+  type BaseIntrinsicElementMap = {
     [K in keyof HTMLElementTagNameMap]: HTMLProps<HTMLElementTagNameMap[K]>;
+  };
+
+  type IntrinsicElementMap = Omit<BaseIntrinsicElementMap, "input" | "textarea"> & {
+    input: InputProps;
+    textarea: TextareaProps;
   };
 
   interface IntrinsicElements extends IntrinsicElementMap {
@@ -249,12 +262,17 @@ declare namespace JSX {
     key?: string | number;
   }
 
-  type ComponentProps<T> = Pick<
-    T,
-    {
-      [K in keyof T]: T[K] extends (...args: any[]) => any ? never : K;
-    }[keyof T]
-  > &
+  type ComponentProps<T> = Partial<
+    Omit<
+      Pick<
+        T,
+        {
+          [K in keyof T]: T[K] extends (...args: any[]) => any ? never : K;
+        }[keyof T]
+      >,
+      "children"
+    >
+  > & { children?: any } &
     Partial<
       Pick<
         T,

@@ -9,20 +9,19 @@ export class Router extends BoundClass {
   #previous = null;
 
   /**
-   *
-   *
+   * 
    * @typedef {Object} NavigateOptions
-   * @property {string} [href] -
-   * @property {boolean} [pushState] -
-   * @property {boolean} [refresh] -
-   *
-   * @param {string | NavigateOptions} [href]
+   * @property {string} [href] - The URL to navigate to. Can be a full URL or a relative path.
+   * @property {boolean} [pushState] - Determines whether to use pushState (true) or replaceState (false) for history management. Defaults to true.
+   * @property {boolean} [refresh] - If true, forces a refresh of the current page even if the URL hasn't changed. Defaults to false.
+   * 
+   * Navigates to a specified URL or updates the current page based on the provided options.
+   * @param {string | NavigateOptions} [arg]
    */
   async navigate(arg) {
     const initial = !this.#loaded;
     this.#loaded = true;
     let { href, pushState, refresh } = typeof arg === "object" ? arg : { href: arg };
-    if (!refresh && !initial) refresh = href === true;
     const updateHistory =
       pushState !== false ? (url) => history.pushState({}, "", url) : (url) => history.replaceState({}, "", url);
 
@@ -68,25 +67,30 @@ export class Router extends BoundClass {
     updateHistory(pathname + search + hash);
   }
 
+  /**
+   * Refreshes the current page. If the `force` parameter is true, it will perform a full page reload. Otherwise, it will re-render the current page using the existing virtual DOM.
+   * @param {boolean} [force=false] - If true, forces a full page reload. If false, re-renders the current page using the existing virtual DOM. Defaults to false.
+   * @returns {Promise<void>} A promise that resolves when the refresh operation is complete.
+   */
   async refresh(force) {
     if (force) return location.reload();
     await this.navigate({ refresh: true });
   }
 
-  async load() {
-    if (this.#loaded) return;
-    window.addEventListener("click", (event) => handleClick(event, this));
-    await this.navigate();
+  /**
+   * Returns the current location object.
+   * @returns {Location} The current location object.
+   */
+  get location() {
+    return window["page"]?.location ?? window.location;
   }
 
-  get location() {
-    return window.page?.location ?? window.location;
+  get loaded() {
+    return this.#loaded;
   }
 
   /**
-   *
-   *
-   *
+   * Emits a custom event on the document body with the specified name and details.
    * @param {string} event
    * @param {any} [details]
    */
@@ -101,9 +105,7 @@ export class Router extends BoundClass {
   }
 
   /**
-   *
-   *
-   *
+   * Registers an event listener for the specified event on the document body.
    * @param {string} event
    * @param {(event: any) => void} callback
    */
@@ -139,14 +141,6 @@ function updateConfig(config) {
         break;
     }
   }
-}
-
-function handleClick(event, router) {
-  const { tagName, href, target, download } = event.target;
-  if (tagName !== "A" || (target && target !== "___private") || !href || download) return;
-  const hash = href.replace(location.origin + "/", "");
-  event.preventDefault();
-  router.navigate(!hash?.startsWith("#") ? href : hash);
 }
 
 function isAppUrl(href) {
