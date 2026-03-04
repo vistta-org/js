@@ -5,11 +5,11 @@ import { VirtualDom } from "../core/dom.js";
 import { File, HistoryContext, ThemeContext } from "../core/utils.js";
 import { defineReadonly, sleep } from "../utils/index.js";
 
-const app = /** @type {any} */ (globalThis.__app);
+const ipc = /** @type {any} */ (globalThis.ipc);
 
 const FEEDBACK_TIMEOUT = 100;
 
-const runner = new TestRunner(/** @type {any} */ (globalThis.__options));
+const runner = new TestRunner(/** @type {any} */(globalThis.testOptions));
 const vistta = {
   Fragment,
   Element,
@@ -31,10 +31,10 @@ const vistta = {
   },
   socket: {
     emit(event, ...args) {
-      app.send(event, { args });
+      ipc.send(event, { args });
     },
     on(event, callback) {
-      app.on(event, (_, { args }) => callback(...args));
+      ipc.on(event, (_, { args }) => callback(...args));
     },
   },
   File,
@@ -76,7 +76,7 @@ for (const level of consoleLevels) {
   console[level] = (...args) => {
     originalConsole[level]?.(...args);
     try {
-      app.send("console", { level, args: serializeConsoleArgs(args) });
+      ipc.send("console", { level, args: serializeConsoleArgs(args) });
     } catch {
       // Ignore forwarding errors to avoid breaking tests.
     }
@@ -126,4 +126,4 @@ HTMLElement.prototype.click = async function () {
 
 sleep(FEEDBACK_TIMEOUT)
   .then(() => runner.run())
-  .then((results) => app.send("test-results", results));
+  .then((results) => ipc.send("test-results", results));

@@ -50,21 +50,21 @@ export default class App {
     });
     this.#window.loadFile(fs.resolve(import.meta.dirname, "template.html"));
     this.#window.webContents.executeJavaScript(
-      "const { ipcRenderer: __app } = require('electron');\n" +
-        (
-          await bundler.run(fs.resolve(import.meta.dirname, "renderer.js"), {
-            ...BUNDLER_OPTIONS,
-            format: "iife",
-          })
-        )?.code +
-        "\n" +
-        (
-          await bundler.run(this.#main, {
-            ...BUNDLER_OPTIONS,
-            globalName: "main",
-            format: "iife",
-          })
-        )?.code,
+      "globalThis.ipc = (require('electron')).ipcRenderer;\n" +
+      (
+        await bundler.run(fs.resolve(import.meta.dirname, "renderer.js"), {
+          ...BUNDLER_OPTIONS,
+          format: "iife",
+        })
+      )?.code +
+      "\n" +
+      (
+        await bundler.run(this.#main, {
+          ...BUNDLER_OPTIONS,
+          globalName: "main",
+          format: "iife",
+        })
+      )?.code?.replace(/^var main =/, "globalThis.main ="),
     );
     electron.on("window-all-closed", () => process.platform !== "darwin" && electron.quit());
   }

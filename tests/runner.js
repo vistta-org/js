@@ -75,33 +75,32 @@ async function load(file, options) {
           webviewTag: true,
         },
       }),
-      code: `const { ipcRenderer: __app } = require('electron');\nconst __options = ${JSON.stringify(options)};\n${
-        (
-          await bundler.run(fs.resolve(import.meta.dirname, "renderer.js"), {
-            write: false,
-            platform: "node",
-            importAttributes: {
-              app: true,
-            },
-            format: "iife",
-          })
-        )?.code
-      }`,
-    };
-  renderer.window.loadFile(fs.resolve(import.meta.dirname, "template.html"));
-  renderer.window.webContents.executeJavaScript(
-    renderer.code +
-      (
-        await bundler.run(file, {
+      code: `globalThis.ipc = (require('electron')).ipcRenderer;\nglobalThis.testOptions = ${JSON.stringify(options)};\n${(
+        await bundler.run(fs.resolve(import.meta.dirname, "renderer.js"), {
           write: false,
           platform: "node",
           importAttributes: {
             app: true,
           },
-          globalName: "main",
           format: "iife",
         })
-      )?.code,
+      )?.code
+        }`,
+    };
+  renderer.window.loadFile(fs.resolve(import.meta.dirname, "template.html"));
+  renderer.window.webContents.executeJavaScript(
+    renderer.code +
+    (
+      await bundler.run(file, {
+        write: false,
+        platform: "node",
+        importAttributes: {
+          app: true,
+        },
+        globalName: "main",
+        format: "iife",
+      })
+    )?.code,
   );
   return new Promise((resolve) => ipcMain.on("test-results", (_, results) => resolve(results)));
 }
