@@ -325,7 +325,7 @@ function openIndexedDB() {
 }
 
 /**
- * @template T
+ * @template [Element=any]
  */
 export class Ref {
   static forward(ref, callback) {
@@ -337,20 +337,28 @@ export class Ref {
   }
 
   /**
-   * @param {T} [initialValue] - The initial value of the reference.
+   * @param {Element} [initialValue] - The initial value of the reference.
    */
   constructor(initialValue) {
     this.node = initialValue;
   }
 }
 
+/**
+ * @template [Props=Record<string, any>]
+ */
 export class Component {
   children = [];
+  
   static get Node() {
     return ComponentNode;
   }
 
-  constructor() {
+  /**
+   * @param {Props} [props]
+   */
+  // eslint-disable-next-line no-unused-vars
+  constructor(props) {
     const prototype = Object.getPrototypeOf(this);
     const functions = Object.getOwnPropertyNames(prototype);
     for (let i = 0, len = functions.length; i < len; i++) {

@@ -201,8 +201,9 @@ interface EventHandlers {
 }
 
 interface CustomElement {
-  style?: Partial<CSSStyleDeclaration>;
+  style?: JSX.Style;
   validator: (target?: Element) => string | boolean;
+  [key: string]: any;
 }
 
 interface HTMLElement {
@@ -218,9 +219,15 @@ interface HTMLElement {
 }
 
 declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
-  {
-    [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K];
-  } & EventHandlers &
+  Omit<
+    {
+      [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K];
+    },
+    "style"
+  > & {
+    style?: JSX.Style;
+  } &
+    EventHandlers &
     CustomElement
 >;
 
