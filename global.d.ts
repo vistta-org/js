@@ -24,16 +24,6 @@ declare module "*.css" {
   export default style;
 }
 
-declare module "*.sass" {
-  const style: JSX.Style;
-  export default style;
-}
-
-declare module "*.scss" {
-  const style: JSX.Style;
-  export default style;
-}
-
 // Template
 declare module "*.html" {
   function TemplateComponent(props: { [key: string]: any }): JSX.Node;
@@ -55,5 +45,11 @@ declare module "*.ico" {
   const path: string;
   export default path;
 }
+
+declare module "*.ttf" {
+  const path: string;
+  export default path;
+}
+
 
 declare const IS_NODE: boolean;

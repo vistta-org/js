@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Vistta.js Javascript Framework",
   "main": "index.js",
+  "types": "index.d.ts",
   "exports": {
     ".": "./index.js",
     "./global": "./global.d.ts",
