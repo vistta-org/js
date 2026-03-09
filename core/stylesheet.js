@@ -41,6 +41,7 @@ const PSEUDO_CLASSES = {
   "only-child": "&:only-child",
   "first-child": "> *:first-child",
   "last-child": "> *:last-child",
+  "starting-style": "@starting-style",
 };
 
 const PSEUDO_FUCTIONS = [
