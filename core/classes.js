@@ -84,12 +84,13 @@ export class Context extends FunctionClass {
   constructor(key, value, cache, actions, controllers) {
     if (typeof key !== "string" || key.length == 0) throw new Error("TypeError: Invalid context key.");
     if (typeof value !== "object") throw new Error("TypeError: Cannot create context with a non-object value.");
-    super(() => this);
+    super(() => this.#resolve());
     this.#key = key;
     if (!window[Context.id]) window[Context.id] = {};
     if (window[Context.id][encode(this.#key, "hex")]) this.#shared = window[Context.id][encode(this.#key, "hex")];
     else {
       window[Context.id][encode(this.#key, "hex")] = this.#shared;
+      this.#shared.ready = false;
       this.#shared.cache = getCache(cache);
       try {
         this.#shared.value = clone(value, true);
@@ -102,7 +103,8 @@ export class Context extends FunctionClass {
           .then((value) => (this.#shared.value = parse(decode(value, "hex")) ?? this.#shared.value))
           .catch(() => {
             /* Do nothing */
-          });
+          })
+          .finally(() => (this.#shared.ready = true));
       } else if (this.#shared.cache === sessionStorage || this.#shared.cache === localStorage) {
         try {
           this.#shared.value =
@@ -110,7 +112,9 @@ export class Context extends FunctionClass {
         } catch {
           /* Do nothing */
         }
+        this.#shared.ready = true;
       }
+      else this.#shared.ready = true;
     }
     if (this.#shared.cache !== getCache(cache))
       throw new Error("Error: Cannot create the same context with different cache types.");
@@ -246,6 +250,19 @@ export class Context extends FunctionClass {
       object[key] = undefined;
     }
   }
+
+  #resolve() {
+    return !this.#shared.ready ? new Promise((resolve) => {
+      const checkReady = () => {
+        if (this.#shared.ready) {
+          resolve(this);
+          return;
+        }
+        setTimeout(checkReady, 50);
+      };
+      checkReady();
+    }) : this;
+  }
 }
 
 // IndexDB
@@ -349,7 +366,7 @@ export class Ref {
  */
 export class Component {
   children = [];
-  
+
   static get Node() {
     return ComponentNode;
   }
