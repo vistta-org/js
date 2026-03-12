@@ -25,12 +25,13 @@ class VirtualDomError extends Error {
     this.name = "Virtual Dom Error";
   }
 }
+let frameBudget = 8;
+let lastFrameTime = 0;
 
 class VirtualDom {
   active = false;
   running = false;
   queue = [];
-  keys = {};
   stylesheet = new VirtualStyleSheet();
 
   constructor(pathname, host, config) {
@@ -56,7 +57,7 @@ class VirtualDom {
     this.replaceStyleSheets();
     this.host.replaceChildren(host.node);
     host.node = this.host;
-    if (!isServer) requestAnimationFrame(() => this.update());
+    if (!isServer) requestAnimationFrame((frameTime) => this.update(frameTime));
     return this;
   }
 
@@ -64,19 +65,26 @@ class VirtualDom {
     this.queue.push(...mutations);
     if (!this.active || this.running) return;
     this.running = true;
-    requestAnimationFrame(() => this.update());
+    requestAnimationFrame((frameTime) => this.update(frameTime));
   }
 
-  update(components = new Set(), profilers = new Set()) {
+  update(frameTime = performance.now(), components = new Set(), profilers = new Set()) {
+    if (Number.isFinite(frameTime)) {
+      if (lastFrameTime > 0) {
+        const interval = frameTime - lastFrameTime;
+        if (interval > 0) frameBudget = Math.max(4, Math.min(16, interval - 2));
+      }
+      lastFrameTime = frameTime;
+    }
     const startTime = performance.now();
     let index = 0;
 
     while (index < this.queue.length) {
       const mutation = this.queue[index++];
       mutation.update?.(components, profilers);
-      if (performance.now() - startTime > 16) {
+      if (performance.now() - startTime > frameBudget) {
         if (index > 0) this.queue.splice(0, index);
-        return requestAnimationFrame(() => this.update(components, profilers));
+        return requestAnimationFrame((frameTime) => this.update(frameTime, components, profilers));
       }
     }
 
@@ -168,11 +176,12 @@ class VirtualDom {
     if (typeof element.type === "string") {
       if (element.key?.length > 0) {
         if (element.key instanceof Mutation) throw new VirtualDomError("Internal Error #002");
-        if (this.keys[element.key] == null) this.keys[element.key] = element;
-        else if (this.keys[element.key].type !== element.type)
+        if (!parent.keys) parent.keys = {};
+        if (parent.keys[element.key] == null) parent.keys[element.key] = element;
+        else if (parent.keys[element.key].type !== element.type)
           throw new VirtualDomError(`Key ${element.key} already in use.`);
         else {
-          element = this.updateElement(this.keys[element.key], element.props, element.children);
+          element = this.updateElement(parent.keys[element.key], element.props, element.children);
           appendElement(parent, element, referenceNode);
           traverseVirtualTree(element, (element) => {
             if (element.mutations) for (const mutation of element.mutations) this.enableMutation(mutation);
@@ -214,7 +223,8 @@ class VirtualDom {
       const hasKey = element.key?.length > 0;
       if (hasKey) {
         if (element.key instanceof Mutation) throw new VirtualDomError("Internal Error #002");
-        const existing = this.keys[element.key];
+        if (!parent.keys) parent.keys = {};
+        const existing = parent.keys[element.key];
         if (existing != null) {
           if (existing.type !== element.Component) throw new VirtualDomError(`Key ${element.key} already in use.`);
           const previous = existing.element;
@@ -246,7 +256,7 @@ class VirtualDom {
           throw new VirtualDomError("Invalid Function Component format");
         component = Object.assign(new Component(), component);
       }
-      if (hasKey) this.keys[element.key] = { type: element.Component, element };
+      if (hasKey) parent.keys[element.key] = { type: element.Component, element };
       element.component = component;
       element.attributes = {};
       const mutation = new Mutation(() => component.render());
@@ -523,8 +533,8 @@ class VirtualDom {
     if (name === "validator" && typeof value === "function") return;
     const node = element.node;
     if (name === "anchor") return (node.anchor = !isServer && anchor(element, value));
-    if (!disabledOrReadOnly && name[0] === "o" && name[1] === "n" && typeof value === "function") {
-      node[name.toLowerCase()] = (event, ...args) => {
+    if (!disabledOrReadOnly && name[0] === "o" && name[1] === "n") {
+      node[name.toLowerCase()] = typeof value === "function" ? (event, ...args) => {
         try {
           event.strictMode = () => {
             if (event.target !== node) throw STRICT_MODE;
@@ -533,7 +543,7 @@ class VirtualDom {
         } catch (e) {
           if (e !== STRICT_MODE) throw e;
         }
-      };
+      } : null;
       return;
     }
     if (name === "className") name = "class";
