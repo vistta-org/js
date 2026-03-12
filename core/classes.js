@@ -12,10 +12,9 @@ import {
 } from "../utils/index.js";
 
 const CONTEXT_CACHE_KEY = "Vistta_Context_";
-const DB_NAME = encode("vistta-context-db", "hex");
-const STORE_NAME = encode("vistta-context-kv", "hex");
-const DB_VERSION = 1;
+/** Marker symbol used to represent JSX fragments. */
 export const Fragment = Symbol("Fragment");
+/** Marker symbol used to represent plain text nodes. */
 export const TextNode = Symbol("TextNode");
 const ComponentNode = Symbol("Component");
 
@@ -55,6 +54,12 @@ export class Element {
     }
   }
 
+  /**
+   * Creates a deep-cloned element with optional prop and children overrides.
+   * @param {any} [props] - `false` keeps current props reference.
+   * @param {any} [children] - `false` keeps current children reference.
+   * @returns {Element}
+   */
   clone(props, children) {
     if (props !== false) {
       if (props) {
@@ -70,53 +75,83 @@ export class Element {
 }
 
 export class Mutation extends FunctionClass {
+  /**
+   * Wraps a callback so it can be lazily resolved when read as a prop.
+   * @param {Function} callback
+   */
   constructor(callback) {
     super(callback);
     this.callback = callback;
   }
 }
 
+/**
+ * @typedef {"pending"|"completed"|"rejected"} ContextActionStatus
+ */
+
+/**
+ * @template {Record<string, any>} Value
+ * @typedef {Record<string, (prev: Value, ...args: any[]) => Value|Promise<Value>>} ContextActions
+ */
+
+/**
+ * @template {ContextActions<any>} Actions
+ * @typedef {{
+ *   [K in keyof Actions]:
+ *     (...args: Parameters<Actions[K]> extends [any, ...infer Rest] ? Rest : never) =>
+ *       Promise<void> & { abort: (...args: any[]) => void }
+ * }} ContextActionMethods
+ */
+
+/**
+ * @typedef {{
+ *   get?: (path: string, value: any) => void,
+ *   set?: (path: string, value: any) => void,
+ * }} ContextProxyListener
+ */
+
+/**
+ * Shared reactive context with optional persistence and action helpers.
+ * @template {Record<string, any>} Value
+ * @template {ContextActions<Value>} [Actions=ContextActions<Value>]
+ */
 export class Context extends FunctionClass {
   static id = Symbol(encode(CONTEXT_CACHE_KEY.slice(0, -1), "hex"));
   #key;
   #shared = { listeners: [] };
 
+  /**
+   * @param {string} key - Unique context key.
+   * @param {Value} value - Default context value.
+   * @param {"none"|"session"|"local"|"storage"} [cache] - Optional persistence backend.
+   * @param {Actions} [actions] - Named mutating actions assigned as context instance methods.
+   * @param {any} [controllers]
+   */
   constructor(key, value, cache, actions, controllers) {
     if (typeof key !== "string" || key.length == 0) throw new Error("TypeError: Invalid context key.");
     if (typeof value !== "object") throw new Error("TypeError: Cannot create context with a non-object value.");
-    super(() => this.#resolve());
+    super(() => this);
     this.#key = key;
     if (!window[Context.id]) window[Context.id] = {};
     if (window[Context.id][encode(this.#key, "hex")]) this.#shared = window[Context.id][encode(this.#key, "hex")];
     else {
       window[Context.id][encode(this.#key, "hex")] = this.#shared;
-      this.#shared.ready = false;
-      this.#shared.cache = getCache(cache);
+      this.#shared.cache = this.#cache(cache);
       try {
         this.#shared.value = clone(value, true);
       } catch {
         throw new Error("TypeError: Cannot create context with a non serializable object as default value.");
       }
-      if (this.#shared.cache === indexed) {
-        this.#shared.cache
-          .getItem(encode(CONTEXT_CACHE_KEY + key, "hex"))
-          .then((value) => (this.#shared.value = parse(decode(value, "hex")) ?? this.#shared.value))
-          .catch(() => {
-            /* Do nothing */
-          })
-          .finally(() => (this.#shared.ready = true));
-      } else if (this.#shared.cache === sessionStorage || this.#shared.cache === localStorage) {
+      if (this.#shared.cache === sessionStorage || this.#shared.cache === localStorage) {
         try {
           this.#shared.value =
             parse(decode(this.#shared.cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
         } catch {
           /* Do nothing */
         }
-        this.#shared.ready = true;
       }
-      else this.#shared.ready = true;
     }
-    if (this.#shared.cache !== getCache(cache))
+    if (this.#shared.cache !== this.#cache(cache))
       throw new Error("Error: Cannot create the same context with different cache types.");
     const actionsNames = Object.keys(actions || {});
     if (actionsNames.length > 0) {
@@ -169,10 +204,15 @@ export class Context extends FunctionClass {
     }
   }
 
+  /** @returns {string} */
   get key() {
     return this.#key;
   }
 
+  /**
+   * Returns a readonly proxy of the current context value.
+   * @returns {Record<string, any>}
+   */
   get value() {
     if (!this.#shared.readonlyProxy)
       this.#shared.readonlyProxy = proxy(this.#shared.value, {
@@ -181,14 +221,21 @@ export class Context extends FunctionClass {
     return this.#shared.readonlyProxy;
   }
 
+  /** @returns {Record<string, any>} */
   valueOf() {
     return this.value;
   }
 
+  /** @returns {string} */
   toString() {
     return stringify(this.#shared.value, true);
   }
 
+  /**
+   * Returns a mutable proxy to the context value and optionally subscribes to changes.
+   * @param {ContextProxyListener} [listener]
+  * @returns {Record<string, any>}
+   */
   proxy(listener) {
     const listeners = this.#shared.listeners;
     if (typeof listener?.set === "function") listeners.push(listener.set);
@@ -251,100 +298,28 @@ export class Context extends FunctionClass {
     }
   }
 
-  #resolve() {
-    return !this.#shared.ready ? new Promise((resolve) => {
-      const checkReady = () => {
-        if (this.#shared.ready) {
-          resolve(this);
-          return;
-        }
-        setTimeout(checkReady, 50);
-      };
-      checkReady();
-    }) : this;
+  #cache(type) {
+    switch (type) {
+      case "session":
+        return sessionStorage;
+      case "local":
+      case "storage":
+        return localStorage;
+    }
   }
-}
-
-// IndexDB
-
-export const indexed = {
-  async setItem(key, value) {
-    const db = await openIndexedDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).put(value, key);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  },
-
-  async getItem(key) {
-    const db = await openIndexedDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const req = tx.objectStore(STORE_NAME).get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  },
-
-  async removeItem(key) {
-    const db = await openIndexedDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).delete(key);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  },
-
-  async clear() {
-    const db = await openIndexedDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).clear();
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  },
-};
-
-let dbPromise = null;
-function openIndexedDB() {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const browserWindow = /** @type {any} */ (window);
-    const req = (browserWindow.indexedDB || browserWindow.mozIndexedDB || browserWindow.webkitIndexedDB || browserWindow.msIndexedDB).open(
-      DB_NAME,
-      DB_VERSION,
-    );
-
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-
-    req.onsuccess = () => {
-      const db = req.result;
-
-      // Recommended: close on version upgrade
-      db.onversionchange = () => db.close();
-
-      resolve(db);
-    };
-
-    req.onerror = () => reject(req.error);
-  });
-
-  return dbPromise;
 }
 
 /**
  * @template [Element=any]
  */
 export class Ref {
+  /**
+   * Composes an external ref with an internal callback.
+   * @template T
+   * @param {((node: T) => void)|{ node?: T }|undefined|null} ref
+   * @param {(node: T) => any} callback
+   * @returns {(node: T) => any}
+   */
   static forward(ref, callback) {
     return (element) => {
       if (typeof ref === "function") ref(element);
@@ -367,6 +342,7 @@ export class Ref {
 export class Component {
   children = [];
 
+  /** Symbol used by the renderer to identify component elements. */
   static get Node() {
     return ComponentNode;
   }
@@ -389,6 +365,8 @@ export class Component {
 
 export class Suspense extends Component {
   fallback;
+
+  /** @returns {JSX.Node|JSX.Node[]} */
   render() {
     return this.children;
   }
@@ -399,16 +377,22 @@ export class Profiler extends Component {
   #initial;
   #update = 0;
 
+  /** Triggers the initial render duration callback after component mount. */
   onConnect() {
     this.callback((this.#initial = performance.now() - this.#initial));
   }
 
+  /** @returns {JSX.Node|JSX.Node[]} */
   render() {
     if (!this.callback || "production" === process.env.NODE_ENV) return this.children;
     this.#initial = performance.now();
     return this.children;
   }
 
+  /**
+   * Starts a measurement section and returns a function that closes it.
+   * @returns {(callback?: (profiler: Profiler) => any) => any}
+   */
   record() {
     let start = performance.now();
     return (callback) => {
@@ -417,6 +401,10 @@ export class Profiler extends Component {
     };
   }
 
+  /**
+   * Emits accumulated update time and resets internal counters.
+   * @returns {Profiler}
+   */
   end() {
     this.callback(this.#update);
     this.#update = 0;
@@ -424,10 +412,14 @@ export class Profiler extends Component {
   }
 }
 
+/**
+ * Utility components for conditional and iterable rendering.
+ */
 export const Render = {
   If: class extends Component {
     condition;
 
+    /** @returns {JSX.Node|JSX.Node[]|false|null|undefined} */
     render() {
       return this.condition && this.children;
     }
@@ -436,6 +428,7 @@ export const Render = {
     of;
     as;
 
+    /** @returns {JSX.Node[]|null} */
     render() {
       if (typeof this.of !== "object") {
         if ("production" !== process.env.NODE_ENV) console.warn("Render.Each 'of' needs to be either an object or an array");
@@ -458,15 +451,37 @@ export const Render = {
 export class Safe extends Component {
   error;
   fallback;
+
+  /** @returns {JSX.Node|JSX.Node[]|null} */
   render() {
     if (this.error) return typeof this.fallback === "function" ? this.fallback(this.error) : this.fallback;
     return this.children;
   }
 }
 
+/**
+ * @typedef {{
+ *   type: string,
+ *   attributes: Record<string, any>,
+ *   node: any,
+ * }} FormRegisterTarget
+ */
+
+/**
+ * Form component with validation, watch APIs and optional shared context.
+ */
 export class Form extends Component {
+  /** Reference helper exposed for convenience. */
   static Ref = Ref;
+
+  /**
+   * Context specialized for form values where updates are path-based.
+   */
   static Context = class extends Context {
+    /**
+     * @param {string} key
+     * @param {"none"|"session"|"local"|"storage"} [cache]
+     */
     constructor(key, cache) {
       super(key, {}, cache, {
         update: (prev, path, element) => copyFieldValue(prev, path, element),
@@ -474,6 +489,10 @@ export class Form extends Component {
     }
   };
 
+  /**
+   * Browser default required-field message. Empty on server.
+   * @returns {string}
+   */
   static get DEFAULT_ERROR_MESSAGE() {
     if (/** @type {any} */ (window).isServer) return "";
     if (!this._defaultErrorMessage) {
@@ -507,10 +526,12 @@ export class Form extends Component {
   #listeners = {};
   #invalidEvent;
 
+  /** Path of this form when nested inside another form. */
   get path() {
     return this.#path;
   }
 
+  /** @returns {Element} */
   render() {
     if (this.context && !(this.context instanceof Form.Context)) {
       console.warn("Form 'context' needs to be an instance of Form.Context.");
@@ -558,6 +579,11 @@ export class Form extends Component {
     );
   }
 
+  /**
+   * Registers either a parent form (for nesting) or a field target.
+   * @param {Form|FormRegisterTarget} target
+   * @returns {void}
+   */
   register(target) {
     if (target instanceof Form) {
       this.#parent = target;
@@ -601,6 +627,10 @@ export class Form extends Component {
     });
   }
 
+  /**
+   * Watches one field or all fields (`*`) for input/change events.
+   * @param {...any} args
+   */
   watch(...args) {
     if (args.length == 0 || this.#parent) return;
     if (args.length == 1) args.unshift("*");
@@ -615,6 +645,10 @@ export class Form extends Component {
     this.#listeners[name].push(listener);
   }
 
+  /**
+   * Removes a field watcher previously registered with `watch`.
+   * @param {...any} args
+   */
   unwatch(...args) {
     if (args.length == 0 || this.#parent) return;
     if (args.length == 1) args.unshift("*");
@@ -627,6 +661,10 @@ export class Form extends Component {
     }
   }
 
+  /**
+   * Resets one field or all fields to their initial values.
+   * @param {string} [name="*"]
+   */
   reset(name = "*") {
     if (name === "*") {
       const inputs = Object.keys(this.#fields);
@@ -648,6 +686,11 @@ export class Form extends Component {
     if (!this.#invalidEvent) field.setCustomValidity?.("");
   }
 
+  /**
+   * Validates one field or the full form.
+   * @param {string} [name]
+   * @returns {boolean|null}
+   */
   validate(name) {
     if (name && !this.#fields[name]) return null;
     let errors = [];
@@ -678,6 +721,10 @@ export class Form extends Component {
     return false;
   }
 
+  /**
+   * Clears one field or all fields.
+   * @param {string} [name="*"]
+   */
   clear(name = "*") {
     if (name === "*") {
       const inputs = Object.keys(this.#fields);
@@ -695,10 +742,15 @@ export class Form extends Component {
     field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
   }
 
+  /** Submits the form programmatically. */
   submit() {
     this.#node.requestSubmit();
   }
 
+  /**
+   * Returns a plain object with current field values.
+   * @returns {Record<string, any>}
+   */
   values() {
     const values = {};
     const inputs = Object.keys(this.#fields);
@@ -720,6 +772,11 @@ defineReadonly(window, "element", (type, props, ...children) => new Element(type
 
 //
 
+/**
+ * Deep-clones props objects/arrays to avoid reference sharing.
+ * @param {any} props
+ * @returns {any}
+ */
 function cloneProps(props) {
   const clone = (value) => {
     if (typeof value === "object") {
@@ -738,6 +795,13 @@ function cloneProps(props) {
   return clone(props);
 }
 
+/**
+ * Copies an input value into an object, supporting dot-notated paths.
+ * @param {Record<string, any>} obj
+ * @param {string} path
+ * @param {any} element
+ * @returns {Record<string, any>}
+ */
 function copyFieldValue(obj, path, element) {
   if (path.includes(".")) {
     let temp = obj;
@@ -751,6 +815,11 @@ function copyFieldValue(obj, path, element) {
   return obj;
 }
 
+/**
+ * Returns the semantic value for a form field node.
+ * @param {any} element
+ * @returns {any}
+ */
 function getFieldValue(element) {
   if (Array.isArray(element)) {
     for (let i = 0, len = element.length; i < len; i++) {
@@ -763,16 +832,3 @@ function getFieldValue(element) {
   return element.value;
 }
 
-function getCache(type) {
-  switch (type) {
-    case "indexed":
-    case "db":
-    case "indexeddb":
-      return indexed;
-    case "session":
-      return sessionStorage;
-    case "local":
-    case "storage":
-      return localStorage;
-  }
-}

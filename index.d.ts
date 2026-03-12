@@ -2,14 +2,56 @@
 
 declare module "./core/classes.js" {
   interface Component<Props extends Record<string, any> = Record<string, any>> extends Props {}
-  interface Context {
-    (): any;
-  }
 }
+
+export type ContextActions<Value extends Record<string, any>> = Record<
+  string,
+  (prev: Value, ...args: any[]) => Value | Promise<Value>
+>;
+
+export type ContextActionMethods<Actions extends ContextActions<any>> = {
+  [K in keyof Actions]: (
+    ...args: Parameters<Actions[K]> extends [any, ...infer Rest] ? Rest : never
+  ) => Promise<void> & { abort: (...args: any[]) => void };
+};
+
+export type ContextProxyListener = {
+  get?: (path: string, value: any) => void;
+  set?: (path: string, value: any) => void;
+};
+
+export interface Context<
+  Value extends Record<string, any> = Record<string, any>,
+  Actions extends ContextActions<Value> = ContextActions<Value>
+> extends ContextActionMethods<Actions> {
+  (): Value;
+  readonly key: string;
+  readonly value: Value;
+  valueOf(): Value;
+  toString(): string;
+  proxy(listener?: ContextProxyListener): Value;
+}
+
+export interface ContextConstructor {
+  readonly id: symbol;
+  new <
+    Value extends Record<string, any>,
+    Actions extends ContextActions<Value> = ContextActions<Value>
+  >(
+    key: string,
+    value: Value,
+    cache?: "none" | "session" | "local" | "storage" ,
+    actions?: Actions,
+    controllers?:
+      | ((target: keyof Actions & string, status: "pending" | "completed" | "rejected", value: Value) => void)
+      | Partial<Record<keyof Actions & string, (status: "pending" | "completed" | "rejected", value: Value) => void>>,
+  ): Context<Value, Actions> & ContextActionMethods<Actions>;
+}
+
+export const Context: ContextConstructor;
 
 export {
   Component,
-  Context,
   Element,
   Form,
   Fragment,
@@ -22,5 +64,6 @@ export {
 
 export { assignStyle, File, HistoryContext, ThemeContext } from "./core/utils.js";
 export { default as router } from "./web/client/router.js";
-export { default as Controller, copy, del, get, move, patch, post, put, socket } from "./web/server/controller.js";
+export { default as socket } from "./core/socket.js";
+export { default as Controller, COPY, DELETE, GET, MOVE, PATCH, POST, PUT } from "./web/server/controller.js";
 export { worker } from "./index.js";

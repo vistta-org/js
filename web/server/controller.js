@@ -1,7 +1,23 @@
-import { socket } from "../../core/socket.js";
 import { FunctionClass } from "../../utils/index.js";
 
-export class Method extends FunctionClass {
+/**
+ * @template T
+ * @typedef {{ [K in keyof T]?: T[K] }} Optional
+ */
+
+/**
+ * @template {((args: Record<string, any>) => any)} Callback
+ * @typedef {(
+ *   args?: Optional<Parameters<Callback>[0]>
+ * ) => Promise<{
+ *  data: Awaited<ReturnType<Callback>>;
+ *  status: number;
+ *  statusText: string;
+ *  headers: Record<string, string>;
+ * }>} RESTMethodCallback
+ */
+
+export class RESTMethod extends FunctionClass {
   #type;
   #url;
 
@@ -14,124 +30,81 @@ export class Method extends FunctionClass {
   }
 
   constructor(type, url, callback) {
-    if (typeof url === "function") ((callback = url), (url = "/"));
-    super(async (request, response) => {
-      const body = await request.body();
-      return await callback.call(
-        {
-          request: request,
-          response: response,
-          socket: request.socket,
-        },
-        Object.assign(typeof body === "object" && !Buffer.isBuffer(body) ? body : { data: body }, request.params),
-      );
-    });
+    super(callback);
     this.#type = type;
     this.#url = url;
-  }
-}
-
-export class WebSocketMethod extends FunctionClass {
-  #name;
-
-  get name() {
-    return this.#name;
-  }
-
-  constructor(name, callback) {
-    super(async (...args) => await callback.call(...args));
-    this.#name = name;
   }
 }
 
 /**
  * Sets a controller COPY.
  *
- * @param {Function} callback Options for the request.
- * @also
+ * @template {(() => any)} T
  * @param {string} url - The URL for the request.
- * @param {Function} callback Options for the request.
- * @returns {Function} A promise that resolves to the response data.
+ * @param {T} callback Options for the request.
+ * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const copy = (url, callback) => new Method("copy", url, callback);
+export const COPY = (url, callback) => /** @type {any} */(new RESTMethod("copy", url, callback));
 
 /**
  * Sets a controller DELETE.
  *
- * @param {Function} callback Options for the request.
- * @also
+ * @template {(() => any)} T
  * @param {string} url - The URL for the request.
- * @param {Function} callback Options for the request.
- * @returns {Function} A promise that resolves to the response data.
+ * @param {T} callback Options for the request.
+ * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const del = (url, callback) => new Method("delete", url, callback);
+export const DELETE = (url, callback) => /** @type {any} */(new RESTMethod("delete", url, callback));
 
 /**
  * Sets a controller GET.
  *
- * @param {Function} callback Options for the request.
- * @also
+ * @template {(() => any)} T
  * @param {string} url - The URL for the request.
- * @param {Function} callback Options for the request.
- * @returns {Function} A promise that resolves to the response data.
+ * @param {T} callback Options for the request.
+ * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const get = (url, callback) => new Method("get", url, callback);
+export const GET = (url, callback) => /** @type {any} */(new RESTMethod("get", url, callback));
 
 /**
  * Sets a controller MOVE.
  *
- * @param {Function} callback Options for the request.
- * @also
+ * @template {(() => any)} T
  * @param {string} url - The URL for the request.
- * @param {Function} callback Options for the request.
- * @returns {Function} A promise that resolves to the response data.
+ * @param {T} callback Options for the request.
+ * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const move = (url, callback) => new Method("move", url, callback);
+export const MOVE = (url, callback) => /** @type {any} */(new RESTMethod("move", url, callback));
 
 /**
  * Sets a controller PATCH.
  *
- * @param {Function} callback Options for the request.
- * @also
+ * @template {(() => any)} T
  * @param {string} url - The URL for the request.
- * @param {Function} callback Options for the request.
- * @returns {Function} A promise that resolves to the response data.
+ * @param {T} callback Options for the request.
+ * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const patch = (url, callback) => new Method("patch", url, callback);
+export const PATCH = (url, callback) => /** @type {any} */(new RESTMethod("patch", url, callback));
 
 /**
  * Sets a controller POST.
  *
- * @param {Function} callback Options for the request.
- * @also
+ * @template {(() => any)} T
  * @param {string} url - The URL for the request.
- * @param {Function} callback Options for the request.
- * @returns {Function} A promise that resolves to the response data.
+ * @param {T} callback Options for the request.
+ * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const post = (url, callback) => new Method("post", url, callback);
+export const POST = (url, callback) => /** @type {any} */(new RESTMethod("post", url, callback));
 
 /**
  * Sets a controller PUT.
  *
- * @param {Function} callback Options for the request.
- * @also
+ * @template {(() => any)} T
  * @param {string} url - The URL for the request.
- * @param {Function} callback Options for the request.
- * @returns {Function} A promise that resolves to the response data.
+ * @param {T} callback Options for the request.
+ * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const put = (url, callback) => new Method("put", url, callback);
-
-/**
- * Sets a controller WebSocket event listener.
- *
- * @param {string} event - The event name to listen for.
- * @param {Function} callback - The callback function to execute when the event is triggered.
- * @returns {WebSocketMethod} A new WebSocket listener instance.
- */
-socket.on = (event, callback) => new WebSocketMethod(event, callback);
-socket.emit = () => { }; // Dummy function to avoid errors in server environment
-
-export { socket };
+export const PUT = (url, callback) => /** @type {any} */(new RESTMethod("put", url, callback));
 
 export default class Controller { }
 

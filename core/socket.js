@@ -39,4 +39,4 @@ class Socket {
 
 export const socket = new Socket();
 
-export default Socket;
+export default socket;

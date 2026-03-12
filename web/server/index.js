@@ -12,7 +12,7 @@ import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from ".
 import { code as client } from "../client/index.js" with { type: "bundler" };
 // @ts-ignore bundler attribute compiles worker source as string code
 import { code as worker } from "../client/worker.js" with { type: "bundler" };
-import { default as Controller, Method, shareToLoader, WebSocketMethod } from "./controller.js";
+import { default as Controller, RESTMethod, shareToLoader } from "./controller.js";
 import { Component, createPage } from "./page.js";
 
 const dirname = import.meta.dirname;
@@ -826,60 +826,42 @@ class Server {
   #register(type, subdomain, pathname, arg, page) {
     if (type === "api") {
       if (Object.isPrototypeOf.call(Controller, arg)) return this.#register("controller", subdomain, pathname, arg);
-      else if (arg instanceof Method)
-        return this.#register(arg.type, subdomain, pathname, async (req, res) => {
-          try {
-            Object.defineProperty(req, "socket", {
-              value: {
-                emit: this.emit.bind(this, subdomain),
-                on: this.on.bind(this, subdomain),
-              },
-              writable: false,
-              configurable: false,
-            });
-            const value = await arg(req, res);
-            if (!res.writableEnded) res.send(value);
-          } catch (e) {
-            this.#emit("error", e?.stack || e?.message || e);
-            res.reject(e.message || "Internal Server Error", 500);
-          }
-        });
-      else if (arg instanceof WebSocketMethod)
-        this.on(subdomain, arg.name, arg);
       else if (typeof arg === "function") return this.#register("all", subdomain, pathname, arg);
       else throw new TypeError("Invalid api type");
     }
     if (type === "controller") {
       if (!Object.isPrototypeOf.call(Controller, arg)) throw new TypeError("Invalid controller type");
-      const controller = new arg();
-      controller?.onConnect?.({
+      new arg({
         emit: this.emit.bind(this, subdomain),
         on: this.on.bind(this, subdomain),
-      });
-      const handlers = Object.values(controller || {});
+      })
+      const handlers = Object.values(arg);
       for (let i = 0, len = handlers.length; i < len; i++) {
         const handler = handlers[i];
-        if (handler instanceof Method) {
-          const handlerPathname = combinePathnames(pathname, handler.url);
-          this.#register(handler.type, subdomain, handlerPathname, async (req, res) => {
-            try {
-              Object.defineProperty(req, "socket", {
-                value: {
-                  emit: this.emit.bind(this, subdomain),
-                  on: this.on.bind(this, subdomain),
-                },
-                writable: true,
-                configurable: true,
-              });
-              const value = await handler(req, res);
-              if (!res.writableEnded) res.send(value);
-            } catch (e) {
-              this.#emit("error", e?.stack || e?.message || e);
-              res.reject(e.message || "Internal Server Error", 500);
-            }
-          });
-        } else if (handler instanceof WebSocketMethod)
-          this.on(subdomain, handler.name, handler);
+        if (!(handler instanceof RESTMethod)) continue;
+        this.#register(handler.type, subdomain, combinePathnames(pathname, handler.url), async (request, response) => {
+          try {
+            Object.defineProperty(request, "socket", {
+              value: {
+                emit: this.emit.bind(this, subdomain),
+                on: this.on.bind(this, subdomain),
+              },
+              writable: true,
+              configurable: true,
+            });
+            const body = await request.body();
+            const value = await handler(
+              Object.assign(typeof body === "object" && !Buffer.isBuffer(body) ? body : { data: body }, request.params, {
+                request,
+                response,
+              }),
+            );
+            if (!response.writableEnded) response.send(value);
+          } catch (e) {
+            this.#emit("error", e?.stack || e?.message || e);
+            response.reject(e.message || "Internal Server Error", 500);
+          }
+        });
       }
       return null;
     }

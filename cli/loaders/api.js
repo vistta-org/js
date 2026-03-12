@@ -1,7 +1,7 @@
 import { Loader } from "@vistta/cli";
 import "../../core/adapter.js";
 import { stringify } from "../../utils/index.js";
-import { default as Controller, Method } from "../../web/server/controller.js";
+import { default as Controller, RESTMethod } from "../../web/server/controller.js";
 
 export default class APILoader extends Loader {
   async load(_, options) {
@@ -24,23 +24,22 @@ export default class APILoader extends Loader {
       }
       code += `...url].reduce((acc, v) => v == null || v.toString() === "" ? acc : acc + "/" + v.toString(), "").replace(/\\/+/g, "/").replace(/\\/$/g, "");`;
       if (Object.prototype.isPrototypeOf.call(Controller, controller)) {
-        controller = new controller({ on() {}, emit() {} });
         const keys = Object.keys(controller);
         code += "export default {";
         for (let i = 0, len = keys?.length || 0; i < len; i++) {
           const exportName = keys[i];
           const cur = controller[exportName];
-          if (!(cur instanceof Method)) continue;
-          code += ` ${exportName}: ${convertMethodToRequest(cur)},`;
+          if (!(cur instanceof RESTMethod)) continue;
+          code += ` ${exportName}: ${convertRESTMethodToRequest(cur)},`;
         }
         code += "};";
         return { code };
-      } else if (controller instanceof Method) {
-        code += `export default ${convertMethodToRequest(controller)};`;
+      } else if (controller instanceof RESTMethod) {
+        code += `export default ${convertRESTMethodToRequest(controller)};`;
         return { code };
       } else
         throw new Error(
-          `Invalid api format. Export default must be either a Method or a class Controller from '@vistta/js'`,
+          `Invalid api format. Export default must be either a RESTMethod or a class Controller from '@vistta/js'`,
         );
     } catch (e) {
       return { errors: [`${options.path}(0,0): api error: ${e.message}.`] };
@@ -50,7 +49,7 @@ export default class APILoader extends Loader {
 
 //
 
-function convertMethodToRequest(method) {
+function convertRESTMethodToRequest(method) {
   const params = [];
   const parts = [];
   let last = 0;

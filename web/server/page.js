@@ -77,7 +77,7 @@ export async function createPage(type, filepath, pathname, layout, configs) {
             ${this.pwa ? `<link rel="manifest" href=".${pathname + (pathname.endsWith("/") ? "" : "/")}manifest.json" />` : ""}
             <style data-ssr>${Array.from(virtualDom.stylesheet.rules).join(" ")}</style>
             ${config.links?.reduce((acc, obj) => acc + `\n\t<link ${convertToAttributes(obj)} />`, "") || ""}
-            <script src="/${RESOURCES_PATH}/client.js" defer></script>
+            <script src="./${RESOURCES_PATH}/client.js" defer></script>
           </head>
           <body>
             ${virtualDom.host.innerHTML}

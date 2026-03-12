@@ -16,6 +16,10 @@ declare interface HTMLElement {
   ): Promise<any>;
 }
 
+declare interface Window {
+  readonly isServer: boolean;
+}
+
 declare module "@socket" { export function io(...args: any[]): any; }
 
 // CSS
@@ -50,6 +54,3 @@ declare module "*.ttf" {
   const path: string;
   export default path;
 }
-
-
-declare const IS_NODE: boolean;

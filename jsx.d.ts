@@ -201,7 +201,7 @@ interface EventHandlers {
 }
 
 interface CustomElement {
-  style?: JSX.Style;
+  style?: JSX.Style | string | string[];
   validator: (target?: Element) => string | boolean;
   [key: string]: any;
 }

@@ -25,7 +25,7 @@
   "dependencies": {
     "@vistta/fs": "latest",
     "@vistta/utils": "latest",
-    "autoprefixer": "^10.4.23",
+    "autoprefixer": "^10.4.27",
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
     "mime": "^4.1.0",
@@ -33,7 +33,7 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
-    "electron": "^39.2.7"
+    "electron": "^41.0.0"
   },
   "peerDependencies": {
     "@vistta/cli": "*",
