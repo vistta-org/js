@@ -19,6 +19,8 @@ import { anchor } from "./utils.js";
 const STRICT_MODE = new Error("Event strict mode active");
 const INTERNAL_COMPONENTS = new Set([Form, Profiler, Render.If, Render.Each, Safe, Suspense]);
 const isServer = !!/** @type {any} */ (window).isServer;
+const BUDGET_CHECK_INTERVAL = 8;
+
 class VirtualDomError extends Error {
   constructor(message) {
     super(message);
@@ -32,6 +34,7 @@ class VirtualDom {
   active = false;
   running = false;
   queue = [];
+  queueStart = 0;
   stylesheet = new VirtualStyleSheet();
 
   constructor(pathname, host, config) {
@@ -62,6 +65,10 @@ class VirtualDom {
   }
 
   enqueue(mutations) {
+    if (this.queueStart >= this.queue.length) {
+      this.queue.length = 0;
+      this.queueStart = 0;
+    }
     this.queue.push(...mutations);
     if (!this.active || this.running) return;
     this.running = true;
@@ -77,18 +84,27 @@ class VirtualDom {
       lastFrameTime = frameTime;
     }
     const startTime = performance.now();
-    let index = 0;
+    let index = this.queueStart;
+    let processed = 0;
 
     while (index < this.queue.length) {
       const mutation = this.queue[index++];
+      processed++;
       mutation.update?.(components, profilers);
-      if (performance.now() - startTime > frameBudget) {
-        if (index > 0) this.queue.splice(0, index);
+      if ((processed & (BUDGET_CHECK_INTERVAL - 1)) === 0 && performance.now() - startTime > frameBudget) {
+        this.queueStart = index;
+        if (this.queueStart > 1024 && this.queueStart * 2 >= this.queue.length) {
+          this.queue = this.queue.slice(this.queueStart);
+          this.queueStart = 0;
+        }
         return requestAnimationFrame((frameTime) => this.update(frameTime, components, profilers));
       }
     }
 
-    if (index > 0) this.queue.length = 0;
+    if (index > this.queueStart) {
+      this.queue.length = 0;
+      this.queueStart = 0;
+    }
     for (const component of components) component.onUpdate?.();
     for (const profiler of profilers) profiler.end?.();
     this.running = false;
