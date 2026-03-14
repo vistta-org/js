@@ -35,6 +35,16 @@ class Socket {
     if (!this.#instance) return console.warn("Socket Internal Error");
     this.#instance.on(event, callback);
   }
+
+  /**
+   * Removes an event listener from the socket.
+   * @param {string} event - The event name.
+   * @param {Function} callback - The callback function to remove.
+   */
+  off(event, callback) {
+    if (!this.#instance) return console.warn("Socket Internal Error");
+    this.#instance.off(event, callback);
+  }
 }
 
 export const socket = new Socket();
