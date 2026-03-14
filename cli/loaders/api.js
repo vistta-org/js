@@ -76,6 +76,7 @@ function convertRESTMethodToRequest(method) {
   }
 
   const arg = method.type === "get" || method.type === "delete" ? "params" : "body";
-  if (params.length == 0) return `(${arg}) => request.${method.type}(createUrl("${method.url}"), { ${arg} })`;
-  return `({ ${params.join(", ")}, ...${arg} } = {}) => request.${method.type}(createUrl(${parts.join(", ")}), { ${arg} })`;
+  if (params.length == 0)
+    return `(${arg}) => request.${method.type}(createUrl("${method.url}"), { ${arg} }).then((response) => response?.data)`;
+  return `({ ${params.join(", ")}, ...${arg} } = {}) => request.${method.type}(createUrl(${parts.join(", ")}), { ${arg} }).then((response) => response?.data)`;
 }

@@ -9,12 +9,7 @@ import { FunctionClass } from "../../utils/index.js";
  * @template {((args: Record<string, any>) => any)} Callback
  * @typedef {(
  *   args?: Optional<Parameters<Callback>[0]>
- * ) => Promise<{
- *  data: Awaited<ReturnType<Callback>>;
- *  status: number;
- *  statusText: string;
- *  headers: Record<string, string>;
- * }>} RESTMethodCallback
+ * ) => Promise<Awaited<ReturnType<Callback>>>} RESTMethodCallback
  */
 
 export class RESTMethod extends FunctionClass {
