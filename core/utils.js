@@ -1,5 +1,6 @@
 import { clone } from "@vistta/utils";
-import { Context, Ref } from "./classes.js";
+import { FunctionClass } from "../utils/index.js";
+import { Context } from "./classes.js";
 export { assignStyle } from "./stylesheet.js";
 
 export class File {
@@ -129,60 +130,118 @@ export class HistoryContext extends Context {
   }
 }
 
-const eventObservers = [];
-const elementObservers = {};
+const anchors = {
+  counter: 0,
+  observers: [],
+  sheet: null,
+  values: [],
+  refresh: false,
+};
 
-export function anchor(element, target) {
-  target = typeof target === "string" ? document.querySelector(target) : target;
-  if (target instanceof Ref) target = target.node;
-  if (!target) return;
-  let last = {};
-  const callback = (force) => {
-    if (!element.node.isConnected) return;
-    let [x, y] = /** @type {any} */ (getComputedStyle(element.node).getPropertyValue("position-area")).split(" ");
-    const anchorRect = target.getBoundingClientRect();
-    const elementRect = element.node.getBoundingClientRect();
-    if (x === "left" || x === "start") x = anchorRect.right - elementRect.width;
-    else if (x === "right" || x === "end") x = anchorRect.left;
-    else x = anchorRect.left - elementRect.width / 2;
-    if (y === "top" || y === "start") y = anchorRect.top - elementRect.height;
-    else if (y === "bottom" || y === "end") y = anchorRect.bottom;
-    else y = anchorRect.top - elementRect.height / 2;
-    if (!force && x === last.x && y === last.y) return;
-    element.node.style.setProperty("inset", `${y}px auto auto ${x}px`);
-    last = { x, y };
-  };
-  if (eventObservers.length === 0) {
-    window.addEventListener(
-      "scroll",
-      () => {
-        for (let i = 0, len = eventObservers.length; i < len; i++) eventObservers[i]();
-      },
-      true,
-    );
-    window.addEventListener("resize", () => {
-      for (let i = 0, len = eventObservers.length; i < len; i++) eventObservers[i]();
-    });
+function setAnchorVar(id, name, value) {
+  if (!anchors.sheet) {
+    const sheet = new CSSStyleSheet();
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    anchors.sheet = sheet;
   }
-  observe(target, callback);
-  observe(element.node, callback);
-  eventObservers.push(callback);
-  requestAnimationFrame(() => callback(true));
-  return {
-    destroy: () => {
-      const index = eventObservers.indexOf(callback);
-      if (index !== -1) eventObservers.splice(index, 1);
-    },
-    update: () => callback(true),
-  };
+  if (!anchors.values[id]) anchors.values[id] = {};
+  anchors.values[id][name] = value;
+  anchors.refresh = true;
 }
 
-function observe(node, callback) {
-  if (elementObservers[node]) elementObservers[node].push(callback);
-  else {
-    elementObservers[node] = [callback];
-    new ResizeObserver(() => {
-      for (let i = 0, len = elementObservers[node].length; i < len; i++) elementObservers[node][i]();
-    }).observe(node);
+/**
+ * CSS variable names exposed by Anchor.
+ * x and y are viewport-based left/top from getBoundingClientRect().
+ * width and height are element size from getBoundingClientRect().
+ *
+ * @typedef {"x" | "y" | "top" | "bottom" | "left" | "right" | "width" | "height"} AnchorKey
+ */
+
+/**
+ * Creates a function-like anchor helper that tracks an element rect and exposes
+ * CSS variable references for positioning/sizing in styles.
+ *
+ * @example
+ * const anchor = new Anchor();
+ * anchor(buttonEl);               // starts observing
+ * panel.style.left = anchor("x"); // "var(--anchor-0-x)"
+ * panel.style.top = anchor("y");
+ *
+ * @extends {FunctionClass}
+ */
+export class Anchor extends FunctionClass {
+  /** @type {Element | undefined} */
+  node;
+  #id;
+  #last = {};
+
+  #init(node) {
+    if (window.isServer || typeof node !== "object") return;
+    if (anchors.observers.length === 0) {
+      const main = () => {
+        for (let i = anchors.observers.length - 1; i >= 0; i--) {
+          if (anchors.observers[i]() === false) anchors.observers.splice(i, 1);
+        }
+        if (anchors.refresh) {
+          anchors.sheet.replaceSync(
+            anchors.values.reduce((acc, vars, idx) => {
+              if (vars) {
+                const keys = Object.keys(vars);
+                for (let i = 0, len = keys.length; i < len; i++) acc += `--anchor-${idx}-${keys[i]}:${vars[keys[i]]};`;
+              }
+              return acc;
+            }, ":root {") + "}",
+          );
+          anchors.refresh = false;
+        }
+        if (anchors.observers.length > 0) requestAnimationFrame(main);
+      };
+      requestAnimationFrame(main);
+    }
+    this.node = node;
+    const observer = () => {
+      if (!this.node || !this.node?.isConnected) return false;
+      const rect = this.node.getBoundingClientRect();
+      const top = window.innerHeight - rect.top;
+      const left = window.innerWidth - rect.left;
+      if (this.#last.x !== rect.left) (setAnchorVar(this.#id, `x`, `${rect.left}px`), (this.#last.x = rect.left));
+      if (this.#last.y !== rect.top) (setAnchorVar(this.#id, `y`, `${rect.top}px`), (this.#last.y = rect.top));
+      if (this.#last.top !== top) (setAnchorVar(this.#id, `top`, `${top}px`), (this.#last.top = top));
+      if (this.#last.bottom !== rect.bottom)
+        (setAnchorVar(this.#id, `bottom`, `${rect.bottom}px`), (this.#last.bottom = rect.bottom));
+      if (this.#last.left !== left) (setAnchorVar(this.#id, `left`, `${left}px`), (this.#last.left = left));
+      if (this.#last.right !== rect.right)
+        (setAnchorVar(this.#id, `right`, `${rect.right}px`), (this.#last.right = rect.right));
+      if (this.#last.width !== rect.width)
+        (setAnchorVar(this.#id, `width`, `${rect.width}px`), (this.#last.width = rect.width));
+      if (this.#last.height !== rect.height)
+        (setAnchorVar(this.#id, `height`, `${rect.height}px`), (this.#last.height = rect.height));
+    };
+    requestAnimationFrame(() => observer());
+    anchors.observers.push(observer);
+  }
+
+  constructor(node) {
+    super((target, offset) => {
+      if (typeof target !== "string") return this.#init(target);
+      const offsetType = typeof offset;
+      switch (target) {
+        case "x":
+        case "y":
+        case "top":
+        case "bottom":
+        case "left":
+        case "right":
+        case "width":
+        case "height":
+          if (offsetType === "number") return `calc(var(--anchor-${this.#id}-${target}) + ${offset}px)`;
+          if (offsetType === "string") return `calc(var(--anchor-${this.#id}-${target}) + ${offset})`;
+          return `var(--anchor-${this.#id}-${target})`;
+        default:
+          console.warn(`Invalid anchor target: ${target}`);
+      }
+    });
+    this.#id = anchors.counter++;
+    this.#init(node);
   }
 }

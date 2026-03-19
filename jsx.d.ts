@@ -209,7 +209,6 @@ interface CustomElement {
 interface HTMLElement {
   class?: string;
   for?: string;
-  anchor?: JSX.Anchor;
   readonly?: boolean;
   tabindex?: number;
   frameborder?: number | string;
@@ -234,7 +233,6 @@ declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
 declare namespace JSX {
   type Element = {};
   type Node = Element | Element[] | null;
-  type Anchor = string | HTMLElement | Object | { target: string | HTMLElement | Object; position?: string };
 
   type InputProps = Omit<HTMLProps<HTMLInputElement>, "value"> & {
     value?: string | number;

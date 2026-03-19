@@ -4,6 +4,8 @@ declare module "./core/classes.js" {
   interface Component<Props extends Record<string, any> = Record<string, any>> extends Props {}
 }
 
+import { AnchorKey } from "./core/utils.js";
+
 export type ContextActions<Value extends Record<string, any>> = Record<
   string,
   (prev: Value, ...args: any[]) => Value | Promise<Value>
@@ -49,6 +51,18 @@ export interface ContextConstructor {
 }
 
 export const Context: ContextConstructor;
+
+export interface Anchor {
+  node?: Element;
+  (target: Element): void;
+  (target: AnchorKey, offset?: number | string): string;
+}
+
+export interface AnchorConstructor {
+  new (node?: Element): Anchor;
+}
+
+export const Anchor: AnchorConstructor;
 
 export {
   Component,

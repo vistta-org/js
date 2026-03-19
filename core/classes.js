@@ -162,7 +162,7 @@ export class Context extends FunctionClass {
       };
       for (let i = 0, len = actionsNames.length; i < len; i++) {
         const actionName = actionsNames[i];
-        if (["valueOf", "toString", "setValue", "register", "proxy"].includes(actionName))
+        if (["valueOf", "toString", "setValue", "proxy"].includes(actionName))
           throw new Error(`Invalid action name "${actionName}".`);
         const action = actions[actionName];
         this[actionName] = ((...args) => {
@@ -179,7 +179,7 @@ export class Context extends FunctionClass {
                 value
                   .then((result) => {
                     if (controller.signal?.aborted) return;
-                    this.#replace(this.proxy(), clone(result, true));
+                    this.#replace(result);
                     resolve();
                     controllerFn(actionName, "completed");
                   })
@@ -188,7 +188,7 @@ export class Context extends FunctionClass {
                     resolve();
                   });
               else if (!controller.signal?.aborted) {
-                this.#replace(this.proxy(), clone(value, true));
+                this.#replace(value);
                 resolve();
                 controllerFn(actionName, "completed");
               }
@@ -234,68 +234,80 @@ export class Context extends FunctionClass {
   /**
    * Returns a mutable proxy to the context value and optionally subscribes to changes.
    * @param {ContextProxyListener} [listener]
-  * @returns {Record<string, any>}
+   * @returns {Record<string, any>}
    */
   proxy(listener) {
-    const listeners = this.#shared.listeners;
-    if (typeof listener?.set === "function") listeners.push(listener.set);
+    if (typeof listener?.set === "function") this.#shared.listeners.push(listener.set);
     if (this.#shared.proxy) return this.#shared.proxy;
-    const saveCache =
-      this.#shared.cache &&
-      (() => {
-        try {
-          this.#shared.cache.setItem(
-            encode(CONTEXT_CACHE_KEY + this.#key, "hex"),
-            encode(stringify(this.#shared.value), "hex"),
-          );
-        } catch (e) {
-          console.error(e);
-        }
-      });
-    let debounce;
-    this.#shared.proxy = proxy(this.#shared.value, {
+    const instance = this;
+    const update = (path) => this.#update(path);
+    return (this.#shared.proxy = proxy(this.#shared.value, {
       get(path, value) {
         if (typeof listener?.get === "function" && !path.find((cur) => typeof cur !== "string"))
-          listener.get(path.join("."), value);
+          listener.get(path.join("."));
         return value;
       },
       set(path, newValue, oldValue, next) {
         if (oldValue === newValue) return true;
-        const result = next();
-        while (path.length >= 1) {
-          for (let i = 0, len = listeners.length; i < len; i++) listeners[i](path.join("."), newValue);
-          path.pop();
-        }
-        if (!saveCache) return result;
-        clearTimeout(debounce);
-        debounce = setTimeout(saveCache, 100);
-        return result;
+        return (update(path), next());
       },
-    });
-    return this.#shared.proxy;
+      getPrototypeOf() {
+        return instance;
+      },
+    }));
   }
 
-  #replace(object, target) {
-    if (typeof object !== "object" || object === null) return;
-    const keysToRemove = Object.keys(object);
-    if (target) {
-      const keysToAssign = Object.keys(target);
-      for (let i = 0, len = keysToAssign.length; i < len; i++) {
-        const key = keysToAssign[i];
-        if (typeof target[key] === "object" && target[key] !== null) {
-          if (!Array.isArray(target[key])) {
-            if (!object[key]) object[key] = {};
-            this.#replace(object[key], target[key]);
-          } else object[key] = target[key].slice();
-        } else object[key] = target[key];
-        keysToRemove.splice(keysToRemove.indexOf(key), 1);
+  #replace(value) {
+    const helper = (object, target, path = []) => {
+      if (typeof object !== "object" || object === null) return;
+      const hasTarget = typeof target === "object" && target !== null;
+      if (hasTarget) {
+        const keysToAssign = Object.keys(target);
+        for (let i = 0, len = keysToAssign.length; i < len; i++) {
+          const key = keysToAssign[i];
+          const nextValue = target[key];
+          if (typeof nextValue === "object" && nextValue !== null) {
+            if (Array.isArray(nextValue)) object[key] = nextValue.slice();
+            else {
+              const currentValue = object[key];
+              if (typeof currentValue !== "object" || currentValue === null || Array.isArray(currentValue)) object[key] = {};
+              helper(object[key], nextValue, [...path, key]);
+            }
+          } else if (object[key] !== nextValue) {
+            object[key] = nextValue;
+            this.#update([...path, key]);
+          }
+        }
       }
+      const keys = Object.keys(object);
+      for (let i = 0, len = keys.length; i < len; i++) {
+        const key = keys[i];
+        if (hasTarget && Object.prototype.hasOwnProperty.call(target, key)) continue;
+        const currentValue = object[key];
+        if (typeof currentValue === "object" && currentValue !== null) helper(currentValue, null, [...path, key]);
+        object[key] = undefined;
+      }
+    };
+    helper(this.#shared.value, value);
+  }
+
+  #update(path) {
+    while (path.length >= 1) {
+      for (let i = 0, len = this.#shared.listeners.length; i < len; i++) this.#shared.listeners[i](path.join("."));
+      path.pop();
     }
-    for (let i = 0, len = keysToRemove.length; i < len; i++) {
-      this.#replace(object[keysToRemove[i]], null);
-      const key = keysToRemove[i];
-      object[key] = undefined;
-    }
+    if (!this.#shared.cache) return;
+    clearTimeout(this.#shared.debounce);
+    this.#shared.debounce = setTimeout(() => {
+      try {
+        this.#shared.cache.setItem(
+          encode(CONTEXT_CACHE_KEY + this.#key, "hex"),
+          encode(stringify(this.#shared.value), "hex"),
+        );
+      } catch (e) {
+        console.error(e);
+      }
+    }, 100);
   }
 
   #cache(type) {
@@ -316,16 +328,24 @@ export class Ref {
   /**
    * Composes an external ref with an internal callback.
    * @template T
-   * @param {((node: T) => void)|{ node?: T }|undefined|null} ref
-   * @param {(node: T) => any} callback
+   * @param {any[]} args
    * @returns {(node: T) => any}
    */
-  static forward(ref, callback) {
+  static forward(...args) {
     return (element) => {
-      if (typeof ref === "function") ref(element);
-      else if (ref && typeof ref === "object") ref.node = element;
-      return callback(element);
+      for (let i = 0, len = args.length; i < len; i++) Ref.assign(args[i], element);
     };
+  }
+
+  /**
+   * Assigns a value to a ref, supporting both callback and object refs.
+   * @template T
+   * @param {any} ref
+   * @param {T} value
+   */
+  static assign(ref, value) {
+    if (typeof ref === "function") ref(value);
+    else if (typeof ref == "object" && ref) ref.node = value;
   }
 
   /**
@@ -804,12 +824,15 @@ function cloneProps(props) {
  */
 function copyFieldValue(obj, path, element) {
   if (path.includes(".")) {
-    let temp = obj;
+    let cur = obj;
     const paths = path.split(".");
     for (let n = 0, pathsLen = paths.length; n < pathsLen; n++) {
       const key = paths[n];
-      if (n === pathsLen - 1) temp[key] = getFieldValue(element);
-      else ((temp[key] = temp[key] || {}), (temp = temp[key]));
+      if (n === pathsLen - 1) cur[key] = getFieldValue(element);
+      else {
+        if (!cur[key]) cur[key] = {};
+        cur = cur[key];
+      }
     }
   } else obj[path] = getFieldValue(element);
   return obj;
@@ -831,4 +854,3 @@ function getFieldValue(element) {
   if (element.type === "checkbox") return element.checked;
   return element.value;
 }
-

@@ -2,7 +2,7 @@
 import { TestRunner } from "@vistta/cli";
 import { Component, Context, Element, Form, Fragment, Profiler, Ref, Render, Safe, Suspense } from "../core/classes.js";
 import { VirtualDom } from "../core/dom.js";
-import { File, HistoryContext, ThemeContext } from "../core/utils.js";
+import { File, HistoryContext, ThemeContext, Anchor } from "../core/utils.js";
 import { defineReadonly, sleep } from "../utils/index.js";
 
 const ipc = /** @type {any} */ (globalThis.ipc);
@@ -40,6 +40,7 @@ const vistta = {
   File,
   ThemeContext,
   HistoryContext,
+  Anchor,
 };
 let dom;
 

@@ -14,11 +14,10 @@ import {
   TextNode,
 } from "./classes.js";
 import { VirtualStyleSheet } from "./stylesheet.js";
-import { anchor } from "./utils.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
 const INTERNAL_COMPONENTS = new Set([Form, Profiler, Render.If, Render.Each, Safe, Suspense]);
-const isServer = !!/** @type {any} */ (window).isServer;
+const isServer = !!(/** @type {any} */ (window).isServer);
 const BUDGET_CHECK_INTERVAL = 8;
 
 class VirtualDomError extends Error {
@@ -57,7 +56,9 @@ class VirtualDom {
     this.virtualTree = this.renderElement(host, element, {
       components: [],
     });
-    this.replaceStyleSheets();
+    const ssr = document.querySelector("style[data-ssr]");
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, this.stylesheet.content];
+    if (ssr) ssr.remove();
     this.host.replaceChildren(host.node);
     host.node = this.host;
     if (!isServer) requestAnimationFrame((frameTime) => this.update(frameTime));
@@ -116,6 +117,7 @@ class VirtualDom {
       if (element.mutations) for (const mutation of element.mutations) this.disableMutation(mutation);
       element.component?.onDisconnect?.();
     });
+
     this.active = false;
     this.running = false;
   }
@@ -143,16 +145,10 @@ class VirtualDom {
         }
       }
     }
-    this.replaceStyleSheets();
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, this.stylesheet.content];
     this.host.replaceChildren(fragment);
     this.update();
     return this;
-  }
-
-  replaceStyleSheets() {
-    const ssr = document.querySelector("style[data-ssr]");
-    document.adoptedStyleSheets = [this.stylesheet.content];
-    if (ssr) ssr.remove();
   }
 
   createElement(type) {
@@ -208,8 +204,7 @@ class VirtualDom {
       }
       element.node = this.createElement(element.type);
       if (element.ref instanceof Mutation) throw new VirtualDomError("Internal Error #003");
-      if (typeof element.ref === "function") element.ref(element.node);
-      else if (element.ref instanceof Ref) element.ref.node = element.node;
+      Ref.assign(element.ref, element.node);
       element.attributes = {};
       const keys = Object.keys(element.props);
       const getDisabledOrReadOnly = () => getPropValue(element.props.disabled) || getPropValue(element.props.readOnly);
@@ -461,7 +456,7 @@ class VirtualDom {
           this.renderElementChildren(element, [component.fallback], context, referenceNode);
           this.renderElementChildren(fragment, ensureArray(value), context, referenceNode);
         };
-        update = () => { };
+        update = () => {};
       }
 
       element.mutation = this.applyMutation({
@@ -493,7 +488,6 @@ class VirtualDom {
           this.enqueue([element.props[keys[i]]]);
         }
       }
-      if (props?.["anchor"] !== undefined) element.node.anchor?.update();
     }
 
     const previous = [...element.children];
@@ -548,18 +542,20 @@ class VirtualDom {
     element.attributes[name] = value;
     if (name === "validator" && typeof value === "function") return;
     const node = element.node;
-    if (name === "anchor") return (node.anchor = !isServer && anchor(element, value));
     if (!disabledOrReadOnly && name[0] === "o" && name[1] === "n") {
-      node[name.toLowerCase()] = typeof value === "function" ? (event, ...args) => {
-        try {
-          event.strictMode = () => {
-            if (event.target !== node) throw STRICT_MODE;
-          };
-          value(event, ...args);
-        } catch (e) {
-          if (e !== STRICT_MODE) throw e;
-        }
-      } : null;
+      node[name.toLowerCase()] =
+        typeof value === "function"
+          ? (event, ...args) => {
+              try {
+                event.strictMode = () => {
+                  if (event.target !== node) throw STRICT_MODE;
+                };
+                value(event, ...args);
+              } catch (e) {
+                if (e !== STRICT_MODE) throw e;
+              }
+            }
+          : null;
       return;
     }
     if (name === "className") name = "class";

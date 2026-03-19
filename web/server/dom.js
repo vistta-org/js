@@ -10,8 +10,6 @@ class ServerVirtualDom extends VirtualDom {
   enqueue() {}
 
   next() {}
-
-  replaceStyleSheets() {}
 }
 
 export { Component, Element, ServerVirtualDom as VirtualDom };
