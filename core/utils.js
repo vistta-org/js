@@ -172,33 +172,54 @@ export class Anchor extends FunctionClass {
     if (anchors.observers.length === 0) {
       const main = () => {
         for (let i = anchors.observers.length - 1; i >= 0; i--) {
-          if (anchors.observers[i]() === false) anchors.observers.splice(i, 1);
+          if (anchors.observers[i].read() === false) anchors.observers.splice(i, 1);
+        }
+        for (let i = 0, len = anchors.observers.length; i < len; i++) {
+          anchors.observers[i].write();
         }
         if (anchors.observers.length > 0) requestAnimationFrame(main);
       };
       requestAnimationFrame(main);
     }
     this.node = node;
-    const observer = () => {
+    /** @type {Partial<Record<AnchorKey, number>> | null} */
+    let next = null;
+    const read = () => {
       if (!this.node || !this.node?.isConnected) return false;
       const rect = this.node.getBoundingClientRect();
       const top = window.innerHeight - rect.top;
       const left = window.innerWidth - rect.left;
-      if (this.#last.x !== rect.left) (setAnchorVar(this.#id, `x`, `${rect.left}px`), (this.#last.x = rect.left));
-      if (this.#last.y !== rect.top) (setAnchorVar(this.#id, `y`, `${rect.top}px`), (this.#last.y = rect.top));
-      if (this.#last.top !== top) (setAnchorVar(this.#id, `top`, `${top}px`), (this.#last.top = top));
-      if (this.#last.bottom !== rect.bottom)
-        (setAnchorVar(this.#id, `bottom`, `${rect.bottom}px`), (this.#last.bottom = rect.bottom));
-      if (this.#last.left !== left) (setAnchorVar(this.#id, `left`, `${left}px`), (this.#last.left = left));
-      if (this.#last.right !== rect.right)
-        (setAnchorVar(this.#id, `right`, `${rect.right}px`), (this.#last.right = rect.right));
-      if (this.#last.width !== rect.width)
-        (setAnchorVar(this.#id, `width`, `${rect.width}px`), (this.#last.width = rect.width));
-      if (this.#last.height !== rect.height)
-        (setAnchorVar(this.#id, `height`, `${rect.height}px`), (this.#last.height = rect.height));
+      next = {
+        x: rect.left,
+        y: rect.top,
+        top,
+        bottom: rect.bottom,
+        left,
+        right: rect.right,
+        width: rect.width,
+        height: rect.height,
+      };
     };
-    requestAnimationFrame(() => observer());
-    anchors.observers.push(observer);
+    const write = () => {
+      if (!next) return;
+      if (this.#last.x !== next.x) (setAnchorVar(this.#id, `x`, `${next.x}px`), (this.#last.x = next.x));
+      if (this.#last.y !== next.y) (setAnchorVar(this.#id, `y`, `${next.y}px`), (this.#last.y = next.y));
+      if (this.#last.top !== next.top) (setAnchorVar(this.#id, `top`, `${next.top}px`), (this.#last.top = next.top));
+      if (this.#last.bottom !== next.bottom)
+        (setAnchorVar(this.#id, `bottom`, `${next.bottom}px`), (this.#last.bottom = next.bottom));
+      if (this.#last.left !== next.left) (setAnchorVar(this.#id, `left`, `${next.left}px`), (this.#last.left = next.left));
+      if (this.#last.right !== next.right)
+        (setAnchorVar(this.#id, `right`, `${next.right}px`), (this.#last.right = next.right));
+      if (this.#last.width !== next.width)
+        (setAnchorVar(this.#id, `width`, `${next.width}px`), (this.#last.width = next.width));
+      if (this.#last.height !== next.height)
+        (setAnchorVar(this.#id, `height`, `${next.height}px`), (this.#last.height = next.height));
+      next = null;
+    };
+    requestAnimationFrame(() => {
+      if (read() !== false) write();
+    });
+    anchors.observers.push({ read, write });
   }
 
   constructor(node) {
