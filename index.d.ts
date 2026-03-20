@@ -64,6 +64,27 @@ export interface AnchorConstructor {
 
 export const Anchor: AnchorConstructor;
 
+export class ThemeContext extends Context<
+  { value: string },
+  {
+    toggle: (prev: { value: string }) => { value: string } | Promise<{ value: string }>;
+    set: (prev: { value: string }, value: string) => { value: string } | Promise<{ value: string }>;
+  }
+> {
+  constructor();
+}
+
+export class HistoryContext<Value extends Record<string, any> = Record<string, any>> extends Context<
+  Value,
+  {
+    set: (prev: Value, state: Record<string, any>) => Value | Promise<Value>;
+    update: (prev: Value, state: Record<string, any>) => Value | Promise<Value>;
+  }
+> {
+  constructor(name: string, initial: Value, cache?: "none" | "session" | "local" | "storage");
+  onUpdate(listener: (prev: Value, next: Value) => void): void;
+}
+
 export {
   Component,
   Element,
@@ -76,7 +97,7 @@ export {
   Suspense,
 } from "./core/classes.js";
 
-export { assignStyle, File, HistoryContext, ThemeContext } from "./core/utils.js";
+export { assignStyle, File } from "./core/utils.js";
 export { default as router } from "./web/client/router.js";
 export { default as socket } from "./core/socket.js";
 export { default as Controller, COPY, DELETE, GET, MOVE, PATCH, POST, PUT } from "./web/server/controller.js";

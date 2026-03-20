@@ -133,20 +133,12 @@ export class HistoryContext extends Context {
 const anchors = {
   counter: 0,
   observers: [],
-  sheet: null,
-  values: [],
-  refresh: false,
+  root: null,
 };
 
 function setAnchorVar(id, name, value) {
-  if (!anchors.sheet) {
-    const sheet = new CSSStyleSheet();
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-    anchors.sheet = sheet;
-  }
-  if (!anchors.values[id]) anchors.values[id] = {};
-  anchors.values[id][name] = value;
-  anchors.refresh = true;
+  if (!anchors.root) anchors.root = document.querySelector(":root");
+  anchors.root.style.setProperty(`--anchor-${id}-${name}`, value);
 }
 
 /**
@@ -181,18 +173,6 @@ export class Anchor extends FunctionClass {
       const main = () => {
         for (let i = anchors.observers.length - 1; i >= 0; i--) {
           if (anchors.observers[i]() === false) anchors.observers.splice(i, 1);
-        }
-        if (anchors.refresh) {
-          anchors.sheet.replaceSync(
-            anchors.values.reduce((acc, vars, idx) => {
-              if (vars) {
-                const keys = Object.keys(vars);
-                for (let i = 0, len = keys.length; i < len; i++) acc += `--anchor-${idx}-${keys[i]}:${vars[keys[i]]};`;
-              }
-              return acc;
-            }, ":root {") + "}",
-          );
-          anchors.refresh = false;
         }
         if (anchors.observers.length > 0) requestAnimationFrame(main);
       };

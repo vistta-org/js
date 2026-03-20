@@ -267,8 +267,10 @@ export class Context extends FunctionClass {
           const key = keysToAssign[i];
           const nextValue = target[key];
           if (typeof nextValue === "object" && nextValue !== null) {
-            if (Array.isArray(nextValue)) object[key] = nextValue.slice();
-            else {
+            if (Array.isArray(nextValue)) {
+              object[key] = nextValue.slice();
+              this.#update([...path, key]);
+            } else {
               const currentValue = object[key];
               if (typeof currentValue !== "object" || currentValue === null || Array.isArray(currentValue)) object[key] = {};
               helper(object[key], nextValue, [...path, key]);
