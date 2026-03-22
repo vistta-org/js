@@ -2,14 +2,14 @@
 import { TestRunner } from "@vistta/cli";
 import { Component, Context, Element, Form, Fragment, Profiler, Ref, Render, Safe, Suspense } from "../core/classes.js";
 import { VirtualDom } from "../core/dom.js";
-import { File, HistoryContext, ThemeContext, Anchor } from "../core/utils.js";
+import { Anchor, File, HistoryContext, ThemeContext, assignStyle } from "../core/utils.js";
 import { defineReadonly, sleep } from "../utils/index.js";
 
 const ipc = /** @type {any} */ (globalThis.ipc);
 
 const FEEDBACK_TIMEOUT = 100;
 
-const runner = new TestRunner(/** @type {any} */(globalThis.testOptions));
+const runner = new TestRunner(/** @type {any} */ (globalThis.testOptions));
 const vistta = {
   Fragment,
   Element,
@@ -37,10 +37,11 @@ const vistta = {
       ipc.on(event, (_, { args }) => callback(...args));
     },
   },
-  File,
-  ThemeContext,
-  HistoryContext,
   Anchor,
+  File,
+  HistoryContext,
+  ThemeContext,
+  assignStyle,
 };
 let dom;
 
