@@ -9,22 +9,25 @@ export class Router extends BoundClass {
   #previous = null;
 
   /**
-   * 
+   *
    * @typedef {Object} NavigateOptions
    * @property {string} [href] - The URL to navigate to. Can be a full URL or a relative path.
    * @property {boolean} [pushState] - Determines whether to use pushState (true) or replaceState (false) for history management. Defaults to true.
    * @property {boolean} [refresh] - If true, forces a refresh of the current page even if the URL hasn't changed. Defaults to false.
-   * 
+   * @property {boolean} [force] - If true, forces a full page load instead of using the virtual DOM for navigation. Defaults to false.
+   *
    * Navigates to a specified URL or updates the current page based on the provided options.
    * @param {string | NavigateOptions} [arg]
+   * @param {NavigateOptions} [options]
    */
-  async navigate(arg) {
+  async navigate(arg, options) {
     const initial = !this.#loaded;
     this.#loaded = true;
-    let { href, pushState, refresh } = typeof arg === "object" ? arg : { href: arg };
+    let { href, pushState, refresh, force } = typeof arg === "object" ? arg : { href: arg, ...options };
     const updateHistory =
       pushState !== false ? (url) => history.pushState({}, "", url) : (url) => history.replaceState({}, "", url);
 
+    if (force) return (window.location.href = href);
     if (isValidUrl(href) && !isAppUrl(href)) return (window.location.href = href);
     const { pathname, hash, search } = href ? new URL(href, window.location.href) : new URL(window.location.href);
     if (this.#previous?.pathname === pathname && this.#previous?.search === search && this.#previous?.hash === hash) return;
