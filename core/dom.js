@@ -57,7 +57,7 @@ class VirtualDom {
       components: [],
     });
     const ssr = document.querySelector("style[data-ssr]");
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, this.stylesheet.content];
+    document.adoptedStyleSheets = [this.stylesheet.content];
     if (ssr) ssr.remove();
     this.host.replaceChildren(host.node);
     host.node = this.host;
@@ -145,7 +145,7 @@ class VirtualDom {
         }
       }
     }
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, this.stylesheet.content];
+    document.adoptedStyleSheets = [this.stylesheet.content];
     this.host.replaceChildren(fragment);
     this.update();
     return this;
