@@ -1,7 +1,7 @@
 "use strict";
 import { Component, Context, Element, Form, Fragment, Profiler, Ref, Render, Safe, Suspense } from "../../core/classes";
 import { socket } from "../../core/socket";
-import { Anchor, File, HistoryContext, ThemeContext, assignStyle } from "../../core/utils";
+import { Anchor, File, HistoryContext, Style, ThemeContext } from "../../core/utils";
 import { defineReadonly } from "../../utils/index.js";
 import router from "./router";
 
@@ -21,8 +21,8 @@ const vistta = {
   File,
   Anchor,
   ThemeContext,
+  Style,
   HistoryContext,
-  assignStyle,
 };
 
 defineReadonly(window, "vistta", vistta);

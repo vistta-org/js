@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 import { Component, Context, Element, Form, Fragment, Profiler, Ref, Render, Safe, Suspense } from "../core/classes.js";
 import { VirtualDom } from "../core/dom.js";
-import { Anchor, File, HistoryContext, ThemeContext, assignStyle } from "../core/utils.js";
+import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils.js";
 import { defineReadonly } from "../utils/index.js";
 
 const ipc = /** @type {any} */ (globalThis.ipc);
@@ -36,8 +36,8 @@ const vistta = {
   Anchor,
   File,
   HistoryContext,
+  Style,
   ThemeContext,
-  assignStyle,
 };
 
 defineReadonly(window, "vistta", vistta);

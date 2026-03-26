@@ -368,8 +368,16 @@ function extractKeyValueFromString(str) {
 
 // Utility
 
-export function assignStyle(target, ...sources) {
+export class Style {
+  /**
+   *
+   * @param {object | string | string[]} target
+   * @param  {...(object | string | string[])} sources
+   * @returns {object}
+   */
+  static assign(target, ...sources) {
   return Object.assign(ensureObject(target), ...sources.map(ensureObject));
+}
 }
 
 function stringStyleToObjectStyle(value) {

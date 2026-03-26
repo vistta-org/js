@@ -97,7 +97,7 @@ export {
   Suspense,
 } from "./core/classes.js";
 
-export { assignStyle, File } from "./core/utils.js";
+export { Style, File } from "./core/utils.js";
 export { default as router } from "./web/client/router.js";
 export { default as socket } from "./core/socket.js";
 export { default as Controller, COPY, DELETE, GET, MOVE, PATCH, POST, PUT } from "./web/server/controller.js";

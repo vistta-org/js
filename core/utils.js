@@ -1,7 +1,7 @@
 import { clone } from "@vistta/utils";
 import { FunctionClass } from "../utils/index.js";
 import { Context } from "./classes.js";
-export { assignStyle } from "./stylesheet.js";
+export { Style } from "./stylesheet.js";
 
 export class File {
   /**
