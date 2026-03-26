@@ -73,7 +73,7 @@ const VALUE_REGEX = new RegExp("\\$[^,){}\\s]+");
 
 export class VirtualStyleSheet extends BoundClass {
   #instance;
-  #styles = {};
+  #styleGroups = {};
   #count = 0;
   #animations = {};
   #properties = {};
@@ -93,18 +93,36 @@ export class VirtualStyleSheet extends BoundClass {
   }
 
   add(style) {
-    const { vars = {}, properties = {}, queries = {}, fonts = {}, animations = {}, ...selectors } = style;
-    let keys = Object.keys(selectors);
-    for (let i = keys.length - 1; i >= 0; i--) {
-      const value = selectors[keys[i]];
-      const typeofValue = typeof value;
-      if (keys[i] === "root") keys[i] = ":root";
-      if (typeofValue === "string" || typeofValue === "number")
-        this.#insertRule(`${keys[i]} { ${stringToStyle(value)[1]} }`);
-      else if (typeofValue === "object") {
-        if (Array.isArray(value)) this.#insertRule(`${keys[i]} { ${stringToStyle(join(value, "; "))[1]} }`);
-        else this.#insertRule(`${keys[i]} { ${objectToStyle(value)[1]} }`);
+    const { properties = {}, queries = {}, vars = {}, fonts = {}, animations = {}, ...selectors } = style;
+    let keys = Object.keys(properties);
+    for (let i = 0, len = keys.length; i < len; i++) {
+      if (typeof properties[keys[i]] !== "object") continue;
+      const values = Object.keys(properties[keys[i]]);
+      const styleValues = {};
+      for (let j = 0, vlen = values.length; j < vlen; j++) {
+        const value = properties[keys[i]][values[j]];
+        const typeofValue = typeof value;
+        if (typeofValue === "string")
+          styleValues[values[j]] = stringToStyle(value, { createAnimation: (value) => this.createAnimation(value) });
+        else if (typeofValue === "object") {
+          if (Array.isArray(value))
+            styleValues[values[j]] = stringToStyle(join(value, "; "), {
+              createAnimation: (value) => this.createAnimation(value),
+            });
+          else styleValues[values[j]] = objectToStyle(value, { createAnimation: (value) => this.createAnimation(value) });
+        }
       }
+      this.#properties[keys[i]] = (value) => {
+        if (styleValues[value]) return styleValues[value];
+        if (styleValues["*"]) return styleValues["*"].replace(/\$\{\}/g, formatValue(value));
+        return "";
+      };
+    }
+
+    keys = Object.keys(queries);
+    for (let i = 0, len = keys.length; i < len; i++) {
+      if (typeof queries[keys[i]] !== "string") continue;
+      this.#queries[keys[i]] = (style) => `@media ${queries[keys[i]]} { ${style.trim()} }`;
     }
 
     keys = Object.keys(vars);
@@ -120,7 +138,8 @@ export class VirtualStyleSheet extends BoundClass {
           );
         else
           this.#insertRule(
-            `@property --${keys[i]} { initial-value: ${formatValue(value.value || value["initial-value"])}; inherits: ${value.inherits ?? "true"
+            `@property --${keys[i]} { initial-value: ${formatValue(value.value || value["initial-value"])}; inherits: ${
+              value.inherits ?? "true"
             }; syntax: '${value.syntax ?? "*"}'; }`,
           );
       }
@@ -148,38 +167,19 @@ export class VirtualStyleSheet extends BoundClass {
       const animation = keys[i];
       const value = animations[animation];
       if (typeof value !== "object" || Array.isArray(value)) continue;
-      this.#insertRule(`@keyframes ${animation} { ${objectToStyle(value)[1]} }`);
+      this.#insertRule(`@keyframes ${animation} { ${objectToStyle(value)} }`);
     }
 
-    keys = Object.keys(properties);
-    for (let i = 0, len = keys.length; i < len; i++) {
-      if (typeof properties[keys[i]] !== "object") continue;
-      const values = Object.keys(properties[keys[i]]);
-      const styleValues = {};
-      for (let j = 0, vlen = values.length; j < vlen; j++) {
-        const value = properties[keys[i]][values[j]];
-        const typeofValue = typeof value;
-        if (typeofValue === "string")
-          styleValues[values[j]] = stringToStyle(value, { createAnimation: (value) => this.createAnimation(value) })[1];
-        else if (typeofValue === "object") {
-          if (Array.isArray(value))
-            styleValues[values[j]] = stringToStyle(join(value, "; "), {
-              createAnimation: (value) => this.createAnimation(value),
-            })[1];
-          else styleValues[values[j]] = objectToStyle(value, { createAnimation: (value) => this.createAnimation(value) })[1];
-        }
+    keys = Object.keys(selectors);
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const value = selectors[keys[i]];
+      const typeofValue = typeof value;
+      if (keys[i] === "root") keys[i] = ":root";
+      if (typeofValue === "string" || typeofValue === "number") this.#insertRule(`${keys[i]} { ${stringToStyle(value)} }`);
+      else if (typeofValue === "object") {
+        if (Array.isArray(value)) this.#insertRule(`${keys[i]} { ${stringToStyle(join(value, "; "))} }`);
+        else this.#insertRule(`${keys[i]} { ${objectToStyle(value)} }`);
       }
-      this.#properties[keys[i]] = (value) => {
-        if (styleValues[value]) return styleValues[value];
-        if (styleValues["*"]) return styleValues["*"].replace(/\$\{\}/g, formatValue(value));
-        return "";
-      };
-    }
-
-    keys = Object.keys(queries);
-    for (let i = 0, len = keys.length; i < len; i++) {
-      if (typeof queries[keys[i]] !== "string") continue;
-      this.#queries[keys[i]] = (style) => `@media ${queries[keys[i]]} { ${style.trim()} }`;
     }
   }
 
@@ -187,51 +187,30 @@ export class VirtualStyleSheet extends BoundClass {
     let style;
     const typeofValue = typeof value;
     if (typeofValue === "string")
-      [value, style] = stringToStyle(value, {
+      style = stringToStyle(value, {
         properties: this.#properties,
         queries: this.#queries,
         createAnimation: (value) => this.createAnimation(value),
       });
     else if (typeofValue === "object") {
       if (Array.isArray(value))
-        [value, style] = stringToStyle(join(value, "; "), {
+        style = stringToStyle(join(value, "; "), {
           properties: this.#properties,
           queries: this.#queries,
           createAnimation: (value) => this.createAnimation(value),
         });
       else
-        [value, style] = objectToStyle(value, {
+        style = objectToStyle(value, {
           properties: this.#properties,
           queries: this.#queries,
           createAnimation: (value) => this.createAnimation(value),
         });
     } else return "";
-    if (style) {
-      let id = this.#styles[style];
-      if (!id) {
-        this.#styles[style] = id = uniqueString(this.#count++);
-        this.#insertRule(`[style*="${id}"] { ${style}}`);
-      }
-      value += id + " ";
-    }
-    return value.slice(0, -1);
-  }
-
-  setProperty(element, property, value, priority) {
-    value = formatValue(value, priority === "important");
-    const styleAttr = element.attributes.style;
-    if (!styleAttr) return element.setAttribute("style", `${property}: ${value};`);
-    const current = styleAttr.nodeValue;
-    const searchStr = `${property}:`;
-    let start = current.indexOf(searchStr);
-    if (start === -1) {
-      const separator = current && !current.endsWith(";") ? "; " : "";
-      styleAttr.nodeValue = current + separator + `${property}: ${value};`;
-    } else {
-      const end = current.indexOf(";", start) + 1;
-      const newValue = current.slice(0, start) + `${property}: ${value};` + current.slice(end);
-      styleAttr.nodeValue = newValue.trim();
-    }
+    if (!style) return "";
+    if (this.#styleGroups[style]) return this.#styleGroups[style];
+    const id = (this.#styleGroups[style] = this.#count++);
+    this.#insertRule(`[style-group="${id}"] { ${style}}`);
+    return id;
   }
 
   createAnimation(value) {
@@ -271,21 +250,19 @@ export class VirtualStyleSheet extends BoundClass {
 }
 
 function stringToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) {
-  let selectors = "";
   let style = "";
   let [key, val, rest] = extractKeyValueFromString(value);
   while (key) {
     if (val?.startsWith("(") && val?.endsWith(")"))
-      style += format(key, stringToStyle(val.slice(1, -1), options)[1], { ...options, selector: true })[1] + " ";
-    else style += format(key, val ?? "default", { ...options, selector: false })[1] + " ";
+      style += format(key, stringToStyle(val.slice(1, -1), options), { ...options, selector: true }) + " ";
+    else style += format(key, val ?? "default", { ...options, selector: false }) + " ";
     [key, val, rest] = extractKeyValueFromString(rest);
   }
-  return [selectors, style];
+  return style;
 }
 
 function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) {
   const { properties, queries, createAnimation } = options;
-  let selectors = "";
   let style = "";
   const keys = Object.keys(value);
   for (let i = 0, len = keys.length; i < len; i++) {
@@ -293,41 +270,41 @@ function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
     let cur = value[key];
     const typeofValue = typeof cur;
     if (typeofValue === "string" || typeofValue === "number")
-      style += format(key, cur, { properties, queries, selector: false, createAnimation })[1] + " ";
+      style += format(key, cur, { properties, queries, selector: false, createAnimation }) + " ";
     else if (typeofValue === "boolean" && cur === true)
-      style += format(key, "default", { properties, queries, selector: false, createAnimation })[1] + " ";
+      style += format(key, "default", { properties, queries, selector: false, createAnimation }) + " ";
     else if (typeofValue === "object") {
       if (Array.isArray(cur))
-        style += format(key, join(cur, " "), { properties, queries, selector: false, createAnimation })[1] + " ";
+        style += format(key, join(cur, " "), { properties, queries, selector: false, createAnimation }) + " ";
       else
         style +=
-          format(key, objectToStyle(cur, { properties, queries, createAnimation })[1], {
+          format(key, objectToStyle(cur, { properties, queries, createAnimation }), {
             properties,
             queries,
             selector: true,
             createAnimation,
-          })[1] + " ";
+          }) + " ";
     }
   }
-  return [selectors, style];
+  return style;
 }
 
 function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
   const { properties = {}, queries = {}, selector, createAnimation } = options;
   key = camelToKebab(key);
   if (!selector) {
-    if (properties[key]) return [null, properties[key](value)];
-    return [null, `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value)};`];
+    if (properties[key]) return properties[key](value);
+    return `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value)};`;
   }
-  if (key === "animation") return [null, createAnimation ? createAnimation(value) : ""];
-  if (queries[key]) return [null, queries[key](value) + " "];
-  if (PSEUDO_CLASSES[key]) return [null, `${PSEUDO_CLASSES[key]} { ${value}}`];
+  if (key === "animation") return createAnimation ? createAnimation(value) : "";
+  if (queries[key]) return queries[key](value) + " ";
+  if (PSEUDO_CLASSES[key]) return `${PSEUDO_CLASSES[key]} { ${value}}`;
   for (let i = 0, len = PSEUDO_FUCTIONS.length; i < len; i++)
     if (key.startsWith(PSEUDO_FUCTIONS[i] + "(") && key.endsWith(")"))
-      return [null, `&:${PSEUDO_FUCTIONS[i]}(${key.slice(PSEUDO_FUCTIONS[i].length + 1, -1)}) { ${value}}`];
-  if (key === "initial") return [null, `@starting-style { ${value}}`];
-  else if (key.startsWith("media(") && key.endsWith(")")) return [null, `@media ${key.slice(6, -1).trim()} { ${value}}`];
-  return [null, `${key} { ${value}}`];
+      return `&:${PSEUDO_FUCTIONS[i]}(${key.slice(PSEUDO_FUCTIONS[i].length + 1, -1)}) { ${value}}`;
+  if (key === "initial") return `@starting-style { ${value}}`;
+  else if (key.startsWith("media(") && key.endsWith(")")) return `@media ${key.slice(6, -1).trim()} { ${value}}`;
+  return `${key} { ${value}}`;
 }
 
 function formatValue(value, important = false) {
@@ -339,10 +316,6 @@ function formatValue(value, important = false) {
     match = VALUE_REGEX.exec(value);
   }
   return important ? value + " !important" : value;
-}
-
-function uniqueString(count) {
-  return (Math.imul(count ^ 0x9e3779b9, 0x85ebca6b) >>> 0).toString(36).padStart(6, "0").slice(-6);
 }
 
 function extractKeyValueFromString(str) {
@@ -376,8 +349,8 @@ export class Style {
    * @returns {object}
    */
   static assign(target, ...sources) {
-  return Object.assign(ensureObject(target), ...sources.map(ensureObject));
-}
+    return Object.assign(ensureObject(target), ...sources.map(ensureObject));
+  }
 }
 
 function stringStyleToObjectStyle(value) {

@@ -153,11 +153,7 @@ class VirtualDom {
 
   createElement(type) {
     if (type === "fragment") return document.createDocumentFragment();
-    const element = document.createElement(type);
-    Object.defineProperty(element.style, "setProperty", {
-      value: (property, value, priority) => this.stylesheet.setProperty(element, property, value, priority),
-    });
-    return element;
+    return document.createElement(type);
   }
 
   renderElement(parent, element, context, referenceNode) {
@@ -561,7 +557,7 @@ class VirtualDom {
     if (name === "className") name = "class";
     if (value == null || value === false) node.removeAttribute(name);
     else if (name === "value") node.value = value;
-    else if (name === "style") node.setAttribute(name, this.stylesheet.resolve(value));
+    else if (name === "style") node.setAttribute(`style-group`, this.stylesheet.resolve(value));
     else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(value, " "));
     else node.setAttribute(name, typeof value === "boolean" ? "" : value);
   }
