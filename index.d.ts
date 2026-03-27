@@ -56,6 +56,14 @@ export interface Anchor {
   node?: Element;
   (target: Element): void;
   (target: AnchorKey, offset?: number | string): string;
+  x: string;
+  y: string;
+  top: string;
+  bottom: string;
+  left: string;
+  right: string;
+  width: string;
+  height: string;
 }
 
 export interface AnchorConstructor {

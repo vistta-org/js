@@ -245,4 +245,36 @@ export class Anchor extends FunctionClass {
     this.#id = anchors.counter++;
     this.#init(node);
   }
+
+  get x() {
+    return `var(--anchor-${this.#id}-x)`;
+  }
+
+  get y() {
+    return `var(--anchor-${this.#id}-y)`;
+  }
+
+  get top() {
+    return `var(--anchor-${this.#id}-top)`;
+  }
+
+  get bottom() {
+    return `var(--anchor-${this.#id}-bottom)`;
+  }
+
+  get left() {
+    return `var(--anchor-${this.#id}-left)`;
+  }
+
+  get right() {
+    return `var(--anchor-${this.#id}-right)`;
+  }
+
+  get width() {
+    return `var(--anchor-${this.#id}-width)`;
+  }
+
+  get height() {
+    return `var(--anchor-${this.#id}-height)`;
+  }
 }
