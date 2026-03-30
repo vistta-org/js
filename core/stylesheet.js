@@ -9,58 +9,6 @@ import { BoundClass, join } from "@vistta/utils";
  * @typedef {string|StyleDefinition} Stylesheet
  */
 
-const PSEUDO_CLASSES = {
-  root: "&:root",
-  after: "&::after",
-  before: "&::before",
-  "first-letter": "&::first-letter",
-  "first-line": "&::first-line",
-  selection: "&::selection",
-  backdrop: "&::backdrop",
-  placeholder: "&::placeholder",
-  link: "&:link",
-  visited: "&:visited",
-  active: "&:active",
-  checked: "&:checked",
-  disabled: "&:disabled",
-  valid: "&:valid",
-  invalid: "&:invalid",
-  optional: "&:optional",
-  required: "&:required",
-  "read-only": "&:read-only",
-  empty: "&:empty",
-  enabled: "&:enabled",
-  focus: "&:focus",
-  "focus-within": "&:focus-within",
-  hover: "&:hover",
-  "in-range": "&:in-range",
-  "out-of-range": "&:out-of-range",
-  indeterminate: "&:indeterminate",
-  first: "&:first-child",
-  last: "&:last-child",
-  "only-child": "&:only-child",
-  "first-child": "> *:first-child",
-  "last-child": "> *:last-child",
-  "starting-style": "@starting-style",
-};
-
-const PSEUDO_FUCTIONS = [
-  "is",
-  "not",
-  "has",
-  "dir",
-  "lang",
-  "host",
-  "where",
-  "nth-col",
-  "nth-child",
-  "nth-of-type",
-  "nth-last-col",
-  "host-context",
-  "nth-last-child",
-  "nth-last-of-type",
-];
-
 const VALUE_REGEX = /\$[^,){}\s]+/g;
 
 /**
@@ -341,12 +289,9 @@ function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
   }
   if (key === "animation") return createAnimation ? createAnimation(value) : "";
   if (queries[key]) return queries[key](value) + " ";
-  if (PSEUDO_CLASSES[key]) return `${PSEUDO_CLASSES[key]} { ${value}}`;
-  for (let i = 0, len = PSEUDO_FUCTIONS.length; i < len; i++)
-    if (key.startsWith(PSEUDO_FUCTIONS[i] + "(") && key.endsWith(")"))
-      return `&:${PSEUDO_FUCTIONS[i]}(${key.slice(PSEUDO_FUCTIONS[i].length + 1, -1)}) { ${value}}`;
-  if (key === "initial") return `@starting-style { ${value}}`;
-  else if (key.startsWith("media(") && key.endsWith(")")) return `@media ${key.slice(6, -1).trim()} { ${value}}`;
+  if (key === ":initial") return `@starting-style { ${value}}`;
+  if (key.startsWith(":media(") && key.endsWith(")")) return `@media (${key.slice(7, -1).trim()}) { ${value}}`;
+  if (key.startsWith(":")) return `&${key} { ${value} } `;
   return `${key} { ${value}}`;
 }
 
@@ -366,10 +311,9 @@ function formatValue(value, important = false, functions = []) {
 
 function extractKeyValueFromString(str) {
   if (!str) return [];
-  let key = null,
-    val = null,
-    ignore = 0,
-    quote = null;
+  let ignore = 0;
+  let quote = null;
+  let split = null;
   for (let i = 0, len = str.length; i < len; i++) {
     if (quote) {
       if (str[i] === quote && str[i - 1] !== "\\") quote = null;
@@ -382,16 +326,14 @@ function extractKeyValueFromString(str) {
     if (str[i] === ")" && ignore > 0) ignore--;
     else if (str[i] === "(") ignore++;
     else if (ignore > 0) continue;
-    else if (str[i] === ":") key = str.slice(0, i);
+    else if (str[i] === ":") split = i;
     else if (str[i] === ";") {
-      if (key) val = str.slice(key.length + 1, i);
-      else key = str.slice(0, i);
-      return [key.trim(), val?.trim(), str.slice(i + 1)];
+      if (!split) return [str.slice(0, i).trim(), null, str.slice(i + 1).trim()];
+      return [str.slice(0, split).trim(), str.slice(split + 1, i).trim(), str.slice(i + 1).trim()];
     }
   }
-  if (key && !val) val = str.slice(key.length + 1);
-  else if (!key) key = str;
-  return [key?.trim(), val?.trim()];
+  if (!split) return [str.trim()];
+  return [str.slice(0, split).trim(), str.slice(split + 1).trim()];
 }
 
 // Utility
