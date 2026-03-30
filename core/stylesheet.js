@@ -61,12 +61,13 @@ const PSEUDO_FUCTIONS = [
   "nth-last-of-type",
 ];
 
-const VALUE_REGEX = new RegExp("\\$[^,){}\\s]+");
+const VALUE_REGEX = /\$[^,){}\s]+/g;
 
 /**
  * @typedef {Object} StyleFormatOptions
  * @property {any} [properties]
  * @property {any} [queries]
+ * @property {any} [functions]
  * @property {boolean} [selector]
  * @property {(value: string) => string} [createAnimation]
  */
@@ -78,6 +79,7 @@ export class VirtualStyleSheet extends BoundClass {
   #animations = {};
   #properties = {};
   #queries = {};
+  #functions = [];
 
   get rules() {
     return this.#instance.cssRules;
@@ -93,7 +95,7 @@ export class VirtualStyleSheet extends BoundClass {
   }
 
   add(style) {
-    const { properties = {}, queries = {}, vars = {}, fonts = {}, animations = {}, ...selectors } = style;
+    const { properties = {}, queries = {}, functions = {}, vars = {}, fonts = {}, animations = {}, ...selectors } = style;
     let keys = Object.keys(properties);
     for (let i = 0, len = keys.length; i < len; i++) {
       if (typeof properties[keys[i]] !== "object") continue;
@@ -123,6 +125,12 @@ export class VirtualStyleSheet extends BoundClass {
     for (let i = 0, len = keys.length; i < len; i++) {
       if (typeof queries[keys[i]] !== "string") continue;
       this.#queries[keys[i]] = (style) => `@media ${queries[keys[i]]} { ${style.trim()} }`;
+    }
+
+    keys = Object.keys(functions);
+    for (let i = 0, len = keys.length; i < len; i++) {
+      if (typeof functions[keys[i]] !== "string") continue;
+      this.#functions.push({ regex: new RegExp(keys[i] + "\\(([^)]+)\\)", "g"), template: functions[keys[i]] });
     }
 
     keys = Object.keys(vars);
@@ -167,7 +175,13 @@ export class VirtualStyleSheet extends BoundClass {
       const animation = keys[i];
       const value = animations[animation];
       if (typeof value !== "object" || Array.isArray(value)) continue;
-      this.#insertRule(`@keyframes ${animation} { ${objectToStyle(value)} }`);
+      this.#insertRule(
+        `@keyframes ${animation} { ${objectToStyle(value, {
+          properties: this.#properties,
+          queries: this.#queries,
+          functions: this.#functions,
+        })} }`,
+      );
     }
 
     keys = Object.keys(selectors);
@@ -175,10 +189,35 @@ export class VirtualStyleSheet extends BoundClass {
       const value = selectors[keys[i]];
       const typeofValue = typeof value;
       if (keys[i] === "root") keys[i] = ":root";
-      if (typeofValue === "string" || typeofValue === "number") this.#insertRule(`${keys[i]} { ${stringToStyle(value)} }`);
+      else if (/[{}]/.test(keys[i])) continue;
+      if (typeofValue === "string" || typeofValue === "number")
+        this.#insertRule(
+          `${keys[i]} { ${stringToStyle(value, {
+            properties: this.#properties,
+            queries: this.#queries,
+            functions: this.#functions,
+            createAnimation: (value) => this.createAnimation(value),
+          })} }`,
+        );
       else if (typeofValue === "object") {
-        if (Array.isArray(value)) this.#insertRule(`${keys[i]} { ${stringToStyle(join(value, "; "))} }`);
-        else this.#insertRule(`${keys[i]} { ${objectToStyle(value)} }`);
+        if (Array.isArray(value))
+          this.#insertRule(
+            `${keys[i]} { ${stringToStyle(join(value, "; "), {
+              properties: this.#properties,
+              queries: this.#queries,
+              functions: this.#functions,
+              createAnimation: (value) => this.createAnimation(value),
+            })} }`,
+          );
+        else
+          this.#insertRule(
+            `${keys[i]} { ${objectToStyle(value, {
+              properties: this.#properties,
+              queries: this.#queries,
+              functions: this.#functions,
+              createAnimation: (value) => this.createAnimation(value),
+            })} }`,
+          );
       }
     }
   }
@@ -190,6 +229,7 @@ export class VirtualStyleSheet extends BoundClass {
       style = stringToStyle(value, {
         properties: this.#properties,
         queries: this.#queries,
+        functions: this.#functions,
         createAnimation: (value) => this.createAnimation(value),
       });
     else if (typeofValue === "object") {
@@ -197,12 +237,14 @@ export class VirtualStyleSheet extends BoundClass {
         style = stringToStyle(join(value, "; "), {
           properties: this.#properties,
           queries: this.#queries,
+          functions: this.#functions,
           createAnimation: (value) => this.createAnimation(value),
         });
       else
         style = objectToStyle(value, {
           properties: this.#properties,
           queries: this.#queries,
+          functions: this.#functions,
           createAnimation: (value) => this.createAnimation(value),
         });
     } else return "";
@@ -262,7 +304,7 @@ function stringToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
 }
 
 function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) {
-  const { properties, queries, createAnimation } = options;
+  const { properties, queries, functions, createAnimation } = options;
   let style = "";
   const keys = Object.keys(value);
   for (let i = 0, len = keys.length; i < len; i++) {
@@ -270,17 +312,18 @@ function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
     let cur = value[key];
     const typeofValue = typeof cur;
     if (typeofValue === "string" || typeofValue === "number")
-      style += format(key, cur, { properties, queries, selector: false, createAnimation }) + " ";
+      style += format(key, cur, { properties, queries, functions, selector: false, createAnimation }) + " ";
     else if (typeofValue === "boolean" && cur === true)
-      style += format(key, "default", { properties, queries, selector: false, createAnimation }) + " ";
+      style += format(key, "default", { properties, queries, functions, selector: false, createAnimation }) + " ";
     else if (typeofValue === "object") {
       if (Array.isArray(cur))
-        style += format(key, join(cur, " "), { properties, queries, selector: false, createAnimation }) + " ";
+        style += format(key, join(cur, " "), { properties, queries, functions, selector: false, createAnimation }) + " ";
       else
         style +=
-          format(key, objectToStyle(cur, { properties, queries, createAnimation }), {
+          format(key, objectToStyle(cur, { properties, queries, functions, createAnimation }), {
             properties,
             queries,
+            functions,
             selector: true,
             createAnimation,
           }) + " ";
@@ -290,11 +333,11 @@ function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
 }
 
 function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
-  const { properties = {}, queries = {}, selector, createAnimation } = options;
+  const { properties = {}, queries = {}, functions = [], selector, createAnimation } = options;
   key = camelToKebab(key);
   if (!selector) {
-    if (properties[key]) return properties[key](value);
-    return `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value)};`;
+    if (properties[key]) return properties[key](formatValue(value, false, functions));
+    return `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value, false, functions)};`;
   }
   if (key === "animation") return createAnimation ? createAnimation(value) : "";
   if (queries[key]) return queries[key](value) + " ";
@@ -307,14 +350,17 @@ function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
   return `${key} { ${value}}`;
 }
 
-function formatValue(value, important = false) {
+function formatValue(value, important = false, functions = []) {
   value = value?.toString()?.trim() || "";
   if (value.endsWith("!")) ((important = true), (value = value.slice(0, -1)));
-  let match = VALUE_REGEX.exec(value);
-  while (match) {
-    value = value.replace(match[0], `var(--${match[0].slice(1)})`);
-    match = VALUE_REGEX.exec(value);
+  for (let i = 0, len = functions.length; i < len; i++) {
+    const { regex, template } = functions[i];
+    value = value.replaceAll(regex, (_, args) => {
+      const parts = args.split(",").map((a) => a.trim());
+      return template.replace(/\$\{(\d+)(?::([^}]*))?\}/g, (_, n, def) => parts[n - 1] ?? def ?? "");
+    });
   }
+  value = value.replaceAll(VALUE_REGEX, (match) => `var(--${match.slice(1)})`);
   return important ? value + " !important" : value;
 }
 
@@ -322,8 +368,17 @@ function extractKeyValueFromString(str) {
   if (!str) return [];
   let key = null,
     val = null,
-    ignore = 0;
+    ignore = 0,
+    quote = null;
   for (let i = 0, len = str.length; i < len; i++) {
+    if (quote) {
+      if (str[i] === quote && str[i - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (str[i] === '"' || str[i] === "'") {
+      quote = str[i];
+      continue;
+    }
     if (str[i] === ")" && ignore > 0) ignore--;
     else if (str[i] === "(") ignore++;
     else if (ignore > 0) continue;
@@ -374,5 +429,5 @@ function ensureObject(value) {
 }
 
 function camelToKebab(str) {
-  return str.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+  return str.replace(/[A-Z]+/g, (match, offset) => (offset ? "-" : "") + match.toLowerCase());
 }
