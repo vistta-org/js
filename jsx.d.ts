@@ -222,9 +222,10 @@ declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
     {
       [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K];
     },
-    "style"
+    "style" | "contentEditable"
   > & {
     style?: JSX.Style;
+    contentEditable?: boolean;
   } &
     EventHandlers &
     CustomElement
@@ -242,6 +243,10 @@ declare namespace JSX {
     value?: string | number;
   };
 
+  type ButtonProps = Omit<HTMLProps<HTMLButtonElement>, "type"> & {
+    type?: "button" | "reset" | "submit" | {};
+  };
+
   class Component<T extends Record<string, any> = {}> {
     constructor(props?: T);
   }
@@ -252,38 +257,19 @@ declare namespace JSX {
     [K in keyof HTMLElementTagNameMap]: HTMLProps<HTMLElementTagNameMap[K]>;
   };
 
-  type IntrinsicElementMap = Omit<BaseIntrinsicElementMap, "input" | "textarea"> & {
+  type IntrinsicElementMap = Omit<BaseIntrinsicElementMap, "input" | "textarea" | "button"> & {
     input: InputProps;
     textarea: TextareaProps;
+    button: ButtonProps;
   };
 
-  interface IntrinsicElements extends IntrinsicElementMap {
-    [componentName: string]: any;
-  }
+  interface IntrinsicElements extends IntrinsicElementMap {}
 
-  type LibraryManagedAttributes<C, _> = C extends new (...args: any[]) => infer Instance ? ComponentProps<Instance> : never;
+  type LibraryManagedAttributes<C, _> = C extends new (props?: infer P, ...args: any[]) => any ? Partial<P> & { children?: any } : never;
 
   interface IntrinsicAttributes {
     key?: string | number;
   }
 
-  type ComponentProps<T> = Partial<
-    Omit<
-      Pick<
-        T,
-        {
-          [K in keyof T]: T[K] extends (...args: any[]) => any ? never : K;
-        }[keyof T]
-      >,
-      "children"
-    >
-  > & { children?: any } &
-    Partial<
-      Pick<
-        T,
-        {
-          [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
-        }[keyof T]
-      >
-    >;
+  type ComponentProps<T> = Partial<Omit<T, "children">> & { children?: any };
 }

@@ -9,8 +9,6 @@ import { BoundClass, join } from "@vistta/utils";
  * @typedef {string|StyleDefinition} Stylesheet
  */
 
-const VALUE_REGEX = /\$[^,){}\s]+/g;
-
 /**
  * @typedef {Object} StyleFormatOptions
  * @property {any} [properties]
@@ -78,7 +76,7 @@ export class VirtualStyleSheet extends BoundClass {
     keys = Object.keys(functions);
     for (let i = 0, len = keys.length; i < len; i++) {
       if (typeof functions[keys[i]] !== "string") continue;
-      this.#functions.push({ regex: new RegExp(keys[i] + "\\(([^)]+)\\)", "g"), template: functions[keys[i]] });
+      this.#functions.push({ regex: new RegExp(keys[i] + "\\(", "g"), template: functions[keys[i]] });
     }
 
     keys = Object.keys(vars);
@@ -133,7 +131,7 @@ export class VirtualStyleSheet extends BoundClass {
     }
 
     keys = Object.keys(selectors);
-    for (let i = keys.length - 1; i >= 0; i--) {
+    for (let i = 0, len = keys.length; i < len; i++) {
       const value = selectors[keys[i]];
       const typeofValue = typeof value;
       if (keys[i] === "root") keys[i] = ":root";
@@ -290,9 +288,75 @@ function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
   if (key === "animation") return createAnimation ? createAnimation(value) : "";
   if (queries[key]) return queries[key](value) + " ";
   if (key === ":initial") return `@starting-style { ${value}}`;
-  if (key.startsWith(":media(") && key.endsWith(")")) return `@media (${key.slice(7, -1).trim()}) { ${value}}`;
+  const atRule = key.match(/^:(media|supports|container|layer)\((.+)\)$/);
+  if (atRule)
+    return atRule[1] === "layer"
+      ? `@layer ${atRule[2].trim()} { ${value}}`
+      : `@${atRule[1]} (${atRule[2].trim()}) { ${value}}`;
+  key = key.replace(
+    /:(:)?(before|after|first-line|first-letter|selection|placeholder|marker|backdrop|file-selector-button|cue|target-text|spelling-error|grammar-error|part|slotted|highlight|view-transition)(?![a-z0-9-])/g,
+    (match, double, name) => {
+      if (double) return match;
+      return `::${name}`;
+    },
+  );
   if (key.startsWith(":")) return `&${key} { ${value} } `;
   return `${key} { ${value}}`;
+}
+
+function replaceFunction(value, regex, template) {
+  let result = "";
+  let i = 0;
+  regex.lastIndex = 0;
+  let match;
+  while ((match = regex.exec(value)) !== null) {
+    const idx = match.index;
+    if (idx > 0 && /[a-zA-Z0-9_-]/.test(value[idx - 1])) continue;
+    result += value.slice(i, idx);
+    const start = idx + match[0].length;
+    let depth = 1;
+    let end = start;
+    while (end < value.length && depth > 0) {
+      if (value[end] === "(") depth++;
+      else if (value[end] === ")") depth--;
+      end++;
+    }
+    if (depth !== 0) {
+      result += value.slice(idx, end);
+      i = end;
+      continue;
+    }
+    const argsStr = value.slice(start, end - 1);
+    const parts = splitFunctionArgs(argsStr);
+    const replacement = template.replace(/\$\{(\d+)(?::([^}]*))?\}/g, (_, n, def) => parts[n - 1]?.trim() ?? def ?? "");
+    result += replacement;
+    i = end;
+    regex.lastIndex = end;
+  }
+  result += value.slice(i);
+  return result;
+}
+
+function splitFunctionArgs(str) {
+  const parts = [];
+  let depth = 0;
+  let current = "";
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] === "(") {
+      depth++;
+      current += str[i];
+    } else if (str[i] === ")") {
+      depth--;
+      current += str[i];
+    } else if (str[i] === "," && depth === 0) {
+      parts.push(current);
+      current = "";
+    } else {
+      current += str[i];
+    }
+  }
+  if (current) parts.push(current);
+  return parts;
 }
 
 function formatValue(value, important = false, functions = []) {
@@ -300,12 +364,9 @@ function formatValue(value, important = false, functions = []) {
   if (value.endsWith("!")) ((important = true), (value = value.slice(0, -1)));
   for (let i = 0, len = functions.length; i < len; i++) {
     const { regex, template } = functions[i];
-    value = value.replaceAll(regex, (_, args) => {
-      const parts = args.split(",").map((a) => a.trim());
-      return template.replace(/\$\{(\d+)(?::([^}]*))?\}/g, (_, n, def) => parts[n - 1] ?? def ?? "");
-    });
+    value = replaceFunction(value, regex, template);
   }
-  value = value.replaceAll(VALUE_REGEX, (match) => `var(--${match.slice(1)})`);
+  value = value.replaceAll(/\$[^,){}\s]+/g, (match) => `var(--${match.slice(1)})`);
   return important ? value + " !important" : value;
 }
 

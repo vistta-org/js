@@ -617,7 +617,11 @@ export class Form extends Component {
 
     if (
       !node ||
-      (type !== "input" && type !== "textarea" && type !== "select" && attributes.role !== "input") ||
+      (type !== "input" &&
+        type !== "textarea" &&
+        type !== "select" &&
+        attributes.role !== "input" &&
+        attributes.role !== "select") ||
       attributes.type === "submit"
     )
       return;

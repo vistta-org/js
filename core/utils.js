@@ -133,13 +133,8 @@ export class HistoryContext extends Context {
 const anchors = {
   counter: 0,
   observers: [],
-  root: null,
+  style: null,
 };
-
-function setAnchorVar(id, name, value) {
-  if (!anchors.root) anchors.root = document.querySelector(":root");
-  anchors.root.style.setProperty(`--anchor-${id}-${name}`, value);
-}
 
 /**
  * CSS variable names exposed by Anchor.
@@ -170,51 +165,64 @@ export class Anchor extends FunctionClass {
   #init(node) {
     if (window.isServer || typeof node !== "object") return;
     if (anchors.observers.length === 0) {
+      anchors.style = document.head.appendChild(document.createElement("style"));
       const main = () => {
         for (let i = anchors.observers.length - 1; i >= 0; i--) {
           if (anchors.observers[i].read() === false) anchors.observers.splice(i, 1);
         }
+        let css = "";
+        let changed = false;
         for (let i = 0, len = anchors.observers.length; i < len; i++) {
-          anchors.observers[i].write();
+          const o = anchors.observers[i];
+          const prev = o.css;
+          o.css = o.write();
+          css += o.css;
+          if (prev !== o.css) changed = true;
         }
+        if (changed) anchors.style.textContent = css ? `:root{${css}}` : "";
         if (anchors.observers.length > 0) requestAnimationFrame(main);
+        else {
+          anchors.style.remove();
+          anchors.style = null;
+        }
       };
       requestAnimationFrame(main);
     }
     this.node = node;
-    /** @type {Partial<Record<AnchorKey, number>> | null} */
-    let next = null;
+    const id = this.#id;
+    const last = this.#last;
+    let nx, ny, ntop, nbottom, nleft, nright, nwidth, nheight;
+    let dirty = false;
     const read = () => {
-      if (!this.node || !this.node?.isConnected) return false;
+      if (!this.node || !this.node.isConnected) return false;
       const rect = this.node.getBoundingClientRect();
-      const top = window.innerHeight - rect.top;
-      const left = window.innerWidth - rect.left;
-      next = {
-        x: rect.left,
-        y: rect.top,
-        top,
-        bottom: rect.bottom,
-        left,
-        right: rect.right,
-        width: rect.width,
-        height: rect.height,
-      };
+      nx = rect.left;
+      ny = rect.top;
+      nwidth = rect.width;
+      nheight = rect.height;
+      dirty = nx !== last.x || ny !== last.y || nwidth !== last.width || nheight !== last.height;
+      if (dirty) {
+        ntop = window.innerHeight - ny;
+        nbottom = rect.bottom;
+        nleft = window.innerWidth - nx;
+        nright = rect.right;
+      }
     };
+    let vars = "";
     const write = () => {
-      if (!next) return;
-      if (this.#last.x !== next.x) (setAnchorVar(this.#id, `x`, `${next.x}px`), (this.#last.x = next.x));
-      if (this.#last.y !== next.y) (setAnchorVar(this.#id, `y`, `${next.y}px`), (this.#last.y = next.y));
-      if (this.#last.top !== next.top) (setAnchorVar(this.#id, `top`, `${next.top}px`), (this.#last.top = next.top));
-      if (this.#last.bottom !== next.bottom)
-        (setAnchorVar(this.#id, `bottom`, `${next.bottom}px`), (this.#last.bottom = next.bottom));
-      if (this.#last.left !== next.left) (setAnchorVar(this.#id, `left`, `${next.left}px`), (this.#last.left = next.left));
-      if (this.#last.right !== next.right)
-        (setAnchorVar(this.#id, `right`, `${next.right}px`), (this.#last.right = next.right));
-      if (this.#last.width !== next.width)
-        (setAnchorVar(this.#id, `width`, `${next.width}px`), (this.#last.width = next.width));
-      if (this.#last.height !== next.height)
-        (setAnchorVar(this.#id, `height`, `${next.height}px`), (this.#last.height = next.height));
-      next = null;
+      if (!dirty) return vars;
+      dirty = false;
+      const p = `--anchor-${id}-`;
+      last.x = nx;
+      last.y = ny;
+      last.top = ntop;
+      last.bottom = nbottom;
+      last.left = nleft;
+      last.right = nright;
+      last.width = nwidth;
+      last.height = nheight;
+      vars = `${p}x:${nx}px;${p}y:${ny}px;${p}top:${ntop}px;${p}bottom:${nbottom}px;${p}left:${nleft}px;${p}right:${nright}px;${p}width:${nwidth}px;${p}height:${nheight}px;`;
+      return vars;
     };
     requestAnimationFrame(() => {
       if (read() !== false) write();

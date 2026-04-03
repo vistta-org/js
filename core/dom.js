@@ -563,6 +563,7 @@ class VirtualDom {
   }
 
   applyMutation({ element, mutation, init, update }) {
+    mutation.disabled = undefined;
     mutation.update = (components, profilers) => {
       if (mutation.disabled) return;
       const previousMutation = this.mutation;

@@ -11,7 +11,7 @@ import {
   Safe,
   Suspense,
 } from "../../../core/classes.js";
-import { Anchor, File, HistoryContext, ThemeContext, assignStyle } from "../../../core/utils.js";
+import { Anchor, File, HistoryContext, Style, ThemeContext } from "../../../core/utils.js";
 import { defineReadonly } from "../../../utils/index.js";
 import router from "./router.js";
 
@@ -38,8 +38,8 @@ const vistta = {
   Anchor,
   File,
   HistoryContext,
+  Style,
   ThemeContext,
-  assignStyle,
 };
 
 defineReadonly(window, "vistta", vistta);
