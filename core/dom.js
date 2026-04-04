@@ -326,6 +326,11 @@ class VirtualDom {
             element.context["#" + instance.key] = instance.proxy({
               get: (path) => {
                 if (!this.mutation) return;
+                const parent = path.substring(0, path.lastIndexOf("."));
+                if (parent && mutations[parent]) {
+                  mutations[parent].delete(this.mutation);
+                  if (this.mutation.tracked) this.mutation.tracked.delete(mutations[parent]);
+                }
                 if (!mutations[path]) mutations[path] = new Set();
                 this.trackMutation(this.mutation, mutations[path]);
               },

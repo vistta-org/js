@@ -276,6 +276,7 @@ export class Context extends FunctionClass {
               helper(object[key], nextValue, [...path, key]);
             }
           } else if (object[key] !== nextValue) {
+            if (typeof object[key] === "object" && object[key] !== null) helper(object[key], null, [...path, key]);
             object[key] = nextValue;
             this.#update([...path, key]);
           }
@@ -287,7 +288,10 @@ export class Context extends FunctionClass {
         if (hasTarget && Object.prototype.hasOwnProperty.call(target, key)) continue;
         const currentValue = object[key];
         if (typeof currentValue === "object" && currentValue !== null) helper(currentValue, null, [...path, key]);
-        object[key] = undefined;
+        if (currentValue !== undefined) {
+          object[key] = undefined;
+          this.#update([...path, key]);
+        }
       }
     };
     helper(this.#shared.value, value);
