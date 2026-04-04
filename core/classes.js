@@ -244,7 +244,7 @@ export class Context extends FunctionClass {
     return (this.#shared.proxy = proxy(this.#shared.value, {
       get(path, value) {
         if (typeof listener?.get === "function" && !path.find((cur) => typeof cur !== "string"))
-          listener.get(path.join("."));
+          listener.get(path.join("."), Array.isArray(this));
         return value;
       },
       set(path, newValue, oldValue, next) {
