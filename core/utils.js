@@ -158,9 +158,20 @@ const anchors = {
  */
 export class Anchor extends FunctionClass {
   /** @type {Element | undefined} */
-  node;
+  #node;
   #id;
   #last = {};
+
+  get node() {
+    return this.#node;
+  }
+
+  set node(value) {
+    if (this.#node === value) return;
+    this.#node = value;
+    this.debug = true;
+    if (value) this.#init(value);
+  }
 
   #init(node) {
     if (window.isServer || typeof node !== "object") return;
@@ -168,7 +179,7 @@ export class Anchor extends FunctionClass {
       anchors.style = document.head.appendChild(document.createElement("style"));
       const main = () => {
         for (let i = anchors.observers.length - 1; i >= 0; i--) {
-          if (anchors.observers[i].read() === false) anchors.observers.splice(i, 1);
+          if (!anchors.observers[i].read()) anchors.observers.splice(i, 1);
         }
         let css = "";
         let changed = false;
@@ -188,29 +199,30 @@ export class Anchor extends FunctionClass {
       };
       requestAnimationFrame(main);
     }
-    this.node = node;
+    this.#node = node;
     const id = this.#id;
     const last = this.#last;
     let nx, ny, ntop, nbottom, nleft, nright, nwidth, nheight;
     let dirty = false;
-    const read = () => {
-      if (!this.node || !this.node.isConnected) return false;
-      const rect = this.node.getBoundingClientRect();
+    const read = (init) => {
+      if (!this.#node || !this.#node.isConnected) return false;
+      const rect = this.#node.getBoundingClientRect();
       nx = rect.left;
       ny = rect.top;
       nwidth = rect.width;
       nheight = rect.height;
       dirty = nx !== last.x || ny !== last.y || nwidth !== last.width || nheight !== last.height;
-      if (dirty) {
+      if (dirty || init) {
         ntop = window.innerHeight - ny;
         nbottom = rect.bottom;
         nleft = window.innerWidth - nx;
         nright = rect.right;
       }
+      return true;
     };
     let vars = "";
-    const write = () => {
-      if (!dirty) return vars;
+    const write = (init) => {
+      if (!dirty && !init) return vars;
       dirty = false;
       const p = `--anchor-${id}-`;
       last.x = nx;
@@ -224,9 +236,7 @@ export class Anchor extends FunctionClass {
       vars = `${p}x:${nx}px;${p}y:${ny}px;${p}top:${ntop}px;${p}bottom:${nbottom}px;${p}left:${nleft}px;${p}right:${nright}px;${p}width:${nwidth}px;${p}height:${nheight}px;`;
       return vars;
     };
-    requestAnimationFrame(() => {
-      if (read() !== false) write();
-    });
+    requestAnimationFrame(() => read(true) && write(true));
     anchors.observers.push({ read, write });
   }
 
