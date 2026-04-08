@@ -698,7 +698,6 @@ export class Form extends Component {
         onsubmit: (event) => {
           event.preventDefault();
           if (this.validate()) return;
-          console.log(this.#fields);
           event.values = this.values();
           if (typeof this.onsubmit === "function") this.onsubmit?.(event);
           else if (typeof this.onSubmit === "function") this.onSubmit?.(event);
