@@ -268,8 +268,15 @@ export class Context extends FunctionClass {
           const nextValue = target[key];
           if (typeof nextValue === "object" && nextValue !== null) {
             if (Array.isArray(nextValue)) {
-              object[key] = nextValue.slice();
-              this.#update([...path, key]);
+              const current = object[key];
+              if (
+                !Array.isArray(current) ||
+                current.length !== nextValue.length ||
+                current.some((v, i) => v !== nextValue[i])
+              ) {
+                object[key] = nextValue.slice();
+                this.#update([...path, key]);
+              }
             } else {
               const currentValue = object[key];
               if (typeof currentValue !== "object" || currentValue === null || Array.isArray(currentValue)) object[key] = {};
@@ -504,14 +511,110 @@ export class Form extends Component {
    * Context specialized for form values where updates are path-based.
    */
   static Context = class extends Context {
+    form;
     /**
      * @param {string} key
      * @param {"none"|"session"|"local"|"storage"} [cache]
      */
     constructor(key, cache) {
       super(key, {}, cache, {
-        update: (prev, path, element) => copyFieldValue(prev, path, element),
+        update: (prev, path, field) => copyFieldValue(prev, path, field),
       });
+    }
+
+    /**
+     * Watches one or all form fields for changes, receiving the field path and new value.
+     * @param {string | ((e: Event) => void)} arg1
+     * @param {(e: Event) => void} arg2
+     * @return {void}
+     */
+    watch(arg1, arg2) {
+      if (!this.form) return;
+      this.form.watch(arg1, arg2);
+    }
+
+    /**
+     * Removes a field watcher previously registered with `watch`.
+     * @param {string | ((e: Event) => void)} arg1
+     * @param {(e: Event) => void} arg2
+     * @return {void}
+     */
+    unwatch(arg1, arg2) {
+      if (!this.form) return;
+      this.form.unwatch(arg1, arg2);
+    }
+
+    /**
+     * Resets the value of a form field to its initial state.
+     * @param {string} [path="*"]
+     * @returns {void}
+     */
+    reset(path) {
+      if (!this.form) return;
+      this.form.reset(path);
+    }
+
+    /**
+     * Sets the default value of one or all form fields to their current value.
+     * @param {string} [path="*"]
+     * @returns {void}
+     */
+    snapshot(path) {
+      if (!this.form) return;
+      this.form.snapshot(path);
+    }
+
+    /**
+     * Clears the value of a form field.
+     * @param {string} [path="*"]
+     * @returns {void}
+     */
+    clear(path) {
+      if (!this.form) return;
+      this.form.clear(path);
+    }
+
+    /**
+     * Validates one field or the full form.
+     * @param {string} [path="*"]
+     * @returns {null|Array<{ field: any, error: string }>}
+     */
+    validate(path) {
+      if (!this.form) return;
+      return this.form.validate(path);
+    }
+
+    /**
+     * Submits the form programmatically.
+     * @returns {void}
+     */
+    submit() {
+      if (!this.form) return;
+      this.form.submit();
+    }
+
+    /**
+     * Returns an object with the current values of all form fields.
+     * @returns {Record<string, any>}
+     */
+    values() {
+      if (!this.form) return {};
+      return this.form.values();
+    }
+
+    /**
+     * Returns a specific form field.
+     * @param {string} name
+     * @returns {{
+     *  value: any,
+     *  clear: () => void,
+     *  reset: () => void,
+     *  validate: () => null|string,
+     * } | null}
+     */
+    field(name) {
+      if (!this.form) return;
+      return this.form.field(name);
     }
   };
 
@@ -546,9 +649,6 @@ export class Form extends Component {
   #path = [];
   #parent;
   #fields = {};
-  #defaultValues = {};
-  #required = {};
-  #validators = {};
   #listeners = {};
   #invalidEvent;
 
@@ -578,13 +678,16 @@ export class Form extends Component {
         ref: Ref.forward(this.ref, (element) => {
           if (this.#parent || !element) return;
           this.#node = element;
+          if (this.context) this.context.form = element;
           Object.assign(element, {
-            watch: (...args) => this.watch(...args),
-            unwatch: (...args) => this.unwatch(...args),
+            watch: (arg1, arg2) => this.watch(arg1, arg2),
+            unwatch: (arg1, arg2) => this.unwatch(arg1, arg2),
+            snapshot: (name) => this.snapshot(name),
             reset: (name) => this.reset(name),
             clear: (name) => this.clear(name),
             submit: () => this.submit(),
             values: () => this.values(),
+            field: (name) => this.field(name),
             validate: (name) => this.validate(name),
           });
         }),
@@ -594,7 +697,8 @@ export class Form extends Component {
         oninvalid: this.oninvalid || this.onInvalid,
         onsubmit: (event) => {
           event.preventDefault();
-          if (!this.validate()) return;
+          if (this.validate()) return;
+          console.log(this.#fields);
           event.values = this.values();
           if (typeof this.onsubmit === "function") this.onsubmit?.(event);
           else if (typeof this.onSubmit === "function") this.onSubmit?.(event);
@@ -635,161 +739,213 @@ export class Form extends Component {
         console.warn(`Missing either "id" or "name" attribute on ${type} inside of form.`);
       return;
     }
-    if (attributes.type === "radio") {
-      if (!this.#fields[path]) this.#fields[path] = [];
-      this.#fields[path].push(node);
-    } else this.#fields[path] = node;
-    this.#defaultValues[path] = getFieldValue(node);
-    if (this.#parent)
-      return this.#parent.register({
-        type,
-        props: { name: [...this.path, path].join("."), ...attributes },
-        node,
-      });
-    this.#required[path] = attributes.required;
-    this.#validators[path] = attributes.validator instanceof Mutation ? attributes.validator() : attributes.validator;
-    this.context?.update?.(path, node);
-    node.addEventListener(type === "select" ? "change" : "input", (e) => {
+    const isNew = !this.#fields[path];
+    const field = isNew ? {} : this.#fields[path];
+    if (isNew) {
+      this.#fields[path] = field;
+      field.type = node.type || attributes.role;
+      field.node = field.type === "radio" ? [node] : node;
+      field.value = getFieldValue(field);
+      field.defaultValue = field.value;
+    } else if (type === "radio") field.node.push(node);
+    else field.node = node;
+    field.required = attributes.required === true || attributes.required === "true";
+    field.validator = attributes.validator instanceof Mutation ? attributes.validator() : attributes.validator;
+    if (isNew) this.context?.update?.(path, field);
+    else updateFieldNodeValue(field, field.value);
+    node.addEventListener(field.type === "select" ? "change" : "input", (e) => {
       if (!this.#invalidEvent) node.setCustomValidity?.("");
-      this.context?.update?.(path, node);
+      field.value = getFieldValue(field);
+      this.context?.update?.(path, field);
       for (let i = 0, len = this.#listeners[path]?.length; i < len; i++) this.#listeners[path][i](e);
       for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
     });
   }
 
   /**
-   * Watches one field or all fields (`*`) for input/change events.
-   * @param {...any} args
+   * Watches one or all form fields for changes, receiving the field path and new value.
+   * @param {string | ((e: Event) => void)} arg1
+   * @param {(e: Event) => void} arg2
+   * @return {void}
    */
-  watch(...args) {
-    if (args.length == 0 || this.#parent) return;
-    if (args.length == 1) args.unshift("*");
-    const [name, listener] = args;
-    if (!this.#listeners[name]) {
-      this.#listeners[name] = [listener];
+  watch(arg1, arg2) {
+    if (!arg1 || this.#parent) return;
+    if (typeof arg1 === "function") {
+      arg2 = arg1;
+      arg1 = "*";
+    } else if (typeof arg2 !== "function") return;
+    if (!this.#listeners[arg1]) {
+      this.#listeners[arg1] = [arg2];
       return;
     }
-    for (let i = 0, len = this.#listeners[name]?.length; i < len; i++) {
-      if (this.#listeners[name][i] === listener) return;
+    for (let i = 0, len = this.#listeners[arg1]?.length; i < len; i++) {
+      if (this.#listeners[arg1][i] === arg2) return;
     }
-    this.#listeners[name].push(listener);
+    this.#listeners[arg1].push(arg2);
   }
 
   /**
    * Removes a field watcher previously registered with `watch`.
-   * @param {...any} args
+   * @param {string | ((e: Event) => void)} arg1
+   * @param {(e: Event) => void} arg2
+   * @return {void}
    */
-  unwatch(...args) {
-    if (args.length == 0 || this.#parent) return;
-    if (args.length == 1) args.unshift("*");
-    const [name, listener] = args;
-    for (let i = 0, len = this.#listeners[name]?.length; i < len; i++) {
-      if (this.#listeners[name][i] === listener) {
-        this.#listeners[name].splice(i, 1);
+  unwatch(arg1, arg2) {
+    if (!arg1 || this.#parent) return;
+    if (typeof arg1 === "function") {
+      arg2 = arg1;
+      arg1 = "*";
+    } else if (typeof arg2 !== "function") return;
+    for (let i = 0, len = this.#listeners[arg1]?.length; i < len; i++) {
+      if (this.#listeners[arg1][i] === arg2) {
+        this.#listeners[arg1].splice(i, 1);
         return;
       }
     }
   }
 
   /**
-   * Resets one field or all fields to their initial values.
-   * @param {string} [name="*"]
+   * Resets the value of a form field to its initial state.
+   * @param {string} [path="*"]
+   * @returns {void}
    */
-  reset(name = "*") {
-    if (name === "*") {
+  reset(path = "*") {
+    if (path === "*" || path.endsWith(".*")) {
       const inputs = Object.keys(this.#fields);
+      path = path === "*" ? "" : path.slice(0, -2) + ".";
       for (let i = 0, len = inputs.length; i < len; i++) {
-        const field = this.#fields[inputs[i]];
-        const defaultValue = this.#defaultValues[inputs[i]];
-        if (field.value === defaultValue) continue;
-        field.value = defaultValue;
-        field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
-        if (!this.#invalidEvent) field.setCustomValidity?.("");
+        if (path && !inputs[i].startsWith(path)) continue;
+        this.field(inputs[i]).reset();
       }
-      return;
-    }
-    const field = this.#fields[name];
-    const defaultValue = this.#defaultValues[name];
-    if (field.value === defaultValue) return;
-    field.value = defaultValue;
-    field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
-    if (!this.#invalidEvent) field.setCustomValidity?.("");
+    } else this.field(path)?.reset();
   }
 
   /**
-   * Validates one field or the full form.
-   * @param {string} [name]
-   * @returns {boolean|null}
+   * Sets the default value of one or all form fields to their current value.
+   * @param {string} [path="*"]
+   * @returns {void}
    */
-  validate(name) {
-    if (name && !this.#fields[name]) return null;
-    let errors = [];
-    const inputs = name ? [name] : Object.keys(this.#fields);
-    for (let i = 0, len = inputs.length; i < len; i++) {
-      const field = this.#fields[inputs[i]];
-      const value = getFieldValue(field);
-      if (this.#required[inputs[i]] === true && !value) {
-        if (this.#invalidEvent) errors.push({ field, error: Form.DEFAULT_ERROR_MESSAGE });
-        else field.setCustomValidity?.(Form.DEFAULT_ERROR_MESSAGE);
-        continue;
+  snapshot(path = "*") {
+    if (path === "*" || path.endsWith(".*")) {
+      const inputs = Object.keys(this.#fields);
+      path = path === "*" ? "" : path.slice(0, -2) + ".";
+      for (let i = 0, len = inputs.length; i < len; i++) {
+        if (path && !inputs[i].startsWith(path)) continue;
+        this.field(inputs[i]).snapshot();
       }
-      const validator = this.#validators[inputs[i]];
-      const error = typeof validator === "function" ? validator(value) : null;
-      if (typeof error === "string") {
-        if (this.#invalidEvent) errors.push({ field, error });
-        else field.setCustomValidity?.(error);
-      } else if (error === false) {
-        if (this.#invalidEvent) errors.push({ field, error: Form.DEFAULT_ERROR_MESSAGE });
-        else field.setCustomValidity?.(Form.DEFAULT_ERROR_MESSAGE);
-      } else if (!this.#invalidEvent) field.setCustomValidity?.("");
-    }
-    if (!this.#invalidEvent && this.#node?.reportValidity) return this.#node.reportValidity();
-    if (errors.length === 0) return true;
-    const invalidEvent = new Event("invalid");
-    /** @type {any} */ (invalidEvent).errors = errors;
-    this.#node.dispatchEvent(invalidEvent);
-    return false;
+    } else this.field(path)?.snapshot();
   }
 
   /**
    * Clears one field or all fields.
-   * @param {string} [name="*"]
+   * @param {string} [path="*"]
    */
-  clear(name = "*") {
-    if (name === "*") {
+  clear(path = "*") {
+    if (path === "*" || path.endsWith(".*")) {
       const inputs = Object.keys(this.#fields);
+      path = path === "*" ? "" : path.slice(0, -2) + ".";
       for (let i = 0, len = inputs.length; i < len; i++) {
-        const field = this.#fields[inputs[i]];
-        if (field.value === "") continue;
-        field.value = "";
-        field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
+        if (path && !inputs[i].startsWith(path)) continue;
+        this.field(inputs[i]).clear();
       }
-      return;
-    }
-    const field = this.#fields[name];
-    if (field.value === "") return;
-    field.value = "";
-    field.dispatchEvent(new Event(field.localName === "select" ? "change" : "input"));
+    } else this.field(path)?.clear();
   }
 
-  /** Submits the form programmatically. */
+  /**
+   * Validates one, all or a set of fields from the form.
+   * @param {string} [path = "*"]
+   * @returns {null|Array<{ field: any, error: string }>}
+   */
+  validate(path = "*") {
+    if (path && !this.#fields[path]) return null;
+    let errors = [];
+    const inputs = path === "*" || path.endsWith(".*") ? Object.keys(this.#fields) : [path];
+    path = !path.endsWith(".*") ? "" : path.slice(0, -2) + ".";
+    for (let i = 0, len = inputs.length; i < len; i++) {
+      if (path && !inputs[i].startsWith(path)) continue;
+      const field = this.field(inputs[i]);
+      const error = field.validate();
+      if (error) errors.push({ field, error });
+    }
+    if (!this.#invalidEvent && this.#node?.reportValidity) return this.#node.reportValidity();
+    if (errors.length === 0) return null;
+    const invalidEvent = new Event("invalid");
+    /** @type {any} */ (invalidEvent).errors = errors;
+    this.#node.dispatchEvent(invalidEvent);
+    return errors;
+  }
+
+  /**
+   * Submits the form programmatically.
+   * @returns {void}
+   */
   submit() {
     this.#node.requestSubmit();
   }
 
   /**
-   * Returns a plain object with current field values.
+   * Returns an object with the current values of all form fields.
    * @returns {Record<string, any>}
    */
   values() {
     const values = {};
     const inputs = Object.keys(this.#fields);
-    for (let i = 0, len = inputs.length; i < len; i++) {
-      const element = this.#fields[inputs[i]];
-      if (!element || !element.isConnected || element.disabled) continue;
-      copyFieldValue(values, inputs[i], this.#fields[inputs[i]]);
-    }
+    for (let i = 0, len = inputs.length; i < len; i++) copyFieldValue(values, inputs[i], this.#fields[inputs[i]]);
     return values;
+  }
+
+  /**
+   * Returns a specific form field.
+   * @param {string} name
+   * @returns {{
+   *  value: any,
+   *  snapshot: () => void,
+   *  reset: () => void,
+   *  clear: () => void,
+   *  validate: () => null|string,
+   * } | null}
+   */
+  field(name) {
+    const field = this.#fields[name];
+    if (!field) return undefined;
+    const invalid = () => !!this.#invalidEvent;
+    return {
+      get value() {
+        return field.value;
+      },
+      set value(value) {
+        if (field.value === value) return;
+        updateFieldNodeValue(field, value, true);
+      },
+      snapshot() {
+        field.defaultValue = field.value;
+      },
+      reset() {
+        if (field.value === field.defaultValue) return;
+        updateFieldNodeValue(field, field.defaultValue, true);
+        if (!invalid()) setFieldValidity(field, "");
+      },
+      clear() {
+        if (field.value === undefined) return;
+        updateFieldNodeValue(field, undefined, true);
+      },
+      validate() {
+        const value = getFieldValue(field);
+        if (field.required === true && !value) {
+          if (!invalid()) setFieldValidity(field, Form.DEFAULT_ERROR_MESSAGE);
+          return Form.DEFAULT_ERROR_MESSAGE;
+        }
+        const error = typeof field.validator === "function" ? field.validator(value) : null;
+        if (typeof error === "string") {
+          if (!invalid()) setFieldValidity(field, error);
+          return error;
+        } else if (error === false) {
+          if (!invalid()) setFieldValidity(field, Form.DEFAULT_ERROR_MESSAGE);
+          return Form.DEFAULT_ERROR_MESSAGE;
+        } else if (!invalid()) setFieldValidity(field, "");
+        return null;
+      },
+    };
   }
 }
 
@@ -802,11 +958,6 @@ defineReadonly(window, "element", (type, props, ...children) => new Element(type
 
 //
 
-/**
- * Deep-clones props objects/arrays to avoid reference sharing.
- * @param {any} props
- * @returns {any}
- */
 function cloneProps(props) {
   const clone = (value) => {
     if (typeof value === "object") {
@@ -825,42 +976,58 @@ function cloneProps(props) {
   return clone(props);
 }
 
-/**
- * Copies an input value into an object, supporting dot-notated paths.
- * @param {Record<string, any>} obj
- * @param {string} path
- * @param {any} element
- * @returns {Record<string, any>}
- */
-function copyFieldValue(obj, path, element) {
+function copyFieldValue(obj, path, field) {
   if (path.includes(".")) {
     let cur = obj;
     const paths = path.split(".");
     for (let n = 0, pathsLen = paths.length; n < pathsLen; n++) {
       const key = paths[n];
-      if (n === pathsLen - 1) cur[key] = getFieldValue(element);
+      if (n === pathsLen - 1) cur[key] = getFieldValue(field);
       else {
         if (!cur[key]) cur[key] = {};
         cur = cur[key];
       }
     }
-  } else obj[path] = getFieldValue(element);
+  } else obj[path] = getFieldValue(field);
   return obj;
 }
 
-/**
- * Returns the semantic value for a form field node.
- * @param {any} element
- * @returns {any}
- */
-function getFieldValue(element) {
-  if (Array.isArray(element)) {
-    for (let i = 0, len = element.length; i < len; i++) {
-      if (element[i].checked) return element[i].value;
+// @ts-ignore
+function getFieldValue({ node } = {}) {
+  if (!node) return undefined;
+  if (Array.isArray(node)) {
+    for (let i = 0, len = node.length; i < len; i++) {
+      if (node[i].checked) return node[i].value;
     }
     return null;
   }
-  if (element.type === "file") return element.files;
-  if (element.type === "checkbox") return element.checked;
-  return element.value;
+  if (node.type === "file") return node.files;
+  if (node.type === "checkbox") return node.checked;
+  return node.value;
+}
+
+// @ts-ignore
+function updateFieldNodeValue({ node, type } = {}, value, dispatch) {
+  if (!node) return undefined;
+  if (Array.isArray(node)) {
+    for (let i = 0, len = node.length; i < len; i++) {
+      if (node[i].value == value) node[i].checked = true;
+      else node[i].checked = false;
+      if (dispatch) node[i].dispatchEvent(new Event(type === "select" ? "change" : "input"));
+    }
+    return;
+  }
+  if (node.type === "file") {
+    if (value instanceof FileList) node.files = value;
+  } else if (node.type === "checkbox") node.checked = !!value;
+  else node.value = value;
+  if (dispatch) node.dispatchEvent(new Event(type === "select" ? "change" : "input"));
+}
+
+// @ts-ignore
+function setFieldValidity({ node } = {}, message) {
+  if (!node) return;
+  if (Array.isArray(node)) {
+    for (let i = 0, len = node.length; i < len; i++) node[i].setCustomValidity?.(message);
+  } else node.setCustomValidity?.(message);
 }

@@ -218,7 +218,7 @@ class VirtualDom {
       }
       this.renderElementChildren(element, element.children, context);
       appendElement(parent, element, referenceNode);
-      context.form?.register(element);
+      this.preventMutation(() => context.form?.register(element));
       return element;
     }
 
