@@ -1002,6 +1002,7 @@ function getFieldValue({ node } = {}) {
   }
   if (node.type === "file") return node.files;
   if (node.type === "checkbox") return node.checked;
+  if (node.type === "number" || node.type === "range") return node.value === "" ? null : node.valueAsNumber;
   return node.value;
 }
 
