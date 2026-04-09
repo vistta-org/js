@@ -5,6 +5,7 @@ import {
   decode,
   defineReadonly,
   encode,
+  equals,
   isPromise,
   parse,
   proxy,
@@ -545,13 +546,14 @@ export class Form extends Component {
     }
 
     /**
-     * Resets the value of a form field to its initial state.
-     * @param {string} [path="*"]
-     * @returns {void}
+     * Returns an object containing only the fields whose current value differs from their default value.
+     * Returns `null` if no fields have changed.
+     * @param {string} [path] - Optional dot-separated path pattern (supports `*` wildcard) to filter fields.
+     * @returns {Object|null}
      */
-    reset(path) {
+    changed(path) {
       if (!this.form) return;
-      this.form.reset(path);
+      return this.form.changed(path);
     }
 
     /**
@@ -562,6 +564,16 @@ export class Form extends Component {
     snapshot(path) {
       if (!this.form) return;
       this.form.snapshot(path);
+    }
+
+    /**
+     * Resets the value of a form field to its initial state.
+     * @param {string} [path="*"]
+     * @returns {void}
+     */
+    reset(path) {
+      if (!this.form) return;
+      this.form.reset(path);
     }
 
     /**
@@ -682,6 +694,7 @@ export class Form extends Component {
           Object.assign(element, {
             watch: (arg1, arg2) => this.watch(arg1, arg2),
             unwatch: (arg1, arg2) => this.unwatch(arg1, arg2),
+            changed: (name) => this.changed(name),
             snapshot: (name) => this.snapshot(name),
             reset: (name) => this.reset(name),
             clear: (name) => this.clear(name),
@@ -804,19 +817,22 @@ export class Form extends Component {
   }
 
   /**
-   * Resets the value of a form field to its initial state.
-   * @param {string} [path="*"]
-   * @returns {void}
+   * Returns an object containing only the fields whose current value differs from their default value.
+   * Returns `null` if no fields have changed.
+   * @param {string} [path] - Optional dot-separated path pattern (supports `*` wildcard) to filter fields.
+   * @returns {boolean}
    */
-  reset(path = "*") {
+  changed(path = "*") {
     if (path === "*" || path.endsWith(".*")) {
       const inputs = Object.keys(this.#fields);
       path = path === "*" ? "" : path.slice(0, -2) + ".";
       for (let i = 0, len = inputs.length; i < len; i++) {
         if (path && !inputs[i].startsWith(path)) continue;
-        this.field(inputs[i]).reset();
+        if (this.field(inputs[i]).changed()) return true;
       }
-    } else this.field(path)?.reset();
+      return false;
+    }
+    return this.field(path)?.changed();
   }
 
   /**
@@ -833,6 +849,22 @@ export class Form extends Component {
         this.field(inputs[i]).snapshot();
       }
     } else this.field(path)?.snapshot();
+  }
+
+  /**
+   * Resets the value of a form field to its initial state.
+   * @param {string} [path="*"]
+   * @returns {void}
+   */
+  reset(path = "*") {
+    if (path === "*" || path.endsWith(".*")) {
+      const inputs = Object.keys(this.#fields);
+      path = path === "*" ? "" : path.slice(0, -2) + ".";
+      for (let i = 0, len = inputs.length; i < len; i++) {
+        if (path && !inputs[i].startsWith(path)) continue;
+        this.field(inputs[i]).reset();
+      }
+    } else this.field(path)?.reset();
   }
 
   /**
@@ -898,6 +930,7 @@ export class Form extends Component {
    * @param {string} name
    * @returns {{
    *  value: any,
+   *  changed: () => boolean,
    *  snapshot: () => void,
    *  reset: () => void,
    *  clear: () => void,
@@ -915,6 +948,9 @@ export class Form extends Component {
       set value(value) {
         if (field.value === value) return;
         updateFieldNodeValue(field, value, true);
+      },
+      changed() {
+        return !equals(field.value, field.defaultValue);
       },
       snapshot() {
         field.defaultValue = field.value;
