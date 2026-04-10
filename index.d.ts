@@ -108,5 +108,5 @@ export {
 export { Style, File } from "./core/utils.js";
 export { default as router } from "./web/client/router.js";
 export { default as socket } from "./core/socket.js";
-export { default as Controller, COPY, DELETE, GET, MOVE, PATCH, POST, PUT } from "./web/server/controller.js";
+export { default as Controller, COPY, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./web/server/controller.js";
 export { worker } from "./index.js";

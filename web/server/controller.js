@@ -101,6 +101,17 @@ export const POST = (url, callback) => /** @type {any} */(new RESTMethod("post",
  */
 export const PUT = (url, callback) => /** @type {any} */(new RESTMethod("put", url, callback));
 
+/**
+ * Sets a controller with a custom REST method.
+ *
+ * @template {(() => any)} T
+ * @param {string} type - The HTTP method for the request.
+ * @param {string} url - The URL for the request.
+ * @param {T} callback Options for the request.
+ * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
+ */
+export const REST = (type, url, callback) => /** @type {any} */(new RESTMethod(type, url, callback));
+
 export default class Controller { }
 
 export function shareToLoader(filepath, value) {

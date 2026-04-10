@@ -77,25 +77,7 @@ class Route {
     else {
       this.#route = pathname.replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)")).replace(/\*$/, ".*");
       if (this.#route.endsWith("/([^/]+)")) this.#route = this.#route.slice(0, -8) + "/?([^/]+)?";
-      this[
-        [
-          "all",
-          "copy",
-          "delete",
-          "get",
-          "head",
-          "move",
-          "options",
-          "patch",
-          "post",
-          "put",
-          "error",
-          "middleware",
-          "websocket",
-        ].includes(type)
-          ? "handler"
-          : type
-      ] = handler;
+      this[["page", "config", "layout"].includes(type) ? type : "handler"] = handler;
     }
     this.#page = page;
   }
@@ -411,7 +393,7 @@ class Server {
   }
 
   /**
-   * Routes all HTTP requests to the specified subdomain and pathname with the specified handler function.
+   * Routes all standard HTTP requests to the specified subdomain and pathname with the specified handler function.
    *
    * @param {string} arg1 - Route subdomain or pathname
    * @param {string | Function} arg2 - Route pathname or handler function
@@ -422,6 +404,22 @@ class Server {
     const [subdomain, pathname, handler] = parseArguments("all", arg1, arg2, arg3);
     if (typeof handler !== "function") throw new TypeError("Invalid argument type");
     return this.#register("all", subdomain, pathname, handler);
+  }
+
+
+  /**
+   * Routes any HTTP request to the specified subdomain and pathname with the specified handler function.
+   *
+   * @param {string} type - The HTTP method or custom route type
+   * @param {string} arg1 - Route subdomain or pathname
+   * @param {string | Function} arg2 - Route pathname or handler function
+   * @param {Function} [arg3] - Route handler function
+   * @returns {Route} The route object
+   */
+  rest(type, arg1, arg2, arg3) {
+    const [subdomain, pathname, handler] = parseArguments(type, arg1, arg2, arg3);
+    if (typeof handler !== "function") throw new TypeError("Invalid argument type");
+    return this.#register(type, subdomain, pathname, handler);
   }
 
   /**
@@ -671,15 +669,15 @@ class Server {
     const options =
       typeOfTargetOrOptions === "string"
         ? {
-          ...DEFAULT_PROXY_OPTIONS,
-          target: targetOrOptions,
-          xfwd: false,
-        }
+            ...DEFAULT_PROXY_OPTIONS,
+            target: targetOrOptions,
+            xfwd: false,
+          }
         : {
-          ...DEFAULT_PROXY_OPTIONS,
-          ...targetOrOptions,
-          xfwd: false,
-        };
+            ...DEFAULT_PROXY_OPTIONS,
+            ...targetOrOptions,
+            xfwd: false,
+          };
     const collection = new Route(subdomain, pathname, "collection");
     options.pathname = pathname;
     collection.add(
@@ -834,7 +832,7 @@ class Server {
       new arg({
         emit: this.emit.bind(this, subdomain),
         on: this.on.bind(this, subdomain),
-      })
+      });
       const handlers = Object.values(arg);
       for (let i = 0, len = handlers.length; i < len; i++) {
         const handler = handlers[i];
@@ -870,10 +868,10 @@ class Server {
       for (let i = 0, len = ALL_METHODS.length; i < len; i++) this.#register(ALL_METHODS[i], subdomain, pathname, route);
       return route;
     }
-
-    this.#subdomains[subdomain] ||= defaultSubdomain();
+    if (!this.#subdomains[subdomain]) this.#subdomains[subdomain] = {};
+    if (!this.#subdomains[subdomain][type]) this.#subdomains[subdomain][type] = [];
     const route = arg instanceof Route ? arg : new Route(subdomain, pathname, type, arg, page);
-    const routes = this.#subdomains[subdomain][type] || [];
+    const routes = this.#subdomains[subdomain][type];
     const { route: existing, replace } = findRoute(routes, route.route) || {};
     if (existing) {
       if (this.#strict)
@@ -1364,22 +1362,4 @@ function setCookies(response, cookies) {
     if (cookie?.options?.httpOnly !== false) value += `; HttpOnly`;
     response.cookies.push(value);
   }
-}
-
-function defaultSubdomain() {
-  return {
-    copy: [],
-    delete: [],
-    get: [],
-    move: [],
-    patch: [],
-    post: [],
-    put: [],
-    error: [],
-    page: [],
-    config: [],
-    middleware: [],
-    layout: [],
-    websocket: [],
-  };
 }
