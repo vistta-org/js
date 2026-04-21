@@ -12,7 +12,6 @@ import {
   stringify,
 } from "../utils/index.js";
 
-const CONTEXT_CACHE_KEY = "Vistta_Context_";
 /** Marker symbol used to represent JSX fragments. */
 export const Fragment = Symbol("Fragment");
 /** Marker symbol used to represent plain text nodes. */
@@ -117,18 +116,20 @@ export class Mutation extends FunctionClass {
  * @template {ContextActions<Value>} [Actions=ContextActions<Value>]
  */
 export class Context extends FunctionClass {
-  static id = Symbol(encode(CONTEXT_CACHE_KEY.slice(0, -1), "hex"));
+  static id = Symbol("Vistta.Context");
   #key;
   #shared = { listeners: [] };
 
   /**
    * @param {string} key - Unique context key.
    * @param {Value} value - Default context value.
-   * @param {"none"|"session"|"local"|"storage"} [cache] - Optional persistence backend.
-   * @param {Actions} [actions] - Named mutating actions assigned as context instance methods.
-   * @param {any} [controllers]
+   * @param {object} [options]
+   * @param {"none"|"session"|"local"|"storage"} [options.cache] - Optional persistence backend.
+   * @param {Actions} [options.actions] - Named mutating actions assigned as context instance methods.
+   * @param {any} [options.controllers]
+   * @param {boolean} [options.encode] - Whether to encode the cache key. Defaults to false.
    */
-  constructor(key, value, cache, actions, controllers) {
+  constructor(key, value, { cache, actions, controllers, encode: encodeCache } = {}) {
     if (typeof key !== "string" || key.length == 0) throw new Error("TypeError: Invalid context key.");
     if (typeof value !== "object") throw new Error("TypeError: Cannot create context with a non-object value.");
     super(() => this);
@@ -138,6 +139,7 @@ export class Context extends FunctionClass {
     else {
       window[Context.id][encode(this.#key, "hex")] = this.#shared;
       this.#shared.cache = this.#cache(cache);
+      this.#shared.key = encodeCache ? encode(key, "hex") : key;
       try {
         this.#shared.value = clone(value, true);
       } catch {
@@ -145,8 +147,7 @@ export class Context extends FunctionClass {
       }
       if (this.#shared.cache === sessionStorage || this.#shared.cache === localStorage) {
         try {
-          this.#shared.value =
-            parse(decode(this.#shared.cache.getItem(encode(CONTEXT_CACHE_KEY + key, "hex")), "hex")) ?? this.#shared.value;
+          this.#shared.value = parse(decode(this.#shared.cache.getItem(this.#shared.key), "hex")) ?? this.#shared.value;
         } catch {
           /* Do nothing */
         }
@@ -314,10 +315,7 @@ export class Context extends FunctionClass {
     clearTimeout(this.#shared.debounce);
     this.#shared.debounce = setTimeout(() => {
       try {
-        this.#shared.cache.setItem(
-          encode(CONTEXT_CACHE_KEY + this.#key, "hex"),
-          encode(stringify(this.#shared.value), "hex"),
-        );
+        this.#shared.cache.setItem(this.#shared.key, encode(stringify(this.#shared.value), "hex"));
       } catch (e) {
         console.error(e);
       }
@@ -518,9 +516,14 @@ export class Form extends Component {
      * @param {"none"|"session"|"local"|"storage"} [cache]
      */
     constructor(key, cache) {
-      super(key, {}, cache, {
-        update: (prev, path, field) => copyFieldValue(prev, path, field),
-      });
+      super(
+        key,
+        {},
+        {
+          cache,
+          actions: { update: (prev, path, field) => copyFieldValue(prev, path, field) },
+        },
+      );
     }
 
     /**

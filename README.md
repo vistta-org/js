@@ -308,7 +308,7 @@ In Vistta components, the intended pattern is to store the **Context instance** 
 ```jsx
 import { Component, Context } from "@vistta/js";
 
-const ctx = new Context("global_state", { count: 0 }, "indexed");
+const ctx = new Context("global_state", { count: 0 }, { cache: "local" });
 
 export default class Example extends Component {
   // Calling the Context instance returns itself; Vistta detects it and injects a reactive proxy.
@@ -325,7 +325,7 @@ export default class Example extends Component {
 }
 ```
 
-If you define actions (4th argument), call them on the Context instance (e.g. `ctx.increment()`), and read/mutate state through the injected proxy in your component (e.g. `this.state.count++`).
+If you define actions, call them on the Context instance (e.g. `ctx.increment()`), and read/mutate state through the injected proxy in your component (e.g. `this.state.count++`).
 
 ### `Ref`
 

@@ -68,25 +68,32 @@ export class File {
 
 export class ThemeContext extends Context {
   constructor() {
-    super("theme", { value: "auto" }, "storage", {
-      toggle: (prev) => {
-        switch (prev.value) {
-          case "light":
-            document.documentElement.setAttribute("theme", "dark");
-            return { value: "dark" };
-          case "dark":
-            document.documentElement.removeAttribute("theme");
-            return { value: "auto" };
-          default:
-            document.documentElement.setAttribute("theme", "light");
-            return { value: "light" };
-        }
+    super(
+      "theme",
+      { value: "auto" },
+      {
+        cache: "storage",
+        actions: {
+          toggle: (prev) => {
+            switch (prev.value) {
+              case "light":
+                document.documentElement.setAttribute("theme", "dark");
+                return { value: "dark" };
+              case "dark":
+                document.documentElement.removeAttribute("theme");
+                return { value: "auto" };
+              default:
+                document.documentElement.setAttribute("theme", "light");
+                return { value: "light" };
+            }
+          },
+          set: (_, value) => {
+            document.documentElement.setAttribute("theme", value);
+            return { value };
+          },
+        },
       },
-      set: (_, value) => {
-        document.documentElement.setAttribute("theme", value);
-        return { value };
-      },
-    });
+    );
     document.documentElement.setAttribute("theme", this.value?.value);
   }
 }
@@ -96,11 +103,9 @@ export class HistoryContext extends Context {
 
   constructor(name, initial, cache) {
     let prev;
-    super(
-      name,
-      initial,
+    super(name, initial, {
       cache,
-      {
+      actions: {
         set: (_, state) => state,
         update: (prev, state) => {
           state = clone({ ...prev, ...state }, true);
@@ -108,7 +113,7 @@ export class HistoryContext extends Context {
           return state;
         },
       },
-      (_, status, value) => {
+      controllers: (_, status, value) => {
         const len = this.#listeners.length;
         if (len === 0) return;
         value = clone(value, true);
@@ -118,7 +123,7 @@ export class HistoryContext extends Context {
           prev = null;
         }
       },
-    );
+    });
     window.addEventListener("popstate", ({ state: _state }) => /** @type {any} */ (this).set(_state));
     // Timeout needed to wait for initial history and cache load
     if (typeof history !== "undefined")

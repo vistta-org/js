@@ -159,7 +159,7 @@ export class RefExample extends Component {
   }
 }
 
-const contextBasic = new Context("context_basic_test", { counter: 0 }, "none");
+const contextBasic = new Context("context_basic_test", { counter: 0 });
 export class ContextBasic extends Component {
   context = contextBasic();
   render() {
@@ -177,10 +177,16 @@ export class ContextBasic extends Component {
   }
 }
 
-const contextActions = new Context("context_actions_test", { counter: 0 }, "none", {
-  increment: (prev) => ((prev.counter += 1), prev),
-  decrement: (prev) => ((prev.counter -= 1), prev),
-});
+const contextActions = new Context(
+  "context_actions_test",
+  { counter: 0 },
+  {
+    actions: {
+      increment: (prev) => ((prev.counter += 1), prev),
+      decrement: (prev) => ((prev.counter -= 1), prev),
+    },
+  },
+);
 export class ContextActions extends Component {
   context = contextActions();
   render() {

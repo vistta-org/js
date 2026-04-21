@@ -42,11 +42,14 @@ export interface ContextConstructor {
   >(
     key: string,
     value: Value,
-    cache?: "none" | "session" | "local" | "storage" ,
-    actions?: Actions,
-    controllers?:
-      | ((target: keyof Actions & string, status: "pending" | "completed" | "rejected", value: Value) => void)
-      | Partial<Record<keyof Actions & string, (status: "pending" | "completed" | "rejected", value: Value) => void>>,
+    options?: {
+      cache?: "none" | "session" | "local" | "storage";
+      actions?: Actions;
+      controllers?:
+        | ((target: keyof Actions & string, status: "pending" | "completed" | "rejected", value: Value) => void)
+        | Partial<Record<keyof Actions & string, (status: "pending" | "completed" | "rejected", value: Value) => void>>;
+      encode?: boolean;
+    },
   ): Context<Value, Actions> & ContextActionMethods<Actions>;
 }
 
