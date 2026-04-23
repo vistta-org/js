@@ -1047,6 +1047,8 @@ class Server {
           for (let i = 0, len = listeners.length; i < len; i++) listeners[i](socket, subdomain, []);
         });
         await socket.join(subdomain);
+        const connectListeners = this.#events["connect"] || [];
+        for (let i = 0, len = connectListeners.length; i < len; i++) connectListeners[i](socket, subdomain, []);
         return;
       }
       case "upgrade": {
