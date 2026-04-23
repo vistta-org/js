@@ -406,7 +406,6 @@ class Server {
     return this.#register("all", subdomain, pathname, handler);
   }
 
-
   /**
    * Routes any HTTP request to the specified subdomain and pathname with the specified handler function.
    *
@@ -1039,11 +1038,11 @@ class Server {
       case "connection": {
         const socket = args[0];
         const subdomain = getSubdomain(socket?.handshake?.headers?.host) || "";
-        await socket.join(subdomain);
         socket.onAny((event, ...args) => {
           const listeners = this.#events[event] || [];
           for (let i = 0, len = listeners.length; i < len; i++) listeners[i](socket, subdomain, args);
         });
+        await socket.join(subdomain);
         return;
       }
       case "upgrade": {
