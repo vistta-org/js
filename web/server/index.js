@@ -1042,6 +1042,10 @@ class Server {
           const listeners = this.#events[event] || [];
           for (let i = 0, len = listeners.length; i < len; i++) listeners[i](socket, subdomain, args);
         });
+        socket.on("disconnect", () => {
+          const listeners = this.#events["disconnect"] || [];
+          for (let i = 0, len = listeners.length; i < len; i++) listeners[i](socket, subdomain, []);
+        });
         await socket.join(subdomain);
         return;
       }
