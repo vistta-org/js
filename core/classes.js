@@ -740,6 +740,7 @@ export class Form extends Component {
 
     if (
       !node ||
+      attributes.role === "part" ||
       (type !== "input" &&
         type !== "textarea" &&
         type !== "select" &&
