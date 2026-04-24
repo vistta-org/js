@@ -135,37 +135,82 @@ export class HistoryContext extends Context {
   }
 }
 
-const anchors = {
-  counter: 0,
-  observers: [],
-  style: null,
-};
+let anchorCounter = 0;
 
 /**
- * CSS variable names exposed by Anchor.
- * x and y are viewport-based left/top from getBoundingClientRect().
- * width and height are element size from getBoundingClientRect().
+ * @typedef {"bottom" | "top" | "left" | "right"} AnchorPlacement
  *
- * @typedef {"x" | "y" | "top" | "bottom" | "left" | "right" | "width" | "height"} AnchorKey
+ * @typedef {object} AnchorPositionOptions
+ * @property {number | string} [gap=0] Space between the anchor and the positioned element.
+ * @property {string | string[] | false} [fallback]
+ *   Fallback value(s) for `position-try-fallbacks` (e.g. `"flip-block"`, `"flip-inline"`,
+ *   `"flip-start"`, or a custom `@position-try --name`). Defaults to `"flip-block"` for
+ *   bottom/top and `"flip-inline"` for left/right. Pass `false` to disable.
+ * @property {boolean} [minSize=true] Match the anchor's width (block axis) or height (inline axis).
  */
 
 /**
- * Creates a function-like anchor helper that tracks an element rect and exposes
- * CSS variable references for positioning/sizing in styles.
+ * Function-like helper over native CSS Anchor Positioning.
+ * Tracking the element sets `anchor-name` on it automatically.
  *
  * @example
  * const anchor = new Anchor();
- * anchor(buttonEl);               // starts observing
- * panel.style.left = anchor("x"); // "var(--anchor-0-x)"
- * panel.style.top = anchor("y");
+ * anchor(buttonEl);                          // sets anchor-name: --anchor-0
+ * panel.style.top = anchor.bottom;           // "anchor(--anchor-0 bottom)"
+ * panel.style.minWidth = anchor.width;       // "anchor-size(--anchor-0 width)"
+ * Object.assign(panel.style, anchor("bottom", { gap: "2rem" }));
  *
  * @extends {FunctionClass}
  */
 export class Anchor extends FunctionClass {
-  /** @type {Element | undefined} */
+  /**
+   * Build a CSS anchor-positioned style object for the given placement.
+   *
+   * @param {Anchor | string} anchor Anchor instance or anchor name (dashed-ident, e.g. `--anchor-0`).
+   * @param {AnchorPlacement} target
+   * @param {AnchorPositionOptions} [options]
+   * @returns {Record<string, string>}
+   */
+  static to(anchor, target, options = {}) {
+    const name = typeof anchor === "string" ? anchor : anchor.name;
+    const { gap = 0, fallback, minSize = true } = options;
+    const g = typeof gap === "number" ? `${gap}px` : gap;
+    const vertical = target === "bottom" || target === "top";
+    const opposite = target === "bottom" ? "top" : target === "top" ? "bottom" : target === "left" ? "right" : "left";
+    const style = {
+      position: "fixed",
+      positionAnchor: name,
+      top: "auto",
+      bottom: "auto",
+      left: "auto",
+      right: "auto",
+    };
+    if (vertical) {
+      style[opposite] = `anchor(${target})`;
+      style.right = `anchor(right)`;
+      style[target === "bottom" ? "marginTop" : "marginBottom"] = g;
+      if (minSize) style.minWidth = `anchor-size(width)`;
+    } else {
+      style[opposite] = `anchor(${target})`;
+      style.top = `anchor(top)`;
+      style[target === "left" ? "marginRight" : "marginLeft"] = g;
+      if (minSize) style.minHeight = `anchor-size(height)`;
+    }
+    if (fallback !== false) {
+      style.positionTryFallbacks = Array.isArray(fallback)
+        ? fallback.join(", ")
+        : typeof fallback === "string"
+          ? fallback
+          : vertical
+            ? "flip-block"
+            : "flip-inline";
+    }
+    return style;
+  }
+
+  /** @type {HTMLElement | undefined} */
   #node;
   #id;
-  #last = {};
 
   get node() {
     return this.#node;
@@ -173,131 +218,70 @@ export class Anchor extends FunctionClass {
 
   set node(value) {
     if (this.#node === value) return;
+    if (this.#node) this.#node.style.anchorName = "";
     this.#node = value;
-    this.debug = true;
     if (value) this.#init(value);
   }
 
   #init(node) {
-    if (window.isServer || typeof node !== "object") return;
-    if (anchors.observers.length === 0) {
-      anchors.style = document.head.appendChild(document.createElement("style"));
-      const main = () => {
-        for (let i = anchors.observers.length - 1; i >= 0; i--) {
-          if (!anchors.observers[i].read()) anchors.observers.splice(i, 1);
-        }
-        let css = "";
-        let changed = false;
-        for (let i = 0, len = anchors.observers.length; i < len; i++) {
-          const o = anchors.observers[i];
-          const prev = o.css;
-          o.css = o.write();
-          css += o.css;
-          if (prev !== o.css) changed = true;
-        }
-        if (changed) anchors.style.textContent = css ? `:root{${css}}` : "";
-        if (anchors.observers.length > 0) requestAnimationFrame(main);
-        else {
-          anchors.style.remove();
-          anchors.style = null;
-        }
-      };
-      requestAnimationFrame(main);
-    }
+    if (typeof window === "undefined" || window.isServer || typeof node !== "object") return;
     this.#node = node;
-    const id = this.#id;
-    const last = this.#last;
-    let nx, ny, ntop, nbottom, nleft, nright, nwidth, nheight;
-    let dirty = false;
-    const read = (init) => {
-      if (!this.#node || !this.#node.isConnected) return false;
-      const rect = this.#node.getBoundingClientRect();
-      nx = rect.left;
-      ny = rect.top;
-      nwidth = rect.width;
-      nheight = rect.height;
-      dirty = nx !== last.x || ny !== last.y || nwidth !== last.width || nheight !== last.height;
-      if (dirty || init) {
-        ntop = window.innerHeight - ny;
-        nbottom = rect.bottom;
-        nleft = window.innerWidth - nx;
-        nright = rect.right;
-      }
-      return true;
-    };
-    let vars = "";
-    const write = (init) => {
-      if (!dirty && !init) return vars;
-      dirty = false;
-      const p = `--anchor-${id}-`;
-      last.x = nx;
-      last.y = ny;
-      last.top = ntop;
-      last.bottom = nbottom;
-      last.left = nleft;
-      last.right = nright;
-      last.width = nwidth;
-      last.height = nheight;
-      vars = `${p}x:${nx}px;${p}y:${ny}px;${p}top:${ntop}px;${p}bottom:${nbottom}px;${p}left:${nleft}px;${p}right:${nright}px;${p}width:${nwidth}px;${p}height:${nheight}px;`;
-      return vars;
-    };
-    requestAnimationFrame(() => read(true) && write(true));
-    anchors.observers.push({ read, write });
+    node.style.setProperty("anchor-name", this.name);
   }
 
   constructor(node) {
-    super((target, offset) => {
+    super((target, options) => {
       if (typeof target !== "string") return this.#init(target);
-      const offsetType = typeof offset;
       switch (target) {
-        case "x":
-        case "y":
-        case "top":
         case "bottom":
+        case "top":
         case "left":
         case "right":
-        case "width":
-        case "height":
-          if (offsetType === "number") return `calc(var(--anchor-${this.#id}-${target}) + ${offset}px)`;
-          if (offsetType === "string") return `calc(var(--anchor-${this.#id}-${target}) + ${offset})`;
-          return `var(--anchor-${this.#id}-${target})`;
+          return Anchor.to(this, target, options);
         default:
           console.warn(`Invalid anchor target: ${target}`);
+          return;
       }
     });
-    this.#id = anchors.counter++;
+    this.#id = anchorCounter++;
+    Object.defineProperty(this, "name", {
+      value: `--anchor-${this.#id}`,
+      writable: false,
+      configurable: false,
+      enumerable: false,
+    });
     this.#init(node);
   }
 
   get x() {
-    return `var(--anchor-${this.#id}-x)`;
+    return `anchor(${this.name} left)`;
   }
 
   get y() {
-    return `var(--anchor-${this.#id}-y)`;
+    return `anchor(${this.name} top)`;
   }
 
   get top() {
-    return `var(--anchor-${this.#id}-top)`;
+    return `anchor(${this.name} top)`;
   }
 
   get bottom() {
-    return `var(--anchor-${this.#id}-bottom)`;
+    return `anchor(${this.name} bottom)`;
   }
 
   get left() {
-    return `var(--anchor-${this.#id}-left)`;
+    return `anchor(${this.name} left)`;
   }
 
   get right() {
-    return `var(--anchor-${this.#id}-right)`;
+    return `anchor(${this.name} right)`;
   }
 
   get width() {
-    return `var(--anchor-${this.#id}-width)`;
+    return `anchor-size(${this.name} width)`;
   }
 
   get height() {
-    return `var(--anchor-${this.#id}-height)`;
+    return `anchor-size(${this.name} height)`;
   }
 }

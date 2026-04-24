@@ -4,8 +4,6 @@ declare module "./core/classes.js" {
   interface Component<Props extends Record<string, any> = Record<string, any>> extends Props {}
 }
 
-import { AnchorKey } from "./core/utils.js";
-
 export type ContextActions<Value extends Record<string, any>> = Record<
   string,
   (prev: Value, ...args: any[]) => Value | Promise<Value>
@@ -55,10 +53,19 @@ export interface ContextConstructor {
 
 export const Context: ContextConstructor;
 
+export type AnchorPlacement = "bottom" | "top" | "left" | "right";
+
+export interface AnchorPositionOptions {
+  gap?: number | string;
+  fallback?: string | string[] | false;
+  minSize?: boolean;
+}
+
 export interface Anchor {
   node?: Element;
+  readonly name: string;
   (target: Element): void;
-  (target: AnchorKey, offset?: number | string): string;
+  (target: AnchorPlacement, options?: AnchorPositionOptions): Record<string, string>;
   x: string;
   y: string;
   top: string;
@@ -71,6 +78,7 @@ export interface Anchor {
 
 export interface AnchorConstructor {
   new (node?: Element): Anchor;
+  to(anchor: Anchor | string, target: AnchorPlacement, options?: AnchorPositionOptions): Record<string, string>;
 }
 
 export const Anchor: AnchorConstructor;
