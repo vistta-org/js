@@ -9,16 +9,18 @@ export type ContextActions<Value extends Record<string, any>> = Record<
   (prev: Value, ...args: any[]) => Value | Promise<Value>
 >;
 
-export type ContextActionMethods<Actions extends ContextActions<any>> = {
-  [K in keyof Actions]: (
-    ...args: Parameters<Actions[K]> extends [any, ...infer Rest] ? Rest : never
-  ) => Promise<void> & { abort: (...args: any[]) => void };
+export type ContextActionMethods<Actions extends Record<string, (...args: any[]) => any>> = {
+  [K in keyof Actions]: Actions[K] extends (prev: any, ...rest: infer Rest) => any
+    ? (...args: Rest) => Promise<void> & { abort: (...args: any[]) => void }
+    : () => Promise<void> & { abort: (...args: any[]) => void };
 };
 
 export type ContextProxyListener = {
   get?: (path: string, value: any) => void;
   set?: (path: string, value: any) => void;
 };
+
+export type ContextActionStatus = "pending" | "completed" | "rejected";
 
 export interface Context<
   Value extends Record<string, any> = Record<string, any>,
@@ -30,6 +32,8 @@ export interface Context<
   valueOf(): Value;
   toString(): string;
   proxy(listener?: ContextProxyListener): Value;
+  on(event: "change", callback: (prev: Value, next: Value) => void): () => void;
+  on(event: keyof Actions & string, callback: (status: ContextActionStatus, value: Value) => void): () => void;
 }
 
 export interface ContextConstructor {
@@ -43,9 +47,6 @@ export interface ContextConstructor {
     options?: {
       cache?: "none" | "session" | "local" | "storage";
       actions?: Actions;
-      controllers?:
-        | ((target: keyof Actions & string, status: "pending" | "completed" | "rejected", value: Value) => void)
-        | Partial<Record<keyof Actions & string, (status: "pending" | "completed" | "rejected", value: Value) => void>>;
       encode?: boolean;
     },
   ): Context<Value, Actions> & ContextActionMethods<Actions>;
@@ -93,16 +94,34 @@ export class ThemeContext extends Context<
   constructor();
 }
 
-export class HistoryContext<Value extends Record<string, any> = Record<string, any>> extends Context<
-  Value,
-  {
-    set: (prev: Value, state: Record<string, any>) => Value | Promise<Value>;
-    update: (prev: Value, state: Record<string, any>) => Value | Promise<Value>;
-  }
-> {
-  constructor(name: string, initial: Value, cache?: "none" | "session" | "local" | "storage");
-  onUpdate(listener: (prev: Value, next: Value) => void): void;
+export interface HistoryContext<
+  Value extends Record<string, any> = Record<string, any>,
+  Actions extends Record<string, (...args: any[]) => any> = {},
+> extends Context<Value, ContextActions<Value>> {
+  onUpdate(listener: (prev: Value, next: Value) => void): () => void;
 }
+
+export interface HistoryContextConstructor {
+  new <
+    Value extends Record<string, any>,
+    Actions extends Record<string, (...args: any[]) => any> = {},
+  >(
+    name: string,
+    initial: Value,
+    options?: {
+      cache?: "none" | "session" | "local" | "storage";
+      actions?: Actions;
+    },
+  ): HistoryContext<Value, Actions> &
+    ContextActionMethods<
+      Actions & {
+        set: (prev: Value, state: Value) => Value | Promise<Value>;
+        update: (prev: Value, state: Partial<Value> & Record<string, any>) => Value | Promise<Value>;
+      }
+    >;
+}
+
+export const HistoryContext: HistoryContextConstructor;
 
 export {
   Component,

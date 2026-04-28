@@ -327,6 +327,25 @@ export default class Example extends Component {
 
 If you define actions, call them on the Context instance (e.g. `ctx.increment()`), and read/mutate state through the injected proxy in your component (e.g. `this.state.count++`).
 
+#### Events
+
+Use `on()` to subscribe to context events. It returns an unsubscribe function.
+
+```js
+// Listen to any successful state change
+const off = ctx.on("change", (prev, next) => {
+  console.log("State changed from", prev, "to", next);
+});
+
+// Listen to a specific action's lifecycle (pending, completed, rejected)
+ctx.on("increment", (status, value) => {
+  if (status === "completed") console.log("Increment done:", value);
+});
+
+// Unsubscribe
+off();
+```
+
 ### `Ref`
 
 ```jsx

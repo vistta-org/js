@@ -99,13 +99,11 @@ export class ThemeContext extends Context {
 }
 
 export class HistoryContext extends Context {
-  #listeners = [];
-
-  constructor(name, initial, cache) {
-    let prev;
+  constructor(name, initial, { cache, actions } = /** @type {any} */ ({})) {
     super(name, initial, {
       cache,
       actions: {
+        ...actions,
         set: (_, state) => state,
         update: (prev, state) => {
           state = clone({ ...prev, ...state }, true);
@@ -113,25 +111,11 @@ export class HistoryContext extends Context {
           return state;
         },
       },
-      controllers: (_, status, value) => {
-        const len = this.#listeners.length;
-        if (len === 0) return;
-        value = clone(value, true);
-        if (status === "pending") prev = value;
-        else if (status === "completed") {
-          for (let i = 0; i < len; i++) this.#listeners[i](prev, value);
-          prev = null;
-        }
-      },
     });
     window.addEventListener("popstate", ({ state: _state }) => /** @type {any} */ (this).set(_state));
     // Timeout needed to wait for initial history and cache load
     if (typeof history !== "undefined")
       setTimeout(() => history.replaceState(JSON.parse(super.toString()), document.title, location.href), 250);
-  }
-
-  onUpdate(listener) {
-    this.#listeners.push(listener);
   }
 }
 

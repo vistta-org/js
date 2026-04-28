@@ -108,7 +108,8 @@ class VirtualDom {
     }
     for (const component of components) component.onUpdate?.();
     for (const profiler of profilers) profiler.end?.();
-    this.running = false;
+    if (this.queue.length > this.queueStart) requestAnimationFrame((frameTime) => this.update(frameTime));
+    else this.running = false;
   }
 
   disable() {

@@ -118,7 +118,7 @@ export class Mutation extends FunctionClass {
 export class Context extends FunctionClass {
   static id = Symbol("Vistta.Context");
   #key;
-  #shared = { listeners: [] };
+  #shared = { listeners: [], events: {} };
 
   /**
    * @param {string} key - Unique context key.
@@ -126,10 +126,9 @@ export class Context extends FunctionClass {
    * @param {object} [options]
    * @param {"none"|"session"|"local"|"storage"} [options.cache] - Optional persistence backend.
    * @param {Actions} [options.actions] - Named mutating actions assigned as context instance methods.
-   * @param {any} [options.controllers]
    * @param {boolean} [options.encode] - Whether to encode the cache key. Defaults to false.
    */
-  constructor(key, value, { cache, actions, controllers, encode: encodeCache } = {}) {
+  constructor(key, value, { cache, actions, encode: encodeCache } = {}) {
     if (typeof key !== "string" || key.length == 0) throw new Error("TypeError: Invalid context key.");
     if (typeof value !== "object") throw new Error("TypeError: Cannot create context with a non-object value.");
     super(() => this);
@@ -157,22 +156,30 @@ export class Context extends FunctionClass {
       throw new Error("Error: Cannot create the same context with different cache types.");
     const actionsNames = Object.keys(actions || {});
     if (actionsNames.length > 0) {
-      const controllerFn = (target, status) => {
-        const typeOfControllers = typeof controllers;
-        if (typeOfControllers === "function") controllers.call(this, target, status, this.value);
-        else if (typeOfControllers === "object") controllers?.[target]?.call(this, status, this.value);
+      const emit = (target, status) => {
+        const handlers = this.#shared.events[target];
+        if (handlers) for (let i = 0, len = handlers.length; i < len; i++) handlers[i](status, this.value);
+        if (status === "completed") {
+          const changeHandlers = this.#shared.events.change;
+          if (changeHandlers) {
+            const prev = this.#shared.prev;
+            this.#shared.prev = null;
+            for (let i = 0, len = changeHandlers.length; i < len; i++) changeHandlers[i](prev, this.value);
+          }
+        }
       };
       for (let i = 0, len = actionsNames.length; i < len; i++) {
         const actionName = actionsNames[i];
-        if (["valueOf", "toString", "setValue", "proxy"].includes(actionName))
+        if (["valueOf", "toString", "setValue", "proxy", "on", "change"].includes(actionName))
           throw new Error(`Invalid action name "${actionName}".`);
         const action = actions[actionName];
         this[actionName] = ((...args) => {
-          controllerFn(actionName, "pending");
+          if (this.#shared.events.change) this.#shared.prev = clone(this.#shared.value, true);
+          emit(actionName, "pending");
           const controller = new AbortController();
           const promise = new Promise((resolve) => {
             controller.signal.onabort = () => {
-              controllerFn(actionName, "rejected");
+              emit(actionName, "rejected");
               resolve();
             };
             try {
@@ -183,19 +190,19 @@ export class Context extends FunctionClass {
                     if (controller.signal?.aborted) return;
                     this.#replace(result);
                     resolve();
-                    controllerFn(actionName, "completed");
+                    emit(actionName, "completed");
                   })
                   .catch(() => {
-                    controllerFn(actionName, "rejected");
+                    emit(actionName, "rejected");
                     resolve();
                   });
               else if (!controller.signal?.aborted) {
                 this.#replace(value);
                 resolve();
-                controllerFn(actionName, "completed");
+                emit(actionName, "completed");
               }
             } catch (e) {
-              controllerFn(actionName, "rejected");
+              emit(actionName, "rejected");
               throw e;
             }
           });
@@ -204,6 +211,23 @@ export class Context extends FunctionClass {
         }).bind(this);
       }
     }
+  }
+
+  /**
+   * Subscribe to context events.
+   * @param {string} event - Action name or "change".
+   * @param {Function} callback - For actions: `(status, value)`. For "change": `(prev, next)`.
+   * @returns {() => void} Unsubscribe function.
+   */
+  on(event, callback) {
+    if (!this.#shared.events[event]) this.#shared.events[event] = [];
+    this.#shared.events[event].push(callback);
+    return () => {
+      const list = this.#shared.events[event];
+      if (!list) return;
+      const index = list.indexOf(callback);
+      if (index !== -1) list.splice(index, 1);
+    };
   }
 
   /** @returns {string} */
