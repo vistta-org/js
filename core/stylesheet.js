@@ -70,7 +70,7 @@ export class VirtualStyleSheet extends BoundClass {
     keys = Object.keys(queries);
     for (let i = 0, len = keys.length; i < len; i++) {
       if (typeof queries[keys[i]] !== "string") continue;
-      this.#queries[keys[i]] = (style) => `@media ${queries[keys[i]]} { ${style.trim()} }`;
+      this.#queries[keys[i]] = queries[keys[i]];
     }
 
     keys = Object.keys(functions);
@@ -286,7 +286,7 @@ function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
     return `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value, false, functions)};`;
   }
   if (key === "animation") return createAnimation ? createAnimation(value) : "";
-  if (queries[key]) return queries[key](value) + " ";
+  if (queries[key]) return `@media ${queries[key]} { ${value.trim()} }`;
   if (key === ":initial") return `@starting-style { ${value}}`;
   const atRule = key.match(/^:(media|supports|container|layer)\((.+)\)$/);
   if (atRule)
