@@ -128,8 +128,8 @@ let anchorCounter = 0;
  * @property {number | string} [gap=0] Space between the anchor and the positioned element.
  * @property {string | string[] | false} [fallback]
  *   Fallback value(s) for `position-try-fallbacks` (e.g. `"flip-block"`, `"flip-inline"`,
- *   `"flip-start"`, or a custom `@position-try --name`). Defaults to `"flip-block"` for
- *   bottom/top and `"flip-inline"` for left/right. Pass `false` to disable.
+ *   `"flip-start"`, or a custom `@position-try --name`). Defaults to `"flip-block flip-inline"` .
+ *   Pass `false` to disable.
  * @property {boolean} [minSize=true] Match the anchor's width (block axis) or height (inline axis).
  */
 
@@ -160,34 +160,30 @@ export class Anchor extends FunctionClass {
     const { gap = 0, fallback, minSize = true } = options;
     const g = typeof gap === "number" ? `${gap}px` : gap;
     const vertical = target === "bottom" || target === "top";
-    const opposite = target === "bottom" ? "top" : target === "top" ? "bottom" : target === "left" ? "right" : "left";
     const style = {
       position: "fixed",
       positionAnchor: name,
-      top: "auto",
-      bottom: "auto",
-      left: "auto",
-      right: "auto",
+      margin: "0",
+      inset: "auto",
+      positionArea: `${target} span-all`,
     };
     if (vertical) {
-      style[opposite] = `anchor(${target})`;
-      style.right = `anchor(right)`;
       style[target === "bottom" ? "marginTop" : "marginBottom"] = g;
       if (minSize) style.minWidth = `anchor-size(width)`;
+      style.justifySelf = "anchor-center";
+      style.positionTryOrder = "most-height";
     } else {
-      style[opposite] = `anchor(${target})`;
-      style.top = `anchor(top)`;
       style[target === "left" ? "marginRight" : "marginLeft"] = g;
       if (minSize) style.minHeight = `anchor-size(height)`;
+      style.alignSelf = "anchor-center";
+      style.positionTryOrder = "most-width";
     }
     if (fallback !== false) {
       style.positionTryFallbacks = Array.isArray(fallback)
         ? fallback.join(", ")
         : typeof fallback === "string"
           ? fallback
-          : vertical
-            ? "flip-block"
-            : "flip-inline";
+          : "flip-block, flip-inline, flip-block flip-inline";
     }
     return style;
   }
