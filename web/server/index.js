@@ -1059,7 +1059,7 @@ class Server {
         request.href = url.href;
         request.pathname = url.pathname;
         const route = matchRoute(this.#subdomains[request.subdomain]?.websocket, request.pathname, { exact: false });
-        if (typeof route?.handler !== "function") socket.end();
+        if (typeof route?.handler !== "function") return socket.end();
         return route.handler(request, socket, head);
       }
       case "middleware": {
