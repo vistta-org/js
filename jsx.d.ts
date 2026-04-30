@@ -226,8 +226,7 @@ declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
   > & {
     style?: JSX.Style;
     contentEditable?: boolean;
-  } &
-    EventHandlers &
+  } & EventHandlers &
     CustomElement
 >;
 
@@ -265,11 +264,19 @@ declare namespace JSX {
 
   interface IntrinsicElements extends IntrinsicElementMap {}
 
-  type LibraryManagedAttributes<C, _> = C extends new (props?: infer P, ...args: any[]) => any ? Partial<P> & { children?: any } : never;
+  type LibraryManagedAttributes<C, _> = C extends new (props?: infer P, ...args: any[]) => any
+    ? Partial<P> & { children?: any }
+    : never;
 
   interface IntrinsicAttributes {
     key?: string | number;
   }
+
+  type EventHandlers = {
+    [K in keyof globalThis.EventHandlers]?: globalThis.EventHandlers[K] extends ((this: any, ev: infer E) => any) | null
+      ? (event: E) => any
+      : never;
+  };
 
   type ComponentProps<T> = Partial<Omit<T, "children">> & { children?: any };
 }
