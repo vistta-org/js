@@ -404,6 +404,22 @@ export class Component {
   }
 
   /**
+   * Returns all enumerable props from the instance except the specified keys.
+   * @param {object} component - The component instance.
+   * @param {string[]} exclude - Keys to exclude.
+   * @returns {Record<string, any>}
+   */
+  static forwardProps(component, exclude) {
+    const result = {};
+    const keys = Object.keys(component);
+    for (let i = 0, len = keys.length; i < len; i++) {
+      const key = keys[i];
+      if (!exclude.includes(key) && component[key] != null) result[key] = component[key];
+    }
+    return result;
+  }
+
+  /**
    * @param {Props} [props]
    */
   // eslint-disable-next-line no-unused-vars
@@ -1017,6 +1033,16 @@ export class Form extends Component {
 defineReadonly(window, "Fragment", Fragment);
 defineReadonly(window, "prop", (caller) => new Mutation(caller));
 defineReadonly(window, "child", (caller) => new Mutation(caller));
+defineReadonly(window, "spread", (caller) => {
+  const obj = caller();
+  const result = {};
+  const keys = Object.keys(obj);
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i];
+    result[key] = new Mutation(() => caller()[key]);
+  }
+  return result;
+});
 defineReadonly(window, "element", (type, props, ...children) => new Element(type, props, ...children));
 
 //

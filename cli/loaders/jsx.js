@@ -76,7 +76,9 @@ function transformElement(code) {
       } else if (code[i] === "{") {
         const [value, expressionEnd] = transformJSExpression(code.slice(i));
         if (!value) return [];
-        props += `${value}, `;
+        if (value.startsWith("..."))
+          props += `...spread(() => ${value.slice(3)}), `;
+        else props += `${value}, `;
         i += expressionEnd - 1;
       } else if (isWhitespace(code[i])) {
         if (context.prop !== "") {
