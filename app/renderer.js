@@ -1,5 +1,16 @@
-/* eslint-disable no-undef */
-import { Component, Context, Element, Form, Fragment, Profiler, Ref, Render, Safe, Suspense } from "../core/classes.js";
+import {
+  Component,
+  Context,
+  Element,
+  Form,
+  Fragment,
+  Profiler,
+  Ref,
+  Render,
+  Safe,
+  Suspense,
+  VirtualContainer,
+} from "../core/classes.js";
 import { VirtualDom } from "../core/dom.js";
 import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils.js";
 import { defineReadonly } from "../utils/index.js";
@@ -13,6 +24,7 @@ const vistta = {
   Ref,
   Component,
   Suspense,
+  VirtualContainer,
   Profiler,
   Render,
   Safe,

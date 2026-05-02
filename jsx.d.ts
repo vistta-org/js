@@ -248,6 +248,7 @@ declare namespace JSX {
 
   class Component<T extends Record<string, any> = {}> {
     constructor(props?: T);
+    props(exclude?: string[]): Partial<T & Record<string, any>>;
   }
 
   type Style = string | string[] | Record<string, Style>;

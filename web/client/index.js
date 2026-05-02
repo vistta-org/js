@@ -1,5 +1,17 @@
 "use strict";
-import { Component, Context, Element, Form, Fragment, Profiler, Ref, Render, Safe, Suspense } from "../../core/classes";
+import {
+  Component,
+  Context,
+  Element,
+  Form,
+  Fragment,
+  Profiler,
+  Ref,
+  Render,
+  Safe,
+  Suspense,
+  VirtualContainer,
+} from "../../core/classes";
 import { socket } from "../../core/socket";
 import { Anchor, File, HistoryContext, Style, ThemeContext } from "../../core/utils";
 import { defineReadonly } from "../../utils/index.js";
@@ -12,6 +24,7 @@ const vistta = {
   Ref,
   Component,
   Suspense,
+  VirtualContainer,
   Profiler,
   Render,
   Safe,

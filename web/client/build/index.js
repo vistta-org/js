@@ -10,6 +10,7 @@ import {
   Render,
   Safe,
   Suspense,
+  VirtualContainer,
 } from "../../../core/classes.js";
 import { Anchor, File, HistoryContext, Style, ThemeContext } from "../../../core/utils.js";
 import { defineReadonly } from "../../../utils/index.js";
@@ -22,6 +23,7 @@ const vistta = {
   Ref,
   Component,
   Suspense,
+  VirtualContainer,
   Profiler,
   Render,
   Safe,

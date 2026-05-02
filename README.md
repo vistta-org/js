@@ -512,17 +512,21 @@ npx vistta test
 - Client: `router`
 - Server/controller helpers: `Controller`, `get`, `post`, `put`, `patch`, `del`, `copy`, `move`, `socket`
 
-### `Component.forwardProps(component, exclude)`
+### Component `props(...exclude)`
 
-Returns all enumerable props from a component instance except the specified keys. Use it to forward unhandled props (e.g. event listeners) via JSX spread:
+Returns all props passed to the component except the specified keys. Use it to forward unhandled props (e.g. event listeners) via JSX spread:
 
 ```jsx
-const HANDLED_PROPS = ["id", "ref", "style", "label"];
+const HANDLED_PROPS = ["name", "style"];
 
 class MyComponent extends Component {
   render() {
     return (
-      <div id={this.id} ref={this.ref} style={this.style} {...Component.forwardProps(this, HANDLED_PROPS)}>
+      <div
+        name={this.name || this.label}
+        style={Style.assign(this.style, { position: "relative" })}
+        {...this.props("name", "style")}
+      >
         {this.children}
       </div>
     );

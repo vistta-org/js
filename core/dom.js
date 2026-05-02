@@ -12,6 +12,7 @@ import {
   Safe,
   Suspense,
   TextNode,
+  VirtualContainer,
 } from "./classes.js";
 import { VirtualStyleSheet } from "./stylesheet.js";
 
@@ -159,6 +160,8 @@ class VirtualDom {
 
   renderElement(parent, element, context, referenceNode) {
     if (!(element instanceof Element)) element = convertToElement(element);
+    // @ts-ignore
+    else if (element.parent) element = element.clone();
     element.parent = parent;
     element.context = context;
     element.mutations = new Set();
@@ -237,32 +240,33 @@ class VirtualDom {
           if (existing.type !== element.Component) throw new VirtualDomError(`Key ${element.key} already in use.`);
           const previous = existing.element;
           previous.parent = parent;
-          const stack = [previous];
-          while (stack.length > 0) {
-            const current = stack.pop();
-            for (let i = 0, len = current.children.length; i < len; i++) {
-              const child = current.children[i];
-              if (child.node) appendElement(child.parent, child, referenceNode);
-              else stack.push(child);
+          previous.context = context;
+          const fragment = this.createElement("fragment");
+          const collect = (el) => {
+            for (let i = 0, len = el.children.length; i < len; i++) {
+              const child = el.children[i];
+              if (child.node) fragment.appendChild(child.node);
+              else collect(child);
             }
-          }
+          };
+          collect(previous);
+          previous.firstNode = fragment.firstChild;
+          previous.lastNode = fragment.lastChild;
+          appendFragment(parent, fragment, referenceNode);
           traverseVirtualTree(previous, (element) => {
             if (element.mutations) for (const mutation of element.mutations) this.enableMutation(mutation);
             element.component?.onConnect?.();
           });
-          return {
-            ...previous,
-            ...element,
-          };
+          return previous;
         }
       }
 
-      if (element.Component.prototype instanceof Component) component = new element.Component();
+      if (element.Component.prototype instanceof Component) component = new element.Component(element.props);
       else {
         component = element.Component();
         if (typeof component !== "object" || typeof component.render !== "function")
           throw new VirtualDomError("Invalid Function Component format");
-        component = Object.assign(new Component(), component);
+        component = Object.assign(new Component(element.props), component);
       }
       if (hasKey) parent.keys[element.key] = { type: element.Component, element };
       element.component = component;
@@ -290,7 +294,7 @@ class VirtualDom {
       const propertyNames = Object.getOwnPropertyNames(component);
       for (let i = 0, len = propertyNames.length; i < len; i++) {
         const propertyName = propertyNames[i];
-        if (propertyName === "constructor") continue;
+        if (propertyName === "constructor" || propertyName === "props") continue;
         if (propertyName === "render" || propertyName === "onConnect" || propertyName === "onDisconnect") {
           if (internal) continue;
           Object.defineProperty(component, propertyName, {
@@ -399,6 +403,14 @@ class VirtualDom {
             });
         }
       }
+
+      if (element.Component === VirtualContainer)
+        Object.defineProperty(component, "invalidate", {
+          value: () => this.enqueue([element.mutation]),
+          configurable: false,
+          enumerable: false,
+          writable: false,
+        });
 
       let init = (value) => this.renderElementChildren(element, ensureArray(value), context, referenceNode);
       let update = (value) => this.updateElement(element, null, ensureArray(value));

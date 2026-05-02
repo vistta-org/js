@@ -68,6 +68,13 @@ export class Element {
         props.style = assign(props.style || {}, style || {});
       } else props = cloneProps(this.props);
     }
+    if (this.Component) {
+      if (children !== false) {
+        const source = this.props.children || [];
+        children = source.map((child) => (child instanceof Element ? child.clone(undefined, true) : child));
+      }
+      return new Element(this.Component, props, ...children);
+    }
     if (children !== false)
       children = this?.children?.map((child) => (child instanceof Element ? child.clone(undefined, true) : child));
     return new Element(this.type, props, ...children);
@@ -404,25 +411,8 @@ export class Component {
   }
 
   /**
-   * Returns all enumerable props from the instance except the specified keys.
-   * @param {object} component - The component instance.
-   * @param {string[]} exclude - Keys to exclude.
-   * @returns {Record<string, any>}
-   */
-  static forwardProps(component, exclude) {
-    const result = {};
-    const keys = Object.keys(component);
-    for (let i = 0, len = keys.length; i < len; i++) {
-      const key = keys[i];
-      if (!exclude.includes(key) && component[key] != null) result[key] = component[key];
-    }
-    return result;
-  }
-
-  /**
    * @param {Props} [props]
    */
-  // eslint-disable-next-line no-unused-vars
   constructor(props) {
     const prototype = Object.getPrototypeOf(this);
     const functions = Object.getOwnPropertyNames(prototype);
@@ -432,6 +422,20 @@ export class Component {
       if (typeof descriptor.get === "undefined" && typeof descriptor.set === "undefined")
         this[functions[i]] = this[functions[i]].bind(this);
     }
+    const propKeys = Object.keys(props);
+    Object.defineProperty(this, "props", {
+      value: (...exclude) => {
+        const result = {};
+        for (let i = 0, len = propKeys.length; i < len; i++) {
+          const key = propKeys[i];
+          if (key !== "children" && !exclude.includes(key.toLowerCase())) result[key] = this[key];
+        }
+        return result;
+      },
+      writable: false,
+      configurable: false,
+      enumerable: false,
+    });
   }
 }
 
@@ -747,10 +751,7 @@ export class Form extends Component {
             validate: (name) => this.validate(name),
           });
         }),
-        class: this.class,
-        autocomplete: this.autocomplete,
         onreset: () => this.reset(),
-        oninvalid: this.oninvalid || this.onInvalid,
         onsubmit: (event) => {
           event.preventDefault();
           if (this.validate()) return;
@@ -758,7 +759,7 @@ export class Form extends Component {
           if (typeof this.onsubmit === "function") this.onsubmit?.(event);
           else if (typeof this.onSubmit === "function") this.onSubmit?.(event);
         },
-        style: this.style,
+        ...spreadProps(() => this.props("ref", "onsubmit", "onreset")),
       },
       ...this.children,
     );
@@ -1028,12 +1029,152 @@ export class Form extends Component {
   }
 }
 
+/**
+ * @typedef {JSX.EventHandlers & {
+ *   id?: string,
+ *   ref?: Ref<HTMLElement> | ((element: HTMLElement) => void),
+ *   type?: "scroll" | "lazy",
+ *   style?: JSX.Style,
+ *   rowCount?: number,
+ *   rows?: ((index: number) => JSX.Element) | JSX.Element[],
+ *   rowHeight?: number,
+ *   overscan?: number,
+ *   width?: string,
+ *   height?: string,
+ * }} VirtualContainerProps
+ */
+
+/**
+ * A virtual container that supports two modes:
+ * - **Virtual scroll**: when `rows` and `rowHeight` are provided, renders only the visible rows.
+ * - **Lazy render**: when only children are provided, renders them only when the container is visible in the viewport.
+ * @extends {Component<VirtualContainerProps>}
+ */
+export class VirtualContainer extends Component {
+  #start = 0;
+  #end = 0;
+  #container = new Ref();
+  #inner = new Ref();
+  #resizeObserver;
+  #intersectionObserver;
+  #visible = false;
+
+  get #count() {
+    return Array.isArray(this.rows) ? this.rows.length : this.rowCount;
+  }
+
+  onConnect() {
+    const element = this.#container.node;
+    if (!element) return;
+    if (this.type === "scroll") {
+      this.#updateScroll();
+      this.#resizeObserver = new ResizeObserver(() => this.#updateScroll());
+      element.style.overflow = "auto !important";
+      this.#resizeObserver.observe(element);
+      return;
+    }
+    this.#intersectionObserver = new IntersectionObserver(([entry]) => this.#updateVisibility(entry.isIntersecting), {
+      rootMargin: "100px",
+    });
+    this.#intersectionObserver.observe(element);
+  }
+
+  onDisconnect() {
+    switch (this.type) {
+      case "scroll": {
+        this.#resizeObserver?.disconnect();
+        break;
+      }
+      case "lazy": {
+        this.#intersectionObserver?.disconnect();
+        break;
+      }
+    }
+  }
+
+  #updateScroll() {
+    const container = this.#container.node;
+    if (!container) return;
+    const count = this.#count;
+    const start = Math.max(0, ((container.scrollTop / this.rowHeight) | 0) - (this.overscan || 10));
+    const end = Math.min(
+      count,
+      (((container.scrollTop + container.clientHeight) / this.rowHeight) | 0) + 1 + (this.overscan || 10),
+    );
+    if (start === this.#start && end === this.#end) return;
+    this.#start = start;
+    this.#end = end;
+    const inner = this.#inner.node;
+    if (inner) {
+      inner.style.height = `${count * this.rowHeight}px !important`;
+      inner.style.boxSizing = "border-box !important";
+      inner.style.padding = `${start * this.rowHeight}px 0 ${(count - end) * this.rowHeight}px !important`;
+    }
+    // @ts-ignore
+    this.invalidate();
+  }
+
+  get #visibleRows() {
+    const visible = [];
+    const end = this.#end;
+    const start = this.#start;
+    if (typeof this.rows === "function") {
+      for (let i = start; i < end; i++) visible.push(this.rows(i));
+    } else if (Array.isArray(this.rows)) {
+      for (let i = start; i < end; i++) visible.push(this.rows[i]);
+    }
+    return visible;
+  }
+
+  #updateVisibility(value) {
+    if (this.#visible === value) return;
+    this.#visible = value;
+    // @ts-ignore
+    this.invalidate();
+  }
+
+  render() {
+    if (this.type === "scroll") {
+      if (!this.#count || !this.rowHeight) return null;
+      return new Element(
+        "div",
+        {
+          ref: Ref.forward(this.ref, this.#container),
+          ...spreadProps(() => this.props("ref")),
+          onScroll: () => this.#updateScroll(),
+        },
+        new Element(
+          "div",
+          {
+            ref: this.#inner,
+          },
+          ...this.#visibleRows,
+        ),
+      );
+    }
+
+    return new Element(
+      "div",
+      {
+        ref: Ref.forward(this.ref, this.#container),
+        ...spreadProps(() => this.props("ref")),
+      },
+      ...(this.#visible ? this.children : []),
+    );
+  }
+}
+
 // Global
 
 defineReadonly(window, "Fragment", Fragment);
 defineReadonly(window, "prop", (caller) => new Mutation(caller));
 defineReadonly(window, "child", (caller) => new Mutation(caller));
-defineReadonly(window, "spread", (caller) => {
+defineReadonly(window, "spread", spreadProps);
+defineReadonly(window, "element", (type, props, ...children) => new Element(type, props, ...children));
+
+//
+
+function spreadProps(caller) {
   const obj = caller();
   const result = {};
   const keys = Object.keys(obj);
@@ -1042,21 +1183,19 @@ defineReadonly(window, "spread", (caller) => {
     result[key] = new Mutation(() => caller()[key]);
   }
   return result;
-});
-defineReadonly(window, "element", (type, props, ...children) => new Element(type, props, ...children));
-
-//
+}
 
 function cloneProps(props) {
   const clone = (value) => {
     if (typeof value === "object") {
+      if (value === null || value instanceof Element) return value;
       if (Array.isArray(value)) {
         const cloned = [];
         for (let i = 0, len = value.length; i < len; i++) cloned[i] = clone(value[i]);
         return cloned;
       } else {
         const cloned = {};
-        const keys = Object.keys(value || {});
+        const keys = Object.keys(value);
         for (let i = 0, len = keys.length; i < len; i++) cloned[keys[i]] = clone(value[keys[i]]);
         return cloned;
       }

@@ -1,7 +1,9 @@
 /// <reference types="./global.d.ts" />
 
 declare module "./core/classes.js" {
-  interface Component<Props extends Record<string, any> = Record<string, any>> extends Props {}
+  interface Component<Props extends Record<string, any> = Record<string, any>> extends Props {
+    props(...exclude: string[]): Partial<Props & Record<string, any>>;
+  }
 }
 
 export type ContextActions<Value extends Record<string, any>> = Record<
@@ -24,7 +26,7 @@ export type ContextActionStatus = "pending" | "completed" | "rejected";
 
 export interface Context<
   Value extends Record<string, any> = Record<string, any>,
-  Actions extends ContextActions<Value> = ContextActions<Value>
+  Actions extends ContextActions<Value> = ContextActions<Value>,
 > extends ContextActionMethods<Actions> {
   (): Value;
   readonly key: string;
@@ -38,10 +40,7 @@ export interface Context<
 
 export interface ContextConstructor {
   readonly id: symbol;
-  new <
-    Value extends Record<string, any>,
-    Actions extends ContextActions<Value> = ContextActions<Value>
-  >(
+  new <Value extends Record<string, any>, Actions extends ContextActions<Value> = ContextActions<Value>>(
     key: string,
     value: Value,
     options?: {
@@ -102,10 +101,7 @@ export interface HistoryContext<
 }
 
 export interface HistoryContextConstructor {
-  new <
-    Value extends Record<string, any>,
-    Actions extends Record<string, (...args: any[]) => any> = {},
-  >(
+  new <Value extends Record<string, any>, Actions extends Record<string, (...args: any[]) => any> = {}>(
     name: string,
     initial: Value,
     options?: {
@@ -133,10 +129,11 @@ export {
   Render,
   Safe,
   Suspense,
+  VirtualContainer,
 } from "./core/classes.js";
 
-export { Style, File } from "./core/utils.js";
-export { default as router } from "./web/client/router.js";
 export { default as socket } from "./core/socket.js";
-export { default as Controller, COPY, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./web/server/controller.js";
+export { File, Style } from "./core/utils.js";
 export { worker } from "./index.js";
+export { default as router } from "./web/client/router.js";
+export { COPY, default as Controller, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./web/server/controller.js";

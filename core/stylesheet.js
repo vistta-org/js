@@ -186,7 +186,7 @@ export class VirtualStyleSheet extends BoundClass {
           functions: this.#functions,
           createAnimation: (value) => this.createAnimation(value),
         });
-      else
+      else if (value)
         style = objectToStyle(value, {
           properties: this.#properties,
           queries: this.#queries,
@@ -252,7 +252,7 @@ function stringToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
 function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) {
   const { properties, queries, functions, createAnimation } = options;
   let style = "";
-  const keys = Object.keys(value);
+  const keys = Object.keys(value || {});
   for (let i = 0, len = keys.length; i < len; i++) {
     let key = keys[i];
     let cur = value[key];
