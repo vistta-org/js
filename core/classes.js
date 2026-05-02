@@ -428,7 +428,7 @@ export class Component {
         const result = {};
         for (let i = 0, len = propKeys.length; i < len; i++) {
           const key = propKeys[i];
-          if (key !== "children" && !exclude.includes(key.toLowerCase())) result[key] = this[key];
+          if (key !== "children" && !exclude.includes(key)) result[key] = this[key];
         }
         return result;
       },
