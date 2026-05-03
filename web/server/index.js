@@ -958,7 +958,7 @@ class Server {
         response.end();
       };
       response.send = (content, type) =>
-        typeof content === "object"
+        typeof content === "object" && !Buffer.isBuffer(content)
           ? this.#send(request, response, 200, stringify(content), type || "application/json")
           : this.#send(request, response, 200, content, type);
       response.sendFile = (filepath, type) => this.#sendFile(request, response, filepath, type);

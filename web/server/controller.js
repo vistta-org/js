@@ -12,6 +12,7 @@ import { FunctionClass } from "../../utils/index.js";
  *   controller?: AbortController,
  *   options?: { cache?: false | { force?: boolean } }
  * ) => Promise<Awaited<ReturnType<Callback>>>) & {
+ *   url: (args?: Optional<Parameters<Callback>[0]>) => string,
  *   invalidate?: ((key?: Optional<Parameters<Callback>[0]>) => Promise<void>) & { all?: () => Promise<void> }
  * }} RESTMethodCallback
  */

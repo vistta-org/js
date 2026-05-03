@@ -77,21 +77,25 @@ function convertRESTMethodToRequest(method) {
 
   const arg = method.type === "get" || method.type === "delete" ? "params" : "body";
   const urlExpr = params.length === 0 ? `createUrl("${method.url}")` : `createUrl(${parts.join(", ")})`;
+  const allParams = params.length === 0 ? `{ ...${arg} } = {}` : `{ ${params.join(", ")}, ...${arg} } = {}`;
+  const urlFn = `(${allParams}) => ${urlExpr}`;
+
   const fetchExpr = `request.${method.type}(_path, { ${arg}, controller }).then((response) => response?.data)`;
 
   // No cache — passthrough.
   if (!method.cache) {
-    if (params.length === 0) return `({ ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }`;
-    return `({ ${params.join(", ")}, ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }`;
+    if (params.length === 0)
+      return `Object.assign(({ ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
+    return `Object.assign(({ ${params.join(", ")}, ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
   }
 
   // Cache only meaningful for GET-like requests; body methods bypass cache.
   if (arg !== "params") {
-    if (params.length === 0) return `({ ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }`;
-    return `({ ${params.join(", ")}, ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }`;
+    if (params.length === 0)
+      return `Object.assign(({ ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
+    return `Object.assign(({ ${params.join(", ")}, ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
   }
 
-  const allParams = params.length === 0 ? `{ ...${arg} } = {}` : `{ ${params.join(", ")}, ...${arg} } = {}`;
   const ttl = method.cache.ttl * 1000;
   const swr = method.cache.swr;
   const cacheName = `api:${method.type}:${method.url}`;
@@ -158,6 +162,7 @@ function convertRESTMethodToRequest(method) {
     if (typeof caches === "undefined") return;
     await caches.delete(_cacheName);
   };
+  fn.url = ${urlFn};
   return fn;
 })()`;
 }
