@@ -76,7 +76,47 @@ function convertRESTMethodToRequest(method) {
   }
 
   const arg = method.type === "get" || method.type === "delete" ? "params" : "body";
+  let fetchExpr;
   if (params.length == 0)
-    return `(${arg}) => request.${method.type}(createUrl("${method.url}"), { ${arg} }).then((response) => response?.data)`;
-  return `({ ${params.join(", ")}, ...${arg} } = {}) => request.${method.type}(createUrl(${parts.join(", ")}), { ${arg} }).then((response) => response?.data)`;
+    fetchExpr = `request.${method.type}(createUrl("${method.url}"), { ${arg}, controller }).then((response) => response?.data)`;
+  else
+    fetchExpr = `request.${method.type}(createUrl(${parts.join(", ")}), { ${arg}, controller }).then((response) => response?.data)`;
+
+  if (!method.cache) {
+    if (params.length == 0) return `({ ...${arg} } = {}, controller) => ${fetchExpr}`;
+    return `({ ${params.join(", ")}, ...${arg} } = {}, controller) => ${fetchExpr}`;
+  }
+
+  const allParams = params.length == 0 ? `{ ...${arg} } = {}` : `{ ${params.join(", ")}, ...${arg} } = {}`;
+  const keyExpr = params.length == 0 ? arg : `{ ${params.join(", ")}, ...${arg} }`;
+  return `(() => {
+  const _name = "/_cache/${method.type}${method.url}";
+  const _ttl = ${method.cache * 1000};
+  const _toUrl = (key) => _name + "?" + encodeURIComponent(JSON.stringify(key));
+  const fn = async (${allParams}, controller) => {
+    const _key = ${keyExpr};
+    const _url = _toUrl(_key);
+    if (typeof caches !== "undefined") {
+      const _c = await caches.open("api");
+      const _r = await _c.match(_url);
+      if (_r) {
+        const _t = Number(_r.headers.get("X-Cache-Time"));
+        if (Date.now() - _t < _ttl) return _r.json();
+      }
+    }
+    const _d = await ${fetchExpr};
+    if (typeof caches !== "undefined") {
+      const _c = await caches.open("api");
+      await _c.put(_url, new Response(JSON.stringify(_d), { headers: { "Content-Type": "application/json", "X-Cache-Time": String(Date.now()) } }));
+    }
+    return _d;
+  };
+  fn.invalidate = async (key) => {
+    if (typeof caches === "undefined") return;
+    const _c = await caches.open("api");
+    if (key != null) await _c.delete(_toUrl(key));
+    else { const _keys = await _c.keys(); for (const _r of _keys) if (_r.url.includes(_name)) await _c.delete(_r); }
+  };
+  return fn;
+})()`;
 }

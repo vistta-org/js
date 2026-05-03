@@ -838,14 +838,8 @@ class Server {
         if (!(handler instanceof RESTMethod)) continue;
         this.#register(handler.type, subdomain, combinePathnames(pathname, handler.url), async (request, response) => {
           try {
-            Object.defineProperty(request, "socket", {
-              value: {
-                emit: this.emit.bind(this, subdomain),
-                on: this.on.bind(this, subdomain),
-              },
-              writable: true,
-              configurable: true,
-            });
+            request.socket.emit = this.emit.bind(this, subdomain);
+            request.socket.on = this.on.bind(this, subdomain);
             const body = await request.body();
             const value = await handler(
               Object.assign(typeof body === "object" && !Buffer.isBuffer(body) ? body : { data: body }, request.params, {

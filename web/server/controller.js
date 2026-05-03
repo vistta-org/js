@@ -7,14 +7,16 @@ import { FunctionClass } from "../../utils/index.js";
 
 /**
  * @template {((args: Record<string, any>) => any)} Callback
- * @typedef {(
- *   args?: Optional<Parameters<Callback>[0]>
- * ) => Promise<Awaited<ReturnType<Callback>>>} RESTMethodCallback
+ * @typedef {((
+ *   args?: Optional<Parameters<Callback>[0]>,
+ *   controller?: AbortController
+ * ) => Promise<Awaited<ReturnType<Callback>>>) & { invalidate?: (key?: Optional<Parameters<Callback>[0]>) => Promise<void> }} RESTMethodCallback
  */
 
 export class RESTMethod extends FunctionClass {
   #type;
   #url;
+  #options;
 
   get type() {
     return this.#type;
@@ -24,10 +26,15 @@ export class RESTMethod extends FunctionClass {
     return this.#url;
   }
 
-  constructor(type, url, callback) {
+  get cache() {
+    return this.#options?.cache || 0;
+  }
+
+  constructor(type, url, callback, options) {
     super(callback);
     this.#type = type;
     this.#url = url;
+    this.#options = options;
   }
 }
 
@@ -39,7 +46,7 @@ export class RESTMethod extends FunctionClass {
  * @param {T} callback Options for the request.
  * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const COPY = (url, callback) => /** @type {any} */(new RESTMethod("copy", url, callback));
+export const COPY = (url, callback, options) => /** @type {any} */ (new RESTMethod("copy", url, callback, options));
 
 /**
  * Sets a controller DELETE.
@@ -49,7 +56,7 @@ export const COPY = (url, callback) => /** @type {any} */(new RESTMethod("copy",
  * @param {T} callback Options for the request.
  * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const DELETE = (url, callback) => /** @type {any} */(new RESTMethod("delete", url, callback));
+export const DELETE = (url, callback, options) => /** @type {any} */ (new RESTMethod("delete", url, callback, options));
 
 /**
  * Sets a controller GET.
@@ -59,7 +66,7 @@ export const DELETE = (url, callback) => /** @type {any} */(new RESTMethod("dele
  * @param {T} callback Options for the request.
  * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const GET = (url, callback) => /** @type {any} */(new RESTMethod("get", url, callback));
+export const GET = (url, callback, options) => /** @type {any} */ (new RESTMethod("get", url, callback, options));
 
 /**
  * Sets a controller MOVE.
@@ -69,7 +76,7 @@ export const GET = (url, callback) => /** @type {any} */(new RESTMethod("get", u
  * @param {T} callback Options for the request.
  * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const MOVE = (url, callback) => /** @type {any} */(new RESTMethod("move", url, callback));
+export const MOVE = (url, callback, options) => /** @type {any} */ (new RESTMethod("move", url, callback, options));
 
 /**
  * Sets a controller PATCH.
@@ -79,7 +86,7 @@ export const MOVE = (url, callback) => /** @type {any} */(new RESTMethod("move",
  * @param {T} callback Options for the request.
  * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const PATCH = (url, callback) => /** @type {any} */(new RESTMethod("patch", url, callback));
+export const PATCH = (url, callback, options) => /** @type {any} */ (new RESTMethod("patch", url, callback, options));
 
 /**
  * Sets a controller POST.
@@ -89,7 +96,7 @@ export const PATCH = (url, callback) => /** @type {any} */(new RESTMethod("patch
  * @param {T} callback Options for the request.
  * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const POST = (url, callback) => /** @type {any} */(new RESTMethod("post", url, callback));
+export const POST = (url, callback, options) => /** @type {any} */ (new RESTMethod("post", url, callback, options));
 
 /**
  * Sets a controller PUT.
@@ -99,7 +106,7 @@ export const POST = (url, callback) => /** @type {any} */(new RESTMethod("post",
  * @param {T} callback Options for the request.
  * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const PUT = (url, callback) => /** @type {any} */(new RESTMethod("put", url, callback));
+export const PUT = (url, callback, options) => /** @type {any} */ (new RESTMethod("put", url, callback, options));
 
 /**
  * Sets a controller with a custom REST method.
@@ -110,9 +117,9 @@ export const PUT = (url, callback) => /** @type {any} */(new RESTMethod("put", u
  * @param {T} callback Options for the request.
  * @returns {RESTMethodCallback<T>} A promise that resolves to the response data.
  */
-export const REST = (type, url, callback) => /** @type {any} */(new RESTMethod(type, url, callback));
+export const REST = (type, url, callback, options) => /** @type {any} */ (new RESTMethod(type, url, callback, options));
 
-export default class Controller { }
+export default class Controller {}
 
 export function shareToLoader(filepath, value) {
   if (global.loaders.shared[filepath]) return;
