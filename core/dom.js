@@ -12,7 +12,6 @@ import {
   Safe,
   Suspense,
   TextNode,
-  VirtualContainer,
 } from "./classes.js";
 import { VirtualStyleSheet } from "./stylesheet.js";
 
@@ -403,14 +402,6 @@ class VirtualDom {
             });
         }
       }
-
-      if (element.Component === VirtualContainer)
-        Object.defineProperty(component, "invalidate", {
-          value: () => this.enqueue([element.mutation]),
-          configurable: false,
-          enumerable: false,
-          writable: false,
-        });
 
       let init = (value) => this.renderElementChildren(element, ensureArray(value), context, referenceNode);
       let update = (value) => this.updateElement(element, null, ensureArray(value));

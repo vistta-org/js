@@ -1039,8 +1039,6 @@ export class Form extends Component {
  *   rows?: ((index: number) => JSX.Element) | JSX.Element[],
  *   rowHeight?: number,
  *   overscan?: number,
- *   width?: string,
- *   height?: string,
  * }} VirtualContainerProps
  */
 
@@ -1051,51 +1049,35 @@ export class Form extends Component {
  * @extends {Component<VirtualContainerProps>}
  */
 export class VirtualContainer extends Component {
-  #start = 0;
-  #end = 0;
+  visible;
   #container = new Ref();
   #inner = new Ref();
-  #resizeObserver;
-  #intersectionObserver;
-  #visible = false;
-
-  get #count() {
-    return Array.isArray(this.rows) ? this.rows.length : this.rowCount;
-  }
+  #observer;
+  #start = 0;
+  #end = 0;
 
   onConnect() {
-    const element = this.#container.node;
-    if (!element) return;
+    const container = this.#container.node;
+    if (!container) return;
     if (this.type === "scroll") {
-      this.#updateScroll();
-      this.#resizeObserver = new ResizeObserver(() => this.#updateScroll());
-      element.style.overflow = "auto !important";
-      this.#resizeObserver.observe(element);
-      return;
-    }
-    this.#intersectionObserver = new IntersectionObserver(([entry]) => this.#updateVisibility(entry.isIntersecting), {
-      rootMargin: "100px",
-    });
-    this.#intersectionObserver.observe(element);
+      this.#update();
+      this.#observer = new ResizeObserver(() => this.#update());
+      container.style.setProperty("overflow", "auto", "important");
+    } else
+      this.#observer = new IntersectionObserver(([entry]) => (this.visible = entry.isIntersecting), {
+        rootMargin: "100px",
+      });
+    this.#observer.observe(container);
   }
 
   onDisconnect() {
-    switch (this.type) {
-      case "scroll": {
-        this.#resizeObserver?.disconnect();
-        break;
-      }
-      case "lazy": {
-        this.#intersectionObserver?.disconnect();
-        break;
-      }
-    }
+    this.#observer?.disconnect();
   }
 
-  #updateScroll() {
+  #update() {
     const container = this.#container.node;
     if (!container) return;
-    const count = this.#count;
+    const count = Array.isArray(this.rows) ? this.rows.length : this.rowCount;
     const start = Math.max(0, ((container.scrollTop / this.rowHeight) | 0) - (this.overscan || 10));
     const end = Math.min(
       count,
@@ -1106,60 +1088,44 @@ export class VirtualContainer extends Component {
     this.#end = end;
     const inner = this.#inner.node;
     if (inner) {
-      inner.style.height = `${count * this.rowHeight}px !important`;
-      inner.style.boxSizing = "border-box !important";
-      inner.style.padding = `${start * this.rowHeight}px 0 ${(count - end) * this.rowHeight}px !important`;
+      inner.style.setProperty("height", `${count * this.rowHeight}px`, "important");
+      inner.style.setProperty("box-sizing", "border-box", "important");
+      inner.style.setProperty("padding", `${start * this.rowHeight}px 0 ${(count - end) * this.rowHeight}px`, "important");
     }
-    // @ts-ignore
-    this.invalidate();
-  }
-
-  get #visibleRows() {
     const visible = [];
-    const end = this.#end;
-    const start = this.#start;
     if (typeof this.rows === "function") {
       for (let i = start; i < end; i++) visible.push(this.rows(i));
     } else if (Array.isArray(this.rows)) {
       for (let i = start; i < end; i++) visible.push(this.rows[i]);
     }
-    return visible;
-  }
-
-  #updateVisibility(value) {
-    if (this.#visible === value) return;
-    this.#visible = value;
-    // @ts-ignore
-    this.invalidate();
+    this.visible = visible;
   }
 
   render() {
-    if (this.type === "scroll") {
-      if (!this.#count || !this.rowHeight) return null;
+    if (this.type === "scroll")
       return new Element(
         "div",
         {
           ref: Ref.forward(this.ref, this.#container),
-          ...spreadProps(() => this.props("ref")),
-          onScroll: () => this.#updateScroll(),
+          ...spreadProps(() => this.props("visible", "ref", "type", "rows", "rowHeight", "rowCount", "overscan")),
+          onScroll: () => this.#update(),
         },
         new Element(
           "div",
           {
             ref: this.#inner,
           },
-          ...this.#visibleRows,
+          new Mutation(() => this.visible),
         ),
       );
-    }
 
     return new Element(
       "div",
       {
         ref: Ref.forward(this.ref, this.#container),
-        ...spreadProps(() => this.props("ref")),
+        ...spreadProps(() => this.props("visible", "ref", "type", "rows", "rowHeight", "rowCount", "overscan")),
       },
-      ...(this.#visible ? this.children : []),
+      new Mutation(() => this.visible && this.children),
     );
   }
 }
