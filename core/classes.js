@@ -1067,6 +1067,8 @@ export class VirtualContainer extends Component {
   #observer;
   #start = 0;
   #end = 0;
+  #prevRows;
+  #prevRowCount;
 
   onConnect() {
     const container = this.#container.node;
@@ -1089,13 +1091,17 @@ export class VirtualContainer extends Component {
   #update() {
     const container = this.#container.node;
     if (!container) return;
-    const count = Array.isArray(this.rows) ? this.rows.length : this.rowCount;
+    const rows = this.rows;
+    const count = Array.isArray(rows) ? rows.length : this.rowCount;
+    const rowsChanged = rows !== this.#prevRows || count !== this.#prevRowCount;
+    this.#prevRows = rows;
+    this.#prevRowCount = count;
     const start = Math.max(0, ((container.scrollTop / this.rowHeight) | 0) - (this.overscan || 10));
     const end = Math.min(
       count,
       (((container.scrollTop + container.clientHeight) / this.rowHeight) | 0) + 1 + (this.overscan || 10),
     );
-    if (start === this.#start && end === this.#end) return;
+    if (!rowsChanged && start === this.#start && end === this.#end) return;
     this.#start = start;
     this.#end = end;
     const inner = this.#inner.node;
@@ -1105,10 +1111,10 @@ export class VirtualContainer extends Component {
       inner.style.setProperty("padding", `${start * this.rowHeight}px 0 ${(count - end) * this.rowHeight}px`, "important");
     }
     const visible = [];
-    if (typeof this.rows === "function") {
-      for (let i = start; i < end; i++) visible.push(this.rows(i));
-    } else if (Array.isArray(this.rows)) {
-      for (let i = start; i < end; i++) visible.push(this.rows[i]);
+    if (typeof rows === "function") {
+      for (let i = start; i < end; i++) visible.push(rows(i));
+    } else if (Array.isArray(rows)) {
+      for (let i = start; i < end; i++) visible.push(rows[i]);
     }
     this.visible = visible;
   }
@@ -1127,7 +1133,12 @@ export class VirtualContainer extends Component {
           {
             ref: this.#inner,
           },
-          new Mutation(() => this.visible),
+          new Mutation(() => {
+            this.rows; // track rows prop for reactivity
+            this.rowCount; // track rowCount prop for reactivity
+            this.#update();
+            return this.visible;
+          }),
         ),
       );
 
