@@ -83,12 +83,24 @@ export class Element {
 
 export class Mutation extends FunctionClass {
   /**
+   * The mutation currently capturing reactive reads. Set by the renderer while
+   * evaluating a mutation's callback so that property getters can link the
+   * mutation to the sets they read from.
+   * @type {Mutation|null}
+   */
+  static current = null;
+
+  /**
    * Wraps a callback so it can be lazily resolved when read as a prop.
    * @param {Function} callback
    */
   constructor(callback) {
     super(callback);
     this.callback = callback;
+    /** @type {Set<Set<Mutation>>|undefined} */
+    this.tracked = undefined;
+    /** @type {boolean|undefined} */
+    this.disabled = undefined;
   }
 }
 
@@ -1140,8 +1152,15 @@ defineReadonly(window, "element", (type, props, ...children) => new Element(type
 
 //
 
-function spreadProps(caller) {
-  const obj = caller();
+export function spreadProps(caller) {
+  const previous = Mutation.current;
+  Mutation.current = null;
+  let obj;
+  try {
+    obj = caller();
+  } finally {
+    Mutation.current = previous;
+  }
   const result = {};
   const keys = Object.keys(obj);
   for (let i = 0, len = keys.length; i < len; i++) {

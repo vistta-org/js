@@ -76,46 +76,87 @@ function convertRESTMethodToRequest(method) {
   }
 
   const arg = method.type === "get" || method.type === "delete" ? "params" : "body";
-  let fetchExpr;
-  if (params.length == 0)
-    fetchExpr = `request.${method.type}(createUrl("${method.url}"), { ${arg}, controller }).then((response) => response?.data)`;
-  else
-    fetchExpr = `request.${method.type}(createUrl(${parts.join(", ")}), { ${arg}, controller }).then((response) => response?.data)`;
+  const urlExpr = params.length === 0 ? `createUrl("${method.url}")` : `createUrl(${parts.join(", ")})`;
+  const fetchExpr = `request.${method.type}(_path, { ${arg}, controller }).then((response) => response?.data)`;
 
+  // No cache — passthrough.
   if (!method.cache) {
-    if (params.length == 0) return `({ ...${arg} } = {}, controller) => ${fetchExpr}`;
-    return `({ ${params.join(", ")}, ...${arg} } = {}, controller) => ${fetchExpr}`;
+    if (params.length === 0) return `({ ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }`;
+    return `({ ${params.join(", ")}, ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }`;
   }
 
-  const allParams = params.length == 0 ? `{ ...${arg} } = {}` : `{ ${params.join(", ")}, ...${arg} } = {}`;
-  const keyExpr = params.length == 0 ? arg : `{ ${params.join(", ")}, ...${arg} }`;
+  // Cache only meaningful for GET-like requests; body methods bypass cache.
+  if (arg !== "params") {
+    if (params.length === 0) return `({ ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }`;
+    return `({ ${params.join(", ")}, ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }`;
+  }
+
+  const allParams = params.length === 0 ? `{ ...${arg} } = {}` : `{ ${params.join(", ")}, ...${arg} } = {}`;
+  const ttl = method.cache.ttl * 1000;
+  const swr = method.cache.swr;
+  const cacheName = `api:${method.type}:${method.url}`;
+
   return `(() => {
-  const _name = "/_cache/${method.type}${method.url}";
-  const _ttl = ${method.cache * 1000};
-  const _toUrl = (key) => _name + "?" + encodeURIComponent(JSON.stringify(key));
-  const fn = async (${allParams}, controller) => {
-    const _key = ${keyExpr};
-    const _url = _toUrl(_key);
+  const _cacheName = ${stringify(cacheName)};
+  const _ttl = ${ttl};
+  const _swr = ${swr ? "true" : "false"};
+  const _buildKey = (_path, _params) => {
+    const _q = new URLSearchParams(_params).toString();
+    return _q ? _path + "?" + _q : _path;
+  };
+  const _writeCache = async (_key, _data) => {
+    if (typeof caches === "undefined") return;
+    const _c = await caches.open(_cacheName);
+    await _c.put(_key, new Response(JSON.stringify(_data), {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Cache-Time": String(Date.now()),
+        "X-Cache-TTL": String(_ttl),
+      },
+    }));
+  };
+  const _revalidate = (_key, fetcher) => fetcher().then((_d) => _writeCache(_key, _d)).catch(() => {});
+  const fn = async (${allParams}, controller, _options) => {
+    const _path = ${urlExpr};
+    const _key = _buildKey(_path, ${arg});
+    const _bypass = _options && _options.cache === false;
+    const _force = _options && _options.cache && _options.cache.force === true;
+    const _doFetch = () => ${fetchExpr};
+    if (_bypass) return _doFetch();
+    if (_force) {
+      const _d = await _doFetch();
+      await _writeCache(_key, _d);
+      return _d;
+    }
     if (typeof caches !== "undefined") {
-      const _c = await caches.open("api");
-      const _r = await _c.match(_url);
+      const _c = await caches.open(_cacheName);
+      const _r = await _c.match(_key);
       if (_r) {
         const _t = Number(_r.headers.get("X-Cache-Time"));
-        if (Date.now() - _t < _ttl) return _r.json();
+        const _fresh = Date.now() - _t < _ttl;
+        if (_fresh) return _r.json();
+        if (_swr) {
+          _revalidate(_key, _doFetch);
+          return _r.json();
+        }
       }
     }
-    const _d = await ${fetchExpr};
-    if (typeof caches !== "undefined") {
-      const _c = await caches.open("api");
-      await _c.put(_url, new Response(JSON.stringify(_d), { headers: { "Content-Type": "application/json", "X-Cache-Time": String(Date.now()) } }));
-    }
+    const _d = await _doFetch();
+    await _writeCache(_key, _d);
     return _d;
   };
   fn.invalidate = async (key) => {
     if (typeof caches === "undefined") return;
-    const _c = await caches.open("api");
-    if (key != null) await _c.delete(_toUrl(key));
-    else { const _keys = await _c.keys(); for (const _r of _keys) if (_r.url.includes(_name)) await _c.delete(_r); }
+    if (key == null) { await caches.delete(_cacheName); return; }
+    const { ${params.join(", ")}${params.length ? ", " : ""}...rest } = key;
+    const _path = ${urlExpr};
+    const _key = _buildKey(_path, rest);
+    const _c = await caches.open(_cacheName);
+    await _c.delete(_key);
+  };
+  fn.invalidate.all = async () => {
+    if (typeof caches === "undefined") return;
+    await caches.delete(_cacheName);
   };
   return fn;
 })()`;

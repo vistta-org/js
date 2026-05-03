@@ -34,6 +34,7 @@ class VirtualDom {
   running = false;
   queue = [];
   queueStart = 0;
+  queued = new Set();
   stylesheet = new VirtualStyleSheet();
 
   constructor(pathname, host, config) {
@@ -70,8 +71,14 @@ class VirtualDom {
       this.queue.length = 0;
       this.queueStart = 0;
     }
-    this.queue.push(...mutations);
-    if (!this.active || this.running) return;
+    let added = false;
+    for (const mutation of mutations) {
+      if (this.queued.has(mutation)) continue;
+      this.queued.add(mutation);
+      this.queue.push(mutation);
+      added = true;
+    }
+    if (!added || !this.active || this.running) return;
     this.running = true;
     requestAnimationFrame((frameTime) => this.update(frameTime));
   }
@@ -90,6 +97,7 @@ class VirtualDom {
 
     while (index < this.queue.length) {
       const mutation = this.queue[index++];
+      this.queued.delete(mutation);
       processed++;
       mutation.update?.(components, profilers);
       if ((processed & (BUDGET_CHECK_INTERVAL - 1)) === 0 && performance.now() - startTime > frameBudget) {
@@ -329,14 +337,15 @@ class VirtualDom {
             const mutations = {};
             element.context["#" + instance.key] = instance.proxy({
               get: (path, partOfArray) => {
-                if (!this.mutation) return;
+                const current = Mutation.current;
+                if (!current) return;
                 const parent = !partOfArray && path.substring(0, path.lastIndexOf("."));
                 if (parent && mutations[parent]) {
-                  mutations[parent].delete(this.mutation);
-                  if (this.mutation.tracked) this.mutation.tracked.delete(mutations[parent]);
+                  mutations[parent].delete(current);
+                  if (current.tracked) current.tracked.delete(mutations[parent]);
                 }
                 if (!mutations[path]) mutations[path] = new Set();
-                this.trackMutation(this.mutation, mutations[path]);
+                this.trackMutation(current, mutations[path]);
               },
               set: (path) => mutations[path] && this.enqueue(mutations[path]),
             });
@@ -376,7 +385,7 @@ class VirtualDom {
               configurable: false,
               enumerable: true,
               get: () => {
-                if (this.mutation) this.trackMutation(this.mutation, mutations);
+                if (Mutation.current) this.trackMutation(Mutation.current, mutations);
                 if (!fulfilled && context.suspense) resolve = context.suspense();
                 return element.attributes[propertyName];
               },
@@ -391,7 +400,7 @@ class VirtualDom {
               configurable: false,
               enumerable: true,
               get: () => {
-                if (this.mutation) this.trackMutation(this.mutation, mutations);
+                if (Mutation.current) this.trackMutation(Mutation.current, mutations);
                 return element.attributes[propertyName];
               },
               set: (v) => {
@@ -415,13 +424,13 @@ class VirtualDom {
         };
         context.suspense = () => {
           pending++;
-          if (pending > 0 && !activate) {
+          if (!activate) {
             activate = true;
             this.enqueue([context.suspense]);
           }
           return () => {
             pending--;
-            if (pending == 0 && activate) {
+            if (pending === 0 && activate) {
               activate = false;
               this.enqueue([context.suspense]);
             }
@@ -497,12 +506,26 @@ class VirtualDom {
 
     const previous = [...element.children];
     element.children = [];
+    
+    const previousByKey = new Map();
+    for (let i = 0, len = previous.length; i < len; i++) {
+      const prev = previous[i];
+      if (prev?.key) previousByKey.set(prev.key, i);
+    }
+
     for (let i = 0, len = children.length; i < len; i++) {
       let child = children[i];
       if (!(child instanceof Element)) child = convertToElement(child);
-      if (!previous[i]?.key || !child.key || previous[i].key !== child.key) continue;
-      element.children[i] = previous[i];
-      previous[i] = null;
+      children[i] = child;
+      if (!child.key) continue;
+      const idx = previousByKey.get(child.key);
+      if (idx === undefined) continue;
+      const prev = previous[idx];
+      if (!prev || prev.type !== child.type) continue;
+      if (prev.Component !== child.Component) continue;
+      element.children[i] = prev;
+      previous[idx] = null;
+      previousByKey.delete(child.key);
     }
     let referenceNode = element.node ? null : element.lastNode?.nextSibling;
 
@@ -520,6 +543,13 @@ class VirtualDom {
         const childContext = Object.create(element.context);
         childContext.components = childContext.components.slice();
         element.children[i] = this.renderElement(element, children[i], childContext, referenceNode);
+      } else {
+        const child = element.children[i];
+        const lastNode = child.node || child.lastNode;
+        if (lastNode && lastNode.nextSibling !== referenceNode) {
+          removeElement(child);
+          appendElement(element, child, referenceNode);
+        }
       }
       referenceNode = element.children[i].node || element.children[i].firstNode;
     }
@@ -575,8 +605,8 @@ class VirtualDom {
     mutation.disabled = undefined;
     mutation.update = (components, profilers) => {
       if (mutation.disabled) return;
-      const previousMutation = this.mutation;
-      this.mutation = mutation;
+      const previousMutation = Mutation.current;
+      Mutation.current = mutation;
       try {
         const len = element.context.components.length;
         if (len > 0) for (let i = 0; i < len; i++) components.add(element.context.components[i]);
@@ -601,11 +631,12 @@ class VirtualDom {
       } catch (e) {
         if (element?.context?.safe) element.context.safe.catch(e);
         else throw e;
+      } finally {
+        Mutation.current = previousMutation;
       }
-      this.mutation = previousMutation;
     };
-    const previousMutation = this.mutation;
-    this.mutation = mutation;
+    const previousMutation = Mutation.current;
+    Mutation.current = mutation;
     try {
       const result = mutation();
       if (result instanceof Promise) {
@@ -620,8 +651,9 @@ class VirtualDom {
     } catch (e) {
       if (element?.context?.safe) element.context.safe.catch(e);
       else throw e;
+    } finally {
+      Mutation.current = previousMutation;
     }
-    this.mutation = previousMutation;
     element.mutations.add(mutation);
     return mutation;
   }
@@ -645,10 +677,13 @@ class VirtualDom {
   }
 
   preventMutation(callback) {
-    const previousMutation = this.mutation;
-    this.mutation = null;
-    callback();
-    this.mutation = previousMutation;
+    const previousMutation = Mutation.current;
+    Mutation.current = null;
+    try {
+      callback();
+    } finally {
+      Mutation.current = previousMutation;
+    }
   }
 }
 

@@ -126,8 +126,8 @@ export async function createPage(type, filepath, pathname, layout, configs) {
           file_handlers: config.file_handlers,
           icons: ((icon) => {
             if (!icon) return [];
-            console.log("icon", resources[fs.basename(icon)]);
-            // CHATGPT no dependency for any image type
+            // console.log("icon", resources[fs.basename(icon)]);
+            // no dependency for any image type
             const type = fs.extname(icon).slice(1);
             return [
               {

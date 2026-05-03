@@ -9,8 +9,11 @@ import { FunctionClass } from "../../utils/index.js";
  * @template {((args: Record<string, any>) => any)} Callback
  * @typedef {((
  *   args?: Optional<Parameters<Callback>[0]>,
- *   controller?: AbortController
- * ) => Promise<Awaited<ReturnType<Callback>>>) & { invalidate?: (key?: Optional<Parameters<Callback>[0]>) => Promise<void> }} RESTMethodCallback
+ *   controller?: AbortController,
+ *   options?: { cache?: false | { force?: boolean } }
+ * ) => Promise<Awaited<ReturnType<Callback>>>) & {
+ *   invalidate?: ((key?: Optional<Parameters<Callback>[0]>) => Promise<void>) & { all?: () => Promise<void> }
+ * }} RESTMethodCallback
  */
 
 export class RESTMethod extends FunctionClass {
@@ -27,7 +30,13 @@ export class RESTMethod extends FunctionClass {
   }
 
   get cache() {
-    return this.#options?.cache || 0;
+    const c = this.#options?.cache;
+    if (!c) return null;
+    if (typeof c === "number") return { ttl: c, swr: false };
+    return {
+      ttl: c.ttl || 0,
+      swr: !!c.swr,
+    };
   }
 
   constructor(type, url, callback, options) {
