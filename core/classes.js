@@ -771,7 +771,7 @@ export class Form extends Component {
           if (typeof this.onsubmit === "function") this.onsubmit?.(event);
           else if (typeof this.onSubmit === "function") this.onSubmit?.(event);
         },
-        ...spreadProps(() => this.props("ref", "onsubmit", "onreset")),
+        ...spreadProps(() => this.props("ref", "onsubmit", "onSubmit", "onreset", "onReset", "context")),
       },
       ...this.children,
     );
