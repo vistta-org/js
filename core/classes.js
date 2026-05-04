@@ -1042,18 +1042,28 @@ export class Form extends Component {
 }
 
 /**
- * @typedef {JSX.EventHandlers & {
+ * @typedef {{
  *   id?: string,
  *   ref?: Ref<HTMLElement> | ((element: HTMLElement) => void),
- *   type?: "scroll" | "lazy",
  *   style?: JSX.Style,
+ * }} VirtualContainerBaseProps
+ *
+ * @typedef {VirtualContainerBaseProps & {
+ *   type: "scroll",
  *   rowCount?: number,
  *   rows?: ((index: number) => JSX.Element) | JSX.Element[],
  *   rowHeight?: number,
  *   overscan?: number,
- * }} VirtualContainerProps
+ *   scrollTop?: number,
+ * }} VirtualContainerScrollProps
+ *
+ * @typedef {VirtualContainerBaseProps & {
+ *   type?: "lazy",
+ * }} VirtualContainerLazyProps
+ *
+ * @typedef {JSX.EventHandlers & (VirtualContainerScrollProps | VirtualContainerLazyProps)} VirtualContainerProps
  */
-
+const VIRTUAL_CONTAINER_HANDLED_PROPS = ["visible", "ref", "type", "rows", "rowHeight", "rowCount", "overscan"];
 /**
  * A virtual container that supports two modes:
  * - **Virtual scroll**: when `rows` and `rowHeight` are provided, renders only the visible rows.
@@ -1091,14 +1101,18 @@ export class VirtualContainer extends Component {
   #update() {
     const container = this.#container.node;
     if (!container) return;
+    // @ts-ignore
     const rows = this.rows;
+    // @ts-ignore
     const count = Array.isArray(rows) ? rows.length : this.rowCount;
     const rowsChanged = rows !== this.#prevRows || count !== this.#prevRowCount;
     this.#prevRows = rows;
     this.#prevRowCount = count;
+    // @ts-ignore
     const start = Math.max(0, ((container.scrollTop / this.rowHeight) | 0) - (this.overscan || 10));
     const end = Math.min(
       count,
+      // @ts-ignore
       (((container.scrollTop + container.clientHeight) / this.rowHeight) | 0) + 1 + (this.overscan || 10),
     );
     if (!rowsChanged && start === this.#start && end === this.#end) return;
@@ -1106,8 +1120,10 @@ export class VirtualContainer extends Component {
     this.#end = end;
     const inner = this.#inner.node;
     if (inner) {
+      // @ts-ignore
       inner.style.setProperty("height", `${count * this.rowHeight}px`, "important");
       inner.style.setProperty("box-sizing", "border-box", "important");
+      // @ts-ignore
       inner.style.setProperty("padding", `${start * this.rowHeight}px 0 ${(count - end) * this.rowHeight}px`, "important");
     }
     const visible = [];
@@ -1125,7 +1141,7 @@ export class VirtualContainer extends Component {
         "div",
         {
           ref: Ref.forward(this.ref, this.#container),
-          ...spreadProps(() => this.props("visible", "ref", "type", "rows", "rowHeight", "rowCount", "overscan")),
+          ...spreadProps(() => this.props(...VIRTUAL_CONTAINER_HANDLED_PROPS)),
           onScroll: (e) => (this.#update(), this.onScroll?.(e)),
         },
         new Element(
@@ -1133,12 +1149,7 @@ export class VirtualContainer extends Component {
           {
             ref: this.#inner,
           },
-          new Mutation(() => {
-            this.rows; // track rows prop for reactivity
-            this.rowCount; // track rowCount prop for reactivity
-            this.#update();
-            return this.visible;
-          }),
+          new Mutation(() => (this.#update(), this.visible)),
         ),
       );
 
@@ -1146,7 +1157,7 @@ export class VirtualContainer extends Component {
       "div",
       {
         ref: Ref.forward(this.ref, this.#container),
-        ...spreadProps(() => this.props("visible", "ref", "type", "rows", "rowHeight", "rowCount", "overscan")),
+        ...spreadProps(() => this.props(...VIRTUAL_CONTAINER_HANDLED_PROPS)),
       },
       new Mutation(() => this.visible && this.children),
     );
