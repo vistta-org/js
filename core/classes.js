@@ -1126,7 +1126,7 @@ export class VirtualContainer extends Component {
         {
           ref: Ref.forward(this.ref, this.#container),
           ...spreadProps(() => this.props("visible", "ref", "type", "rows", "rowHeight", "rowCount", "overscan")),
-          onScroll: () => this.#update(),
+          onScroll: (e) => (this.#update(), this.onScroll?.(e)),
         },
         new Element(
           "div",
