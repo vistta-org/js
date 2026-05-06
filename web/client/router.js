@@ -15,6 +15,7 @@ export class Router extends BoundClass {
    * @property {boolean} [pushState] - Determines whether to use pushState (true) or replaceState (false) for history management. Defaults to true.
    * @property {boolean} [refresh] - If true, forces a refresh of the current page even if the URL hasn't changed. Defaults to false.
    * @property {boolean} [force] - If true, forces a full page load instead of using the virtual DOM for navigation. Defaults to false.
+   * @property {string} [transition] - The view transition type to use (e.g. "slide-left", "slide-right", "slide-up", "slide-down"). Overrides the page config transition.
    *
    * Navigates to a specified URL or updates the current page based on the provided options.
    * @param {string | NavigateOptions} [arg]
@@ -23,7 +24,7 @@ export class Router extends BoundClass {
   async navigate(arg, options) {
     const initial = !this.#loaded;
     this.#loaded = true;
-    let { href, pushState, refresh, force } = typeof arg === "object" ? arg : { href: arg, ...options };
+    let { href, pushState, refresh, force, transition } = typeof arg === "object" ? arg : { href: arg, ...options };
     const updateHistory =
       pushState !== false ? (url) => history.pushState({}, "", url) : (url) => history.replaceState({}, "", url);
 
@@ -44,13 +45,15 @@ export class Router extends BoundClass {
             props,
           } = await import(`${pathname}${pathname.endsWith("/") ? "" : "/"}page.js`);
           this.#routes[pathname] = new VirtualDom(pathname, document.body, config);
-          await async((resolve) => startViewTransition(resolve));
+          const effect = transition || config?.transition;
+          await async((resolve) => startViewTransition(resolve, effect));
           this.#virtualDom = this.#routes[pathname].render(
             layout ? new Element(layout.component, {}, new Element(app, props)) : new Element(app, props),
           );
           updateConfig(this.#virtualDom.config);
         } else {
-          await async((resolve) => startViewTransition(resolve));
+          const effect = transition || cachedVirtualDom.config?.transition;
+          await async((resolve) => startViewTransition(resolve, effect));
           this.#virtualDom = cachedVirtualDom.enable();
           updateConfig(this.#virtualDom.config);
         }
@@ -119,10 +122,42 @@ export class Router extends BoundClass {
 
 export default new Router();
 
-function startViewTransition(callback) {
-  if (document.startViewTransition || !window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-    document.startViewTransition(callback);
-  else callback();
+function startViewTransition(callback, transition) {
+  if (document.startViewTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (transition) {
+      injectTransitionStyles();
+      document.documentElement.dataset.transition = transition;
+    }
+    const t = document.startViewTransition(callback);
+    if (transition) t.finished.then(() => delete document.documentElement.dataset.transition);
+  } else callback();
+}
+
+function injectTransitionStyles() {
+  if (document.getElementById("router-transitions")) return;
+  const style = document.createElement("style");
+  style.id = "router-transitions";
+  style.textContent = `
+    @keyframes vt-slide-to-left { to { transform: translateX(-100%) } }
+    @keyframes vt-slide-from-left { from { transform: translateX(-100%) } }
+    @keyframes vt-slide-to-right { to { transform: translateX(100%) } }
+    @keyframes vt-slide-from-right { from { transform: translateX(100%) } }
+    @keyframes vt-slide-to-top { to { transform: translateY(-100%) } }
+    @keyframes vt-slide-from-top { from { transform: translateY(-100%) } }
+    @keyframes vt-slide-to-bottom { to { transform: translateY(100%) } }
+    @keyframes vt-slide-from-bottom { from { transform: translateY(100%) } }
+    [data-transition="slide-left"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-left }
+    [data-transition="slide-left"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-right }
+    [data-transition="slide-right"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-right }
+    [data-transition="slide-right"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-left }
+    [data-transition="slide-up"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-top }
+    [data-transition="slide-up"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-bottom }
+    [data-transition="slide-down"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-bottom }
+    [data-transition="slide-down"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-top }
+    [data-transition="none"]::view-transition-old(root),
+    [data-transition="none"]::view-transition-new(root) { animation: none }
+  `;
+  document.head.appendChild(style);
 }
 
 function updateConfig(config) {

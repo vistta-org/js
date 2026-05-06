@@ -248,6 +248,29 @@ class VirtualDom {
           const previous = existing.element;
           previous.parent = parent;
           previous.context = context;
+          if (previous.component) {
+            const keys = Object.keys(element.props || {});
+            for (let i = 0, len = keys.length; i < len; i++) {
+              const key = keys[i];
+              if (key === "children") {
+                previous.props.children = element.props.children;
+                continue;
+              }
+              const nextProp = element.props[key];
+              if (nextProp instanceof Mutation) {
+                const prev = previous.props[key];
+                if (prev instanceof Mutation && prev !== nextProp) {
+                  prev.callback = nextProp.callback;
+                  this.enqueue([prev]);
+                }
+                continue;
+              }
+              if (previous.attributes[key] !== nextProp) {
+                previous.attributes[key] = nextProp;
+                previous.props[key] = nextProp;
+              }
+            }
+          }
           const fragment = this.createElement("fragment");
           const collect = (el) => {
             for (let i = 0, len = el.children.length; i < len; i++) {
@@ -506,7 +529,7 @@ class VirtualDom {
 
     const previous = [...element.children];
     element.children = [];
-    
+
     const previousByKey = new Map();
     for (let i = 0, len = previous.length; i < len; i++) {
       const prev = previous[i];
@@ -527,7 +550,7 @@ class VirtualDom {
       previous[idx] = null;
       previousByKey.delete(child.key);
     }
-    let referenceNode = element.node ? null : element.lastNode?.nextSibling;
+    let referenceNode = element.node ? null : (element.lastNode?.nextSibling || null);
 
     for (let i = 0, len = previous.length; i < len; i++) {
       if (!previous[i]) continue;
@@ -719,6 +742,7 @@ function appendFragment(parent, fragment, referenceNode) {
     return;
   }
 
+  if (referenceNode && referenceNode.parentNode !== parent.node) referenceNode = null;
   if (referenceNode) parent.node.insertBefore(fragment, referenceNode);
   else parent.node.appendChild(fragment);
 }
@@ -768,6 +792,7 @@ function appendElement(parent, element, referenceNode) {
 
   const firstNode = element.node || element.firstNode;
   const lastNode = element.lastNode;
+  if (referenceNode && referenceNode.parentNode !== parent.node) referenceNode = null;
   if (!lastNode || firstNode === lastNode) {
     if (referenceNode) parent.node.insertBefore(firstNode, referenceNode);
     else parent.node.appendChild(firstNode);
@@ -793,7 +818,8 @@ function removeElement(element) {
       } else if (parent.lastNode === node) parent.lastNode = parent.lastNode.previousSibling;
       parent = parent.parent;
     }
-    parent.node.removeChild(node);
+    if (node.parentNode === parent.node) parent.node.removeChild(node);
+    else node.parentNode?.removeChild(node);
   };
   if (firstNode) {
     const lastNode = element.lastNode;

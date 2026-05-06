@@ -77,7 +77,10 @@ export class Element {
     }
     if (children !== false)
       children = this?.children?.map((child) => (child instanceof Element ? child.clone(undefined, true) : child));
-    return new Element(this.type, props, ...children);
+    const cloned = new Element(this.type, props, ...children);
+    // @ts-ignore
+    if (this.mutation) cloned.mutation = this.mutation;
+    return cloned;
   }
 }
 
@@ -945,7 +948,6 @@ export class Form extends Component {
    * @returns {null|Array<{ field: any, error: string }>}
    */
   validate(path = "*") {
-    if (path && !this.#fields[path]) return null;
     let errors = [];
     const inputs = path === "*" || path.endsWith(".*") ? Object.keys(this.#fields) : [path];
     path = !path.endsWith(".*") ? "" : path.slice(0, -2) + ".";
@@ -955,7 +957,8 @@ export class Form extends Component {
       const error = field.validate();
       if (error) errors.push({ field, error });
     }
-    if (!this.#invalidEvent && this.#node?.reportValidity) return this.#node.reportValidity();
+    if (!this.#invalidEvent && !this.#node?.reportValidity?.())
+      errors.push({ field: null, error: Form.DEFAULT_ERROR_MESSAGE });
     if (errors.length === 0) return null;
     const invalidEvent = new Event("invalid");
     /** @type {any} */ (invalidEvent).errors = errors;

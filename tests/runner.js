@@ -49,12 +49,20 @@ async function main() {
       const { name, status, start, end, result, error } = tests[n];
       if (!first || start < first) first = start;
       if (!last || end > last) last = end;
-      if (status === "pass") {
-        output += `  ${COLORS.GREEN}PASSED  ${name} ${COLORS.RESET + COLORS.DIM}(${Math.round(end - start)}ms)${COLORS.RESET}\n${typeof result === "string" ? "\t" + COLORS.GREEN + result + COLORS.RESET + "\n" : ""}`;
-        passing++;
-      } else
-        output += `  ${COLORS.RED}FAILED  ${name} ${COLORS.RESET + COLORS.DIM}(${Math.round(end - start)}ms)${COLORS.RESET}\n\t${COLORS.RED + error + COLORS.RESET}\n`;
-      total++;
+      switch (status) {
+        case "pass":
+          output += `  ${COLORS.GREEN}PASSED  ${name} ${COLORS.RESET + COLORS.DIM}(${Math.round(end - start)}ms)${COLORS.RESET}\n${typeof result === "string" ? "\t" + COLORS.GREEN + result + COLORS.RESET + "\n" : ""}`;
+          passing++;
+          total++;
+          break;
+        case "fail":
+          output += `  ${COLORS.RED}FAILED  ${name} ${COLORS.RESET + COLORS.DIM}(${Math.round(end - start)}ms)${COLORS.RESET}\n\t${COLORS.RED + error + COLORS.RESET}\n`;
+          total++;
+          break;
+        case "skip":
+          output += `  ${COLORS.YELLOW}SKIPPED ${name} ${COLORS.RESET + COLORS.DIM}(${Math.round(end - start)}ms)${COLORS.RESET}\n`;
+          break;
+      }
     }
     if (total !== passing) failed = true;
     output += `${passing === total ? COLORS.GREEN : COLORS.RED}${passing}/${total} passing ${COLORS.RESET + COLORS.DIM}(${Math.round(last - first)}ms)${COLORS.RESET}\n`;
@@ -75,32 +83,33 @@ async function load(file, options) {
           webviewTag: true,
         },
       }),
-      code: `globalThis.ipc = (require('electron')).ipcRenderer;\nglobalThis.testOptions = ${JSON.stringify(options)};\n${(
-        await bundler.run(fs.resolve(import.meta.dirname, "renderer.js"), {
+      code: `globalThis.ipc = (require('electron')).ipcRenderer;\nglobalThis.testOptions = ${JSON.stringify(options)};\n${
+        (
+          await bundler.run(fs.resolve(import.meta.dirname, "renderer.js"), {
+            write: false,
+            platform: "node",
+            importAttributes: {
+              app: true,
+            },
+            format: "iife",
+          })
+        )?.code
+      }`,
+    };
+  renderer.window.loadFile(fs.resolve(import.meta.dirname, "template.html"));
+  renderer.window.webContents.executeJavaScript(
+    renderer.code +
+      (
+        await bundler.run(file, {
           write: false,
           platform: "node",
           importAttributes: {
             app: true,
           },
+          globalName: "main",
           format: "iife",
         })
-      )?.code
-        }`,
-    };
-  renderer.window.loadFile(fs.resolve(import.meta.dirname, "template.html"));
-  renderer.window.webContents.executeJavaScript(
-    renderer.code +
-    (
-      await bundler.run(file, {
-        write: false,
-        platform: "node",
-        importAttributes: {
-          app: true,
-        },
-        globalName: "main",
-        format: "iife",
-      })
-    )?.code,
+      )?.code,
   );
   return new Promise((resolve) => ipcMain.on("test-results", (_, results) => resolve(results)));
 }

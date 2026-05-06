@@ -12,10 +12,11 @@ Vistta.js is a convention-driven JavaScript framework for building web (SSR + hy
 - **API routes/controllers**: structured endpoints with `get/post/put/...` helpers.
 - **Typed API imports (loader-powered)**: import a controller file in the frontend `with { type: "api" }` to get a client request wrapper generated automatically.
 - **WebSockets**: server-side events via `socket.on(...)`.
-- **Client router**: SPA-like navigation, link interception, refresh, events.
+- **Client router**: SPA-like navigation, link interception, refresh, events, with native View Transitions API for smooth page crossfades.
 - **Shared state (`Context`)**: shared state container with optional persistence (`local`, `session`, `indexed`) and reactive proxying.
 - **Async UI**: `Suspense` for Promise-backed reactive values.
 - **Error boundaries & forms**: `Safe` error boundary, `Form` value collection + validation.
+- **Virtual lists**: `VirtualContainer` with virtual scroll (renders only visible rows) and lazy render (IntersectionObserver) modes.
 - **CSS-in-JS styling**: built-in style engine via the `style` prop (string/object/array) plus optional `@vistta/ui` presets, plus a CSS loader that converts `.css` into style objects.
 - **Desktop option**: Electron runner for desktop apps.
 - **CLI + loaders**: works with `@vistta/cli` (bundler/loaders like `api`) and enables extra commands (`serve`, `build`, `run`, `test`).
@@ -236,7 +237,7 @@ export default class Ws extends Controller {
 
 ## **Client Router**
 
-Vistta includes a client router used for SPA-style navigation.
+Vistta includes a client router used for SPA-style navigation with native View Transitions API support.
 
 ```js
 import { router } from "@vistta/js";
@@ -250,6 +251,27 @@ router.on("some-event", (e) => {
 ```
 
 Link clicks (`<a href="...">`) are intercepted automatically unless they have `target`, `download`, or point to a different host.
+
+### View Transitions
+
+The router uses the native View Transitions API for smooth page transitions. By default, a crossfade is applied. You can specify a custom transition type per-page or per-navigation:
+
+**Per-page (via config):**
+
+```js
+export const config = {
+  title: "Settings",
+  transition: "slide-left",
+};
+```
+
+**Per-navigation (programmatic):**
+
+```js
+await router.navigate({ href: "/settings", transition: "slide-right" });
+```
+
+The `transition` value is set as `data-transition` on the document root during the transition, allowing CSS to target specific animation styles via `::view-transition-old(root)` and `::view-transition-new(root)` pseudo-elements. Built-in transitions: `slide-left`, `slide-right`, `slide-up`, `slide-down`, `none`.
 
 ## **UI API**
 
@@ -438,6 +460,40 @@ export default class Page extends Component {
 
 When a component property is a Promise, accessing it during render triggers the nearest `Suspense` boundary.
 
+### `VirtualContainer`
+
+`VirtualContainer` supports two rendering modes:
+
+- **Virtual scroll**: when `rows` and `rowHeight` are provided, renders only the visible rows (with configurable `overscan`).
+- **Lazy render**: when only children are provided, renders them only when the container is visible in the viewport.
+
+```jsx
+import { Component, VirtualContainer } from "@vistta/js";
+
+export default class Example extends Component {
+  render() {
+    return (
+      <>
+        {/* Virtual scroll mode */}
+        <VirtualContainer
+          type="scroll"
+          rows={(index) => <div key={index}>Row {index}</div>}
+          rowCount={10000}
+          rowHeight={40}
+          overscan={10}
+          style={{ height: "400px" }}
+        />
+
+        {/* Lazy render mode */}
+        <VirtualContainer>
+          <div>Only rendered when visible in viewport</div>
+        </VirtualContainer>
+      </>
+    );
+  }
+}
+```
+
 ### Styling (`style` prop + `@vistta/ui` presets)
 
 Vistta includes a style engine that supports `style` as a string, object, or array.
@@ -507,7 +563,7 @@ npx vistta test
 
 ### Main (`@vistta/js`)
 
-- UI: `Component`, `Element`, `Fragment`, `Suspense`, `Profiler`, `Safe`, `Form`, `Ref`, `Render`
+- UI: `Component`, `Element`, `Fragment`, `Suspense`, `Profiler`, `Safe`, `Form`, `Ref`, `Render`, `VirtualContainer`
 - State: `Context`
 - Client: `router`
 - Server/controller helpers: `Controller`, `get`, `post`, `put`, `patch`, `del`, `copy`, `move`, `socket`
