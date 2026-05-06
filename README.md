@@ -289,6 +289,39 @@ That means values you pass in JSX (e.g. `<Widget value={123} />`) are assigned t
 
 In a component instance, `this.children` contains the nested children passed through JSX.
 
+#### Computed Getters
+
+Getter-only properties on a component are automatically memoized. The framework detects `get` accessors without a `set`, tracks their reactive dependencies, and caches the result until a dependency changes.
+
+```jsx
+import { Component } from "@vistta/js";
+
+export default class Example extends Component {
+  items = [{ name: "Alice" }, { name: "Bob" }, { name: "Charlie" }];
+  filter = "";
+
+  // Only recomputes when this.items or this.filter change
+  get filtered() {
+    return this.items.filter((i) => i.name.includes(this.filter));
+  }
+
+  render() {
+    return (
+      <>
+        <input value={this.filter} onInput={(e) => (this.filter = e.target.value)} />
+        <ul>
+          {this.filtered.map((item) => (
+            <li>{item.name}</li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+}
+```
+
+The computed value is accessed directly as a property — no `.value` needed. It re-evaluates only when one of its reactive dependencies fires. Getters that return a `Promise` are excluded from memoization to preserve async/Suspense behavior.
+
 ### `Element` / `Fragment`
 
 JSX compiles to `Element` instances at runtime (and uses the global `element/prop/child` helpers).

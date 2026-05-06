@@ -139,6 +139,105 @@ export class StateText extends Component {
   }
 }
 
+export class ComponentChildrenUpdate extends Component {
+  count = 1;
+  open = false;
+
+  render() {
+    return (
+      <>
+        <button id="toggle" onClick={() => (this.open = !this.open)}>
+          toggle
+        </button>
+        <button id="increment" onClick={() => this.count++}>
+          increment
+        </button>
+        <p id="count">{this.count}</p>
+        <ComponentChildrenTest content={this.open && `${this.count}`} />
+      </>
+    );
+  }
+}
+
+class ComponentChildrenDisplay extends Component {
+  open = false;
+
+  render() {
+    return this.open ? <div id="display">{this.children}</div> : null;
+  }
+}
+
+class ComponentChildrenTest extends Component {
+  content;
+
+  render() {
+    return (
+      <ComponentChildrenDisplay open={!!this.content}>
+        <div id="content">{this.content}</div>
+      </ComponentChildrenDisplay>
+    );
+  }
+}
+
+export class ComputedGetters extends Component {
+  items = [1, 2, 3, 4, 5];
+  filter = 3;
+  computeCount = 0;
+
+  get filtered() {
+    this.computeCount++;
+    return this.items.filter((i) => i <= this.filter);
+  }
+
+  render() {
+    return (
+      <>
+        <button id="increment" onClick={() => this.filter++}>
+          increment
+        </button>
+        <button id="decrement" onClick={() => this.filter--}>
+          decrement
+        </button>
+        <button id="noop" onClick={() => (this.filter = this.filter)}>
+          noop
+        </button>
+        <div id="output">{this.filtered.length}</div>
+        <div id="filter-value">{this.filter}</div>
+        <div id="compute-count">{this.computeCount}</div>
+      </>
+    );
+  }
+}
+
+export class ComputedDependencyTracking extends Component {
+  items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  filter = 5;
+  multiplier = 1;
+
+  get filtered() {
+    return this.items.filter((i) => i <= this.filter);
+  }
+
+  get total() {
+    return this.filtered.reduce((sum, i) => sum + i, 0) * this.multiplier;
+  }
+
+  render() {
+    return (
+      <>
+        <button id="increment-filter" onClick={() => this.filter++}>
+          increment filter
+        </button>
+        <button id="increment-multiplier" onClick={() => this.multiplier++}>
+          increment multiplier
+        </button>
+        <div id="filtered">{this.filtered.length}</div>
+        <div id="total">{this.total}</div>
+      </>
+    );
+  }
+}
+
 export class RefExample extends Component {
   ref = new Ref();
   render() {
@@ -158,7 +257,6 @@ export class RefExample extends Component {
     );
   }
 }
-
 const contextBasic = new Context("context_basic_test", { counter: 0 });
 export class ContextBasic extends Component {
   context = contextBasic();
@@ -204,42 +302,17 @@ export class ContextActions extends Component {
   }
 }
 
-export class ComponentChildrenUpdate extends Component {
-  count = 1;
-  open = false;
-
+const contextCached = new Context("context_cached_test", { counter: 0 }, { cache: "session" });
+export class ContextCached extends Component {
+  context = contextCached();
   render() {
     return (
       <>
-        <button id="toggle" onClick={() => (this.open = !this.open)}>
-          toggle
-        </button>
-        <button id="increment" onClick={() => this.count++}>
+        <p id="output">{this.context.counter}</p>
+        <button id="increment" onClick={() => this.context.counter++}>
           increment
         </button>
-        <p id="count">{this.count}</p>
-        <ComponentChildrenTest content={this.open && `${this.count}`} />
       </>
-    );
-  }
-}
-
-class ComponentChildrenDisplay extends Component {
-  open = false;
-
-  render() {
-    return this.open ? <div id="display">{this.children}</div> : null;
-  }
-}
-
-class ComponentChildrenTest extends Component {
-  content;
-
-  render() {
-    return (
-      <ComponentChildrenDisplay open={!!this.content}>
-        <div id="content">{this.content}</div>
-      </ComponentChildrenDisplay>
     );
   }
 }

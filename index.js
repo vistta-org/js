@@ -1,6 +1,18 @@
 import { proxy } from "@vistta/utils";
 import "./core/adapter.js";
-export { Component, Context, Element, Form, Fragment, Profiler, Ref, Render, Safe, Suspense, VirtualContainer } from "./core/classes.js";
+export {
+  Component,
+  Context,
+  Element,
+  Form,
+  Fragment,
+  Profiler,
+  Ref,
+  Render,
+  Safe,
+  Suspense,
+  VirtualContainer,
+} from "./core/classes.js";
 export { default as socket } from "./core/socket.js";
 export { Anchor, File, HistoryContext, Style, ThemeContext } from "./core/utils.js";
 export { default as router } from "./web/client/router.js";

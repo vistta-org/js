@@ -321,7 +321,7 @@ class VirtualDom {
         for (let i = 0, len = keys.length; i < len; i++) component[keys[i]] ??= true;
       }
 
-      const propertyNames = Object.getOwnPropertyNames(component);
+      let propertyNames = Object.getOwnPropertyNames(component);
       for (let i = 0, len = propertyNames.length; i < len; i++) {
         const propertyName = propertyNames[i];
         if (propertyName === "constructor" || propertyName === "props") continue;
@@ -415,6 +415,7 @@ class VirtualDom {
               set: (v) => {
                 if (v === element.attributes[propertyName]) return;
                 element.attributes[propertyName] = v;
+                if (Mutation.current) mutations.delete(Mutation.current);
                 if (mutations.size > 0) this.enqueue(mutations);
               },
             });
@@ -429,9 +430,58 @@ class VirtualDom {
               set: (v) => {
                 if (v === element.attributes[propertyName]) return;
                 element.attributes[propertyName] = v;
+                if (Mutation.current) mutations.delete(Mutation.current);
                 if (mutations.size > 0) this.enqueue(mutations);
               },
             });
+        }
+      }
+
+      if (!internal) {
+        const descriptors = Object.getOwnPropertyDescriptors(Object.getPrototypeOf(component));
+        propertyNames = Object.keys(descriptors);
+        for (let i = 0, len = propertyNames.length; i < len; i++) {
+          const propertyName = propertyNames[i];
+          const desc = descriptors[propertyName];
+          if (!desc.get || desc.set || propertyName === "constructor") continue;
+          const callback = desc.get;
+          const dependents = new Set();
+          let cached;
+          let dirty = true;
+          let computing = false;
+          const tracker = new Mutation(callback);
+          tracker.update = () => {
+            if (computing) return;
+            dirty = true;
+            if (dependents.size > 0) this.enqueue(dependents);
+          };
+          const compute = () => {
+            computing = true;
+            const previousMutation = Mutation.current;
+            Mutation.current = tracker;
+            try {
+              cached = callback.call(component);
+            } finally {
+              Mutation.current = previousMutation;
+              computing = false;
+            }
+            dirty = false;
+          };
+          compute();
+          if (cached instanceof Promise) {
+            if (tracker.tracked) for (const set of tracker.tracked) set.delete(tracker);
+            continue;
+          }
+          element.mutations.add(tracker);
+          Object.defineProperty(component, propertyName, {
+            configurable: false,
+            enumerable: true,
+            get: () => {
+              if (Mutation.current) this.trackMutation(Mutation.current, dependents);
+              if (dirty) compute();
+              return cached;
+            },
+          });
         }
       }
 
@@ -550,7 +600,7 @@ class VirtualDom {
       previous[idx] = null;
       previousByKey.delete(child.key);
     }
-    let referenceNode = element.node ? null : (element.lastNode?.nextSibling || null);
+    let referenceNode = element.node ? null : element.lastNode?.nextSibling || null;
 
     for (let i = 0, len = previous.length; i < len; i++) {
       if (!previous[i]) continue;

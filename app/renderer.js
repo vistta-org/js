@@ -18,17 +18,19 @@ import { defineReadonly } from "../utils/index.js";
 const ipc = /** @type {any} */ (globalThis.ipc);
 
 const vistta = {
-  Fragment,
-  Element,
-  Context,
-  Ref,
+  Anchor,
   Component,
+  Context,
+  Element,
+  File,
+  Form,
+  Fragment,
+  Ref,
+  Profiler,
   Suspense,
   VirtualContainer,
-  Profiler,
   Render,
   Safe,
-  Form,
   router: {
     navigate() {
       console.warn("Router is not available on apps.");
@@ -45,8 +47,6 @@ const vistta = {
       ipc.on(event, (_, { args }) => callback(...args));
     },
   },
-  Anchor,
-  File,
   HistoryContext,
   Style,
   ThemeContext,

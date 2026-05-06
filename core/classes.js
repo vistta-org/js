@@ -104,6 +104,8 @@ export class Mutation extends FunctionClass {
     this.tracked = undefined;
     /** @type {boolean|undefined} */
     this.disabled = undefined;
+    /** @type {() => void|undefined} */
+    this.update = undefined;
   }
 }
 

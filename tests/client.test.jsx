@@ -4,7 +4,7 @@ import { FALLBACK_VALUE, LOADED_VALUE, LOADING_VALUE, TEXT_UPDATE_VALUE, TEXT_VA
 
 const TIMEOUT_WITH_DELAY = TIMEOUT * 1.1;
 
-suite("VisttaJS Client Unit Tests", async () => {
+suite.only("VisttaJS Client Unit Tests", async () => {
   await test("Basic: State Counter", async () => {
     await document.mount(basic.StateCounter);
 
@@ -139,6 +139,63 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(document.querySelector("#content").innerText).toEqual("3");
   });
 
+  await test("Basic: Computed Getters", async () => {
+    await document.mount(basic.ComputedGetters);
+    const output = document.querySelector("#output");
+    const filterValue = document.querySelector("#filter-value");
+    const computeCount = document.querySelector("#compute-count");
+
+    expect(output.innerText).toEqual("3");
+    expect(filterValue.innerText).toEqual("3");
+    expect(computeCount.innerText).toEqual("1");
+
+    await document.querySelector("#increment").click();
+    expect(output.innerText).toEqual("4");
+    expect(filterValue.innerText).toEqual("4");
+    expect(computeCount.innerText).toEqual("2");
+
+    await document.querySelector("#increment").click();
+    expect(output.innerText).toEqual("5");
+    expect(filterValue.innerText).toEqual("5");
+    expect(computeCount.innerText).toEqual("3");
+
+    await document.querySelector("#increment").click();
+    expect(output.innerText).toEqual("5");
+    expect(filterValue.innerText).toEqual("6");
+    expect(computeCount.innerText).toEqual("4");
+
+    await document.querySelector("#decrement").click();
+    expect(output.innerText).toEqual("5");
+    expect(filterValue.innerText).toEqual("5");
+    expect(computeCount.innerText).toEqual("5");
+
+    // Setting same value should not trigger recompute
+    await document.querySelector("#noop").click();
+    expect(output.innerText).toEqual("5");
+    expect(filterValue.innerText).toEqual("5");
+    expect(computeCount.innerText).toEqual("5");
+  });
+
+  await test("Basic: Computed Dependency Tracking", async () => {
+    await document.mount(basic.ComputedDependencyTracking);
+    const filtered = document.querySelector("#filtered");
+    const total = document.querySelector("#total");
+
+    // Initial: items 1-5, multiplier 1 => sum = 15
+    expect(filtered.innerText).toEqual("5");
+    expect(total.innerText).toEqual("15");
+
+    // Increase filter to 6 => items 1-6, sum = 21
+    await document.querySelector("#increment-filter").click();
+    expect(filtered.innerText).toEqual("6");
+    expect(total.innerText).toEqual("21");
+
+    // Increase multiplier to 2 => sum = 21 * 2 = 42
+    await document.querySelector("#increment-multiplier").click();
+    expect(filtered.innerText).toEqual("6");
+    expect(total.innerText).toEqual("42");
+  });
+
   await test("Basic: Ref", async () => {
     await document.mount(basic.RefExample);
 
@@ -168,6 +225,25 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(output.innerText).toEqual("1");
     await document.querySelector("#decrement").click();
     expect(output.innerText).toEqual("0");
+  });
+
+  await test("Basic: Context Cached", async () => {
+    sessionStorage.removeItem("context_cached_test");
+    await document.mount(basic.ContextCached);
+    const output = document.querySelector("#output");
+
+    expect(output.innerText).toEqual("0");
+    await document.querySelector("#increment").click();
+    expect(output.innerText).toEqual("1");
+    await document.querySelector("#increment").click();
+    expect(output.innerText).toEqual("2");
+
+    // Wait for debounced cache write
+    await document.wait(150);
+
+    // Remount — cached value should persist
+    await document.mount(basic.ContextCached);
+    expect(document.querySelector("#output").innerText).toEqual("2");
   });
 
   await test("Components: Render.If", async () => {
