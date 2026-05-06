@@ -16,6 +16,7 @@ import { BoundClass, join } from "@vistta/utils";
  * @property {any} [functions]
  * @property {boolean} [selector]
  * @property {(value: string) => string} [createAnimation]
+ * @property {(value: any) => void} [callback]
  */
 
 export class VirtualStyleSheet extends BoundClass {
@@ -168,7 +169,7 @@ export class VirtualStyleSheet extends BoundClass {
     }
   }
 
-  resolve(value) {
+  resolve(value, callback) {
     let style;
     const typeofValue = typeof value;
     if (typeofValue === "string")
@@ -177,6 +178,7 @@ export class VirtualStyleSheet extends BoundClass {
         queries: this.#queries,
         functions: this.#functions,
         createAnimation: (value) => this.createAnimation(value),
+        callback,
       });
     else if (typeofValue === "object") {
       if (Array.isArray(value))
@@ -185,6 +187,7 @@ export class VirtualStyleSheet extends BoundClass {
           queries: this.#queries,
           functions: this.#functions,
           createAnimation: (value) => this.createAnimation(value),
+          callback,
         });
       else if (value)
         style = objectToStyle(value, {
@@ -192,6 +195,7 @@ export class VirtualStyleSheet extends BoundClass {
           queries: this.#queries,
           functions: this.#functions,
           createAnimation: (value) => this.createAnimation(value),
+          callback,
         });
     } else return "";
     if (!style) return "";
@@ -250,7 +254,7 @@ function stringToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
 }
 
 function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) {
-  const { properties, queries, functions, createAnimation } = options;
+  const { properties, queries, functions, createAnimation, callback } = options;
   let style = "";
   const keys = Object.keys(value || {});
   for (let i = 0, len = keys.length; i < len; i++) {
@@ -258,20 +262,22 @@ function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
     let cur = value[key];
     const typeofValue = typeof cur;
     if (typeofValue === "string" || typeofValue === "number")
-      style += format(key, cur, { properties, queries, functions, selector: false, createAnimation }) + " ";
+      style += format(key, cur, { properties, queries, functions, selector: false, createAnimation, callback }) + " ";
     else if (typeofValue === "boolean" && cur === true)
-      style += format(key, "default", { properties, queries, functions, selector: false, createAnimation }) + " ";
+      style += format(key, "default", { properties, queries, functions, selector: false, createAnimation, callback }) + " ";
     else if (typeofValue === "object") {
       if (Array.isArray(cur))
-        style += format(key, join(cur, " "), { properties, queries, functions, selector: false, createAnimation }) + " ";
+        style +=
+          format(key, join(cur, " "), { properties, queries, functions, selector: false, createAnimation, callback }) + " ";
       else
         style +=
-          format(key, objectToStyle(cur, { properties, queries, functions, createAnimation }), {
+          format(key, objectToStyle(cur, { properties, queries, functions, createAnimation, callback }), {
             properties,
             queries,
             functions,
             selector: true,
             createAnimation,
+            callback,
           }) + " ";
     }
   }
@@ -279,7 +285,7 @@ function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
 }
 
 function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
-  const { properties = {}, queries = {}, functions = [], selector, createAnimation } = options;
+  const { properties = {}, queries = {}, functions = [], selector, createAnimation, callback } = options;
   key = camelToKebab(key);
   if (!selector) {
     if (properties[key]) return properties[key](formatValue(value, false, functions));
@@ -288,6 +294,7 @@ function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
   if (key === "animation") return createAnimation ? createAnimation(value) : "";
   if (queries[key]) return `@media ${queries[key]} { ${value.trim()} }`;
   if (key === ":initial") return `@starting-style { ${value}}`;
+  if (key === ":exit") return (callback?.("exit-style"), `&[exit-style] { ${value}}`);
   const atRule = key.match(/^:(media|supports|container|layer)\((.+)\)$/);
   if (atRule)
     return atRule[1] === "layer"

@@ -468,6 +468,7 @@ class VirtualDom {
             dirty = false;
           };
           compute();
+          // @ts-ignore
           if (cached instanceof Promise) {
             if (tracker.tracked) for (const set of tracker.tracked) set.delete(tracker);
             continue;
@@ -669,7 +670,11 @@ class VirtualDom {
     if (name === "className") name = "class";
     if (value == null || value === false) node.removeAttribute(name);
     else if (name === "value") node.value = value;
-    else if (name === "style") node.setAttribute(`style-group`, this.stylesheet.resolve(value));
+    else if (name === "style")
+      node.setAttribute(
+        `style-group`,
+        this.stylesheet.resolve(value, (attr) => attr === "exit-style" && (element["exit-style"] = true)),
+      );
     else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(value, " "));
     else node.setAttribute(name, typeof value === "boolean" ? "" : value);
   }
@@ -868,7 +873,17 @@ function removeElement(element) {
       } else if (parent.lastNode === node) parent.lastNode = parent.lastNode.previousSibling;
       parent = parent.parent;
     }
-    if (node.parentNode === parent.node) parent.node.removeChild(node);
+    if (element["exit-style"]) {
+      element.node.setAttribute("exit-style", "");
+      const cleanup = () =>
+        node.parentNode === parent.node ? parent.node.removeChild(node) : node.parentNode?.removeChild(node);
+      node.addEventListener("transitionend", (e) => e.target === node && cleanup(), { once: true });
+      node.addEventListener("animationend", (e) => e.target === node && cleanup(), { once: true });
+      const style = getComputedStyle(node);
+      const duration = parseFloat(style.transitionDuration || style.animationDuration || "0") * 1000;
+      if (duration > 0) setTimeout(cleanup, duration + 50);
+      else cleanup();
+    } else if (node.parentNode === parent.node) parent.node.removeChild(node);
     else node.parentNode?.removeChild(node);
   };
   if (firstNode) {

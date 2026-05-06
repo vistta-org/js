@@ -17,7 +17,7 @@ Vistta.js is a convention-driven JavaScript framework for building web (SSR + hy
 - **Async UI**: `Suspense` for Promise-backed reactive values.
 - **Error boundaries & forms**: `Safe` error boundary, `Form` value collection + validation.
 - **Virtual lists**: `VirtualContainer` with virtual scroll (renders only visible rows) and lazy render (IntersectionObserver) modes.
-- **CSS-in-JS styling**: built-in style engine via the `style` prop (string/object/array) plus optional `@vistta/ui` presets, plus a CSS loader that converts `.css` into style objects.
+- **CSS-in-JS styling**: built-in style engine via the `style` prop (string/object/array) with enter/exit transitions (`:initial`/`:exit`), plus optional `@vistta/ui` presets, plus a CSS loader that converts `.css` into style objects.
 - **Desktop option**: Electron runner for desktop apps.
 - **CLI + loaders**: works with `@vistta/cli` (bundler/loaders like `api`) and enables extra commands (`serve`, `build`, `run`, `test`).
 
@@ -322,6 +322,31 @@ export default class Example extends Component {
 
 The computed value is accessed directly as a property — no `.value` needed. It re-evaluates only when one of its reactive dependencies fires. Getters that return a `Promise` are excluded from memoization to preserve async/Suspense behavior.
 
+#### Keys
+
+The `key` prop preserves component identity across renders. When a keyed component is conditionally removed and later re-added, its full state (instance fields, input values, scroll position, etc.) is restored — effectively providing "keep-alive" behavior without a dedicated API.
+
+```jsx
+import { Component } from "@vistta/js";
+
+class Tabs extends Component {
+  active = "a";
+
+  render() {
+    return (
+      <>
+        <button onClick={() => (this.active = "a")}>Tab A</button>
+        <button onClick={() => (this.active = "b")}>Tab B</button>
+        {this.active === "a" && <Panel key="panel-a" label="A" />}
+        {this.active === "b" && <Panel key="panel-b" label="B" />}
+      </>
+    );
+  }
+}
+```
+
+Each `Panel` retains its internal state when switching tabs because `key` tells the framework to reuse the existing instance rather than destroy and recreate it.
+
 ### `Element` / `Fragment`
 
 JSX compiles to `Element` instances at runtime (and uses the global `element/prop/child` helpers).
@@ -561,6 +586,43 @@ export default class Example extends Component {
   }
 }
 ```
+
+#### Enter & Exit Transitions
+
+Elements can animate when entering or leaving the DOM using `:initial` (enter) and `:exit` (leave) pseudo-selectors inside the `style` prop. No external API or wrapper components needed — just CSS:
+
+```jsx
+import { Component } from "@vistta/js";
+
+export default class Example extends Component {
+  visible = true;
+
+  render() {
+    return (
+      <>
+        <button onClick={() => (this.visible = !this.visible)}>Toggle</button>
+        {this.visible && (
+          <div
+            style={{
+              opacity: 1,
+              transition: "opacity 300ms",
+              ":initial": { opacity: 0 },
+              ":exit": { opacity: 0 },
+            }}
+          >
+            Fades in and out
+          </div>
+        )}
+      </>
+    );
+  }
+}
+```
+
+- **`:initial`** maps to CSS `@starting-style` — the browser animates from these values when the element first appears
+- **`:exit`** defers DOM removal and applies exit styles via a `[exit-style]` attribute — the element animates out, then is removed after `transitionend`/`animationend`
+
+Both work with `transition` and `animation` properties. If no animation duration is detected, removal happens immediately.
 
 ## **Programmatic Server Usage**
 
