@@ -56,7 +56,6 @@ class VirtualDom {
     };
     this.virtualTree = this.renderElement(host, element, {
       components: [],
-      flags: /** @type {Object<string, boolean>} */ ({}),
     });
     const ssr = document.querySelector("style[data-ssr]");
     document.adoptedStyleSheets = [this.stylesheet.content];
@@ -211,6 +210,7 @@ class VirtualDom {
         }
       }
       element.node = this.createElement(element.type);
+      element.node.element = element;
       if (element.ref instanceof Mutation) throw new VirtualDomError("Internal Error #003");
       Ref.assign(element.ref, element.node);
       element.attributes = {};
@@ -617,7 +617,6 @@ class VirtualDom {
       if (!element.children[i]) {
         const childContext = Object.create(element.context);
         childContext.components = childContext.components.slice();
-        childContext.flags = Object.create(childContext.flags);
         element.children[i] = this.renderElement(element, children[i], childContext, referenceNode);
       } else {
         const child = element.children[i];
@@ -640,7 +639,6 @@ class VirtualDom {
     for (let i = 0, len = children.length; i < len; i++) {
       const childContext = Object.create(context);
       childContext.components = childContext.components.slice();
-      childContext.flags = Object.create(childContext.flags);
       element.children[i] = this.renderElement(element, children[i], childContext, referenceNode);
     }
   }
@@ -676,7 +674,7 @@ class VirtualDom {
     else if (name === "style") {
       const [id, flags] = this.stylesheet.resolve(value);
       node.setAttribute(`style-group`, id);
-      if (flags) Object.assign(element.context.flags, flags);
+      if (flags?.["exiting-style"]) element.context["exiting-style"] = true;
     } else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(value, " "));
     else node.setAttribute(name, typeof value === "boolean" ? "" : value);
   }
@@ -867,15 +865,14 @@ function appendElement(parent, element, referenceNode) {
 
 function removeElement(element) {
   const firstNode = element.node || element.firstNode;
-  const flags = element?.context?.flags || {};
   if (firstNode) {
     const lastNode = element.lastNode;
-    if (!lastNode || firstNode === lastNode) removeNode(element.parent, firstNode, flags);
+    if (!lastNode || firstNode === lastNode) removeNode(element.parent, firstNode);
     else {
       let currentNode = firstNode;
       while (currentNode) {
         const next = currentNode.nextSibling;
-        removeNode(element.parent, currentNode, flags);
+        removeNode(element.parent, currentNode);
         if (currentNode === lastNode) currentNode = null;
         else currentNode = next;
       }
@@ -883,7 +880,7 @@ function removeElement(element) {
   }
 }
 
-function removeNode(parent, node, flags) {
+function removeNode(parent, node) {
   while (parent.type === Fragment || parent.type === Component.Node) {
     if (parent.firstNode === node) {
       if (parent.firstNode === parent.lastNode) ((parent.firstNode = null), (parent.lastNode = null));
@@ -892,7 +889,7 @@ function removeNode(parent, node, flags) {
     parent = parent.parent;
   }
   parent = node.parentNode === parent.node ? parent.node : node.parentNode;
-  if (!node.getAnimations || !node.setAttribute || !flags["exiting-style"]) return parent?.removeChild(node);
+  if (!node.getAnimations || !node.setAttribute || !node.element.context["exiting-style"]) return parent?.removeChild(node);
   Style.waitForExit(node).then(() => parent?.removeChild(node));
 }
 
