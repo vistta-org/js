@@ -289,6 +289,38 @@ That means values you pass in JSX (e.g. `<Widget value={123} />`) are assigned t
 
 In a component instance, `this.children` contains the nested children passed through JSX.
 
+#### Reactivity
+
+Every instance property on a component behaves like a signal — reading it during render subscribes to it, and writing to it triggers a re-render of only the parts of the tree that depend on it. No special wrapper, `.value` accessor, or setter function is needed:
+
+```jsx
+import { Component } from "@vistta/js";
+
+export default class Counter extends Component {
+  count = 0;
+
+  render() {
+    return (
+      <>
+        <p>{this.count}</p>
+        <button onClick={() => this.count++}>Increment</button>
+      </>
+    );
+  }
+}
+```
+
+Assigning `this.count++` automatically triggers a targeted update — only the expressions that read `this.count` are re-evaluated. The framework tracks dependencies at the property level, so unrelated parts of the tree are never touched.
+
+Use private fields (`#field`) for data that should **not** trigger re-renders when changed:
+
+```jsx
+class Example extends Component {
+  #cache = new Map(); // internal bookkeeping — no reactivity
+  items = []; // reactive — updates the UI when reassigned
+}
+```
+
 #### Computed Getters
 
 Getter-only properties on a component are automatically memoized. The framework detects `get` accessors without a `set`, tracks their reactive dependencies, and caches the result until a dependency changes.
@@ -518,6 +550,28 @@ export default class Page extends Component {
 
 When a component property is a Promise, accessing it during render triggers the nearest `Suspense` boundary.
 
+#### Lazy Components
+
+Since any Promise property triggers Suspense, you can use dynamic `import()` to lazy-load components:
+
+```jsx
+import { Component, Suspense } from "@vistta/js";
+
+const HeavyChart = import("./heavy-chart.jsx").then((m) => m.default);
+
+export default class Page extends Component {
+  render() {
+    return (
+      <Suspense fallback={<p>Loading chart…</p>}>
+        <HeavyChart data={this.data} />
+      </Suspense>
+    );
+  }
+}
+```
+
+The component is fetched on demand and renders once the import resolves.
+
 ### `VirtualContainer`
 
 `VirtualContainer` supports two rendering modes:
@@ -712,23 +766,23 @@ Bytes/Sec (MB): 38.8
 
 Attribute Update:
 
-- Initial Time (ms): 4.6; Average Time (ms): 0.3; Total (runs/sec): 104
+- Initial Time (ms): 4; Average Time (ms): 0.3; Total (runs/sec): 104
 
 Content Update:
 
-- Initial Time (ms): 4.6; Average Time (ms): 1.4; Total (runs/sec): 92
+- Initial Time (ms): 6.7; Average Time (ms): 1.5; Total (runs/sec): 90
 
 Element Update With Keys:
 
-- Initial Time (ms): 4.2; Average Time (ms): 3.2; Total (runs/sec): 45
+- Initial Time (ms): 4.2; Average Time (ms): 3.5; Total (runs/sec): 43
 
 Element Update Without Keys:
 
-- Initial Time (ms): 3.2; Average Time (ms): 4.6; Total (runs/sec): 42
+- Initial Time (ms): 2.6; Average Time (ms): 3.7; Total (runs/sec): 42
 
 Recursive Update:
 
-- Initial Time (ms): 9.6; Average Time (ms): 0.1; Total (runs/sec): 111
+- Initial Time (ms): 12.3; Average Time (ms): 0.1; Total (runs/sec): 108
 
 ## **License**
 

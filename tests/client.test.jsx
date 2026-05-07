@@ -4,7 +4,7 @@ import { FALLBACK_VALUE, LOADED_VALUE, LOADING_VALUE, TEXT_UPDATE_VALUE, TEXT_VA
 
 const TIMEOUT_WITH_DELAY = TIMEOUT * 1.1;
 
-suite.only("VisttaJS Client Unit Tests", async () => {
+suite("VisttaJS Client Unit Tests", async () => {
   await test("Basic: State Counter", async () => {
     await document.mount(basic.StateCounter);
 
@@ -141,38 +141,38 @@ suite.only("VisttaJS Client Unit Tests", async () => {
 
   await test("Basic: Computed Getters", async () => {
     await document.mount(basic.ComputedGetters);
-    const output = document.querySelector("#output");
-    const filterValue = document.querySelector("#filter-value");
+    const filtered = document.querySelector("#filtered");
+    const filteredLength = document.querySelector("#filtered-length");
     const computeCount = document.querySelector("#compute-count");
 
-    expect(output.innerText).toEqual("3");
-    expect(filterValue.innerText).toEqual("3");
+    expect(filtered.innerText).toEqual("123");
+    expect(filteredLength.innerText).toEqual("3");
     expect(computeCount.innerText).toEqual("1");
 
     await document.querySelector("#increment").click();
-    expect(output.innerText).toEqual("4");
-    expect(filterValue.innerText).toEqual("4");
+    expect(filtered.innerText).toEqual("1234");
+    expect(filteredLength.innerText).toEqual("4");
     expect(computeCount.innerText).toEqual("2");
 
     await document.querySelector("#increment").click();
-    expect(output.innerText).toEqual("5");
-    expect(filterValue.innerText).toEqual("5");
+    expect(filtered.innerText).toEqual("12345");
+    expect(filteredLength.innerText).toEqual("5");
     expect(computeCount.innerText).toEqual("3");
 
     await document.querySelector("#increment").click();
-    expect(output.innerText).toEqual("5");
-    expect(filterValue.innerText).toEqual("6");
+    expect(filtered.innerText).toEqual("12345");
+    expect(filteredLength.innerText).toEqual("5");
     expect(computeCount.innerText).toEqual("4");
 
     await document.querySelector("#decrement").click();
-    expect(output.innerText).toEqual("5");
-    expect(filterValue.innerText).toEqual("5");
+    expect(filtered.innerText).toEqual("12345");
+    expect(filteredLength.innerText).toEqual("5");
     expect(computeCount.innerText).toEqual("5");
 
     // Setting same value should not trigger recompute
     await document.querySelector("#noop").click();
-    expect(output.innerText).toEqual("5");
-    expect(filterValue.innerText).toEqual("5");
+    expect(filtered.innerText).toEqual("12345");
+    expect(filteredLength.innerText).toEqual("5");
     expect(computeCount.innerText).toEqual("5");
   });
 

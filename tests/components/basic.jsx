@@ -201,8 +201,8 @@ export class ComputedGetters extends Component {
         <button id="noop" onClick={() => (this.filter = this.filter)}>
           noop
         </button>
-        <div id="output">{this.filtered.length}</div>
-        <div id="filter-value">{this.filter}</div>
+        <div id="filtered">{this.filtered}</div>
+        <div id="filtered-length">{this.filtered.length}</div>
         <div id="compute-count">{this.computeCount}</div>
       </>
     );

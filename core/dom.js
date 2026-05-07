@@ -13,7 +13,7 @@ import {
   Suspense,
   TextNode,
 } from "./classes.js";
-import { VirtualStyleSheet } from "./stylesheet.js";
+import { Style, VirtualStyleSheet } from "./stylesheet.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
 const INTERNAL_COMPONENTS = new Set([Form, Profiler, Render.If, Render.Each, Safe, Suspense]);
@@ -56,6 +56,7 @@ class VirtualDom {
     };
     this.virtualTree = this.renderElement(host, element, {
       components: [],
+      flags: /** @type {Object<string, boolean>} */ ({}),
     });
     const ssr = document.querySelector("style[data-ssr]");
     document.adoptedStyleSheets = [this.stylesheet.content];
@@ -616,6 +617,7 @@ class VirtualDom {
       if (!element.children[i]) {
         const childContext = Object.create(element.context);
         childContext.components = childContext.components.slice();
+        childContext.flags = Object.create(childContext.flags);
         element.children[i] = this.renderElement(element, children[i], childContext, referenceNode);
       } else {
         const child = element.children[i];
@@ -638,6 +640,7 @@ class VirtualDom {
     for (let i = 0, len = children.length; i < len; i++) {
       const childContext = Object.create(context);
       childContext.components = childContext.components.slice();
+      childContext.flags = Object.create(childContext.flags);
       element.children[i] = this.renderElement(element, children[i], childContext, referenceNode);
     }
   }
@@ -670,12 +673,11 @@ class VirtualDom {
     if (name === "className") name = "class";
     if (value == null || value === false) node.removeAttribute(name);
     else if (name === "value") node.value = value;
-    else if (name === "style")
-      node.setAttribute(
-        `style-group`,
-        this.stylesheet.resolve(value, (attr) => attr === "exit-style" && (element["exit-style"] = true)),
-      );
-    else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(value, " "));
+    else if (name === "style") {
+      const [id, flags] = this.stylesheet.resolve(value);
+      node.setAttribute(`style-group`, id);
+      if (flags) Object.assign(element.context.flags, flags);
+    } else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(value, " "));
     else node.setAttribute(name, typeof value === "boolean" ? "" : value);
   }
 
@@ -865,40 +867,33 @@ function appendElement(parent, element, referenceNode) {
 
 function removeElement(element) {
   const firstNode = element.node || element.firstNode;
-  const remove = (parent, node) => {
-    while (parent.type === Fragment || parent.type === Component.Node) {
-      if (parent.firstNode === node) {
-        if (parent.firstNode === parent.lastNode) ((parent.firstNode = null), (parent.lastNode = null));
-        else parent.firstNode = parent.firstNode.nextSibling;
-      } else if (parent.lastNode === node) parent.lastNode = parent.lastNode.previousSibling;
-      parent = parent.parent;
-    }
-    if (element["exit-style"]) {
-      element.node.setAttribute("exit-style", "");
-      const cleanup = () =>
-        node.parentNode === parent.node ? parent.node.removeChild(node) : node.parentNode?.removeChild(node);
-      node.addEventListener("transitionend", (e) => e.target === node && cleanup(), { once: true });
-      node.addEventListener("animationend", (e) => e.target === node && cleanup(), { once: true });
-      const style = getComputedStyle(node);
-      const duration = parseFloat(style.transitionDuration || style.animationDuration || "0") * 1000;
-      if (duration > 0) setTimeout(cleanup, duration + 50);
-      else cleanup();
-    } else if (node.parentNode === parent.node) parent.node.removeChild(node);
-    else node.parentNode?.removeChild(node);
-  };
+  const flags = element?.context?.flags || {};
   if (firstNode) {
     const lastNode = element.lastNode;
-    if (!lastNode || firstNode === lastNode) remove(element.parent, firstNode);
+    if (!lastNode || firstNode === lastNode) removeNode(element.parent, firstNode, flags);
     else {
       let currentNode = firstNode;
       while (currentNode) {
         const next = currentNode.nextSibling;
-        remove(element.parent, currentNode);
+        removeNode(element.parent, currentNode, flags);
         if (currentNode === lastNode) currentNode = null;
         else currentNode = next;
       }
     }
   }
+}
+
+function removeNode(parent, node, flags) {
+  while (parent.type === Fragment || parent.type === Component.Node) {
+    if (parent.firstNode === node) {
+      if (parent.firstNode === parent.lastNode) ((parent.firstNode = null), (parent.lastNode = null));
+      else parent.firstNode = parent.firstNode.nextSibling;
+    } else if (parent.lastNode === node) parent.lastNode = parent.lastNode.previousSibling;
+    parent = parent.parent;
+  }
+  parent = node.parentNode === parent.node ? parent.node : node.parentNode;
+  if (!node.getAnimations || !node.setAttribute || !flags["exiting-style"]) return parent?.removeChild(node);
+  Style.waitForExit(node).then(() => parent?.removeChild(node));
 }
 
 function traverseVirtualTree(element, callback) {

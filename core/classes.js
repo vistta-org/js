@@ -40,14 +40,23 @@ export class Element {
     } else if (typeOf !== "string" && typeOf !== "symbol") this.type = null;
     else {
       if (props?.["ref"] != null) {
-        if (props["ref"] instanceof Mutation) this.ref = props["ref"]();
-        else this.ref = props["ref"];
+        if (props["ref"] instanceof Mutation) {
+          const prev = Mutation.current;
+          Mutation.current = null;
+          this.ref = props["ref"]();
+          Mutation.current = prev;
+        } else this.ref = props["ref"];
         delete this.props.ref;
       }
       this.type = type;
     }
     if (props?.["key"] != null) {
-      if (props["key"] instanceof Mutation) props["key"] = props["key"]();
+      if (props["key"] instanceof Mutation) {
+        const prev = Mutation.current;
+        Mutation.current = null;
+        props["key"] = props["key"]();
+        Mutation.current = prev;
+      }
       if (typeof props["key"] === "number") this.key = "" + props["key"];
       else this.key = props["key"];
       delete this.props.key;
@@ -404,8 +413,12 @@ export class Ref {
    * @param {T} value
    */
   static assign(ref, value) {
-    if (typeof ref === "function") ref(value);
-    else if (typeof ref == "object" && ref) ref.node = value;
+    if (typeof ref === "function") {
+      const prev = Mutation.current;
+      Mutation.current = null;
+      ref(value);
+      Mutation.current = prev;
+    } else if (typeof ref == "object" && ref) ref.node = value;
   }
 
   /**

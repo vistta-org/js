@@ -14,9 +14,9 @@ import { BoundClass, join } from "@vistta/utils";
  * @property {any} [properties]
  * @property {any} [queries]
  * @property {any} [functions]
+ * @property {Object<string, boolean>} [flags]
  * @property {boolean} [selector]
  * @property {(value: string) => string} [createAnimation]
- * @property {(value: any) => void} [callback]
  */
 
 export class VirtualStyleSheet extends BoundClass {
@@ -51,20 +51,42 @@ export class VirtualStyleSheet extends BoundClass {
       for (let j = 0, vlen = values.length; j < vlen; j++) {
         const value = properties[keys[i]][values[j]];
         const typeofValue = typeof value;
-        if (typeofValue === "string")
-          styleValues[values[j]] = stringToStyle(value, { createAnimation: (value) => this.createAnimation(value) });
-        else if (typeofValue === "object") {
-          if (Array.isArray(value))
-            styleValues[values[j]] = stringToStyle(join(value, "; "), {
-              createAnimation: (value) => this.createAnimation(value),
-            });
-          else styleValues[values[j]] = objectToStyle(value, { createAnimation: (value) => this.createAnimation(value) });
+        if (typeofValue === "string") {
+          const flags = /** @type {Object<string, boolean>} */ ({});
+          styleValues[values[j]] = {
+            value: stringToStyle(value, { flags, createAnimation: (value) => this.createAnimation(value) }),
+            flags,
+          };
+        } else if (typeofValue === "object") {
+          if (Array.isArray(value)) {
+            const flags = /** @type {Object<string, boolean>} */ ({});
+            styleValues[values[j]] = {
+              value: stringToStyle(join(value, "; "), {
+                flags,
+                createAnimation: (value) => this.createAnimation(value),
+              }),
+              flags,
+            };
+          } else {
+            const flags = /** @type {Object<string, boolean>} */ ({});
+            styleValues[values[j]] = {
+              value: objectToStyle(value, {
+                flags,
+                createAnimation: (value) => this.createAnimation(value),
+              }),
+              flags,
+            };
+          }
         }
       }
       this.#properties[keys[i]] = (value) => {
         if (styleValues[value]) return styleValues[value];
-        if (styleValues["*"]) return styleValues["*"].replace(/\$\{\}/g, formatValue(value));
-        return "";
+        if (styleValues["*"])
+          return {
+            value: styleValues["*"].value.replace(/\$\{\}/g, formatValue(value)),
+            flags: styleValues["*"].flags,
+          };
+        return { value: "", flags: {} };
       };
     }
 
@@ -169,16 +191,17 @@ export class VirtualStyleSheet extends BoundClass {
     }
   }
 
-  resolve(value, callback) {
+  resolve(value) {
     let style;
     const typeofValue = typeof value;
+    const flags = /** @type {Object<string, boolean>} */ ({});
     if (typeofValue === "string")
       style = stringToStyle(value, {
         properties: this.#properties,
         queries: this.#queries,
         functions: this.#functions,
+        flags,
         createAnimation: (value) => this.createAnimation(value),
-        callback,
       });
     else if (typeofValue === "object") {
       if (Array.isArray(value))
@@ -186,23 +209,23 @@ export class VirtualStyleSheet extends BoundClass {
           properties: this.#properties,
           queries: this.#queries,
           functions: this.#functions,
+          flags,
           createAnimation: (value) => this.createAnimation(value),
-          callback,
         });
       else if (value)
         style = objectToStyle(value, {
           properties: this.#properties,
           queries: this.#queries,
           functions: this.#functions,
+          flags,
           createAnimation: (value) => this.createAnimation(value),
-          callback,
         });
     } else return "";
     if (!style) return "";
     if (this.#styleGroups[style]) return this.#styleGroups[style];
-    const id = (this.#styleGroups[style] = this.#count++);
+    const id = this.#count++;
     this.#insertRule(`[style-group="${id}"] { ${style}}`);
-    return id;
+    return (this.#styleGroups[style] = [id, flags]);
   }
 
   createAnimation(value) {
@@ -254,7 +277,7 @@ function stringToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
 }
 
 function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) {
-  const { properties, queries, functions, createAnimation, callback } = options;
+  const { properties, queries, functions, flags, createAnimation } = options;
   let style = "";
   const keys = Object.keys(value || {});
   for (let i = 0, len = keys.length; i < len; i++) {
@@ -262,22 +285,22 @@ function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
     let cur = value[key];
     const typeofValue = typeof cur;
     if (typeofValue === "string" || typeofValue === "number")
-      style += format(key, cur, { properties, queries, functions, selector: false, createAnimation, callback }) + " ";
+      style += format(key, cur, { properties, queries, functions, flags, selector: false, createAnimation }) + " ";
     else if (typeofValue === "boolean" && cur === true)
-      style += format(key, "default", { properties, queries, functions, selector: false, createAnimation, callback }) + " ";
+      style += format(key, "default", { properties, queries, functions, flags, selector: false, createAnimation }) + " ";
     else if (typeofValue === "object") {
       if (Array.isArray(cur))
         style +=
-          format(key, join(cur, " "), { properties, queries, functions, selector: false, createAnimation, callback }) + " ";
+          format(key, join(cur, " "), { properties, queries, functions, flags, selector: false, createAnimation }) + " ";
       else
         style +=
-          format(key, objectToStyle(cur, { properties, queries, functions, createAnimation, callback }), {
+          format(key, objectToStyle(cur, { properties, queries, functions, flags, createAnimation }), {
             properties,
             queries,
             functions,
+            flags,
             selector: true,
             createAnimation,
-            callback,
           }) + " ";
     }
   }
@@ -285,16 +308,27 @@ function objectToStyle(value, options = /** @type {StyleFormatOptions} */ ({})) 
 }
 
 function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
-  const { properties = {}, queries = {}, functions = [], selector, createAnimation, callback } = options;
+  const {
+    properties = {},
+    queries = {},
+    functions = [],
+    flags = /** @type {Object<string, boolean>} */ ({}),
+    selector,
+    createAnimation,
+  } = options;
   key = camelToKebab(key);
   if (!selector) {
-    if (properties[key]) return properties[key](formatValue(value, false, functions));
+    if (properties[key]) {
+      const property = properties[key](formatValue(value, false, functions));
+      Object.assign(flags, property.flags);
+      return property.value;
+    }
     return `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value, false, functions)};`;
   }
   if (key === "animation") return createAnimation ? createAnimation(value) : "";
   if (queries[key]) return `@media ${queries[key]} { ${value.trim()} }`;
   if (key === ":initial") return `@starting-style { ${value}}`;
-  if (key === ":exit") return (callback?.("exit-style"), `&[exit-style] { ${value}}`);
+  if (key === ":exit") return ((flags["exiting-style"] = true), `&[exiting-style] { ${value}}`);
   const atRule = key.match(/^:(media|supports|container|layer)\((.+)\)$/);
   if (atRule)
     return atRule[1] === "layer"
@@ -408,13 +442,43 @@ function extractKeyValueFromString(str) {
 
 export class Style {
   /**
-   *
+   * Assigns a style to a target, which can be an object or a string of space-separated objects.
+   * If the target is a function, it will be called with the value.
+   * If the target is an object, the value will be assigned to its `node` property.
    * @param {object | string | string[]} target
    * @param  {...(object | string | string[])} sources
    * @returns {object}
    */
   static assign(target, ...sources) {
     return Object.assign(ensureObject(target), ...sources.map(ensureObject));
+  }
+
+  /**
+   * Waits for the exit animation of a node to finish before resolving.
+   * @param {object | string | string[]} node
+   * @returns {Promise<void>}
+   */
+  static waitForExit(node) {
+    return new Promise((resolve) => {
+      const before = node.getAnimations().length;
+      node.setAttribute("exiting-style", "");
+      const animations = node.getAnimations();
+      if (animations.length <= before) return resolve();
+      const animation = animations[animations.length - 1];
+      if (!animation) return resolve();
+      let iterations = 0;
+      node.interval = setInterval(() => {
+        if (animation.playState !== "running" || iterations > 50) {
+          clearInterval(node.interval);
+          resolve();
+        } else iterations++;
+      }, 100);
+    });
+  }
+
+  static stopExit(node) {
+    node.removeAttribute("exiting-style");
+    clearInterval(node.interval);
   }
 }
 
