@@ -2,14 +2,12 @@ let instance = null;
 
 export class Socket {
   static connect(host, options) {
-    console.log("connect", host);
     if (instance) return;
+    // @ts-ignore
     instance = import("@socket")
       .then(({ io }) => {
-        console.log("here", !io || instance);
         if (!io) return;
         const result = io(host, { reconnectionDelay: 10000, ...(options || {}) });
-        result.on("connect", () => console.log("Socket connected"));
         result.on("connect_error", (error) => console.error(`Socket Internal Error: ${error.message}`));
         result.io.on("reconnect", () => location.reload());
         return result;
