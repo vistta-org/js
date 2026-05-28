@@ -10,17 +10,16 @@ declare interface Document {
 
 declare interface HTMLElement {
   value: any;
-  write(
-    text: string,
-    options?: { delay?: number; clear?: boolean; dispatchKeyboardEvents?: boolean },
-  ): Promise<any>;
+  write(text: string, options?: { delay?: number; clear?: boolean; dispatchKeyboardEvents?: boolean }): Promise<any>;
 }
 
 declare interface Window {
-  readonly isServer: boolean;
+  readonly platform: "server" | "browser" | "mobile" | "desktop";
 }
 
-declare module "@socket" { export function io(...args: any[]): any; }
+declare module "@socket" {
+  export function io(...args: any[]): any;
+}
 
 // CSS
 declare module "*.css" {

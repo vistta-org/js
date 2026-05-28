@@ -132,8 +132,8 @@ export {
   VirtualContainer,
 } from "./core/classes.js";
 
-export { default as socket } from "./core/socket.js";
 export { File, Style } from "./core/utils.js";
 export { worker } from "./index.js";
-export { default as router } from "./web/client/router.js";
-export { COPY, default as Controller, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./web/server/controller.js";
+export { COPY, default as Controller, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./server/controller.js";
+export { default as Router } from "./server/router.js";
+export { default as Socket } from "./server/socket.js";

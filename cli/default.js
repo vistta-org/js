@@ -17,32 +17,13 @@ export default class extends DefaultCommand {
   }
 
   async main(...argv) {
-    const [[file], options] = (parseArgs(argv));
+    const [[file]] = parseArgs(argv);
     if (process.env.NODE_ENV === "development") await this.outdated();
     const filepath = fs.resolve(process.cwd(), file);
     if (!fs.existsSync(filepath)) {
       console.print(`Unknown command/script "${file}"\n`);
       return this.help();
     }
-    if (options.app) this.app(filepath);
-    else import(filepath);
-  }
-
-  async app(...args) {
-    const electronPath = String((await import("electron"))?.default || "electron");
-    const { spawn } = await import("node:child_process");
-    const keys = Object.keys(process.vistta || {});
-    for (let i = 0, len = keys.length; i < len; i++)
-      process.env[`vistta_${keys[i]}`.toUpperCase()] = JSON.stringify(process.vistta[keys[i]]);
-    const child = spawn(electronPath, args, { stdio: "inherit", windowsHide: false });
-    child.on("close", async (code, signal) => {
-      if (code === null) {
-        console.error(electronPath, "exited with signal", signal);
-        process.exit(1);
-      }
-      process.exit(code);
-    });
-    process.on("SIGINT", () => !child.killed && child.kill("SIGINT"));
-    process.on("SIGTERM", () => !child.killed && child.kill("SIGTERM"));
+    import(filepath);
   }
 }

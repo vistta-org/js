@@ -1,18 +1,23 @@
-class Socket {
-  #instance;
+let instance = null;
 
-  constructor() {
-    if (typeof process === "undefined")
-      import("@socket")
-        .then(({ io }) => {
-          if (!io || this.#instance) return;
-          this.#instance = io({ reconnectionDelay: 10000 });
-          this.#instance.on("connect_error", (error) => console.error(`Socket Internal Error: ${error.message}`));
-          this.#instance.io.on("reconnect", () => location.reload());
-        })
-        .catch((error) => {
-          console.error(`Socket Internal Error: ${error.message}`);
-        });
+export class Socket {
+  static connect(host, options) {
+    console.log("connect", host);
+    if (instance) return;
+    instance = import("@socket")
+      .then(({ io }) => {
+        console.log("here", !io || instance);
+        if (!io) return;
+        const result = io(host, { reconnectionDelay: 10000, ...(options || {}) });
+        result.on("connect", () => console.log("Socket connected"));
+        result.on("connect_error", (error) => console.error(`Socket Internal Error: ${error.message}`));
+        result.io.on("reconnect", () => location.reload());
+        return result;
+      })
+      .catch((error) => {
+        console.error(`Socket Internal Error: ${error.message}`);
+        return null;
+      });
   }
 
   /**
@@ -20,10 +25,13 @@ class Socket {
    * @param {string} event - The event name.
    * @param {...any} args - The arguments to pass with the event.
    */
-  emit(event, ...args) {
+  static emit(event, ...args) {
     if (typeof event !== "string") return console.warn("Cannot emit an empty event");
-    if (!this.#instance) return console.warn("Socket Internal Error");
-    this.#instance.emit(event, ...args);
+    if (!instance) return console.warn("Socket not connected");
+    instance.then((socket) => {
+      if (!socket) return console.warn("Socket not connected");
+      socket.emit(event, ...args);
+    });
   }
 
   /**
@@ -31,9 +39,12 @@ class Socket {
    * @param {string} event - The event name.
    * @param {Function} callback - The callback function to execute when the event is triggered.
    */
-  on(event, callback) {
-    if (!this.#instance) return console.warn("Socket Internal Error");
-    this.#instance.on(event, callback);
+  static on(event, callback) {
+    if (!instance) return console.warn("Socket not connected");
+    instance.then((socket) => {
+      if (!socket) return console.warn("Socket not connected");
+      socket.on(event, callback);
+    });
   }
 
   /**
@@ -41,12 +52,13 @@ class Socket {
    * @param {string} event - The event name.
    * @param {Function} callback - The callback function to remove.
    */
-  off(event, callback) {
-    if (!this.#instance) return console.warn("Socket Internal Error");
-    this.#instance.off(event, callback);
+  static off(event, callback) {
+    if (!instance) return console.warn("Socket not connected");
+    instance.then((socket) => {
+      if (!socket) return console.warn("Socket not connected");
+      socket.off(event, callback);
+    });
   }
 }
 
-export const socket = new Socket();
-
-export default socket;
+export default Socket;

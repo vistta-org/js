@@ -1,12 +1,47 @@
 import fs from "@vistta/fs";
-import { RESOURCES_PATH, stringify } from "../../utils/index.js";
-import { Component, Element, VirtualDom } from "./dom.js";
+import { assign, RESOURCES_PATH, stringify } from "../utils";
+import "./adapter.js";
+import { Component, Element } from "./classes.js";
+import { VirtualDom } from "./dom.js";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 const DEFAULT_CSP = {
   "style-src": ["'unsafe-inline'"],
   "img-src": ["data:"],
 };
+
+export function createHtml(innerHTML, config) {
+  return `<!doctype html>
+<html lang="${config?.lang || "en"}">
+  <head>
+    <title>${config.title}</title>
+    <meta referrer="${config.referrer || "origin"}" />
+    <meta http-equiv="Content-Type" content="${config.contentType || "text/html; charset=utf-8"}" />
+    <meta name="viewport" content="${config?.viewport || "width=device-width,initial-scale=1" + (config.manifest ? ",interactive-widget=resizes-content,viewport-fit=cover" : "")}" />
+    <meta http-equiv="Content-Security-Policy" content="${convertCSP(config?.csp)}" />
+    <meta name="description" content="${config.description || ""}" />
+    <meta name="color-scheme" content="${config.colorScheme || "light dark"}" />
+    <meta name="theme-color" content="${config.theme || "#ffffff"}" />
+    <meta name="keywords" content="${config.keywords || ""}" />
+    <meta name="robots" content="${config.robots || "index, follow"}" />
+    ${config.author ? `<meta name="author" content="${config.author}" />` : ""}
+    ${config.language ? `<meta name="language" content="${config.language}" />` : ""}
+    ${config.refresh ? `<meta http-equiv="refresh" content="${config.refresh}" />` : ""}
+    ${config.revisitAfter ? `<meta name="revisit-after" content="${config.revisitAfter}" />` : ""}
+    ${config.copyright ? `<meta name="copyright" content="${config.copyright}" />` : ""}
+    ${config.publisher ? `<meta name="publisher" content="${config.publisher}" />` : ""}
+    ${config.icon ? `<link rel="icon" href="${config.icon}" />` : ""}
+    ${config.icon ? `<link rel="apple-touch-icon" href="${config.icon}" />` : ""}
+    ${config.manifest ? `<link rel="manifest" href="${config.manifest}" />` : ""}
+    ${config.style ? `<style data-ssr>${config.style}</style>` : ""}
+    ${config.links?.reduce((acc, obj) => acc + `\n\t<link ${convertToAttributes(obj)} />`, "") || ""}
+    <script src="./${RESOURCES_PATH}/client.js" defer></script>
+  </head>
+  <body>
+    ${innerHTML}
+  </body>
+</html>`.replace(/^\s*\n|^ {8}/gm, "");
+}
 
 export async function createPage(type, filepath, pathname, layout, configs) {
   const { default: content, config } = await import(filepath);
@@ -26,7 +61,7 @@ export async function createPage(type, filepath, pathname, layout, configs) {
         referrer: "origin",
         keywords: "visttajs",
         robots: "index, follow",
-        ...this.inherited.configs.reduce((acc, { config }) => Object.assign(acc, config || {}), {}),
+        ...this.inherited.configs.reduce((acc, { config }) => assign(acc, config || {}), {}),
         ...config,
       };
     },
@@ -47,42 +82,20 @@ export async function createPage(type, filepath, pathname, layout, configs) {
       if (!html) {
         const config = this.config;
         /** @type {any} */ (window).page = this;
-        const virtualDom = new VirtualDom(config);
+        const virtualDom = new VirtualDom("body", document.createDocumentFragment(), config);
+        virtualDom.enqueue = () => {};
+        // @ts-ignore
+        virtualDom.update = () => {};
         if (this.inherited.layout)
           virtualDom.render(new Element(this.inherited.layout.layout.component, {}, new Element(content, props)));
         else virtualDom.render(new Element(content, props));
         /** @type {any} */ (window).page = null;
-        const pathname = build ? this.pathname : this.location?.pathname;
-        html = `<!doctype html>
-        <html lang="${config?.lang || "en"}">
-          <head>
-            <title>${config.title}</title>
-            <meta referrer="${config.referrer || "origin"}" />
-            <meta http-equiv="Content-Type" content="${config.contentType || "text/html; charset=utf-8"}" />
-            <meta name="viewport" content="${config?.viewport || "width=device-width,initial-scale=1" + (this.pwa ? ",interactive-widget=resizes-content,viewport-fit=cover" : "")}" />
-            <meta http-equiv="Content-Security-Policy" content="${convertCSP(config?.csp)}" />
-            <meta name="description" content="${config.description || ""}" />
-            <meta name="color-scheme" content="${config.colorScheme || "light dark"}" />
-            <meta name="theme-color" content="${config.theme || "#ffffff"}" />
-            <meta name="keywords" content="${config.keywords || ""}" />
-            <meta name="robots" content="${config.robots || "index, follow"}" />
-            ${config.author ? `<meta name="author" content="${config.author}" />` : ""}
-            ${config.language ? `<meta name="language" content="${config.language}" />` : ""}
-            ${config.refresh ? `<meta http-equiv="refresh" content="${config.refresh}" />` : ""}
-            ${config.revisitAfter ? `<meta name="revisit-after" content="${config.revisitAfter}" />` : ""}
-            ${config.copyright ? `<meta name="copyright" content="${config.copyright}" />` : ""}
-            ${config.publisher ? `<meta name="publisher" content="${config.publisher}" />` : ""}
-            ${config.icon ? `<link rel="icon" href="${config.icon}" />` : ""}
-            ${config.icon ? `<link rel="apple-touch-icon" href="${config.icon}" />` : ""}
-            ${this.pwa ? `<link rel="manifest" href=".${pathname + (pathname.endsWith("/") ? "" : "/")}manifest.json" />` : ""}
-            <style data-ssr>${Array.from(virtualDom.stylesheet.rules).join(" ")}</style>
-            ${config.links?.reduce((acc, obj) => acc + `\n\t<link ${convertToAttributes(obj)} />`, "") || ""}
-            <script src="./${RESOURCES_PATH}/client.js" defer></script>
-          </head>
-          <body>
-            ${virtualDom.host.innerHTML}
-          </body>
-        </html>`.replace(/^\s*\n|^ {8}/gm, "");
+        if (this.pwa) {
+          const pathname = build ? this.pathname : this.location?.pathname;
+          config.manifest = `.${pathname + (pathname.endsWith("/") ? "" : "/")}manifest.json`;
+        }
+        config.style = Array.from(virtualDom.stylesheet.rules).join(" ");
+        html = createHtml(virtualDom.host.innerHTML, config);
         this.cache.set(key, html);
       }
       return html;

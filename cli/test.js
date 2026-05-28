@@ -15,6 +15,28 @@ export default class extends DefaultCommand {
   }
 
   async main(_, ...argv) {
-    super.app(fs.resolve(dirname, "../tests/runner.js"), ...argv);
+    let Electron;
+    try {
+      Electron = (await import("@vistta/js-runtime")).Electron;
+    } catch {
+      throw new Error("Missing dependency: @vistta/js-runtime. Please run `npm install @vistta/js-runtime` to install it.");
+    }
+
+    const keys = Object.keys(process.vistta || {});
+    for (let i = 0, len = keys.length; i < len; i++)
+      process.env[`vistta_${keys[i]}`.toUpperCase()] = JSON.stringify(process.vistta[keys[i]]);
+    const child = Electron.exec([fs.resolve(dirname, "../tests/runner.js"), ...argv], {
+      stdio: "inherit",
+      windowsHide: false,
+    });
+    child.on("close", (code, signal) => {
+      if (code === null) {
+        console.error("Electron", "exited with signal", signal);
+        process.exit(1);
+      }
+      process.exit(code);
+    });
+    process.on("SIGINT", () => !child.killed && child.kill("SIGINT"));
+    process.on("SIGTERM", () => !child.killed && child.kill("SIGTERM"));
   }
 }

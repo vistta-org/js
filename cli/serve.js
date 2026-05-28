@@ -18,7 +18,7 @@ export default class ServeCommand extends DefaultCommand {
   }
 
   async main(_, ...argv) {
-    const Server = (await import("../web/server/index.js")).default;
+    const Server = (await import("../server/index.js")).default;
     let [[folder], options] = parseArgs(argv);
     if (!(folder?.length > 0)) return this.help();
     if (process.env.NODE_ENV === "development") await this.outdated();

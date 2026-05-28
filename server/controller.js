@@ -1,4 +1,4 @@
-import { FunctionClass } from "../../utils/index.js";
+import { FunctionClass } from "../utils/index.js";
 
 /**
  * @template T
@@ -129,7 +129,16 @@ export const PUT = (url, callback, options) => /** @type {any} */ (new RESTMetho
  */
 export const REST = (type, url, callback, options) => /** @type {any} */ (new RESTMethod(type, url, callback, options));
 
-export default class Controller {}
+export default class Controller {
+  /**
+   * @type {string} Global host for the controller, used for constructing absolute URLs in the controller methods.
+   */
+  static set host(value) {
+    console.warn(
+      "Setting Controller.host on the server has no effect. This property is only used on the client to construct absolute URLs for API requests.",
+    );
+  }
+}
 
 export function shareToLoader(filepath, value) {
   if (global.loaders.shared[filepath]) return;

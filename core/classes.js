@@ -712,7 +712,7 @@ export class Form extends Component {
    * @returns {string}
    */
   static get DEFAULT_ERROR_MESSAGE() {
-    if (/** @type {any} */ (window).isServer) return "";
+    if (window.platform === "server") return "";
     if (!this._defaultErrorMessage) {
       const inputElement = document.createElement("input");
       inputElement.type = "text";

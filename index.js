@@ -13,11 +13,11 @@ export {
   Suspense,
   VirtualContainer,
 } from "./core/classes.js";
-export { default as socket } from "./core/socket.js";
 export { Anchor, File, HistoryContext, Style, ThemeContext } from "./core/utils.js";
-export { default as router } from "./web/client/router.js";
-export { default as Controller, COPY, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./web/server/controller.js";
-export const worker = proxy(
+export { default as Controller, COPY, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./server/controller.js";
+export { default as Router } from "./server/router.js";
+export { default as Socket } from "./server/socket.js";
+export const Worker = proxy(
   {},
   {
     get() {

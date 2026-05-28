@@ -7,9 +7,11 @@
   "exports": {
     ".": "./index.js",
     "./global": "./global.d.ts",
-    "./server": "./web/server/index.js",
+    "./server": "./server/index.js",
     "./loader": "./cli/default.js",
-    "./config": "./tsconfig.json"
+    "./config": "./tsconfig.json",
+    "./builder": "./builder.js",
+    "./app": "./app.js"
   },
   "type": "module",
   "scripts": {
@@ -29,15 +31,11 @@
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
     "mime": "^4.1.0",
-    "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io": "^4.8.3"
   },
-  "devDependencies": {
-    "electron": "^41.0.0"
-  },
+  "devDependencies": {},
   "peerDependencies": {
-    "@vistta/cli": "*",
-    "electron": "^39.2.7"
+    "@vistta/cli": "*"
   },
   "engines": {
     "node": ">=22.0.0"

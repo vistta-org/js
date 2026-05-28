@@ -1,4 +1,5 @@
 import { TestRunner } from "@vistta/cli";
+import router from "../app/router.js";
 import {
   Component,
   Context,
@@ -15,6 +16,8 @@ import {
 import { VirtualDom } from "../core/dom.js";
 import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils.js";
 import { defineReadonly, sleep } from "../utils/index.js";
+
+/** @type {any} */ (window).platform = "desktop";
 
 const ipc = /** @type {any} */ (globalThis.ipc);
 
@@ -33,14 +36,7 @@ const vistta = {
   Render,
   Safe,
   Form,
-  router: {
-    navigate() {
-      console.warn("Router is not available on apps.");
-    },
-    refresh() {
-      console.warn("Router is not available on apps.");
-    },
-  },
+  router,
   socket: {
     emit(event, ...args) {
       ipc.send(event, { args });

@@ -1,11 +1,10 @@
-export const RESOURCES_PATH = "assets";
-
 export const defineReadonly = (obj, key, value) =>
   Object.defineProperty(obj, key, {
     value,
     writable: false,
     configurable: false,
   });
+
 export const noCache = (path) => path + `?noCache=${Date.now()}`;
 
 export class FunctionClass extends Function {
@@ -16,4 +15,5 @@ export class FunctionClass extends Function {
 }
 
 export * from "@vistta/utils";
+export * from "./router.js";
 export * from "./string.js";

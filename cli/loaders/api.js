@@ -1,7 +1,7 @@
 import { Loader } from "@vistta/cli";
 import "../../core/adapter.js";
+import { default as Controller, RESTMethod } from "../../server/controller.js";
 import { stringify } from "../../utils/index.js";
-import { default as Controller, RESTMethod } from "../../web/server/controller.js";
 
 export default class APILoader extends Loader {
   async load(_, options) {
@@ -9,7 +9,7 @@ export default class APILoader extends Loader {
       if (!global.main.shared?.[options.path]) throw new Error("Controller not found in the server shared state");
       const pathname = global.main.shared?.[options.path]?.pathname;
       let controller = (await import(options.path))?.default;
-      let code = `import { request } from "@vistta/utils/request";const createUrl = (...url) => [`;
+      let code = `import { request } from "@vistta/utils/request";const createUrl = (...url) => (vistta.host || "") + [`;
       if (options.pathname || options.bundler) code += `"${pathname}",`;
       else {
         const escapePath = stringify(options.path);
@@ -78,7 +78,7 @@ function convertRESTMethodToRequest(method) {
   const arg = method.type === "get" || method.type === "delete" ? "params" : "body";
   const urlExpr = params.length === 0 ? `createUrl("${method.url}")` : `createUrl(${parts.join(", ")})`;
   const allParams = params.length === 0 ? `{ ...${arg} } = {}` : `{ ${params.join(", ")}, ...${arg} } = {}`;
-  const urlFn = `(${allParams}) => ${urlExpr}`;
+  const urlFn = `(${allParams}) => { const _u = ${urlExpr}; const _t = typeof request !== "undefined" && request.getAuthorization ? request.getAuthorization() : null; return _t ? _u + (_u.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(_t) : _u; }`;
 
   const fetchExpr = `request.${method.type}(_path, { ${arg}, controller }).then((response) => response?.data)`;
 

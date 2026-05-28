@@ -17,7 +17,6 @@ import { Style, VirtualStyleSheet } from "./stylesheet.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
 const INTERNAL_COMPONENTS = new Set([Form, Profiler, Render.If, Render.Each, Safe, Suspense]);
-const isServer = !!(/** @type {any} */ (window).isServer);
 const BUDGET_CHECK_INTERVAL = 8;
 
 class VirtualDomError extends Error {
@@ -62,7 +61,7 @@ class VirtualDom {
     if (ssr) ssr.remove();
     this.host.replaceChildren(host.node);
     host.node = this.host;
-    if (!isServer) requestAnimationFrame((frameTime) => this.update(frameTime));
+    if (window.platform !== "server") requestAnimationFrame((frameTime) => this.update(frameTime));
     return this;
   }
 
@@ -398,7 +397,7 @@ class VirtualDom {
           if (element.attributes[propertyName] instanceof Promise) {
             let fulfilled = false;
             let resolve;
-            if (!isServer)
+            if (window.platform !== "server")
               element.attributes[propertyName].then((result) => {
                 element.attributes[propertyName] = result;
                 fulfilled = true;
@@ -554,7 +553,7 @@ class VirtualDom {
         init,
         update,
       });
-      if (!isServer && component.onConnect) this.preventMutation(() => component.onConnect?.());
+      if (window.platform !== "server" && component.onConnect) this.preventMutation(() => component.onConnect?.());
       return element;
     }
 
@@ -719,7 +718,7 @@ class VirtualDom {
       const result = mutation();
       if (result instanceof Promise) {
         const resolve = element?.context?.suspense?.();
-        if (!isServer)
+        if (window.platform !== "server")
           result.then(() => {
             this.enqueue([mutation]);
             resolve?.();

@@ -204,7 +204,7 @@ export class Anchor extends FunctionClass {
   }
 
   #init(node) {
-    if (typeof window === "undefined" || window.isServer || typeof node !== "object") return;
+    if (typeof window === "undefined" || window.platform === "server" || typeof node !== "object") return;
     this.#node = node;
     node.style.setProperty("anchor-name", this.name);
   }

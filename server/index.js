@@ -7,13 +7,24 @@ import mime from "mime";
 import { Server as SocketIO } from "socket.io";
 import { URL } from "url";
 import zlib from "zlib";
-import { async, ensureEndsWith, isIPAddress, RESOURCES_PATH, stringify } from "../../utils/index.js";
+import {
+  addToPathname,
+  async,
+  checkIfMoreSpecific,
+  ensureEndsWith,
+  findRoutes,
+  isIPAddress,
+  matchRoute,
+  removeFromPathname,
+  RESOURCES_PATH,
+  stringify,
+} from "../utils/index.js";
 // @ts-ignore bundler attribute injects virtual "code" export
-import { code as client } from "../client/index.js" with { type: "bundler" };
+import { code as client } from "../clients/ssr.js" with { type: "bundler" };
+import { Component, createPage } from "../core/page.js";
 // @ts-ignore bundler attribute compiles worker source as string code
-import { code as worker } from "../client/worker.js" with { type: "bundler" };
+import { code as worker } from "../core/worker.js" with { type: "bundler" };
 import { default as Controller, RESTMethod, shareToLoader } from "./controller.js";
-import { Component, createPage } from "./page.js";
 
 const dirname = import.meta.dirname;
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
@@ -29,8 +40,6 @@ const DEFAULT_PROXY_OPTIONS = {
   timeout: TIMEOUT_TIME,
   proxyTimeout: TIMEOUT_TIME,
 };
-
-const JAVASCRIPT_TYPESCRIPT_EXTENSIONS = [".jsx", ".tsx", ".js", ".ts"];
 
 const ALL_METHODS = ["copy", "delete", "get", "head", "move", "options", "patch", "post", "put"];
 class Route {
@@ -119,7 +128,12 @@ class Server {
     [`/${RESOURCES_PATH}/client.js`]: client,
   };
   #proxy = proxy.createProxyServer({});
-  #socket = new SocketIO();
+  #socket = new SocketIO({
+    cors: {
+      origin: true,
+      credentials: true,
+    },
+  });
   #timeout;
 
   get ports() {
@@ -458,7 +472,11 @@ class Server {
           if (typeof arg !== "object") throw new TypeError("Invalid config type");
           const config = this.#register("config", subdomain, ensureEndsWith(pathname, "/"), arg);
           const segments = pathname.split("/");
-          matchRoutes(this.#subdomains[subdomain]?.page || [], pathname, ({ page }) => {
+          const pages = this.#subdomains[subdomain]?.page || [];
+          const regex = new RegExp("^" + pathname.replace(/:(\w+)/g, "([^/]+)").replace(/\*$/, ".*"));
+          for (let i = 0, len = pages.length; i < len; i++) {
+            if (pages[i].pathname.match(regex)) continue;
+            const page = pages[i].page;
             const configs = page.inherited.configs;
             for (let i = 0, len = configs.length; i < len; i++) {
               if (checkIfMoreSpecific(segments, configs[i].pathname)) return configs.splice(i, 0, config);
@@ -466,7 +484,7 @@ class Server {
             collection.add(config);
             configs.push(config);
             page.cache.reset();
-          });
+          }
         } else if (type === "layout") {
           if (typeof arg !== "function") throw new TypeError("Invalid layout type");
           const { code, resources } = await import(filepath, {
@@ -485,11 +503,18 @@ class Server {
             code: code,
           });
           const segments = pathname.split("/");
-          matchRoutes(this.#subdomains[subdomain]?.page || [], pathname, ({ page }) => {
-            if (page.inherited.layout && !checkIfMoreSpecific(segments, page.inherited.layout.pathname)) return;
+          const pages = this.#subdomains[subdomain]?.page || [];
+          const regex = new RegExp("^" + pathname.replace(/:(\w+)/g, "([^/]+)").replace(/\*$/, ".*"));
+          for (let i = 0, len = pages.length; i < len; i++) {
+            const page = pages[i].page;
+            if (
+              !page.pathname.match(regex) ||
+              (page.inherited.layout && !checkIfMoreSpecific(segments, page.inherited.layout.pathname))
+            )
+              continue;
             page.inherited.layout = layout;
             page.cache.reset();
-          });
+          }
           collection.add(layout);
         } else if (type === "page" || type === "error") {
           const configs = [];
@@ -596,45 +621,22 @@ class Server {
       else throw new TypeError("Invalid file default export type");
       return collection;
     }
-    const files = await fs.readdir(target, { recursive: true });
     const serverEntries = [];
     const clientEntries = [];
-    const entries = {
-      api: serverEntries,
-      controller: serverEntries,
-      middleware: serverEntries,
-      page: clientEntries,
-      error: clientEntries,
-      config: clientEntries,
-      layout: clientEntries,
-    };
-    for (let i = 0, len = files.length; i < len; i++) {
-      const file = files[i].replace(/\\/g, "/");
-      const filepath = fs.resolve(target, file);
-      const extname = fs.extname(filepath);
-      const isResource = fs.contains(filepath, RESOURCES_PATH);
-      if (fs.isDirectory(filepath) || !(JAVASCRIPT_TYPESCRIPT_EXTENSIONS.includes(extname) || isResource)) continue;
-      const paths = file.replace(/\.[^.]+$/, "").split("/");
-      const pathsLen = paths.length;
-      if (pathsLen == 1 && !isResource) {
-        if (entries[paths[0]]) entries[paths[0]].push([paths[0], combinePathnames(basepath, "/"), filepath]);
-        continue;
-      }
-      let pathname = "";
-      for (let i2 = 0; i2 < pathsLen; i2++) {
-        const path = paths[i2];
-        if (i2 == pathsLen - 1) break;
-        if (!path.endsWith("]")) pathname += "/" + path;
-        else if (path.startsWith("[...")) {
-          pathname += "/*";
-          break;
-        } else if (path.startsWith("[")) pathname += "/:" + path.slice(1, -1);
-        else pathname += "/" + path.slice(0, -1);
-      }
-      if (isResource) this.#resources[combinePathnames(basepath, pathname) + "/" + fs.basename(filepath)] = filepath;
-      else if (entries[paths[pathsLen - 1]])
-        entries[paths[pathsLen - 1]].push([paths[pathsLen - 1], combinePathnames(basepath, pathname), filepath]);
-    }
+    await findRoutes(
+      target,
+      basepath,
+      {
+        api: serverEntries,
+        controller: serverEntries,
+        middleware: serverEntries,
+        page: clientEntries,
+        error: clientEntries,
+        config: clientEntries,
+        layout: clientEntries,
+      },
+      this.#resources,
+    );
     for (let i = 0, len = serverEntries.length; i < len; i++) await use(...serverEntries[i]);
     for (let i = 0, len = clientEntries.length; i < len; i++) await use(...clientEntries[i]);
     return collection;
@@ -682,7 +684,7 @@ class Server {
     collection.add(
       this.#register("middleware", subdomain, pathname, (req, res) => {
         req.__options = options;
-        if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
+        if (!options.preservePathname) req.url = removeFromPathname(req.url, pathname + "*");
         this.#proxy.web(req, res, options, (error) => {
           throw new Error(error);
         });
@@ -690,7 +692,7 @@ class Server {
     );
     collection.add(
       this.#register("websocket", subdomain, pathname, (req, socket, head) => {
-        if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
+        if (!options.preservePathname) req.url = removeFromPathname(req.url, pathname + "*");
         this.#proxy.ws(req, socket, head, options, (err) => err && socket.end());
       }),
     );
@@ -717,7 +719,7 @@ class Server {
     else if (pathname.endsWith("/*")) this.#emit("warning", "Redirect pathname does not need wildcard");
     const options = /** @type {RedirectOptions} */ (typeOfTarget === "object" ? typeOfTarget : { target: typeOfTarget });
     return this.#register("middleware", subdomain, pathname, (req, res) => {
-      if (!options.preservePathname) req.url = removeFromPath(req.url, pathname + "*");
+      if (!options.preservePathname) req.url = removeFromPathname(req.url, pathname + "*");
       res.redirect(new URL(req.url || "/", options.target).toString(), true);
     });
   }
@@ -836,7 +838,7 @@ class Server {
       for (let i = 0, len = handlers.length; i < len; i++) {
         const handler = handlers[i];
         if (!(handler instanceof RESTMethod)) continue;
-        this.#register(handler.type, subdomain, combinePathnames(pathname, handler.url), async (request, response) => {
+        this.#register(handler.type, subdomain, addToPathname(pathname, handler.url), async (request, response) => {
           try {
             request.socket.emit = this.emit.bind(this, subdomain);
             request.socket.on = this.on.bind(this, subdomain);
@@ -865,13 +867,14 @@ class Server {
     if (!this.#subdomains[subdomain][type]) this.#subdomains[subdomain][type] = [];
     const route = arg instanceof Route ? arg : new Route(subdomain, pathname, type, arg, page);
     const routes = this.#subdomains[subdomain][type];
-    const { route: existing, replace } = findRoute(routes, route.route) || {};
-    if (existing) {
-      if (this.#strict)
-        throw new Error(
-          `${type.toUpperCase()} ${subdomain !== "" ? 'for subdomain "' + subdomain + '"' : ""} path "${pathname}" already exists.`,
-        );
-      return replace(route);
+    for (let i = 0, len = routes.length; i < len; i++) {
+      if (routes[i].route === route.route) {
+        if (this.#strict)
+          throw new Error(
+            `${type.toUpperCase()} ${subdomain !== "" ? 'for subdomain "' + subdomain + '"' : ""} path "${pathname}" already exists.`,
+          );
+        return (routes[i] = route);
+      }
     }
     const segments = pathname.split("/");
     for (let i = 0, len = routes.length; i < len; i++) {
@@ -974,6 +977,19 @@ class Server {
   #resolve(request, response) {
     try {
       const method = request.method.toLowerCase();
+      // Handle CORS preflight requests
+      if (method === "options" && request.headers.origin) {
+        const origin = request.headers.origin;
+        response.writeHead(204, {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD, COPY, MOVE",
+          "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "*",
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Max-Age": "86400",
+          Vary: "Origin",
+        });
+        return response.end();
+      }
       const resource = this.#resources?.[request.pathname];
       if (request.resource && resource) {
         if (method !== "get") return this.#reject(request, response, "Method not allowed", 405);
@@ -982,11 +998,11 @@ class Server {
         return response.send(resource, type);
       } else {
         if (request.pathname.endsWith("/page.js"))
-          ((request.resource = "page"), (request.pathname = removeFromPath(request.pathname, "*/page.js")));
+          ((request.resource = "page"), (request.pathname = removeFromPathname(request.pathname, "*/page.js")));
         else if (request.pathname.endsWith("/manifest.json"))
-          ((request.resource = "manifest"), (request.pathname = removeFromPath(request.pathname, "*/manifest.json")));
+          ((request.resource = "manifest"), (request.pathname = removeFromPathname(request.pathname, "*/manifest.json")));
         else if (request.pathname.endsWith("/worker.js"))
-          ((request.resource = "worker"), (request.pathname = removeFromPath(request.pathname, "*/worker.js")));
+          ((request.resource = "worker"), (request.pathname = removeFromPathname(request.pathname, "*/worker.js")));
         const route = matchRoute(this.#subdomains[request.subdomain]?.[method], request.pathname);
         if (route) {
           route.params.forEach((param, index) => (request.params[param] = route.match[index + 1]));
@@ -1059,6 +1075,8 @@ class Server {
       case "middleware": {
         const [socket, next] = args;
         const request = socket.handshake;
+        if (socket.handshake.auth?.token && !request.headers.authorization)
+          request.headers.authorization = `Bearer ${socket.handshake.auth.token}`;
         request.subdomain = getSubdomain(request.headers.host);
         const url = new URL(request.url, request.headers.origin || `ws://${request.headers.host}`);
         request.href = url.href;
@@ -1164,55 +1182,6 @@ function getSubdomain(input) {
   return "";
 }
 
-function matchRoute(routes, pathname, options = {}) {
-  let { exact, filter } = /** @type {{ exact?: boolean, filter?: (route: any) => boolean }} */ (options);
-  const exactSuffix = exact !== false ? "$" : "";
-  filter ||= (route) => route.active;
-  for (let i = 0, len = routes?.length || 0; i < len; i++) {
-    routes[i].match = pathname.match(new RegExp("^" + routes[i].route + exactSuffix));
-    if (routes[i].match && filter(routes[i])) return routes[i];
-  }
-  return null;
-}
-
-function matchRoutes(routes, pathname, callback) {
-  const regex = new RegExp("^" + pathname.replace(/:(\w+)/g, "([^/]+)").replace(/\*$/, ".*"));
-  for (let i = 0, len = routes.length; i < len; i++) {
-    if (routes[i].pathname.match(regex)) callback(routes[i]);
-  }
-}
-
-function findRoute(routes, route) {
-  for (let i = 0, len = routes.length; i < len; i++) {
-    if (routes[i].route === route)
-      return {
-        route: routes[i],
-        replace: (newRoute) => ((routes[i] = newRoute), newRoute),
-      };
-  }
-  return null;
-}
-
-function combinePathnames(basePathname, relativePathname) {
-  const pathname = new URL(
-    "." + relativePathname,
-    new URL(basePathname + (basePathname.endsWith("/") ? "" : "/"), "file://"),
-  ).pathname;
-  return pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
-}
-
-function removeFromPath(urlPath, target) {
-  if (target.startsWith("*")) {
-    target = target.slice(1);
-    if (urlPath === target) return "/";
-    return urlPath.replace(new RegExp(target + "$"), "");
-  } else if (target.endsWith("*")) {
-    target = target.slice(0, -1);
-    urlPath = urlPath.replace(new RegExp(`^${target}`), "");
-    return urlPath.startsWith("/") ? urlPath : "/" + urlPath;
-  } else urlPath = urlPath.replace(target, "");
-}
-
 function getRequestBody(request) {
   return new Promise((resolve, reject) => {
     if (request.complete || request.readableEnded) return resolve("");
@@ -1285,32 +1254,6 @@ function getRequestBody(request) {
   });
 }
 
-function checkIfMoreSpecific(segments, target) {
-  const comparedSegments = target.split("/");
-  if (segments.length > comparedSegments.length) return true;
-  if (segments.length === comparedSegments.length) {
-    for (let i = 1, len = segments.length; i < len; i++) {
-      const segmentIsDynamic = segments[i].startsWith(":");
-      const segmentIsWild = segments[i] === "*";
-      const matchedIsDynamic = comparedSegments[i].startsWith(":");
-      const matchedIsWild = comparedSegments[i] === "*";
-      if (
-        (!segmentIsDynamic && !segmentIsWild && (matchedIsDynamic || matchedIsWild)) ||
-        (segmentIsDynamic && matchedIsWild) ||
-        comparedSegments[i] === ""
-      )
-        return true;
-      if (
-        (!matchedIsDynamic && !matchedIsWild && (segmentIsDynamic || segmentIsWild)) ||
-        (segmentIsWild && matchedIsDynamic) ||
-        segments[i] === ""
-      )
-        return false;
-    }
-  }
-  return false;
-}
-
 function xForwardHeaders(proxyReq, originalReq) {
   proxyReq.setHeader("Host", originalReq.headers["host"]);
   proxyReq.setHeader("X-Forwarded-Host", originalReq.headers["x-forwarded-host"] || originalReq.headers["host"]);
@@ -1320,6 +1263,7 @@ function xForwardHeaders(proxyReq, originalReq) {
 }
 
 function defaultHeaders(request, response, type) {
+  const origin = request.headers.origin;
   const headers = Object.assign(
     {
       Connection: "keep-alive",
@@ -1337,6 +1281,10 @@ function defaultHeaders(request, response, type) {
     },
     response.headers || {},
   );
+  if (origin) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Access-Control-Allow-Credentials"] = "true";
+  }
   if (response.cookies) headers["Set-Cookie"] = response.cookies;
   if (request.resource && request.resource !== "page") headers["Cache-Control"] = "public, max-age=14400, immutable";
   else headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate";

@@ -1,12 +1,21 @@
-import { Element } from "../../core/classes.js";
-import { VirtualDom } from "../../core/dom.js";
-import { BoundClass, async, isValidUrl } from "../../utils/index.js";
+import { async, isValidUrl } from "../utils/index.js";
+import { Element } from "./classes";
+import { VirtualDom } from "./dom.js";
 
-export class Router extends BoundClass {
-  #routes = {};
-  #virtualDom;
-  #loaded = false;
-  #previous = null;
+export const routes = {
+  $init: false,
+  $previous: null,
+  $current: null,
+};
+
+export class Router {
+  /**
+   * Returns the current location object.
+   * @returns {Location} The current location object.
+   */
+  static get location() {
+    return window.location;
+  }
 
   /**
    *
@@ -21,9 +30,9 @@ export class Router extends BoundClass {
    * @param {string | NavigateOptions} [arg]
    * @param {NavigateOptions} [options]
    */
-  async navigate(arg, options) {
-    const initial = !this.#loaded;
-    this.#loaded = true;
+  static async navigate(arg, options) {
+    const initial = !routes.$init;
+    routes.$init = true;
     let { href, pushState, refresh, force, transition } = typeof arg === "object" ? arg : { href: arg, ...options };
     const updateHistory =
       pushState !== false ? (url) => history.pushState({}, "", url) : (url) => history.replaceState({}, "", url);
@@ -31,11 +40,12 @@ export class Router extends BoundClass {
     if (force) return (window.location.href = href);
     if (isValidUrl(href) && !isAppUrl(href)) return (window.location.href = href);
     const { pathname, hash, search } = href ? new URL(href, window.location.href) : new URL(window.location.href);
-    if (this.#previous?.pathname === pathname && this.#previous?.search === search && this.#previous?.hash === hash) return;
+    if (routes.$previous?.pathname === pathname && routes.$previous?.search === search && routes.$previous?.hash === hash)
+      return;
 
-    if (initial || refresh || pathname !== this.#virtualDom.pathname) {
-      const cachedVirtualDom = this.#routes?.[pathname];
-      this.#virtualDom?.disable();
+    if (initial || refresh || pathname !== routes.$current.pathname) {
+      const cachedVirtualDom = routes?.[pathname];
+      routes.$current?.disable();
       try {
         if (initial || refresh || !cachedVirtualDom) {
           const {
@@ -44,32 +54,32 @@ export class Router extends BoundClass {
             layout,
             props,
           } = await import(`${pathname}${pathname.endsWith("/") ? "" : "/"}page.js`);
-          this.#routes[pathname] = new VirtualDom(pathname, document.body, config);
+          routes[pathname] = new VirtualDom(pathname, document.body, config);
           const effect = transition || config?.transition;
           await async((resolve) => startViewTransition(resolve, effect));
-          this.#virtualDom = this.#routes[pathname].render(
+          routes.$current = routes[pathname].render(
             layout ? new Element(layout.component, {}, new Element(app, props)) : new Element(app, props),
           );
-          updateConfig(this.#virtualDom.config);
+          updateConfig(routes.$current.config);
         } else {
           const effect = transition || cachedVirtualDom.config?.transition;
           await async((resolve) => startViewTransition(resolve, effect));
-          this.#virtualDom = cachedVirtualDom.enable();
-          updateConfig(this.#virtualDom.config);
+          routes.$current = cachedVirtualDom.enable();
+          updateConfig(routes.$current.config);
         }
       } catch (error) {
         console.log(error);
       }
     }
 
-    if ((initial || this.#previous.hash !== hash) && hash?.startsWith("#"))
+    if ((initial || routes.$previous.hash !== hash) && hash?.startsWith("#"))
       requestAnimationFrame(() =>
         setTimeout(() => {
           document.querySelector(hash)?.scrollIntoView({ behavior: "smooth" });
         }, 100),
       );
 
-    this.#previous = { pathname, hash, search };
+    routes.$previous = { pathname, hash, search };
     updateHistory(pathname + search + hash);
   }
 
@@ -78,21 +88,9 @@ export class Router extends BoundClass {
    * @param {boolean} [force=false] - If true, forces a full page reload. If false, re-renders the current page using the existing virtual DOM. Defaults to false.
    * @returns {Promise<void>} A promise that resolves when the refresh operation is complete.
    */
-  async refresh(force) {
+  static async refresh(force) {
     if (force) return location.reload();
     await this.navigate({ refresh: true });
-  }
-
-  /**
-   * Returns the current location object.
-   * @returns {Location} The current location object.
-   */
-  get location() {
-    return window["page"]?.location ?? window.location;
-  }
-
-  get loaded() {
-    return this.#loaded;
   }
 
   /**
@@ -100,7 +98,7 @@ export class Router extends BoundClass {
    * @param {string} event
    * @param {any} [details]
    */
-  emit(event, details) {
+  static emit(event, details) {
     document.body?.dispatchEvent(
       new CustomEvent(event.toLowerCase(), {
         bubbles: true,
@@ -115,17 +113,48 @@ export class Router extends BoundClass {
    * @param {string} event
    * @param {(event: any) => void} callback
    */
-  on(event, callback) {
+  static on(event, callback) {
     document.body?.addEventListener(event, callback, false);
+  }
+
+  /**
+   * Unregisters an event listener for the specified event on the document body.
+   * @param {string} event
+   * @param {(event: any) => void} callback
+   */
+  static off(event, callback) {
+    document.body?.removeEventListener(event, callback, false);
   }
 }
 
-export default new Router();
+export default Router;
 
-function startViewTransition(callback, transition) {
+export function startViewTransition(callback, transition) {
   if (document.startViewTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     if (transition) {
-      injectTransitionStyles();
+      if (!document.getElementById("router-transitions")) {
+        const style = document.createElement("style");
+        style.id = "router-transitions";
+        style.textContent = `@keyframes vt-slide-to-left { to { transform: translateX(-100%) } }
+@keyframes vt-slide-from-left { from { transform: translateX(-100%) } }
+@keyframes vt-slide-to-right { to { transform: translateX(100%) } }
+@keyframes vt-slide-from-right { from { transform: translateX(100%) } }
+@keyframes vt-slide-to-top { to { transform: translateY(-100%) } }
+@keyframes vt-slide-from-top { from { transform: translateY(-100%) } }
+@keyframes vt-slide-to-bottom { to { transform: translateY(100%) } }
+@keyframes vt-slide-from-bottom { from { transform: translateY(100%) } }
+[data-transition="slide-left"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-left }
+[data-transition="slide-left"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-right }
+[data-transition="slide-right"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-right }
+[data-transition="slide-right"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-left }
+[data-transition="slide-up"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-top }
+[data-transition="slide-up"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-bottom }
+[data-transition="slide-down"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-bottom }
+[data-transition="slide-down"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-top }
+[data-transition="none"]::view-transition-old(root),
+[data-transition="none"]::view-transition-new(root) { animation: none }`;
+        document.head.appendChild(style);
+      }
       document.documentElement.dataset.transition = transition;
     }
     const t = document.startViewTransition(callback);
@@ -133,34 +162,7 @@ function startViewTransition(callback, transition) {
   } else callback();
 }
 
-function injectTransitionStyles() {
-  if (document.getElementById("router-transitions")) return;
-  const style = document.createElement("style");
-  style.id = "router-transitions";
-  style.textContent = `
-    @keyframes vt-slide-to-left { to { transform: translateX(-100%) } }
-    @keyframes vt-slide-from-left { from { transform: translateX(-100%) } }
-    @keyframes vt-slide-to-right { to { transform: translateX(100%) } }
-    @keyframes vt-slide-from-right { from { transform: translateX(100%) } }
-    @keyframes vt-slide-to-top { to { transform: translateY(-100%) } }
-    @keyframes vt-slide-from-top { from { transform: translateY(-100%) } }
-    @keyframes vt-slide-to-bottom { to { transform: translateY(100%) } }
-    @keyframes vt-slide-from-bottom { from { transform: translateY(100%) } }
-    [data-transition="slide-left"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-left }
-    [data-transition="slide-left"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-right }
-    [data-transition="slide-right"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-right }
-    [data-transition="slide-right"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-left }
-    [data-transition="slide-up"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-top }
-    [data-transition="slide-up"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-bottom }
-    [data-transition="slide-down"]::view-transition-old(root) { animation: 0.3s ease-in-out both vt-slide-to-bottom }
-    [data-transition="slide-down"]::view-transition-new(root) { animation: 0.3s ease-in-out both vt-slide-from-top }
-    [data-transition="none"]::view-transition-old(root),
-    [data-transition="none"]::view-transition-new(root) { animation: none }
-  `;
-  document.head.appendChild(style);
-}
-
-function updateConfig(config) {
+export function updateConfig(config) {
   const keys = Object.keys(config);
   for (let i1 = 0, len1 = keys.length; i1 < len1; i1++) {
     switch (keys[i1]) {
@@ -181,6 +183,6 @@ function updateConfig(config) {
   }
 }
 
-function isAppUrl(href) {
+export function isAppUrl(href) {
   return new URL(window.location.href).host === new URL(href).host;
 }

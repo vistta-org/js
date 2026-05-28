@@ -11,15 +11,35 @@ import {
   Safe,
   Suspense,
   VirtualContainer,
-} from "../../../core/classes.js";
-import { Anchor, File, HistoryContext, Style, ThemeContext } from "../../../core/utils.js";
-import { defineReadonly } from "../../../utils/index.js";
-import router from "./router.js";
+} from "../core/classes.js";
+import { Router as BaseRouter, routes } from "../core/router.js";
+import { Socket } from "../core/socket.js";
+import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils.js";
+import { defineReadonly, isValidUrl } from "../utils/index.js";
+
+class Router extends BaseRouter {
+  static async navigate(arg) {
+    if (!routes.$init) return super.navigate(arg);
+    let { href } = typeof arg === "object" ? arg : { href: arg };
+    if (!href) return;
+    window.location.href = isValidUrl(href) ? href : new URL(href, window.location.href).href;
+  }
+
+  static async refresh(force) {
+    // @ts-ignore
+    location.reload(force);
+  }
+}
 
 const vistta = {
   Fragment,
   Element,
   Context,
+  Controller: class {
+    static set host(value) {
+      vistta.host = value;
+    }
+  },
   Ref,
   Component,
   Suspense,
@@ -28,15 +48,8 @@ const vistta = {
   Render,
   Safe,
   Form,
-  router,
-  socket: {
-    emit() {
-      console.warn("Socket is not available on built apps.");
-    },
-    on() {
-      console.warn("Socket is not available on built apps.");
-    },
-  },
+  Router,
+  Socket,
   Anchor,
   File,
   HistoryContext,
@@ -45,18 +58,19 @@ const vistta = {
 };
 
 defineReadonly(window, "vistta", vistta);
+defineReadonly(window, "platform", "browser");
 
-window.addEventListener("popstate", () => router.navigate({ pushState: false }));
+window.addEventListener("popstate", () => Router.navigate({ pushState: false }));
 window.addEventListener("load", async () => {
-  if (router.loaded) return;
+  if (routes.$init) return;
   window.addEventListener("click", (event) => {
     const { tagName, href, target, download } = /** @type {HTMLAnchorElement} */ (event.target);
     if (tagName !== "A" || (target && target !== "___private") || !href || download) return;
     const hash = href.replace(location.origin + "/", "");
     event.preventDefault();
-    router.navigate(!hash?.startsWith("#") ? href : hash);
+    Router.navigate(!hash?.startsWith("#") ? href : hash);
   });
-  await router.navigate();
+  await Router.navigate();
   if (!("serviceWorker" in navigator) || !document.querySelector(`head > link[rel="manifest"]`)) return;
   navigator.serviceWorker
     .register(`/worker.js`)

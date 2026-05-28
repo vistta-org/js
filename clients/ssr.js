@@ -11,16 +11,21 @@ import {
   Safe,
   Suspense,
   VirtualContainer,
-} from "../../core/classes";
-import { socket } from "../../core/socket";
-import { Anchor, File, HistoryContext, Style, ThemeContext } from "../../core/utils";
-import { defineReadonly } from "../../utils/index.js";
-import router from "./router";
+} from "../core/classes";
+import { Router, routes } from "../core/router.js";
+import { Socket } from "../core/socket";
+import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils";
+import { defineReadonly } from "../utils/index.js";
 
 const vistta = {
   Fragment,
   Element,
   Context,
+  Controller: class {
+    static set host(value) {
+      vistta.host = value;
+    }
+  },
   Ref,
   Component,
   Suspense,
@@ -29,8 +34,8 @@ const vistta = {
   Render,
   Safe,
   Form,
-  router,
-  socket,
+  Router,
+  Socket,
   File,
   Anchor,
   ThemeContext,
@@ -39,18 +44,20 @@ const vistta = {
 };
 
 defineReadonly(window, "vistta", vistta);
+defineReadonly(window, "platform", "browser");
 
-window.addEventListener("popstate", () => router.navigate({ href: window.location.href, pushState: false }));
+window.addEventListener("popstate", () => Router.navigate({ href: window.location.href, pushState: false }));
 window.addEventListener("load", async () => {
-  if (router.loaded) return;
+  if (routes.$init) return;
   window.addEventListener("click", (event) => {
     const { tagName, href, target, download } = /** @type {HTMLAnchorElement} */ (event.target);
     if (tagName !== "A" || (target && target !== "___private") || !href || download) return;
     const hash = href.replace(location.origin + "/", "");
     event.preventDefault();
-    router.navigate(!hash?.startsWith("#") ? href : hash);
+    Router.navigate(!hash?.startsWith("#") ? href : hash);
   });
-  await router.navigate();
+  Socket.connect();
+  await Router.navigate();
   if (!("serviceWorker" in navigator) || !document.querySelector(`head > link[rel="manifest"]`)) return;
   navigator.serviceWorker
     .register(`/worker.js`)

@@ -5,7 +5,7 @@
   const storage = { session: {}, local: {} };
   const readonly = { writable: false, configurable: false };
   Object.defineProperties(window, {
-    isServer: { value: true, ...readonly },
+    platform: { value: "server", ...readonly },
     location: { value: { href: "" }, ...readonly },
     navigator: { value: { userAgent: "node.js" }, ...readonly },
     document: {
