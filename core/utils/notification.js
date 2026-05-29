@@ -3,7 +3,7 @@ export class Notification {
    * Request permission to display notifications.
    * @returns {Promise<"granted" | "denied">} The permission state.
    */
-  static async request() {
+  static async requestPermission() {
     if (window.platform === "server") return "denied";
     if (window.platform === "browser")
       return (await window.Notification.requestPermission()) === "granted" ? "granted" : "denied";
