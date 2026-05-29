@@ -13,8 +13,8 @@ import {
   VirtualContainer,
 } from "../core/classes";
 import { Router, routes } from "../core/router.js";
-import { Socket } from "../core/socket";
-import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils";
+import { Socket } from "../core/socket.js";
+import { Anchor, File, HistoryContext, Notification, Style, ThemeContext } from "../core/utils/index.js";
 import { defineReadonly } from "../utils/index.js";
 
 const vistta = {
@@ -31,6 +31,7 @@ const vistta = {
   Suspense,
   VirtualContainer,
   Profiler,
+  Notification,
   Render,
   Safe,
   Form,

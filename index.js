@@ -13,7 +13,7 @@ export {
   Suspense,
   VirtualContainer,
 } from "./core/classes.js";
-export { Anchor, File, HistoryContext, Style, ThemeContext } from "./core/utils.js";
+export { Anchor, File, HistoryContext, Notification, Style, ThemeContext } from "./core/utils/index.js";
 export { default as Controller, COPY, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./server/controller.js";
 export { default as Router } from "./server/router.js";
 export { default as Socket } from "./server/socket.js";

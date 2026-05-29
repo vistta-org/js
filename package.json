@@ -10,8 +10,7 @@
     "./server": "./server/index.js",
     "./loader": "./cli/default.js",
     "./config": "./tsconfig.json",
-    "./builder": "./builder.js",
-    "./app": "./app.js"
+    "./builder": "./builder.js"
   },
   "type": "module",
   "scripts": {

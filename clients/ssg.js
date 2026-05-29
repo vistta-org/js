@@ -14,7 +14,7 @@ import {
 } from "../core/classes.js";
 import { Router as BaseRouter, routes } from "../core/router.js";
 import { Socket } from "../core/socket.js";
-import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils.js";
+import { Anchor, File, HistoryContext, Notification, Style, ThemeContext } from "../core/utils/index.js";
 import { defineReadonly, isValidUrl } from "../utils/index.js";
 
 class Router extends BaseRouter {
@@ -45,6 +45,7 @@ const vistta = {
   Suspense,
   VirtualContainer,
   Profiler,
+  Notification,
   Render,
   Safe,
   Form,
