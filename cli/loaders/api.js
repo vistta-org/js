@@ -6,6 +6,7 @@ import { stringify } from "../../utils/index.js";
 export default class APILoader extends Loader {
   async load(_, options) {
     try {
+      console.log("[API LOAD]", options.path, "keys:", Object.keys(global.main.shared || {}));
       if (!global.main.shared?.[options.path]) throw new Error("Controller not found in the server shared state");
       const pathname = global.main.shared?.[options.path]?.pathname;
       let controller = (await import(options.path))?.default;

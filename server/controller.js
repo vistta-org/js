@@ -141,6 +141,7 @@ export default class Controller {
 }
 
 export function shareToLoader(filepath, value) {
+  console.log("[SHARE]", filepath, value);
   if (global.loaders.shared[filepath]) return;
   global.loaders.shared[filepath] = value;
 }
