@@ -1,5 +1,7 @@
 import { FunctionClass } from "../utils/index.js";
 
+const global = /** @type {any} */ globalThis;
+
 /**
  * @template T
  * @typedef {{ [K in keyof T]?: T[K] }} Optional
@@ -141,7 +143,6 @@ export default class Controller {
 }
 
 export function shareToLoader(filepath, value) {
-  console.log("[SHARE]", filepath, value);
   if (global.loaders.shared[filepath]) return;
   global.loaders.shared[filepath] = value;
 }
