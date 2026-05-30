@@ -3,11 +3,14 @@ import "../../core/adapter.js";
 import { default as Controller, RESTMethod } from "../../server/controller.js";
 import { stringify } from "../../utils/index.js";
 
+const global = /** @type {any} */ globalThis;
+
 export default class APILoader extends Loader {
   async load(_, options) {
     try {
-      console.log("[API LOAD]", options.path, "keys:", Object.keys(global.main.shared || {}));
-      if (!global.main.shared?.[options.path]) throw new Error("Controller not found in the server shared state");
+      if (!global.main.shared?.[options.path]) {
+        return { code: "export default {};" };
+      }
       const pathname = global.main.shared?.[options.path]?.pathname;
       let controller = (await import(options.path))?.default;
       let code = `import { request } from "@vistta/utils/request";const createUrl = (...url) => (vistta.host || "") + [`;
