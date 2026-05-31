@@ -5,7 +5,11 @@ export default class JSXLoader extends TypescriptLoader {
     try {
       if (options.extension === "tsx") return super.load(transform(source), options);
       const code = transform(source);
-      console.log(code);
+      if (options.path?.includes("notifications/app.jsx")) {
+        console.log("[JSX notifications] transformed length:", code.length, "source length:", source.length);
+        console.log("[JSX notifications] has export:", code.includes("NotificationsApp"));
+        console.log("[JSX notifications] last 200 chars:", code.slice(-200));
+      }
       return { code, errors: null };
     } catch (e) {
       return { errors: [`${options.path}(0,0): jsx error: ${e.stack}`] };
