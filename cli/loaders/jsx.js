@@ -4,7 +4,9 @@ export default class JSXLoader extends TypescriptLoader {
   async load(source, options) {
     try {
       if (options.extension === "tsx") return super.load(transform(source), options);
-      return { code: transform(source), errors: null };
+      const code = transform(source);
+      console.log(code);
+      return { code, errors: null };
     } catch (e) {
       return { errors: [`${options.path}(0,0): jsx error: ${e.stack}`] };
     }
@@ -76,8 +78,7 @@ function transformElement(code) {
       } else if (code[i] === "{") {
         const [value, expressionEnd] = transformJSExpression(code.slice(i));
         if (!value) return [];
-        if (value.startsWith("..."))
-          props += `...spread(() => ${value.slice(3)}), `;
+        if (value.startsWith("...")) props += `...spread(() => ${value.slice(3)}), `;
         else props += `${value}, `;
         i += expressionEnd - 1;
       } else if (isWhitespace(code[i])) {
