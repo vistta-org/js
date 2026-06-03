@@ -14,7 +14,7 @@ import {
 import { VirtualDom } from "../core/dom.js";
 import { Router as BaseRouter, isAppUrl, routes, startViewTransition, updateConfig } from "../core/router.js";
 import { Socket } from "../core/socket.js";
-import { Anchor, File, HistoryContext, Notification, Style, ThemeContext } from "../core/utils/index.js";
+import { Anchor, File, Haptics, HistoryContext, Notification, Style, ThemeContext } from "../core/utils/index.js";
 import { async, defineReadonly, isValidUrl } from "../utils/index.js";
 
 class Router extends BaseRouter {
@@ -107,18 +107,19 @@ const vistta = {
   File,
   Form,
   Fragment,
-  Ref,
-  Profiler,
-  Notification,
-  Suspense,
-  VirtualContainer,
-  Render,
-  Safe,
-  Router,
-  Socket,
+  Haptics,
   HistoryContext,
+  Notification,
+  Profiler,
+  Ref,
+  Render,
+  Router,
+  Safe,
+  Socket,
   Style,
+  Suspense,
   ThemeContext,
+  VirtualContainer,
 };
 
 defineReadonly(window, "vistta", vistta);

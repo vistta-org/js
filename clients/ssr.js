@@ -14,34 +14,35 @@ import {
 } from "../core/classes";
 import { Router, routes } from "../core/router.js";
 import { Socket } from "../core/socket.js";
-import { Anchor, File, HistoryContext, Notification, Style, ThemeContext } from "../core/utils/index.js";
+import { Anchor, File, Haptics, HistoryContext, Notification, Style, ThemeContext } from "../core/utils/index.js";
 import { defineReadonly } from "../utils/index.js";
 
 const vistta = {
-  Fragment,
-  Element,
+  Anchor,
+  Component,
   Context,
   Controller: class {
     static set host(value) {
       vistta.host = value;
     }
   },
-  Ref,
-  Component,
-  Suspense,
-  VirtualContainer,
-  Profiler,
-  Notification,
-  Render,
-  Safe,
-  Form,
-  Router,
-  Socket,
+  Element,
   File,
-  Anchor,
-  ThemeContext,
-  Style,
+  Form,
+  Fragment,
+  Haptics,
   HistoryContext,
+  Notification,
+  Profiler,
+  Ref,
+  Render,
+  Router,
+  Safe,
+  Socket,
+  Style,
+  Suspense,
+  ThemeContext,
+  VirtualContainer,
 };
 
 defineReadonly(window, "vistta", vistta);

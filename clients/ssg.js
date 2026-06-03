@@ -14,7 +14,7 @@ import {
 } from "../core/classes.js";
 import { Router as BaseRouter, routes } from "../core/router.js";
 import { Socket } from "../core/socket.js";
-import { Anchor, File, HistoryContext, Notification, Style, ThemeContext } from "../core/utils/index.js";
+import { Anchor, File, Haptics, HistoryContext, Notification, Style, ThemeContext } from "../core/utils/index.js";
 import { defineReadonly, isValidUrl } from "../utils/index.js";
 
 class Router extends BaseRouter {
@@ -32,30 +32,31 @@ class Router extends BaseRouter {
 }
 
 const vistta = {
-  Fragment,
-  Element,
+  Anchor,
+  Component,
   Context,
   Controller: class {
     static set host(value) {
       vistta.host = value;
     }
   },
-  Ref,
-  Component,
-  Suspense,
-  VirtualContainer,
-  Profiler,
-  Notification,
-  Render,
-  Safe,
-  Form,
-  Router,
-  Socket,
-  Anchor,
+  Element,
   File,
+  Form,
+  Fragment,
+  Haptics,
   HistoryContext,
+  Notification,
+  Profiler,
+  Ref,
+  Render,
+  Router,
+  Safe,
+  Socket,
   Style,
+  Suspense,
   ThemeContext,
+  VirtualContainer,
 };
 
 defineReadonly(window, "vistta", vistta);

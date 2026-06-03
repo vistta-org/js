@@ -26,7 +26,6 @@ import { Component, createPage } from "../core/page.js";
 import { code as worker } from "../core/worker.js" with { type: "bundler" };
 import { default as Controller, RESTMethod, shareToLoader } from "./controller.js";
 
-const dirname = import.meta.dirname;
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
 const BODY_IDLE_TIMEOUT_TIME = 15 * 1000; // 15 seconds
 const MAX_BODY_SIZE = 50 * 1024 * 1024; // 50MB
@@ -775,51 +774,6 @@ class Server {
   #emit(event, ...args) {
     const listeners = this.#events[event] || [];
     for (let i = 0, len = listeners.length; i < len; i++) listeners[i](undefined, "*", args);
-  }
-
-  /**
-   * Builds a static site from a subdomain or all of them to the specified output directory.
-   *
-   * @param {string} arg1 The subdomain to build from or the output directory.
-   * @param {string} [arg2] The output directory.
-   */
-  async build(arg1, arg2) {
-    const [subdomain, output] = arg2 ? [arg1, arg2] : ["", arg1];
-    const files = {};
-    const createFile = async (file, content) => {
-      const len = content.length;
-      if (len === 0) return;
-      const filepath = fs.resolve(output, "." + file);
-      file = filepath.replace(fs.resolve(output), "");
-      await fs.ensureDir(fs.dirname(filepath));
-      await fs.writeFile(filepath, content);
-      files[file] = { filepath, len };
-    };
-
-    const pages = this.#subdomains[subdomain]?.page || [];
-    for (let i = 0, len = pages.length; i < len; i++) {
-      const page = pages[i].page;
-      if (page.pathname.includes(":")) continue;
-      await fs.ensureDir(fs.resolve(output, "." + page.pathname));
-      await createFile(page.pathname + "/index.html", await page.html({ headers: { host: "localhost" } }, {}, true));
-      await createFile(page.pathname + "/page.js", await page.js({}, {}));
-    }
-
-    const resources = Object.keys(this.#resources || {});
-    await fs.ensureDir(fs.resolve(output, "./" + RESOURCES_PATH));
-    for (let i = 0, len = resources.length; i < len; i++) {
-      const filepath = resources[i];
-      let content = this.#resources[filepath];
-      if (filepath === `/${RESOURCES_PATH}/client.js`)
-        content = (
-          await import(fs.resolve(dirname, "../client/build/index.js"), {
-            with: { type: "bundler" },
-          })
-        )?.code;
-      else if (fs.isAbsolute(content)) content = await fs.readFile(content);
-      await createFile(filepath, content);
-    }
-    return files;
   }
 
   #register(type, subdomain, pathname, arg, page) {

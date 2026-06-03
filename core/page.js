@@ -35,7 +35,7 @@ export function createHtml(innerHTML, config) {
     ${config.manifest ? `<link rel="manifest" href="${config.manifest}" />` : ""}
     ${config.style ? `<style data-ssr>${config.style}</style>` : ""}
     ${config.links?.reduce((acc, obj) => acc + `\n\t<link ${convertToAttributes(obj)} />`, "") || ""}
-    <script src="./${RESOURCES_PATH}/client.js" defer></script>
+    <script type="module" src="./${RESOURCES_PATH}/client.js"></script>
   </head>
   <body>
     ${innerHTML}
