@@ -17,6 +17,7 @@ export default class BuildCommand extends DefaultCommand {
     console.print("\nOptions:");
     console.print("--no-clean\t\t\t\t\tDisable output directory cleanup.");
     console.print("--out [dir]\t\t\t\t\t\tSpecify custom output directory.");
+    console.print("--build [dir]\t\t\t\t\t\tSpecify custom build directory.");
     console.print("--setup [module]\t\t\t\t\tSpecify a custom setup module to run before building the app.");
   }
 
@@ -29,15 +30,15 @@ export default class BuildCommand extends DefaultCommand {
     console.print(`Vistta JS v${version}`);
     console.println();
 
-    const outputDir = options.out || fs.resolve(process.cwd(), "dist");
-    if (!options["no-clean"]) await fs.remove(outputDir);
+    const outputDir = fs.resolve(process.cwd(), options.out || "dist");
+    if (!options["no-clean"]) await fs.remove(outputDir, { force: true, recursive: true });
     const buildApp = ["app", "android", "ios", "desktop"].includes(target);
 
     console.time("build");
     const Builder = (await import("../builder.js")).default;
     let { config, routes, files } = await Builder.build(fs.resolve(process.cwd(), folder), {
       type: buildApp ? "app" : "web",
-      output: buildApp ? fs.resolve(outputDir, "wwww") : outputDir,
+      output: buildApp ? fs.resolve(outputDir, "www") : outputDir,
       config: assign(
         options.setup ? (await (await import(fs.resolve(process.cwd(), options.setup))).default?.()) || {} : {},
         buildApp
@@ -60,12 +61,24 @@ export default class BuildCommand extends DefaultCommand {
           "Missing dependency: @vistta/js-runtime. Please run `npm install @vistta/js-runtime` to install it.",
         );
       }
-      config.buildDir = outputDir;
-      if (target === "app") {
-        await runtime.build(/** @type {any} */ ({ target: "desktop", ...config }));
-        await runtime.build(/** @type {any} */ ({ target: "android", ...config }));
-        await runtime.build(/** @type {any} */ ({ target: "ios", ...config }));
-      } else await runtime.build(/** @type {any} */ ({ target, ...config }));
+      config.buildDir = fs.resolve(process.cwd(), options.build || "build");
+      const targets = target === "app" ? ["desktop", "android", "ios"] : [target];
+      const copied = [];
+      for (const t of targets) {
+        const { type, paths } = await runtime.build(/** @type {any} */ ({ target: t, ...config }));
+        for (const artifact of paths) {
+          if (!artifact || !fs.existsSync(artifact)) continue;
+          const name = runtime.artifactName({
+            appName: config?.app?.name,
+            version: config?.app?.version,
+            type,
+            sourcePath: artifact,
+          });
+          await fs.copyFile(artifact, fs.resolve(outputDir, name));
+          copied.push(name);
+        }
+      }
+      console.timeLog("build", `Artifacts: ${copied.join(", ") || "none"}`);
     }
     console.timeLog("build", `Built ${routes.length} route(s), ${files.length} file(s)`);
   }

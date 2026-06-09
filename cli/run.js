@@ -45,7 +45,7 @@ export default class extends DefaultCommand {
       return this.help();
     }
 
-    const buildDir = options.out || fs.resolve(process.cwd(), "build");
+    const buildDir = fs.resolve(process.cwd(), options.out || "build");
     if (!options["no-clean"]) await fs.remove(fs.resolve(buildDir, "www"), { force: true, recursive: true });
 
     console.time("run");
