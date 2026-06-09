@@ -8,6 +8,17 @@ const global = /** @type {any} */ globalThis;
 export default class APILoader extends Loader {
   async load(_, options) {
     try {
+      if (/aida[\\/]service|bookmarks[\\/]service/.test(options.path || ""))
+        console.debug(
+          "[api.load] path =",
+          options.path,
+          "| sharedHasIt =",
+          !!global.main.shared?.[options.path],
+          "| bundler =",
+          !!options.bundler,
+          "| pathname =",
+          !!options.pathname,
+        );
       if (!global.main.shared?.[options.path]) {
         return { code: "export default {};" };
       }
