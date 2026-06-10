@@ -31,6 +31,7 @@ export default class BuildCommand extends DefaultCommand {
     console.println();
 
     const outputDir = fs.resolve(process.cwd(), options.out || "dist");
+    const buildDir = fs.resolve(process.cwd(), options.build || "build");
     if (!options["no-clean"]) await fs.remove(outputDir, { force: true, recursive: true });
     const buildApp = ["app", "android", "ios", "desktop"].includes(target);
 
@@ -38,7 +39,7 @@ export default class BuildCommand extends DefaultCommand {
     const Builder = (await import("../builder.js")).default;
     let { config, routes, files } = await Builder.build(fs.resolve(process.cwd(), folder), {
       type: buildApp ? "app" : "web",
-      output: buildApp ? fs.resolve(outputDir, "www") : outputDir,
+      output: buildApp ? fs.resolve(buildDir, "www") : outputDir,
       config: assign(
         options.setup ? (await (await import(fs.resolve(process.cwd(), options.setup))).default?.()) || {} : {},
         buildApp
@@ -61,8 +62,9 @@ export default class BuildCommand extends DefaultCommand {
           "Missing dependency: @vistta/js-runtime. Please run `npm install @vistta/js-runtime` to install it.",
         );
       }
-      config.buildDir = fs.resolve(process.cwd(), options.build || "build");
+      config.buildDir = buildDir;
       const targets = target === "app" ? ["desktop", "android", "ios"] : [target];
+      await fs.mkdir(outputDir, { recursive: true });
       const copied = [];
       for (const t of targets) {
         const { type, paths } = await runtime.build(/** @type {any} */ ({ target: t, ...config }));
