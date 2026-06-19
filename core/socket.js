@@ -3,19 +3,35 @@ let instance = null;
 export class Socket {
   static connect(host, options) {
     if (instance) return;
-    // @ts-ignore
-    instance = import("@socket")
-      .then(({ io }) => {
-        if (!io) return;
-        const result = io(host, { reconnectionDelay: 10000, ...(options || {}) });
-        result.on("connect_error", (error) => console.error(`Socket Internal Error: ${error.message}`));
-        result.io.on("reconnect", () => location.reload());
-        return result;
-      })
-      .catch((error) => {
-        console.error(`Socket Internal Error: ${error.message}`);
-        return null;
-      });
+    const errorHandler = (error) => {
+      console.error(`Socket Internal Error: ${error.message || error}`);
+      return null;
+    };
+    if (window.platform === "mobile") {
+      instance = import("@vistta/js-runtime/plugins")
+        .then(({ Net: { Socket } }) => {
+          const id = Socket.connect(host, options);
+          Socket.on(id, "connect_error", errorHandler);
+          Socket.on(id, "reconnect", () => location.reload());
+          return {
+            emit: (name, ...args) => Socket.emit(id, name, ...args),
+            on: (name, handler) => Socket.on(id, name, handler),
+            off: (name, handler) => Socket.off(id, name, handler),
+          };
+        })
+        .catch(errorHandler);
+    } else {
+      // @ts-ignore
+      instance = import("@socket")
+        .then(({ io }) => {
+          if (!io) return;
+          const result = io(host, { reconnectionDelay: 10000, ...(options || {}) });
+          result.on("connect_error", (error) => console.error(`Socket Internal Error: ${error.message}`));
+          result.io.on("reconnect", () => location.reload());
+          return result;
+        })
+        .catch(errorHandler);
+    }
   }
 
   /**
