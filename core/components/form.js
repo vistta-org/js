@@ -284,10 +284,11 @@ export class Form extends Component {
     else updateFieldNodeValue(field, field.value);
     node.addEventListener(field.type === "select" ? "change" : "input", (e) => {
       if (!this.#invalidEvent) node.setCustomValidity?.("");
+      const prevValue = field.value;
       field.value = getFieldValue(field);
       this.context?.update?.(path, field);
-      for (let i = 0, len = this.#listeners[path]?.length; i < len; i++) this.#listeners[path][i](e);
-      for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e);
+      for (let i = 0, len = this.#listeners[path]?.length; i < len; i++) this.#listeners[path][i](e, prevValue, field.value);
+      for (let i = 0, len = this.#listeners["*"]?.length; i < len; i++) this.#listeners["*"][i](e, prevValue, field.value);
     });
   }
 

@@ -17,7 +17,6 @@ export default class extends DefaultCommand {
     console.print("vistta run [folder] ios\t\tBuild + launch on iOS simulator (macOS only).");
     console.print("vistta run [folder] desktop\t\tBuild + launch on desktop.");
     console.print("\nOptions:");
-    console.print("--no-clean\t\t\tDisable output directory cleanup.");
     console.print("--out [dir]\t\t\tSpecify custom output directory (default: build).");
     console.print("--setup [module]\t\t\tSpecify a custom setup module to run before launching the app.");
   }
@@ -46,7 +45,7 @@ export default class extends DefaultCommand {
     }
 
     const buildDir = fs.resolve(process.cwd(), options.out || "build");
-    if (!options["no-clean"]) await fs.remove(fs.resolve(buildDir, "www"), { force: true, recursive: true });
+    await fs.remove(fs.resolve(buildDir, "www"), { force: true, recursive: true });
 
     console.time("run");
     const Builder = (await import("../builder.js")).default;

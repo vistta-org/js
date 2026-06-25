@@ -15,7 +15,6 @@ export default class BuildCommand extends DefaultCommand {
     console.print("vistta build [folder] ios\t\t\tBuilds for iOS into [folder]/build.");
     console.print("vistta build [folder] desktop\t\t\tBuilds for desktop into [folder]/build.");
     console.print("\nOptions:");
-    console.print("--no-clean\t\t\t\t\tDisable output directory cleanup.");
     console.print("--out [dir]\t\t\t\t\t\tSpecify custom output directory.");
     console.print("--build [dir]\t\t\t\t\t\tSpecify custom build directory.");
     console.print("--setup [module]\t\t\t\t\tSpecify a custom setup module to run before building the app.");
@@ -32,8 +31,8 @@ export default class BuildCommand extends DefaultCommand {
 
     const outputDir = fs.resolve(process.cwd(), options.out || "dist");
     const buildDir = fs.resolve(process.cwd(), options.build || "build");
-    if (!options["no-clean"]) await fs.remove(outputDir, { force: true, recursive: true });
     const buildApp = ["app", "android", "ios", "desktop"].includes(target);
+    if (buildApp) await fs.remove(fs.resolve(buildDir, "www"), { force: true, recursive: true });
 
     console.time("build");
     const Builder = (await import("../builder.js")).default;
@@ -66,13 +65,15 @@ export default class BuildCommand extends DefaultCommand {
       const targets = target === "app" ? ["desktop", "android", "ios"] : [target];
       await fs.mkdir(outputDir, { recursive: true });
       const copied = [];
+      const info = await runtime.getInfo(config);
+      const appVersion = config?.app?.version || info.version;
       for (const t of targets) {
         const { type, paths } = await runtime.build(/** @type {any} */ ({ target: t, ...config }));
         for (const artifact of paths) {
           if (!artifact || !fs.existsSync(artifact)) continue;
           const name = runtime.artifactName({
             appName: config?.app?.name,
-            version: config?.app?.version,
+            version: appVersion,
             type,
             sourcePath: artifact,
           });
