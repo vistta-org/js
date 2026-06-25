@@ -18,6 +18,9 @@ export default class BuildCommand extends DefaultCommand {
     console.print("--out [dir]\t\t\t\t\t\tSpecify custom output directory.");
     console.print("--build [dir]\t\t\t\t\t\tSpecify custom build directory.");
     console.print("--setup [module]\t\t\t\t\tSpecify a custom setup module to run before building the app.");
+    console.print(
+      "--cross-compile [triple]\t\t\tCross-compile desktop target to a Rust target triple (e.g. x86_64-pc-windows-gnu).",
+    );
   }
 
   async main(_, ...argv) {
@@ -62,13 +65,27 @@ export default class BuildCommand extends DefaultCommand {
         );
       }
       config.buildDir = buildDir;
+      if (options["cross-compile"]) config.crossCompile = options["cross-compile"];
       const targets = target === "app" ? ["desktop", "android", "ios"] : [target];
       await fs.mkdir(outputDir, { recursive: true });
       const copied = [];
       const info = await runtime.getInfo(config);
       const appVersion = config?.app?.version || info.version;
       for (const t of targets) {
-        const { type, paths } = await runtime.build(/** @type {any} */ ({ target: t, ...config }));
+        let result;
+        try {
+          result = await runtime.build(/** @type {any} */ ({ target: t, ...config }));
+        } catch (err) {
+          // Skip unsupported/unavailable platforms in "app" (all platforms) mode
+          // rather than failing the entire build. Single-target builds still throw.
+          if (targets.length > 1) {
+            console.print(`Skipping ${t}: ${err?.message || err}`);
+            console.println();
+            continue;
+          }
+          throw err;
+        }
+        const { type, paths } = result;
         for (const artifact of paths) {
           if (!artifact || !fs.existsSync(artifact)) continue;
           const name = runtime.artifactName({
