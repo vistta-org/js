@@ -1,4 +1,4 @@
-import { capitalize, ensureArray, join, proxy } from "../utils/index.js";
+import { ensureArray, join, proxy, stringify } from "../utils/index.js";
 import {
   Component,
   Context,
@@ -775,8 +775,8 @@ function convertToElement(element) {
     element.mutation = mutation;
     return element;
   } else if (typeof element === "function") return new Element(element);
-  else if (typeof element === "object" || element instanceof Promise)
-    throw new VirtualDomError(`${capitalize(typeof element)} is not a valid Element`);
+  else if (element instanceof Promise) throw new VirtualDomError("Internal Error: Unexpected Promise in Virtual Dom");
+  else if (typeof element === "object") return new Element(TextNode, null, stringify(element, true));
   return new Element(TextNode, null, "" + element);
 }
 
