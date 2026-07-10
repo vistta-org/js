@@ -1,9 +1,19 @@
 import { parseArgs } from "@vistta/cli";
 import fs from "@vistta/fs";
 import { assign } from "@vistta/utils";
+import { platform } from "node:os";
 import { default as DefaultCommand } from "./default.js";
 
-const APP_TARGETS = new Set(["android", "ios", "desktop"]);
+const HOST_PLATFORM = { win32: "windows", linux: "linux", darwin: "macos" }[platform()] || "linux";
+const APP_TARGETS = new Set(["android", "ios", "linux", "windows", "macos", "desktop"]);
+const PLATFORM_MAP = {
+  linux: "desktop",
+  windows: "desktop",
+  macos: "desktop",
+  desktop: "desktop",
+  android: "android",
+  ios: "ios",
+};
 const DEV = process.env.NODE_ENV === "development";
 
 export default class extends DefaultCommand {
@@ -11,18 +21,20 @@ export default class extends DefaultCommand {
     console.print("Vistta JS Run CLI");
     console.print("\nUsage:");
     console.print(
-      "vistta run [folder] [target]\tBuild + run native app for the specified platform. Default target: desktop.",
+      "vistta run [folder] [target]\tBuild + run native app for the specified platform. Default: host platform.",
     );
     console.print("vistta run [folder] android\tBuild + launch on Android emulator/device.");
-    console.print("vistta run [folder] ios\t\tBuild + launch on iOS simulator (macOS only).");
-    console.print("vistta run [folder] desktop\t\tBuild + launch on desktop.");
+    // console.print("vistta run [folder] ios\t\tBuild + launch on iOS simulator (macOS only).");
+    console.print("vistta run [folder] linux\t\tBuild + launch on Linux desktop.");
+    console.print("vistta run [folder] windows\t\tBuild + launch on Windows desktop.");
+    // console.print("vistta run [folder] macos\t\tBuild + launch on macOS desktop (macOS only).");
     console.print("\nOptions:");
     console.print("--out [dir]\t\t\tSpecify custom output directory (default: build).");
     console.print("--setup [module]\t\t\tSpecify a custom setup module to run before launching the app.");
   }
 
   async main(_, ...argv) {
-    const [[folder, target = "desktop"], options] = parseArgs(argv);
+    const [[folder, target = HOST_PLATFORM], options] = parseArgs(argv);
 
     if (process.env.NODE_ENV === "development") await this.outdated();
 
@@ -63,7 +75,7 @@ export default class extends DefaultCommand {
         },
       ),
     });
-    config.target = target;
+    config.target = PLATFORM_MAP[target] || target;
     config.buildDir = buildDir;
     await runtime.build(/** @type {any} */ (config));
     console.timeLog("run", `Launched ${target} app with ${routes?.length ?? 0} route(s) and ${files?.length ?? 0} file(s)`);
