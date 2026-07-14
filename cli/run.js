@@ -6,14 +6,6 @@ import { default as DefaultCommand } from "./default.js";
 
 const HOST_PLATFORM = { win32: "windows", linux: "linux", darwin: "macos" }[platform()] || "linux";
 const APP_TARGETS = new Set(["android", "ios", "linux", "windows", "macos", "desktop"]);
-const PLATFORM_MAP = {
-  linux: "desktop",
-  windows: "desktop",
-  macos: "desktop",
-  desktop: "desktop",
-  android: "android",
-  ios: "ios",
-};
 const DEV = process.env.NODE_ENV === "development";
 
 export default class extends DefaultCommand {
@@ -75,7 +67,7 @@ export default class extends DefaultCommand {
         },
       ),
     });
-    config.target = PLATFORM_MAP[target] || target;
+    config.platform = target;
     config.buildDir = buildDir;
     await runtime.build(/** @type {any} */ (config));
     console.timeLog("run", `Launched ${target} app with ${routes?.length ?? 0} route(s) and ${files?.length ?? 0} file(s)`);

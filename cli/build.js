@@ -24,7 +24,7 @@ export default class BuildCommand extends DefaultCommand {
     console.print("--keystore-password [pass]\t\tPassword for the keystore and key. Requires --keystore-file.");
     console.print("--name [name]\t\t\t\tOverride the artifact base name (defaults to app name). Output is lowercased.");
     console.print(
-      '--cross-compile [triples]\t\t\tCross-compile desktop target to one or more comma-separated Rust target triples (e.g. x86_64-pc-windows-gnu). In "app" mode the native desktop build runs first, then each cross-compile target.',
+      "--target [formats]\t\t\t\t\tBundle format(s) to produce for the current platform. Comma-separated (e.g. apk,aab) or per-platform (e.g. android=apk,windows=nsis). Android: apk, aab. iOS: ipa, app. Windows: msi, nsis (alias: exe). Linux: deb, rpm, appimage, app, dmg, all.",
     );
   }
 
@@ -79,29 +79,12 @@ export default class BuildCommand extends DefaultCommand {
         config.keystore = options["keystore-password"]
           ? { file: fs.resolve(process.cwd(), options["keystore-file"]), password: options["keystore-password"] }
           : fs.resolve(process.cwd(), options["keystore-file"]);
-      // Map platform targets to runtime targets. The runtime only knows
-      // "desktop"/"android"/"ios". "windows" and "linux" map to "desktop";
-      // "windows" sets crossCompile to the MinGW target. "macos" is not
-      // supported yet (like "ios"). "desktop" is kept as a hidden alias for
-      // backward compatibility — it builds for the host platform natively.
-      const PLATFORM_MAP = {
-        linux: { target: "desktop" },
-        windows: { target: "desktop", crossCompile: "x86_64-pc-windows-gnu" },
-        macos: { target: "desktop", crossCompile: "x86_64-apple-darwin" },
-        desktop: { target: "desktop" },
-        android: { target: "android" },
-        ios: { target: "ios" },
-      };
-      // --cross-compile accepts a comma-separated list of Rust target triples
-      // (e.g. "x86_64-pc-windows-gnu,aarch64-pc-windows-gnu"). Only applies to
-      // the "desktop" runtime target in "app" mode: the native build runs
-      // first, then each cross-compile target.
-      const crossTargets = options["cross-compile"]
-        ? String(options["cross-compile"])
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [];
+      // --target accepts a comma-separated list of bundle formats (e.g.
+      // "apk,aab") or a per-platform assignment (e.g. "android=apk,windows=nsis").
+      // When per-platform assignments are used, only the entry matching the
+      // current platform target is applied. When flat, it applies to all
+      // platforms being built.
+      const targetFormats = options.target ? parseTargetOption(options.target) : null;
       // In "app" mode, build linux (native desktop) + windows (cross-compile) +
       // android. macos and ios are skipped (not supported on Linux).
       const targets = target === "app" ? ["linux", "windows", "android"] : [target];
@@ -110,53 +93,70 @@ export default class BuildCommand extends DefaultCommand {
       const info = await runtime.getInfo(config);
       const appVersion = config?.app?.version || info.version;
       for (const t of targets) {
-        const mapped = PLATFORM_MAP[t] || { target: t };
-        // For "desktop" runtime target in "app" mode, build native + each
-        // cross-compile target. For a single-target build with --cross-compile,
-        // only the cross-compile targets are built (no native).
-        const desktopVariants =
-          mapped.target === "desktop"
-            ? target === "app"
-              ? [mapped.crossCompile || null, ...crossTargets]
-              : crossTargets.length > 0
-                ? crossTargets
-                : [mapped.crossCompile || null]
-            : [null];
-        for (const ct of desktopVariants) {
-          const buildConfig = { target: mapped.target, ...config };
-          if (ct) buildConfig.crossCompile = ct;
-          else delete buildConfig.crossCompile;
-          let result;
-          try {
-            result = await runtime.build(/** @type {any} */ (buildConfig));
-          } catch (err) {
-            // Skip unsupported/unavailable platforms in "app" (all platforms) mode
-            // rather than failing the entire build. Single-target builds still throw.
-            if (targets.length > 1 || desktopVariants.length > 1) {
-              const label = ct ? `${t} (${ct})` : t;
-              console.print(`Skipping ${label}: ${err?.message || err}`);
-              console.println();
-              continue;
-            }
-            throw err;
+        const buildConfig = { platform: t, ...config };
+        // Resolve bundle formats for this platform from --target.
+        if (targetFormats) {
+          buildConfig.target = Array.isArray(targetFormats) ? targetFormats : targetFormats[t] || undefined;
+          if (!buildConfig.target) delete buildConfig.target;
+        }
+        let result;
+        try {
+          result = await runtime.build(/** @type {any} */ (buildConfig));
+        } catch (err) {
+          // Skip unsupported/unavailable platforms in "app" (all platforms) mode
+          // rather than failing the entire build. Single-target builds still throw.
+          if (targets.length > 1) {
+            console.print(`Skipping ${t}: ${err?.message || err}`);
+            console.println();
+            continue;
           }
-          const { type, paths } = result;
-          for (const artifact of paths) {
-            if (!artifact || !fs.existsSync(artifact)) continue;
-            const name = runtime.artifactName({
-              appName: config?.app?.name,
-              name: config?.name,
-              version: appVersion,
-              type,
-              sourcePath: artifact,
-            });
-            await fs.copyFile(artifact, fs.resolve(outputDir, name));
-            copied.push(name);
-          }
+          throw err;
+        }
+        const { type, paths } = result;
+        for (const artifact of paths) {
+          if (!artifact || !fs.existsSync(artifact)) continue;
+          const name = runtime.artifactName({
+            appName: config?.app?.name,
+            name: config?.name,
+            version: appVersion,
+            type,
+            sourcePath: artifact,
+          });
+          await fs.copyFile(artifact, fs.resolve(outputDir, name));
+          copied.push(name);
         }
       }
       console.timeLog("build", `Artifacts: ${copied.join(", ") || "none"}`);
     }
     console.timeLog("build", `Built ${routes.length} route(s), ${files.length} file(s)`);
   }
+}
+
+/**
+ * Parses the `--target` option value into either a flat array of formats
+ * (applies to all platforms) or a per-platform object keyed by CLI target
+ * name (`android`, `windows`, `linux`, `macos`, `desktop`, `ios`).
+ *
+ * @example
+ *   parseTargetOption("apk")           // ["apk"]
+ *   parseTargetOption("apk,aab")       // ["apk", "aab"]
+ *   parseTargetOption("android=apk")   // { android: ["apk"] }
+ *   parseTargetOption("android=apk,windows=nsis") // { android: ["apk"], windows: ["nsis"] }
+ * @param {string} value
+ * @returns {string[] | Record<string, string[]>}
+ */
+function parseTargetOption(value) {
+  const parts = String(value)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const hasAssign = parts.some((p) => p.includes("="));
+  if (!hasAssign) return parts;
+  /** @type {Record<string, string[]>} */
+  const out = {};
+  for (const p of parts) {
+    const [k, v] = p.split("=");
+    if (k && v) out[k.trim()] = [v.trim()];
+  }
+  return out;
 }
