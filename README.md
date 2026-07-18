@@ -1,6 +1,6 @@
 # **VISTTA JS**
 
-Vistta.js is a convention-driven JavaScript framework for building web (SSR + hydration), mobile (Android/iOS), and desktop (Linux/Windows/MacOS) apps with an instance-based JSX UI model, file-based routing, and built-in server features.
+Vistta.js is a convention-driven JavaScript framework for building web (SSR + hydration), mobile (Android), and desktop (Linux/Windows) apps with an instance-based JSX UI model, file-based routing, and built-in server features.
 
 ## **Features**
 
@@ -9,19 +9,18 @@ Vistta.js is a convention-driven JavaScript framework for building web (SSR + hy
 - **Convention-driven app structure**: routing, layouts, errors, middleware, and config are discovered from files (`page`, `layout`, `error`, `middleware`, `config`).
 - **File-based routing**: `page`, `layout`, `error`, `middleware`, `config` conventions.
 - **SSR + hydration**: server renders HTML, client router hydrates and navigates.
-- **API routes/controllers**: structured endpoints with `get/post/put/...` helpers.
+- **API routes/controllers**: structured endpoints with `GET/POST/PUT/...` helpers.
 - **Typed API imports (loader-powered)**: import a controller file in the frontend `with { type: "api" }` to get a client request wrapper generated automatically.
-- **WebSockets**: server-side events via `socket.on(...)`.
+- **WebSockets**: server-side events via `Server.on(...)` / controller `this.socket`, client-side via the `Socket` class.
 - **Client router**: SPA-like navigation, link interception, refresh, events, with native View Transitions API for smooth page crossfades.
-- **Shared state (`Context`)**: shared state container with optional persistence (`local`, `session`, `indexed`) and reactive proxying.
+- **Shared state (`Context`)**: shared state container with optional persistence (`none`, `session`, `local`, `storage`) and reactive proxying. Includes `HistoryContext` and `ThemeContext` specialized contexts.
 - **Async UI**: `Suspense` for Promise-backed reactive values.
 - **Error boundaries & forms**: `Safe` error boundary, `Form` value collection + validation.
 - **Virtual lists**: `VirtualContainer` with virtual scroll (renders only visible rows) and lazy render (IntersectionObserver) modes.
 - **CSS-in-JS styling**: built-in style engine via the `style` prop (string/object/array) with enter/exit transitions (`:initial`/`:exit`), plus optional `@vistta/ui` presets, plus a CSS loader that converts `.css` into style objects.
-- **Desktop option**: Electron runner for desktop apps.
-- **Mobile & Desktop apps**: Capacitor-based builds for Android and iOS, plus direct Electron for desktop — all from the same codebase with client-side routing via a generated route manifest.
-- **Platform detection**: `platform`, `isServer`, `isBrowser`, `isMobile`, `isDesktop`, `isApp` exports for cross-platform code.
-- **Native plugin bridges**: opt-in wrappers for Capacitor plugins (camera, haptics, filesystem, status bar, splash screen, app lifecycle).
+- **Mobile & Desktop apps**: build native apps for Android, Linux, and Windows from the same codebase with client-side routing via a generated route manifest. Requires `@vistta/js-runtime`.
+- **Platform detection**: `window.platform` global (one of `"server"`, `"browser"`, `"mobile"`, `"desktop"`) for cross-platform code.
+- **Native helpers**: `Haptics`, `Notification`, `Scheduler`, and `File` utilities that adapt per platform (native via `@vistta/js-runtime/plugins`, Web APIs on browser, no-op on server).
 - **CLI + loaders**: works with `@vistta/cli` (bundler/loaders like `api`) and enables extra commands (`serve`, `build`, `run`, `test`).
 
 This package is designed to be used with `@vistta/cli` (peer dependency), which provides the loader/bundler features used by Vistta (e.g. `import ... with { type: "bundler" }`).
@@ -30,8 +29,7 @@ This package is designed to be used with `@vistta/cli` (peer dependency), which 
 
 - Node.js `>= 22`
 - `@vistta/cli` installed in your project (peer dependency)
-- For mobile apps: `@capacitor/core` and `@capacitor/cli` (peer dependencies)
-- For desktop apps: `electron` (peer dependency)
+- For native apps (mobile/desktop): `@vistta/js-runtime` (provides native plugin bridges and build/run runtime)
 
 ## **Getting Started (Web App)**
 
@@ -185,21 +183,21 @@ Example:
 `app/users/api.js` → `/api/users`
 
 ```js
-import { Controller, get, post, put } from "@vistta/js";
+import { Controller, GET, POST, PUT } from "@vistta/js";
 
 export default class UsersApi extends Controller {
   // You can pass a method-local url (relative to this controller route)
-  list = get("/", async function () {
+  list = GET("/", async function () {
     // Use `function` if you want access to `this.request` / `this.response`
     return { users: [{ id: 1, name: "Ada" }] };
   });
 
-  create = post("/", async ({ name }) => {
+  create = POST("/", async ({ name }) => {
     // Arrow functions work fine if you only need params/body
     return { created: true, name };
   });
 
-  update = put("/:id", async function ({ id, ...body }) {
+  update = PUT("/:id", async function ({ id, ...body }) {
     return { ok: true, id, body };
   });
 }
@@ -208,7 +206,7 @@ export default class UsersApi extends Controller {
 Notes:
 
 - If the method url includes params (e.g. `"/:id"`), the handler receives them merged into the argument object.
-- For `get`/`delete`, the argument is treated as `params`; for others it's treated as `body`.
+- For `GET`/`DELETE`, the argument is treated as `params`; for others it's treated as `body`.
 - Inside handlers, `this` is a context object: `{ request, response, socket }` (only available when using `function`, not arrow functions).
 
 ### **Importing a controller in the frontend**
@@ -222,21 +220,35 @@ const { data } = await UsersApi.list();
 await UsersApi.update({ id: "123", value: "hello" });
 ```
 
-This works because the server shares each controller route with the loader, and the `api` loader converts `get/post/put/...` methods into HTTP requests.
+This works because the server shares each controller route with the loader, and the `api` loader converts `GET/POST/PUT/...` methods into HTTP requests.
 
 ## **WebSockets**
 
-On the server, you can register listeners using the exported `socket.on` helper inside a controller file.
+On the server, socket listeners are registered through the `Server` instance (`server.on(event, callback)`) or inside a controller via the injected `this.socket` context. On the client, use the exported `Socket` class.
+
+Server-side (controller):
 
 ```js
-import { Controller, socket } from "@vistta/js";
+import { Controller, GET } from "@vistta/js";
 
 export default class Ws extends Controller {
-  join = socket.on("join", function ({ room }) {
-    // `this` depends on socket.io context
-    this.join(room);
+  // `this.socket` is available inside function handlers and provides
+  // `emit`/`on` bound to the controller's subdomain.
+  join = GET("/join", function ({ room }) {
+    this.socket.emit("joined", { room });
+    return { ok: true };
   });
 }
+```
+
+Client-side:
+
+```js
+import { Socket } from "@vistta/js";
+
+Socket.connect("https://api.example.com");
+Socket.on("joined", ({ room }) => console.log("Joined", room));
+Socket.emit("join", { room: "general" });
 ```
 
 ## **Client Router**
@@ -244,12 +256,12 @@ export default class Ws extends Controller {
 Vistta includes a client router used for SPA-style navigation with native View Transitions API support.
 
 ```js
-import { router } from "@vistta/js";
+import { Router } from "@vistta/js";
 
-await router.navigate("/about");
-await router.refresh();
+await Router.navigate("/about");
+await Router.refresh();
 
-router.on("some-event", (e) => {
+Router.on("some-event", (e) => {
   console.log(e.detail);
 });
 ```
@@ -417,7 +429,7 @@ export default class Example extends Component {
 
 ### `Context`
 
-`Context` is a shared state container with optional persistence (`local`, `session`, `indexed`). The default value must be an object and must be serializable.
+`Context` is a shared state container with optional persistence (`none`, `session`, `local`, `storage`). The default value must be an object and must be serializable.
 
 In Vistta components, the intended pattern is to store the **Context instance** on the component. The renderer will automatically expose a reactive proxy for that context field.
 
@@ -684,61 +696,58 @@ Both work with `transition` and `animation` properties. If no animation duration
 
 ## **Mobile & Desktop Apps**
 
-Vistta.js supports building native mobile (iOS/Android) and desktop (Electron) apps from the same codebase.
+Vistta.js supports building native mobile (Android) and desktop (Linux/Windows) apps from the same codebase, powered by `@vistta/js-runtime`.
 
 ### **Setup**
 
 1.  **Install dependencies**:
 
     ```sh
-    # For mobile
-    npm install @capacitor/core @capacitor/cli
-    # For desktop
-    npm install electron
+    npm install @vistta/js-runtime
     ```
 
 2.  **Run the app**:
 
     ```sh
-    # Run on desktop (Electron)
-    npx vistta run desktop ./app
+    # Run on the host platform (default)
+    npx vistta run ./app
 
-    # Run on mobile (Android/iOS)
-    npx vistta run android ./app
-    npx vistta run ios ./app
+    # Run on a specific platform
+    npx vistta run ./app android
+    npx vistta run ./app linux
+    npx vistta run ./app windows
     ```
 
 ### **Platform Detection**
 
-You can use the `platform` export to detect the current environment:
+Platform is exposed on the global `window.platform` (not as a named import). It is one of: `"server"`, `"browser"`, `"mobile"`, `"desktop"`.
 
-```jsx
-import { platform, isMobile, isDesktop, isBrowser } from "@vistta/js";
-
-if (isMobile) {
+```js
+if (window.platform === "mobile") {
   // Mobile-specific logic
 }
 ```
 
 ### **Native Features**
 
-Vistta provides a unified integration layer for native features. These are automatically available when running on mobile or desktop:
+Vistta provides unified helpers that work across platforms. On native targets they lazily import `@vistta/js-runtime/plugins`; on the browser they fall back to Web APIs; on the server they no-op.
 
 ```jsx
-import { haptics, camera, filesystem } from "@vistta/js";
+import { Haptics, Notification, Scheduler, File } from "@vistta/js";
 
-// Haptics (Mobile only)
-await haptics.impact();
+// Haptics (no-op on server, navigator.vibrate on browser, native on mobile)
+await Haptics.vibrate(20);
+await Haptics.impactFeedback("medium");
 
-// Camera (Mobile only)
-const photo = await camera.getPhoto();
+// Notifications
+await Notification.send({ title: "Hello", body: "World" });
 
-// Filesystem (Mobile & Desktop)
-await filesystem.writeFile({
-  path: "test.txt",
-  data: "Hello World",
-  directory: "DOCUMENTS",
-});
+// Background timers (Android persists via foreground service)
+const id = await Scheduler.setBackgroundInterval(() => console.log("tick"), 60000);
+
+// File helpers (browser)
+const file = await File.upload({ accept: ".json" });
+await File.download("data.json", await File.read(file, "text"), "application/json");
 ```
 
 ### **Build**
@@ -746,14 +755,17 @@ await filesystem.writeFile({
 To build your app for production:
 
 ```sh
-# Build for desktop
-npx vistta build ./app desktop
+# Build a static web bundle (defaults to ./dist)
+npx vistta build ./app
 
-# Build for mobile
-npx vistta build ./app mobile
+# Build for a native platform (outputs to ./build/www)
+npx vistta build ./app app
+npx vistta build ./app android
+npx vistta build ./app linux
+npx vistta build ./app windows
 ```
 
-The build process generates a unified `build` folder (relative to your app folder) containing your app's assets and a route manifest for client-side navigation. By default, the output folder is cleaned before each build. You can disable this with `--no-clean`.
+The build process generates a unified `build` folder (relative to your app folder) containing your app's assets and a route manifest for client-side navigation. By default, the output folder is cleaned before each build.
 
 ## **Programmatic Server Usage**
 
@@ -775,54 +787,53 @@ After registering the commands in `tsconfig.json` / `jsconfig.json` (see above),
 # Start a web server from a folder router
 npx vistta serve ./app --http=3000
 
-# Build static output (defaults to ./app/build)
+# Build static output (defaults to ./dist)
 npx vistta build ./app
 
-# Build for desktop (Electron)
-npx vistta build ./app desktop
+# Build for a native platform (outputs to ./build/www)
+npx vistta build ./app app
+npx vistta build ./app android
+npx vistta build ./app linux
+npx vistta build ./app windows
 
-# Build for mobile (Capacitor)
-npx vistta build ./app mobile
-
-# Run on a platform (default target: desktop)
+# Run on a platform (default target: host platform)
 npx vistta run ./app
-npx vistta run ./app desktop
 npx vistta run ./app android
-npx vistta run ./app ios
+npx vistta run ./app linux
+npx vistta run ./app windows
 
-# Run tests (using the Vistta test runner)
+# Run tests (using the Vistta test runner, powered by Electron)
 npx vistta test
 ```
 
-## **Mobile & Desktop Apps (Capacitor)**
+## **Mobile & Desktop Apps (Native)**
 
-Vistta supports building mobile (Android/iOS) apps using [Capacitor](https://capacitorjs.com/) and desktop apps using [Electron](https://www.electronjs.org/) directly. The same pre-built static bundle is shared across all targets.
+Vistta supports building native apps for Android, Linux, and Windows from the same codebase, powered by `@vistta/js-runtime`. The same pre-built static bundle is shared across all targets.
 
 ### **Setup**
 
-No manual setup needed. When you run `vistta run ./app android` (or `ios`), the CLI automatically:
+Install the runtime package:
 
-1. Installs `@capacitor/core` and `@capacitor/cli` if missing
-2. Prompts for App ID and name if `capacitor.config.ts` doesn't exist
-3. Installs the platform package (`@capacitor/android` or `@capacitor/ios`) if missing
-4. Adds the platform directory if it doesn't exist
-
-For desktop, `electron` is installed automatically on first run.
+```sh
+npm install @vistta/js-runtime
+```
 
 ### **Build & Run**
 
 ```sh
-# Build the app bundle to ./app/build/
-npx vistta build ./app desktop
-npx vistta build ./app mobile
+# Build the app bundle to ./build/www
+npx vistta build ./app app
+npx vistta build ./app android
+npx vistta build ./app linux
+npx vistta build ./app windows
 
-# Build, sync, and open a specific platform
+# Build and launch on a specific platform
 npx vistta run ./app android
-npx vistta run ./app ios
-npx vistta run ./app desktop
+npx vistta run ./app linux
+npx vistta run ./app windows
 ```
 
-The build output (`build/`) is a static bundle with client-side routing via a generated route manifest. The same file-based routing conventions (`page.jsx`, `layout.jsx`, `error.jsx`) apply. By default, the output folder is cleaned before each build. You can disable this with `--no-clean`.
+The build output (`build/www`) is a static bundle with client-side routing via a generated route manifest. The same file-based routing conventions (`page.jsx`, `layout.jsx`, `error.jsx`) apply. By default, the output folder is cleaned before each build.
 
 ### **Socket / Server Connection**
 
@@ -837,51 +848,52 @@ export default {
 
 ### **Platform Detection**
 
-Import platform constants to conditionally adapt behavior:
+Platform is exposed on the global `window.platform` (not as a named import). It is one of: `"server"`, `"browser"`, `"mobile"`, `"desktop"`.
 
 ```js
-import { platform, isApp, isMobile, isDesktop, isBrowser, isServer } from "@vistta/js";
-
-if (isMobile) {
+if (window.platform === "mobile") {
   // Mobile-specific logic
 }
 ```
 
-`platform` is one of: `"server"`, `"browser"`, `"mobile"`, `"desktop"`.
+### **Native Helpers**
 
-### **Native Plugin Bridges**
-
-Vistta provides opt-in wrappers around Capacitor plugins. Install the corresponding `@capacitor/*` package and import:
+Vistta provides unified helpers (`Haptics`, `Notification`, `Scheduler`, `File`) that work across platforms. On native targets they lazily import `@vistta/js-runtime/plugins`; on the browser they fall back to Web APIs (e.g. `navigator.vibrate`, `Notification`); on the server they no-op.
 
 ```js
-import { takePhoto, pickImage } from "@vistta/js/capacitor/camera";
-import { impact, notification, vibrate } from "@vistta/js/capacitor/haptics";
-import { readFile, writeFile, deleteFile, mkdir, readdir } from "@vistta/js/capacitor/filesystem";
-import { onStateChange, onBackButton, getInfo, exit } from "@vistta/js/capacitor/app";
-import { setStyle, setBackgroundColor, hide, show } from "@vistta/js/capacitor/status-bar";
-import { hide as hideSplash, show as showSplash } from "@vistta/js/capacitor/splash-screen";
+import { Haptics, Notification, Scheduler, File } from "@vistta/js";
+
+// Haptics (no-op on server, navigator.vibrate on browser, native on mobile)
+await Haptics.vibrate(20);
+await Haptics.impactFeedback("medium");
+await Haptics.notificationFeedback("success");
+
+// Notifications
+await Notification.requestPermission();
+await Notification.send({ title: "Hello", body: "World" });
+
+// Background timers (Android persists via foreground service; browser uses setInterval/setTimeout)
+const id = await Scheduler.setBackgroundInterval(() => console.log("tick"), 60000);
+await Scheduler.clearBackgroundInterval(id);
+
+// File upload/download/read (browser-only helpers)
+const file = await File.upload({ accept: ".json" });
+await File.download("data.json", await File.read(file, "text"), "application/json");
 ```
-
-All bridges are lazy-loaded and no-op or throw on unsupported platforms. Required Capacitor plugin packages:
-
-| Bridge                    | Package                    |
-| ------------------------- | -------------------------- |
-| `capacitor/camera`        | `@capacitor/camera`        |
-| `capacitor/haptics`       | `@capacitor/haptics`       |
-| `capacitor/filesystem`    | `@capacitor/filesystem`    |
-| `capacitor/app`           | `@capacitor/app`           |
-| `capacitor/status-bar`    | `@capacitor/status-bar`    |
-| `capacitor/splash-screen` | `@capacitor/splash-screen` |
 
 ## **Exports**
 
 ### Main (`@vistta/js`)
 
 - UI: `Component`, `Element`, `Fragment`, `Suspense`, `Profiler`, `Safe`, `Form`, `Ref`, `Render`, `VirtualContainer`
-- State: `Context`
-- Client: `router`
-- Platform: `platform`, `isServer`, `isBrowser`, `isMobile`, `isDesktop`, `isApp`
-- Server/controller helpers: `Controller`, `get`, `post`, `put`, `patch`, `del`, `copy`, `move`, `socket`
+- State: `Context`, `HistoryContext`, `ThemeContext`
+- Styling: `Style`, `Anchor`
+- Client: `Router`, `Socket`
+- Utilities: `File`, `Haptics`, `Notification`, `Scheduler`
+- Server/controller helpers: `Controller`, `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `COPY`, `MOVE`, `REST`
+- Other: `Worker` (browser-only; throws on server)
+
+> **Note:** Platform detection is not exported as named imports. Use the global `window.platform` (one of `"server"`, `"browser"`, `"mobile"`, `"desktop"`) for platform-specific code.
 
 ### Component `props(...exclude)`
 
@@ -909,19 +921,10 @@ class MyComponent extends Component {
 
 - Default export: `Server`
 
-### Capacitor Bridges (`@vistta/js/capacitor/*`)
-
-- `camera`: `takePhoto`, `pickImage`
-- `haptics`: `impact`, `notification`, `vibrate`
-- `filesystem`: `readFile`, `writeFile`, `deleteFile`, `mkdir`, `readdir`
-- `app`: `onStateChange`, `onBackButton`, `getInfo`, `exit`
-- `status-bar`: `setStyle`, `setBackgroundColor`, `hide`, `show`
-- `splash-screen`: `hide`, `show`
-
 ## **Notes / Caveats**
 
 - `@vistta/js` relies on Vistta's loader/bundler features; use it through `@vistta/cli` for development.
-- The exported `worker` is only available in the browser (in server environment it throws).
+- The exported `Worker` is only available in the browser (in server environment it throws).
 
 ## Benchmarks
 

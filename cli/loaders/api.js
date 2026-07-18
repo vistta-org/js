@@ -8,10 +8,11 @@ const global = /** @type {any} */ globalThis;
 export default class APILoader extends Loader {
   async load(_, options) {
     try {
-      if (!global.main.shared?.[options.path]) {
+      const shared = global.main?.shared || global.loaders?.shared;
+      if (!shared?.[options.path]) {
         return { code: "export default {};" };
       }
-      const pathname = global.main.shared?.[options.path]?.pathname;
+      const pathname = shared[options.path]?.pathname;
       let controller = (await import(options.path))?.default;
       let code = `import { request } from "@vistta/utils/request";const createUrl = (...url) => (vistta.host || "") + [`;
       if (options.pathname || options.bundler) code += `"${pathname}",`;

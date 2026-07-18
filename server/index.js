@@ -135,6 +135,22 @@ class Server {
   });
   #timeout;
 
+  /**
+   * Direct access to the route registry.
+   * @type {{ get: (type: string, subdomain?: string, pathname?: string) => Route[] | string[] | Route | null, set: (type: string, subdomain: string, pathname: string, handler: Function) => Route | null }}
+   */
+  routes = {
+    get: (type, subdomain, pathname) => {
+      if (type === "subdomains") return Object.keys(this.#subdomains);
+      if (pathname !== undefined) return matchRoute(this.#subdomains[subdomain]?.[type] || [], pathname, { exact: false });
+      return this.#subdomains[subdomain]?.[type] || [];
+    },
+    set: (type, subdomain, pathname, handler) => {
+      if (type === "subdomains") throw new TypeError("Cannot set subdomains directly.");
+      return this.#register(type, subdomain, pathname, handler);
+    },
+  };
+
   get ports() {
     return {
       http: this.#http?.port,
