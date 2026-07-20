@@ -132,7 +132,17 @@ export {
   VirtualContainer,
 } from "./core/classes.js";
 
-export { Anchor, File, Haptics, HistoryContext, Notification, Scheduler, Style, ThemeContext } from "./core/utils/index.js";
+export {
+  Anchor,
+  Clipboard,
+  File,
+  Haptics,
+  HistoryContext,
+  Notification,
+  Scheduler,
+  Style,
+  ThemeContext,
+} from "./core/utils/index.js";
 export { worker } from "./index.js";
 export { COPY, default as Controller, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./server/controller.js";
 export { default as Router } from "./server/router.js";

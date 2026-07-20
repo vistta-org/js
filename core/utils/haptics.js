@@ -9,6 +9,7 @@ export class Haptics {
       if (navigator.vibrate) navigator.vibrate(intensity);
       return;
     }
+    // Native (mobile/desktop)
     try {
       const { Haptics } = await import("@vistta/js-runtime/plugins");
       await Haptics.vibrate(intensity);
@@ -29,6 +30,7 @@ export class Haptics {
       if (navigator.vibrate) navigator.vibrate(pattern);
       return;
     }
+    // Native (mobile/desktop)
     try {
       const { Haptics } = await import("@vistta/js-runtime/plugins");
       await Haptics.notificationFeedback(type);
@@ -49,6 +51,7 @@ export class Haptics {
       if (navigator.vibrate) navigator.vibrate(pattern);
       return;
     }
+    // Native (mobile/desktop)
     try {
       const { Haptics } = await import("@vistta/js-runtime/plugins");
       await Haptics.impactFeedback(style);

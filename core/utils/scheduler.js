@@ -16,6 +16,7 @@ export class Scheduler {
   static async setBackgroundInterval(fn, intervalMs) {
     if (window.platform === "server") return null;
     if (window.platform === "browser") return /** @type {any} */ (setInterval(fn, intervalMs));
+    // Native (mobile/desktop)
     try {
       const app = await import("@vistta/js-runtime/plugins");
       return await app.Scheduler.setBackgroundInterval(fn, intervalMs);
@@ -33,6 +34,7 @@ export class Scheduler {
    */
   static async clearBackgroundInterval(id) {
     if (window.platform === "browser") return clearInterval(id);
+    // Native (mobile/desktop)
     try {
       const app = await import("@vistta/js-runtime/plugins");
       return await app.Scheduler.clearBackgroundInterval(id);
@@ -59,6 +61,7 @@ export class Scheduler {
   static async setBackgroundTimeout(fn, delayMs) {
     if (window.platform === "server") return null;
     if (window.platform === "browser") return /** @type {any} */ (setTimeout(fn, delayMs));
+    // Native (mobile/desktop)
     try {
       const app = await import("@vistta/js-runtime/plugins");
       return await app.Scheduler.setBackgroundTimeout(fn, delayMs);
@@ -74,6 +77,7 @@ export class Scheduler {
    */
   static async clearBackgroundTimeout(id) {
     if (window.platform === "browser") return clearTimeout(id);
+    // Native (mobile/desktop)
     try {
       const app = await import("@vistta/js-runtime/plugins");
       return await app.Scheduler.clearBackgroundTimeout(id);

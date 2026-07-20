@@ -20,7 +20,7 @@ Vistta.js is a convention-driven JavaScript framework for building web (SSR + hy
 - **CSS-in-JS styling**: built-in style engine via the `style` prop (string/object/array) with enter/exit transitions (`:initial`/`:exit`), plus optional `@vistta/ui` presets, plus a CSS loader that converts `.css` into style objects.
 - **Mobile & Desktop apps**: build native apps for Android, Linux, and Windows from the same codebase with client-side routing via a generated route manifest. Requires `@vistta/js-runtime`.
 - **Platform detection**: `window.platform` global (one of `"server"`, `"browser"`, `"mobile"`, `"desktop"`) for cross-platform code.
-- **Native helpers**: `Haptics`, `Notification`, `Scheduler`, and `File` utilities that adapt per platform (native via `@vistta/js-runtime/plugins`, Web APIs on browser, no-op on server).
+- **Native helpers**: `Clipboard`, `Haptics`, `Notification`, `Scheduler`, and `File` utilities that adapt per platform (native via `@vistta/js-runtime/plugins`, Web APIs on browser, no-op on server).
 - **CLI + loaders**: works with `@vistta/cli` (bundler/loaders like `api`) and enables extra commands (`serve`, `build`, `run`, `test`).
 
 This package is designed to be used with `@vistta/cli` (peer dependency), which provides the loader/bundler features used by Vistta (e.g. `import ... with { type: "bundler" }`).
@@ -733,7 +733,13 @@ if (window.platform === "mobile") {
 Vistta provides unified helpers that work across platforms. On native targets they lazily import `@vistta/js-runtime/plugins`; on the browser they fall back to Web APIs; on the server they no-op.
 
 ```jsx
-import { Haptics, Notification, Scheduler, File } from "@vistta/js";
+import { Clipboard, Haptics, Notification, Scheduler, File } from "@vistta/js";
+
+// Clipboard (no-op on server, navigator.clipboard on browser, native on desktop)
+await Clipboard.writeText("Hello, clipboard!");
+const text = await Clipboard.readText();
+await Clipboard.writeHtml("<h1>Title</h1>", "Title");
+await Clipboard.clear();
 
 // Haptics (no-op on server, navigator.vibrate on browser, native on mobile)
 await Haptics.vibrate(20);
@@ -858,10 +864,16 @@ if (window.platform === "mobile") {
 
 ### **Native Helpers**
 
-Vistta provides unified helpers (`Haptics`, `Notification`, `Scheduler`, `File`) that work across platforms. On native targets they lazily import `@vistta/js-runtime/plugins`; on the browser they fall back to Web APIs (e.g. `navigator.vibrate`, `Notification`); on the server they no-op.
+Vistta provides unified helpers (`Clipboard`, `Haptics`, `Notification`, `Scheduler`, `File`) that work across platforms. On native targets they lazily import `@vistta/js-runtime/plugins`; on the browser they fall back to Web APIs (e.g. `navigator.clipboard`, `navigator.vibrate`, `Notification`); on the server they no-op.
 
 ```js
-import { Haptics, Notification, Scheduler, File } from "@vistta/js";
+import { Clipboard, Haptics, Notification, Scheduler, File } from "@vistta/js";
+
+// Clipboard (no-op on server, navigator.clipboard on browser, native on desktop)
+await Clipboard.writeText("Hello, clipboard!");
+const text = await Clipboard.readText();
+await Clipboard.writeHtml("<h1>Title</h1>", "Title");
+await Clipboard.clear();
 
 // Haptics (no-op on server, navigator.vibrate on browser, native on mobile)
 await Haptics.vibrate(20);
@@ -889,7 +901,7 @@ await File.download("data.json", await File.read(file, "text"), "application/jso
 - State: `Context`, `HistoryContext`, `ThemeContext`
 - Styling: `Style`, `Anchor`
 - Client: `Router`, `Socket`
-- Utilities: `File`, `Haptics`, `Notification`, `Scheduler`
+- Utilities: `Clipboard`, `File`, `Haptics`, `Notification`, `Scheduler`
 - Server/controller helpers: `Controller`, `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `COPY`, `MOVE`, `REST`
 - Other: `Worker` (browser-only; throws on server)
 

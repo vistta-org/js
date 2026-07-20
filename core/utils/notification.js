@@ -7,6 +7,7 @@ export class Notification {
     if (window.platform === "server") return "denied";
     if (window.platform === "browser")
       return (await window.Notification.requestPermission()) === "granted" ? "granted" : "denied";
+    // Native (mobile/desktop)
     try {
       const app = await import("@vistta/js-runtime/plugins");
       return (await app.Notification.requestPermission()) === "denied" ? "denied" : "granted";
@@ -28,6 +29,7 @@ export class Notification {
       new window.Notification(options.title, { body: options.body });
       return;
     }
+    // Native (mobile/desktop)
     try {
       const app = await import("@vistta/js-runtime/plugins");
       await app.Notification.sendNotification(/** @type {any} */ (options));

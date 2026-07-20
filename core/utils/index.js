@@ -1,5 +1,6 @@
 export { Style } from "../stylesheet.js";
 export { Anchor } from "./anchor.js";
+export { Clipboard } from "./clipboard.js";
 export { HistoryContext, ThemeContext } from "./context.js";
 export { File } from "./file.js";
 export { Haptics } from "./haptics.js";
