@@ -14,11 +14,22 @@ import {
 } from "../core/classes";
 import { Router, routes } from "../core/router.js";
 import { Socket } from "../core/socket.js";
-import { Anchor, File, Haptics, HistoryContext, Notification, Scheduler, Style, ThemeContext } from "../core/utils/index.js";
+import {
+  Anchor,
+  Clipboard,
+  File,
+  Haptics,
+  HistoryContext,
+  Notification,
+  Scheduler,
+  Style,
+  ThemeContext,
+} from "../core/utils/index.js";
 import { defineReadonly } from "../utils/index.js";
 
 const vistta = {
   Anchor,
+  Clipboard,
   Component,
   Context,
   Controller: class {
