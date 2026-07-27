@@ -110,7 +110,7 @@ Then open `http://localhost:3000`.
 
 Vistta maps folder structure to routes.
 
-Given a base folder passed to `server.use("/", folder)`, Vistta detects the following route files:
+Given a base folder passed to `server.routes.use("/", folder)`, Vistta detects the following route files:
 
 - `page.(js|jsx|ts|tsx)` → page route (SSR + client navigation)
 - `layout.(js|jsx|ts|tsx)` → layout wrapper for pages in/under that path
@@ -133,6 +133,83 @@ Files inside an `assets/` folder are served as static resources.
 Example:
 
 - `app/assets/logo.svg` → `/assets/logo.svg` (relative to the mounted basepath)
+
+You can also register resources manually via the `server.resources` accessor. Resources are always served under `/assets/`, so you only provide the filename:
+
+```js
+// Inline content (string or Buffer)
+server.resources.set("logo.svg", "<svg>...</svg>");
+
+// Absolute filepath (served via streaming)
+server.resources.set("logo.svg", "/abs/path/to/logo.svg");
+
+// Read back
+server.resources.get("logo.svg"); // → the registered content/filepath
+server.resources.get(); // → ["/assets/logo.svg", ...] all registered paths
+```
+
+The filename must have a file extension (e.g. `.svg`) to be recognized as a resource by the request handler.
+
+### **Route registry (`server.routes`)**
+
+All route registration goes through the `server.routes` accessor, which exposes three methods. All three share the same flexible argument convention as `routes.use`: you may pass `(subdomain, pathname, ...)` or just `(pathname, ...)` — when the subdomain is omitted it defaults to `""`. The subdomain and pathname are validated the same way across all three.
+
+- **`routes.get(type, [subdomain], [pathname])`** — reads registered routes. `type: "subdomains"` lists all subdomain names; otherwise `type` is a route type (`get`/`post`/`middleware`/...) and the matching routes for that subdomain (and optionally a specific pathname) are returned.
+- **`routes.set(type, [subdomain], pathname, handler)`** — registers HTTP method handlers, middleware, websockets, pages/configs/layouts, and `redirect`/`proxy` routes. Synchronous; returns a `Route` (or a `Route` collection for `proxy`).
+- **`routes.use([subdomain], pathname, target)`** — mounts a directory, file, middleware function, or config object. Async; returns a `Promise<Route>` (a collection of the routes discovered/mounted).
+
+#### `routes.set` types
+
+| `type`                                                                     | `handler` argument                                  | Notes                                                  |
+| -------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
+| `get`, `post`, `put`, `delete`, `patch`, `head`, `options`, `copy`, `move` | `(req, res) => ...`                                 | HTTP method handler                                    |
+| `all`                                                                      | `(req, res) => ...`                                 | Matches every standard HTTP method                     |
+| `middleware`                                                               | `(req, res, next) => ...`                           | Runs on every request below `pathname`                 |
+| `websocket`                                                                | `(req, socket, head) => ...`                        | WebSocket upgrade handler                              |
+| `api`                                                                      | `Controller` subclass or `(req, res) => ...`        | Resolved to `controller` or `all`                      |
+| `controller`                                                               | `Controller` subclass                               | Registers each `RESTMethod` handler                    |
+| `page`, `error`, `config`, `layout`                                        | page/config/layout object                           | Used by `routes.use` internally                        |
+| `redirect`                                                                 | target url string or `{ target, preservePathname }` | Issues a 301 redirect                                  |
+| `proxy`                                                                    | target url string or `ProxyOptions`                 | Proxies HTTP + WebSocket; returns a `Route` collection |
+
+`routes.set("subdomains", ...)` is rejected — subdomains are created implicitly by registering routes under them.
+
+#### `routes.use` target shapes
+
+| `target`       | Behavior                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| `Function`     | Registered as `middleware`                                                                 |
+| `Object`       | Registered as a `config` route                                                             |
+| directory path | Scanned for `api`/`controller`/`middleware`/`page`/`error`/`config`/`layout` files         |
+| file path      | Imported; a `Controller` subclass becomes a controller route, a `Component` becomes a page |
+
+#### Examples
+
+```js
+// HTTP method handler — subdomain defaults to "" when omitted
+server.routes.set("post", "/users", (req, res) => { ... });
+server.routes.set("post", "api", "/users", (req, res) => { ... });
+
+// Redirect — handler is the target (string or options object)
+server.routes.set("redirect", "/old", "/new");
+server.routes.set("redirect", "", "/docs", { target: "https://docs.example.com", preservePathname: true });
+
+// Proxy — handler is the target (string or options object)
+server.routes.set("proxy", "api", "/external", "https://api.example.com");
+server.routes.set("proxy", "/upstream", { target: "http://localhost:9000", ws: false });
+
+// use — mount a directory/file/function/config (async)
+await server.routes.use("/app", "./app");
+await server.routes.use("admin", "/auth", authMiddleware);
+await server.routes.use("/cfg", { title: "My app" });
+
+// Read registered routes
+server.routes.get("subdomains"); // → ["", "api", ...]
+server.routes.get("get", "api", "/users"); // → matched Route or null
+server.routes.get("get", "api"); // → Route[] for that subdomain
+server.routes.get("get", "/users"); // → matched Route on the default subdomain
+server.routes.get("get"); // → Route[] on the default subdomain
+```
 
 ## **Layouts**
 
@@ -782,7 +859,7 @@ import Server from "@vistta/js/server";
 import fs from "node:fs";
 
 const server = new Server({ http: 3000 });
-await server.use("/", fs.realpathSync("./app"));
+await server.routes.use("/", fs.realpathSync("./app"));
 ```
 
 ## **CLI Commands**

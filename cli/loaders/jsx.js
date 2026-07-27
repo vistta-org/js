@@ -41,7 +41,7 @@ function transformElement(code) {
   let tagName = "";
   let props = "";
   let children = "";
-  const context = { progress: 0, depth: 0 };
+  const context = { progress: 0, depth: 0, wasExpression: false };
   let i = 1;
   let done = false;
   while (!done && i < len) {
@@ -49,8 +49,7 @@ function transformElement(code) {
       if (code[i] === "/" && code[i + 1] === ">") {
         end = i + 2;
         done = true;
-      }
-      if (code[i] === ">") {
+      } else if (code[i] === ">") {
         context.progress = 2;
         context.child = "";
       } else if (!isWhitespace(code[i])) tagName += code[i];
@@ -60,8 +59,7 @@ function transformElement(code) {
         end = i + 2;
         if (context.prop !== "") props += `"${context.prop}": true, `;
         done = true;
-      }
-      if (code[i] === ">") {
+      } else if (code[i] === ">") {
         context.progress = 2;
         context.child = "";
         if (context.prop !== "") props += `"${context.prop}": true, `;
@@ -88,9 +86,10 @@ function transformElement(code) {
     } else if (context.progress == 2) {
       if (code[i] === "<") {
         if (context.child && !isWhitespace(context.child)) {
-          children += `"${format(context.child)}", `;
+          children += `"${format(context.child, context.wasExpression)}", `;
           context.child = "";
-        }
+        } else context.child = "";
+        context.wasExpression = false;
         const endTag = `</${tagName}>`;
         if (code.slice(i, i + endTag.length) === endTag) {
           end = i + endTag.length;
@@ -102,9 +101,9 @@ function transformElement(code) {
         }
       } else if (code[i] === "{") {
         if (context.child && !isWhitespace(context.child)) {
-          children += `"${format(context.child)}", `;
+          children += `"${format(context.child, context.wasExpression, true)}", `;
           context.child = "";
-        }
+        } else context.child = "";
         const [value, expressionEnd] = transformJSExpression(code.slice(i));
         if (!value) return [];
         if ((value[0] === '"' || value[0] === "'" || value[0] === "`") && value[0] === value[value.length - 1])
@@ -112,6 +111,7 @@ function transformElement(code) {
         else if (value[0] === "/" && value[value.length - 1] === "/") children += value;
         else children += `child(() => ${value}), `;
         i += expressionEnd - 1;
+        context.wasExpression = true;
       } else context.child += code[i];
     } else throw new Error("Error while parsing JSX. [Code: 0]");
 
@@ -170,11 +170,11 @@ function transformJSExpression(code) {
   return [value, end];
 }
 
-function format(str) {
-  return str
-    .replace(/[\r\n]+/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+function format(str, preserveStart = false, preserveEnd = false) {
+  let out = str.replace(/[\r\n]+/g, "").replace(/\s+/g, " ");
+  if (!preserveStart) out = out.replace(/^\s+/, "");
+  if (!preserveEnd) out = out.replace(/\s+$/, "");
+  return out;
 }
 
 function isWhitespace(char) {

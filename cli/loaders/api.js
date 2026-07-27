@@ -1,7 +1,7 @@
 import { Loader } from "@vistta/cli";
 import "../../core/adapter.js";
 import { default as Controller, RESTMethod } from "../../server/controller.js";
-import { stringify } from "../../utils/index.js";
+import { isPlainObject, stringify } from "../../utils/index.js";
 
 const global = /** @type {any} */ globalThis;
 
@@ -28,24 +28,14 @@ export default class APILoader extends Loader {
         code += `global.main.shared?.[${escapePath}]?.pathname || "",`;
       }
       code += `...url].reduce((acc, v) => v == null || v.toString() === "" ? acc : acc + "/" + v.toString(), "").replace(/\\/+/g, "/").replace(/\\/$/g, "");`;
-      if (Object.prototype.isPrototypeOf.call(Controller, controller)) {
-        const keys = Object.keys(controller);
-        code += "export default {";
-        for (let i = 0, len = keys?.length || 0; i < len; i++) {
-          const exportName = keys[i];
-          const cur = controller[exportName];
-          if (!(cur instanceof RESTMethod)) continue;
-          code += ` ${exportName}: ${convertRESTMethodToRequest(cur)},`;
-        }
-        code += "};";
-        return { code };
-      } else if (controller instanceof RESTMethod) {
-        code += `export default ${convertRESTMethodToRequest(controller)};`;
-        return { code };
-      } else
+      if (Object.prototype.isPrototypeOf.call(Controller, controller))
+        code += `export default ${convertControllerToRequest(controller)};`;
+      else if (controller instanceof RESTMethod) code += `export default ${convertRESTMethodToRequest(controller)};`;
+      else
         throw new Error(
           `Invalid api format. Export default must be either a RESTMethod or a class Controller from '@vistta/js'`,
         );
+      return { code };
     } catch (e) {
       return { errors: [`${options.path}(0,0): api error: ${e.message}.`] };
     }
@@ -53,6 +43,21 @@ export default class APILoader extends Loader {
 }
 
 //
+
+function convertControllerToRequest(object) {
+  const helper = (target) => {
+    let code = "";
+    const keys = Object.keys(target);
+    for (let i = 0, len = keys?.length || 0; i < len; i++) {
+      const exportName = keys[i];
+      const cur = target[exportName];
+      if (isPlainObject(cur)) code += ` ${exportName}: {${helper(cur)}},`;
+      else if (cur instanceof RESTMethod) code += ` ${exportName}: ${convertRESTMethodToRequest(cur)},`;
+    }
+    return code;
+  };
+  return `{${helper(object)}}`;
+}
 
 function convertRESTMethodToRequest(method) {
   const params = [];
