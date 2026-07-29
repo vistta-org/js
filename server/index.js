@@ -658,12 +658,11 @@ class Server {
     }
     if (type === "controller") {
       if (!Object.isPrototypeOf.call(Controller, arg)) throw new TypeError("Invalid controller type");
-      new arg({
-        socket: {
-          emit: this.emit.bind(this, subdomain),
-          on: this.on.bind(this, subdomain),
-        },
-      });
+      const socket = {
+        emit: this.emit.bind(this, subdomain),
+        on: this.on.bind(this, subdomain),
+      };
+      new arg({ socket });
       traverse(arg, (handler) => {
         if (!(handler instanceof RESTMethod)) return;
         this.#register(handler.type, subdomain, addToPathname(pathname, handler.url), async (request, response) => {
