@@ -659,20 +659,21 @@ class Server {
     if (type === "controller") {
       if (!Object.isPrototypeOf.call(Controller, arg)) throw new TypeError("Invalid controller type");
       new arg({
-        emit: this.emit.bind(this, subdomain),
-        on: this.on.bind(this, subdomain),
+        socket: {
+          emit: this.emit.bind(this, subdomain),
+          on: this.on.bind(this, subdomain),
+        },
       });
       traverse(arg, (handler) => {
         if (!(handler instanceof RESTMethod)) return;
         this.#register(handler.type, subdomain, addToPathname(pathname, handler.url), async (request, response) => {
           try {
-            request.socket.emit = this.emit.bind(this, subdomain);
-            request.socket.on = this.on.bind(this, subdomain);
             const body = await request.body();
             const value = await handler(
               Object.assign(typeof body === "object" && !Buffer.isBuffer(body) ? body : { data: body }, request.params, {
                 request,
                 response,
+                socket,
               }),
             );
             if (!response.writableEnded) response.send(value);

@@ -309,14 +309,16 @@ Server-side (controller):
 import { Controller, GET } from "@vistta/js";
 
 export default class Ws extends Controller {
-  // `this.socket` is available inside function handlers and provides
+  // `socket` is available inside handler functions and provides
   // `emit`/`on` bound to the controller's subdomain.
-  join = GET("/join", function ({ room }) {
-    this.socket.emit("joined", { room });
+  join = GET("/join", function ({ room, socket }) {
+    socket.emit("joined", { room });
     return { ok: true };
   });
 }
 ```
+
+> **Note:** Use the `socket` handler argument (not `request.socket.emit/on`). The raw `request.socket` is the underlying TCP socket; overriding its `emit`/`on` methods breaks Node.js stream backpressure and causes large `response.sendFile` downloads to stall.
 
 Client-side:
 
