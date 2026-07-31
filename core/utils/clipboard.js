@@ -1,3 +1,18 @@
+// Lazy accessor for the background-clipboard surface exported by the
+// runtime (`watchBackground`, `stopBackground`, `isAccessibilityEnabled`,
+// `openAccessibilitySettings`). Kept as a function so the dynamic import
+// only runs on native platforms where `window.platform` is not
+// `server`/`browser`.
+async function getRuntime() {
+  const mod = await import("@vistta/js-runtime/plugins");
+  return {
+    watchBackground: mod.watchBackground,
+    stopBackground: mod.stopBackground,
+    isAccessibilityEnabled: mod.isAccessibilityEnabled,
+    openAccessibilitySettings: mod.openAccessibilitySettings,
+  };
+}
+
 export class Clipboard {
   /**
    * Write plain text to the clipboard.
@@ -149,6 +164,78 @@ export class Clipboard {
       await Clipboard.clear();
     } catch {
       /* Do Nothing */
+    }
+  }
+
+  /**
+   * Reports whether the Vistta accessibility service is enabled in Android
+   * Settings. When `false`, `watchBackground` cannot read the clipboard
+   * while the app is backgrounded; call `openAccessibilitySettings()` to
+   * send the user to the relevant system screen.
+   *
+   * @returns {boolean} `true` on Android when the service is enabled; `false` on desktop/iOS or when disabled.
+   */
+  static isAccessibilityEnabled() {
+    if (window.platform !== "mobile") return false;
+    return getRuntime()
+      .then((rt) => rt.isAccessibilityEnabled())
+      .catch(() => false);
+  }
+
+  /**
+   * Launches the Android Accessibility settings screen so the user can
+   * enable the Vistta service. No-op on desktop/iOS/browser.
+   */
+  static async openAccessibilitySettings() {
+    if (window.platform !== "mobile") return;
+    try {
+      const rt = await getRuntime();
+      rt.openAccessibilitySettings();
+    } catch {
+      /* Do Nothing */
+    }
+  }
+
+  /**
+   * Watches the system clipboard and invokes `onClip` whenever the content
+   * changes. On Android with the accessibility service enabled, the
+   * callback fires from a native `OnPrimaryClipChangedListener` (true
+   * background). Otherwise it polls `readText()` on a background interval
+   * and dedups by content.
+   *
+   * @param {(text: string) => void} onClip - Called with the new clipboard text.
+   * @param {number} [pollIntervalMs=2000] - Poll interval for the fallback path.
+   * @returns {Promise<() => void>} A dispose function that stops the watcher.
+   */
+  static async watchBackground(onClip, pollIntervalMs = 2000) {
+    if (window.platform === "server") return () => {};
+    if (window.platform === "browser") {
+      // Browser: poll navigator.clipboard.readText() on setInterval.
+      let stopped = false;
+      let last = "";
+      const id = setInterval(async () => {
+        if (stopped) return;
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text && text !== last) {
+            last = text;
+            onClip(text);
+          }
+        } catch {
+          /* Do Nothing */
+        }
+      }, pollIntervalMs);
+      return () => {
+        stopped = true;
+        clearInterval(id);
+      };
+    }
+    // Native (mobile/desktop)
+    try {
+      const rt = await getRuntime();
+      return rt.watchBackground(onClip, pollIntervalMs);
+    } catch {
+      return () => {};
     }
   }
 }
