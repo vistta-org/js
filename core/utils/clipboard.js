@@ -1,18 +1,3 @@
-// Lazy accessor for the background-clipboard surface exported by the
-// runtime (`watchBackground`, `stopBackground`, `isAccessibilityEnabled`,
-// `openAccessibilitySettings`). Kept as a function so the dynamic import
-// only runs on native platforms where `window.platform` is not
-// `server`/`browser`.
-async function getRuntime() {
-  const mod = await import("@vistta/js-runtime/plugins");
-  return {
-    watchBackground: mod.watchBackground,
-    stopBackground: mod.stopBackground,
-    isAccessibilityEnabled: mod.isAccessibilityEnabled,
-    openAccessibilitySettings: mod.openAccessibilitySettings,
-  };
-}
-
 export class Clipboard {
   /**
    * Write plain text to the clipboard.
@@ -173,13 +158,16 @@ export class Clipboard {
    * while the app is backgrounded; call `openAccessibilitySettings()` to
    * send the user to the relevant system screen.
    *
-   * @returns {boolean} `true` on Android when the service is enabled; `false` on desktop/iOS or when disabled.
+   * @returns {Promise<boolean>} Resolves `true` on Android when the service is enabled; `false` on desktop/iOS or when disabled.
    */
-  static isAccessibilityEnabled() {
+  static async isAccessibilityEnabled() {
     if (window.platform !== "mobile") return false;
-    return getRuntime()
-      .then((rt) => rt.isAccessibilityEnabled())
-      .catch(() => false);
+    try {
+      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      return Clipboard.isAccessibilityEnabled();
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -189,8 +177,8 @@ export class Clipboard {
   static async openAccessibilitySettings() {
     if (window.platform !== "mobile") return;
     try {
-      const rt = await getRuntime();
-      rt.openAccessibilitySettings();
+      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      Clipboard.openAccessibilitySettings();
     } catch {
       /* Do Nothing */
     }
@@ -232,8 +220,8 @@ export class Clipboard {
     }
     // Native (mobile/desktop)
     try {
-      const rt = await getRuntime();
-      return rt.watchBackground(onClip, pollIntervalMs);
+      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      return Clipboard.watchBackground(onClip, pollIntervalMs);
     } catch {
       return () => {};
     }
