@@ -176,10 +176,61 @@ export function updateConfig(config) {
         var icons = document.querySelectorAll(`head > link[rel$="icon"]`);
         for (let i2 = 0, len2 = icons.length; i2 < len2; i2++) icons[i2].setAttribute("href", config.icon);
         break;
+      case "theme":
+        document.querySelector(`head > meta[name="theme-color"]`)?.setAttribute("content", config.theme);
+        break;
+      case "colorScheme":
+        document.querySelector(`head > meta[name="color-scheme"]`)?.setAttribute("content", config.colorScheme);
+        break;
+      case "revisitAfter":
+        document.querySelector(`head > meta[name="revisit-after"]`)?.setAttribute("content", config.revisitAfter);
+        break;
+      case "referrer":
+        document.querySelector(`head > meta[name="referrer"]`)?.setAttribute("content", config.referrer);
+        break;
+      case "contentType":
+        document.querySelector(`head > meta[http-equiv="Content-Type"]`)?.setAttribute("content", config.contentType);
+        break;
+      case "csp":
+        document.querySelector(`head > meta[http-equiv="Content-Security-Policy"]`)?.setAttribute("content", config.csp);
+        break;
+      case "refresh":
+        document.querySelector(`head > meta[http-equiv="refresh"]`)?.setAttribute("content", config.refresh);
+        break;
+      case "lang":
+        document.documentElement.setAttribute("lang", config.lang);
+        break;
+      case "manifest":
+        document.querySelector(`head > link[rel="manifest"]`)?.setAttribute("href", config.manifest);
+        break;
+      case "links":
+        updateLinks(config.links);
+        break;
       default:
         document.querySelector(`head > meta[name="${keys[i1]}"]`)?.setAttribute("content", config[keys[i1]]);
         break;
     }
+  }
+}
+
+function updateLinks(links) {
+  if (!Array.isArray(links)) return;
+  for (let i = 0, len = links.length; i < len; i++) {
+    const obj = links[i];
+    if (!obj || typeof obj !== "object" || !obj.rel || !obj.href) continue;
+    const existing = document.querySelector(`head > link[rel="${obj.rel}"][href="${obj.href}"]`);
+    if (existing) {
+      const keys = Object.keys(obj);
+      for (let j = 0, jLen = keys.length; j < jLen; j++) {
+        if (keys[j] === "rel" || keys[j] === "href") continue;
+        existing.setAttribute(keys[j], obj[keys[j]]);
+      }
+      continue;
+    }
+    const link = document.createElement("link");
+    const keys = Object.keys(obj);
+    for (let j = 0, jLen = keys.length; j < jLen; j++) link.setAttribute(keys[j], obj[keys[j]]);
+    document.head.appendChild(link);
   }
 }
 

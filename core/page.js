@@ -15,9 +15,9 @@ export function createHtml(innerHTML, config) {
 <html lang="${config?.lang || "en"}">
   <head>
     <title>${config.title}</title>
-    <meta referrer="${config.referrer || "origin"}" />
+    <meta name="referrer" content="${config.referrer || "origin"}" />
     <meta http-equiv="Content-Type" content="${config.contentType || "text/html; charset=utf-8"}" />
-    <meta name="viewport" content="${config?.viewport || "width=device-width,initial-scale=1" + (config.manifest ? ",interactive-widget=resizes-content,viewport-fit=cover" : "")}" />
+    <meta name="viewport" content="${config?.viewport || "width=device-width,initial-scale=1"}" />
     <meta http-equiv="Content-Security-Policy" content="${convertCSP(config?.csp)}" />
     <meta name="description" content="${config.description || ""}" />
     <meta name="color-scheme" content="${config.colorScheme || "light dark"}" />

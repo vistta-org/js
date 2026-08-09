@@ -153,43 +153,23 @@ export class Clipboard {
   }
 
   /**
-   * Reports whether the Vistta accessibility service is enabled in Android
-   * Settings. When `false`, `watchBackground` cannot read the clipboard
-   * while the app is backgrounded; call `openAccessibilitySettings()` to
-   * send the user to the relevant system screen.
-   *
-   * @returns {Promise<boolean>} Resolves `true` on Android when the service is enabled; `false` on desktop/iOS or when disabled.
+   * Reads and emits the focused Android clipboard through the active watcher.
+   * No-op on platforms without the native runtime bridge.
    */
-  static async isAccessibilityEnabled() {
+  static async syncClipboard() {
     if (window.platform !== "mobile") return false;
     try {
       const { Clipboard } = await import("@vistta/js-runtime/plugins");
-      return Clipboard.isAccessibilityEnabled();
+      return Clipboard.syncClipboard() === true;
     } catch {
       return false;
     }
   }
 
   /**
-   * Launches the Android Accessibility settings screen so the user can
-   * enable the Vistta service. No-op on desktop/iOS/browser.
-   */
-  static async openAccessibilitySettings() {
-    if (window.platform !== "mobile") return;
-    try {
-      const { Clipboard } = await import("@vistta/js-runtime/plugins");
-      Clipboard.openAccessibilitySettings();
-    } catch {
-      /* Do Nothing */
-    }
-  }
-
-  /**
    * Watches the system clipboard and invokes `onClip` whenever the content
-   * changes. On Android with the accessibility service enabled, the
-   * callback fires from a native `OnPrimaryClipChangedListener` (true
-   * background). Otherwise it polls `readText()` on a background interval
-   * and dedups by content.
+   * changes. On Android, Shizuku/Sui is selected automatically when already
+   * authorized; otherwise the fallback polls while Vistta is foregrounded.
    *
    * @param {(text: string) => void} onClip - Called with the new clipboard text.
    * @param {number} [pollIntervalMs=2000] - Poll interval for the fallback path.

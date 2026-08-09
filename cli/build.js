@@ -4,6 +4,7 @@ import { assign } from "@vistta/utils";
 import { default as DefaultCommand } from "./default.js";
 
 const dirname = import.meta.dirname;
+const DEV = process.env.NODE_ENV === "development";
 
 export default class BuildCommand extends DefaultCommand {
   async help() {
@@ -53,7 +54,7 @@ export default class BuildCommand extends DefaultCommand {
           ? {
               csp: {
                 "default-src": "ipc: http://ipc.localhost",
-                "connect-src": "'self' ipc: http://ipc.localhost https: wss:",
+                "connect-src": "'self' ipc: http://ipc.localhost https: wss:" + (DEV ? " ws: http:" : ""),
                 "img-src": "data: http: https:",
               },
             }

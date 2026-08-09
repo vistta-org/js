@@ -1,4 +1,4 @@
-import { ensureArray, join, proxy, stringify } from "../utils/index.js";
+import { ensureArray, join, proxy, setupAdaptiveViewport, stringify, teardownAdaptiveViewport } from "../utils/index.js";
 import {
   Component,
   Context,
@@ -43,6 +43,17 @@ class VirtualDom {
     this.stylesheet.add({
       "[suspended]": { display: "none !important" },
     });
+    this.adaptive =
+      window.platform !== "server" &&
+      typeof this.config?.viewport === "string" &&
+      /\bsize=adaptive\b/.test(this.config.viewport);
+    if (this.adaptive)
+      this.stylesheet.add({
+        "html, body": {
+          height: "var(--viewport-height, min(100%, 100dvh)) !important",
+          width: "var(--viewport-width, min(100%, 100dvw)) !important",
+        },
+      });
     for (let i = 0, len = this.config?.styles?.length || 0; i < len; i++) this.stylesheet.add(this.config.styles[i]);
   }
 
@@ -58,6 +69,7 @@ class VirtualDom {
     });
     const ssr = document.querySelector("style[data-ssr]");
     document.adoptedStyleSheets = [this.stylesheet.content];
+    if (this.adaptive) setupAdaptiveViewport();
     if (ssr) ssr.remove();
     this.host.replaceChildren(host.node);
     host.node = this.host;
@@ -125,6 +137,7 @@ class VirtualDom {
       if (element.mutations) for (const mutation of element.mutations) this.disableMutation(mutation);
       element.component?.onDisconnect?.();
     });
+    if (this.adaptive) teardownAdaptiveViewport();
 
     this.active = false;
     this.running = false;
@@ -154,6 +167,7 @@ class VirtualDom {
       }
     }
     document.adoptedStyleSheets = [this.stylesheet.content];
+    if (this.adaptive) setupAdaptiveViewport();
     this.host.replaceChildren(fragment);
     this.update();
     return this;
