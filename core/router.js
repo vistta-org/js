@@ -1,4 +1,4 @@
-import { async, isValidUrl } from "../utils/index.js";
+import { async, convertCSP, isValidUrl } from "../utils/index.js";
 import { Element } from "./classes";
 import { VirtualDom } from "./dom.js";
 
@@ -192,7 +192,9 @@ export function updateConfig(config) {
         document.querySelector(`head > meta[http-equiv="Content-Type"]`)?.setAttribute("content", config.contentType);
         break;
       case "csp":
-        document.querySelector(`head > meta[http-equiv="Content-Security-Policy"]`)?.setAttribute("content", config.csp);
+        document
+          .querySelector(`head > meta[http-equiv="Content-Security-Policy"]`)
+          ?.setAttribute("content", convertCSP(config.csp));
         break;
       case "refresh":
         document.querySelector(`head > meta[http-equiv="refresh"]`)?.setAttribute("content", config.refresh);

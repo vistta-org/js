@@ -247,8 +247,8 @@ export const config = {
   pwa: true,
   short_name: "MyApp",
 
-  // Viewport meta content. Add `size=adaptive` to enable keyboard-aware sync.
-  viewport: "width=device-width, initial-scale=1, size=adaptive",
+  // Viewport meta content.
+  viewport: "width=device-width, initial-scale=1",
 
   // Additional head metadata (all updated client-side on navigation)
   keywords: "vistta, app",
@@ -271,12 +271,6 @@ export const config = {
 When `pwa: true`, Vistta will expose `./manifest.json` for the route and serve `./worker.js`.
 
 All config keys are applied to the document `<head>` on initial render (SSR/SSG via `createHtml`) and updated client-side on every navigation by `updateConfig` (`packages/js/core/router.js`): `title`, `description`, `keywords`, `robots`, `author`, `language`, `copyright`, `publisher`, and `viewport` map to `<meta name="...">`; `theme` → `<meta name="theme-color">`, `colorScheme` → `<meta name="color-scheme">`, `revisitAfter` → `<meta name="revisit-after">`, `referrer` → `<meta name="referrer">`; `contentType` → `<meta http-equiv="Content-Type">`, `csp` → `<meta http-equiv="Content-Security-Policy">`, `refresh` → `<meta http-equiv="refresh">`; `icon` → all `<link rel$="icon">` (icon + apple-touch-icon); `manifest` → `<link rel="manifest">`; `lang` → `<html lang>`; `href` → `<base href>`; `links` → updates or creates `<link>` elements matched by `rel`+`href`.
-
-### **Viewport / keyboard-aware layout (`size=adaptive`)**
-
-`config.viewport` sets the `<meta name="viewport">` content. Adding the `size=adaptive` directive activates the visualViewport sync bridge: the framework mirrors `window.visualViewport` into `--viewport-height` / `--viewport-width` CSS vars on `<html>` and applies `html, body` sizing backed by them, so the layout adapts to the soft keyboard on mobile WebViews (e.g. Android Tauri) where CSS `dvh`/`dvw` units don't reliably update. Read the vars directly when you need the keyboard-excluded size (e.g. `calc(var(--viewport-height, 100dvh) - 14rem)`).
-
-The entire adaptive lifecycle is owned by the active route's `VirtualDom` (`packages/js/core/dom.js`); the router only updates the `<meta name="viewport">` tag. At construction, `VirtualDom` sets an `adaptive` flag from `config.viewport` (also gated on `window.platform !== "server"`, so it's a no-op during SSR) and, when true, adds the `html, body` sizing rule to the route's `VirtualStyleSheet`. The `visualViewport` listeners are installed on `render()`/`enable()` and torn down on `disable()`. Because the adopted stylesheet is swapped per route, both the CSS rule and the listeners are scoped to routes that opt into `size=adaptive` — navigating to a route without it removes them automatically. The listeners themselves (`setupAdaptiveViewport`/`teardownAdaptiveViewport` in `packages/js/utils/viewport.js`) are plain add/remove helpers with no internal idempotency or server guard; `VirtualDom` is responsible for calling them only when adaptive and on the client. While installed, the bridge continuously mirrors `visualViewport` into `--viewport-height` / `--viewport-width` (size, px) on every `resize`/`scroll` event (coalesced via `requestAnimationFrame`). After `orientationchange`, it re-samples for 60 animation frames so transient Android scale and stale pre-rotation dimensions cannot remain active. The vars are always present while the bridge is active (only removed on teardown), so the layout never falls back to the non-shrinking `dvh`/`dvw` units mid-interaction; the `min(100%, 100dvh)` fallback in the consuming CSS makes the no-keyboard frame identical to the default. Native root scrolling remains enabled. Measurements with actual zoom are ignored without clearing, retaining the last valid size; scale values within `0.01` of `1` are accepted to tolerate Android rounding after rotation. Apps that should behave like native shells can disable user scaling through their viewport content, for example `maximum-scale=1, user-scalable=no`.
 
 ## **API Routes (Controllers)**
 
