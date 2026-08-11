@@ -42,8 +42,9 @@ export class Context extends FunctionClass {
    * @param {"none"|"session"|"local"|"storage"} [options.cache] - Optional persistence backend.
    * @param {Actions} [options.actions] - Named mutating actions assigned as context instance methods.
    * @param {boolean} [options.encode] - Whether to encode the cache key. Defaults to false.
+   * @param {boolean} [options.sync] - Whether to sync state across browser tabs via the `storage` event. Only effective when `cache` resolves to `localStorage`.
    */
-  constructor(key, value, { cache, actions, encode: encodeCache } = {}) {
+  constructor(key, value, { cache, actions, encode: encodeCache, sync } = {}) {
     if (typeof key !== "string" || key.length == 0) throw new Error("TypeError: Invalid context key.");
     if (typeof value !== "object") throw new Error("TypeError: Cannot create context with a non-object value.");
     super(() => this);
@@ -69,6 +70,7 @@ export class Context extends FunctionClass {
     }
     if (this.#shared.cache !== this.#cache(cache))
       throw new Error("Error: Cannot create the same context with different cache types.");
+    if (sync) this.#sync();
     const actionsNames = Object.keys(actions || {});
     if (actionsNames.length > 0) {
       const emit = (target, status) => {
@@ -250,7 +252,7 @@ export class Context extends FunctionClass {
       for (let i = 0, len = this.#shared.listeners.length; i < len; i++) this.#shared.listeners[i](path.join("."));
       path.pop();
     }
-    if (!this.#shared.cache) return;
+    if (!this.#shared.cache || this.#shared.syncing) return;
     clearTimeout(this.#shared.debounce);
     this.#shared.debounce = setTimeout(() => {
       try {
@@ -259,6 +261,30 @@ export class Context extends FunctionClass {
         console.error(e);
       }
     }, 100);
+  }
+
+  #sync() {
+    if (this.#shared.cache !== localStorage || this.#shared.syncListener) return;
+    this.#shared.syncListener = (event) => {
+      if (event.key !== this.#shared.key || event.newValue == null) return;
+      let incoming;
+      try {
+        incoming = parse(decode(event.newValue, "hex"));
+      } catch {
+        return;
+      }
+      if (typeof incoming !== "object" || incoming === null) return;
+      const changeHandlers = this.#shared.events.change;
+      const prev = changeHandlers ? clone(this.#shared.value, true) : null;
+      this.#shared.syncing = true;
+      try {
+        this.#replace(incoming);
+      } finally {
+        this.#shared.syncing = false;
+      }
+      if (changeHandlers) for (let i = 0, len = changeHandlers.length; i < len; i++) changeHandlers[i](prev, this.value);
+    };
+    window.addEventListener("storage", this.#shared.syncListener);
   }
 
   #cache(type) {
