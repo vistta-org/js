@@ -90,20 +90,20 @@ function convertRESTMethodToRequest(method) {
   const allParams = params.length === 0 ? `{ ...${arg} } = {}` : `{ ${params.join(", ")}, ...${arg} } = {}`;
   const urlFn = `(${allParams}) => { const _u = ${urlExpr}; const _t = typeof request !== "undefined" && request.getAuthorization ? request.getAuthorization() : null; return _t ? _u + (_u.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(_t) : _u; }`;
 
-  const fetchExpr = `request.${method.type}(_path, { ${arg}, controller }).then((response) => response?.data)`;
+  const fetchExpr = `request.${method.type}(_path, { ${arg}, controller: _controller, stream: _stream }).then((response) => _stream ? response : response?.data)`;
 
   // No cache — passthrough.
   if (!method.cache) {
     if (params.length === 0)
-      return `Object.assign(({ ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
-    return `Object.assign(({ ${params.join(", ")}, ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
+      return `Object.assign(({ ...${arg} } = {}, { controller: _controller, stream: _stream } = {}) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
+    return `Object.assign(({ ${params.join(", ")}, ...${arg} } = {}, { controller: _controller, stream: _stream } = {}) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
   }
 
   // Cache only meaningful for GET-like requests; body methods bypass cache.
   if (arg !== "params") {
     if (params.length === 0)
-      return `Object.assign(({ ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
-    return `Object.assign(({ ${params.join(", ")}, ...${arg} } = {}, controller) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
+      return `Object.assign(({ ...${arg} } = {}, { controller: _controller, stream: _stream } = {}) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
+    return `Object.assign(({ ${params.join(", ")}, ...${arg} } = {}, { controller: _controller, stream: _stream } = {}) => { const _path = ${urlExpr}; return ${fetchExpr}; }, { url: ${urlFn} })`;
   }
 
   const ttl = method.cache.ttl * 1000;
@@ -130,13 +130,15 @@ function convertRESTMethodToRequest(method) {
     }));
   };
   const _revalidate = (_key, fetcher) => fetcher().then((_d) => _writeCache(_key, _d)).catch(() => {});
-  const fn = async (${allParams}, controller, _options) => {
+  const fn = async (${allParams}, _options = {}) => {
+    const _controller = _options.controller;
+    const _stream = _options.stream === true;
     const _path = ${urlExpr};
     const _key = _buildKey(_path, ${arg});
-    const _bypass = _options && _options.cache === false;
-    const _force = _options && _options.cache && _options.cache.force === true;
+    const _bypass = _options.cache === false;
+    const _force = _options.cache && _options.cache.force === true;
     const _doFetch = () => ${fetchExpr};
-    if (_bypass) return _doFetch();
+    if (_stream || _bypass) return _doFetch();
     if (_force) {
       const _d = await _doFetch();
       await _writeCache(_key, _d);

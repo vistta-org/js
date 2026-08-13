@@ -320,6 +320,49 @@ await UsersApi.update({ id: "123", value: "hello" });
 
 This works because the server shares each controller route with the loader, and the `api` loader converts `GET/POST/PUT/...` methods into HTTP requests.
 
+Each generated method accepts two arguments:
+
+```js
+method(args?, options?)
+```
+
+- **`args`** — path params and query params (for `GET`/`DELETE`) or request body (for `POST`/`PUT`/`PATCH`). Path params (e.g. `:id`) are extracted by name; the rest become query params or body.
+- **`options`** — `{ controller?, stream?, cache? }`:
+  - `controller` — an `AbortController` for cancellation. If omitted, one is created automatically.
+  - `stream` — if `true`, returns `{ data: ReadableStream }` instead of buffering the response (see below).
+  - `cache` — `false` to bypass cache, `{ force: true }` to force a fresh fetch and update the cache.
+
+#### `.url()`
+
+Every generated method has a `.url(args)` helper that builds the full request URL (with auth token as a `?token=` query param) without making a request:
+
+```js
+const url = UsersApi.get.url({ id: "123" });
+// → "http://host/api/users/123?token=..."
+```
+
+This is useful when you need the URL itself — e.g. passing it to a download manager, opening it in a new tab, or feeding it to a custom `fetch` call.
+
+#### `{ stream: true }`
+
+For large responses (file downloads, etc.), pass `{ stream: true }` to get a `ReadableStream` instead of a buffered `ArrayBuffer`. The response is not buffered into memory — chunks arrive as the network delivers them. Unlike the normal path (which returns `response.data` directly), streaming returns the full response object so you can access headers:
+
+```js
+const { data: stream, headers } = await UsersApi.download({ platform: "android" }, { stream: true });
+const total = Number(headers.get("content-length")) || 0;
+const reader = stream.getReader();
+let received = 0;
+for (;;) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  received += value.byteLength;
+  // value is a Uint8Array chunk — write it to disk immediately
+  if (total) console.log(`${Math.round((received / total) * 100)}%`);
+}
+```
+
+Streaming bypasses the cache (cached responses are always buffered JSON).
+
 ## **WebSockets**
 
 On the server, socket listeners are registered through the `Server` instance (`server.on(event, callback)`) or inside a controller via the injected `this.socket` context. On the client, use the exported `Socket` class.

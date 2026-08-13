@@ -11,8 +11,7 @@ const global = /** @type {any} */ globalThis;
  * @template {((args: Record<string, any>) => any)} Callback
  * @typedef {((
  *   args?: Optional<Parameters<Callback>[0]>,
- *   controller?: AbortController,
- *   options?: { cache?: false | { force?: boolean } }
+ *   options?: { controller?: AbortController; stream?: boolean; cache?: false | { force?: boolean } }
  * ) => Promise<Awaited<ReturnType<Callback>>>) & {
  *   url: (args?: Optional<Parameters<Callback>[0]>) => string,
  *   invalidate?: ((key?: Optional<Parameters<Callback>[0]>) => Promise<void>) & { all?: () => Promise<void> }

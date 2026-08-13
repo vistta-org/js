@@ -938,6 +938,7 @@ class Server {
     if (response.writableEnded || response.headersSent) return;
     const stream = fs.createReadStream(filepath);
     const headers = defaultHeaders(request, response, type);
+    headers["Content-Length"] = fs.statSync(filepath).size;
     response.statusCode = 200;
     response.writeHead(response.statusCode, headers);
     stream.pipe(response);
