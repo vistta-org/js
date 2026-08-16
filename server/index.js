@@ -244,7 +244,8 @@ class Server {
               req.__options = options;
               if (!options.preservePathname) req.url = removeFromPathname(req.url, pathname + "*");
               this.#proxy.web(req, res, options, (error) => {
-                throw new Error(error);
+                this.#emit("error", error?.stack || error?.message || error);
+                if (!res.writableEnded) this.#send(req, res, 502, error?.message || "Bad Gateway");
               });
             }),
           );
@@ -545,6 +546,13 @@ class Server {
       const { target, pathname, preservePathname } = req.__options;
       if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && location?.startsWith(target)) {
         proxyRes.headers.location = ((!preservePathname ? pathname : "") + location.replace(target, "")).replace("//", "/");
+      }
+    });
+    this.#proxy.on("error", (error, req, res) => {
+      this.#emit("error", error?.stack || error?.message || error);
+      if (res && !res.writableEnded) {
+        res.writeHead(502, { "Content-Type": "text/plain" });
+        res.end(error?.message || "Bad Gateway");
       }
     });
     if (start !== false) this.start();

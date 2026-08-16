@@ -247,6 +247,7 @@ class VirtualDom {
           const previous = existing.element;
           previous.parent = parent;
           previous.context = context;
+          if (element.instance) Ref.assign(element.instance, previous.component);
           if (previous.component) {
             const keys = Object.keys(element.props || {});
             for (let i = 0, len = keys.length; i < len; i++) {
@@ -299,6 +300,7 @@ class VirtualDom {
       }
       if (hasKey) parent.keys[element.key] = { type: element.Component, element };
       element.component = component;
+      if (element.instance) Ref.assign(element.instance, component);
       element.attributes = {};
       const mutation = new Mutation(() => component.render());
       const internal = INTERNAL_COMPONENTS.has(element.Component);

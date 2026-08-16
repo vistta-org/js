@@ -639,6 +639,20 @@ export default class Example extends Component {
 }
 ```
 
+### `instance`
+
+The `instance` prop is the component counterpart of `ref`: instead of returning the DOM node, it returns the component instance. It accepts a callback (`(instance) => ...`) or an object ref (assigned to `.component`). The instance is available immediately after the component is constructed, before `onConnect`.
+
+```jsx
+import { Component, Ref } from "@vistta/js";
+
+export default class Example extends Component {
+  render() {
+    return <Dropdown instance={(dropdown) => (this.dropdown = dropdown)} />;
+  }
+}
+```
+
 ### `Form`
 
 `Form` helps with nested forms, collecting values, and validation.

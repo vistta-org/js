@@ -10,6 +10,7 @@ declare const React: object;
 interface Element {
   key?: string;
   ref?: any;
+  instance?: any;
   scope?: string;
 }
 

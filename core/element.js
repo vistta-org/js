@@ -21,6 +21,15 @@ export class Element {
       this.type = Component.Node;
       this.props.children = children;
       this.Component = type;
+      if (props?.["instance"] != null) {
+        if (props["instance"] instanceof Mutation) {
+          const prev = Mutation.current;
+          Mutation.current = null;
+          this.instance = props["instance"]();
+          Mutation.current = prev;
+        } else this.instance = props["instance"];
+        delete this.props.instance;
+      }
     } else if (typeOf !== "string" && typeOf !== "symbol") this.type = null;
     else {
       if (props?.["ref"] != null) {
