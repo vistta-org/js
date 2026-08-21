@@ -41,7 +41,7 @@ function transformElement(code) {
   let tagName = "";
   let props = "";
   let children = "";
-  const context = { progress: 0, depth: 0, wasExpression: false };
+  const context = { progress: 0, depth: 0, wasExpression: false, comment: null };
   let i = 1;
   let done = false;
   while (!done && i < len) {
@@ -55,7 +55,11 @@ function transformElement(code) {
       } else if (!isWhitespace(code[i])) tagName += code[i];
       else ((context.progress = 1), (context.prop = ""));
     } else if (context.progress == 1) {
-      if (code[i] === "/" && code[i + 1] === ">") {
+      if (context.comment === "line") {
+        if (code[i] === "\n") context.comment = null;
+      } else if (context.comment === "block") {
+        if (code[i] === "*" && code[i + 1] === "/") ((context.comment = null), i++);
+      } else if (code[i] === "/" && code[i + 1] === ">") {
         end = i + 2;
         if (context.prop !== "") props += `"${context.prop}": true, `;
         done = true;
@@ -63,6 +67,16 @@ function transformElement(code) {
         context.progress = 2;
         context.child = "";
         if (context.prop !== "") props += `"${context.prop}": true, `;
+      } else if (code[i] === "/" && code[i + 1] === "/") {
+        if (context.prop !== "") props += `"${context.prop}": true, `;
+        context.prop = "";
+        context.comment = "line";
+        i++;
+      } else if (code[i] === "/" && code[i + 1] === "*") {
+        if (context.prop !== "") props += `"${context.prop}": true, `;
+        context.prop = "";
+        context.comment = "block";
+        i++;
       } else if (code[i] === "=") {
         if (!context.prop || context.prop === "") return [];
         const [value, propsEnd, isQuote] = transformProps(code.slice(i + 1));
