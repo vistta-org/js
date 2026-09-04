@@ -753,6 +753,23 @@ export default class Page extends Component {
 
 The component is fetched on demand and renders once the import resolves.
 
+### `requestNextMutation`
+
+Schedules a callback to run after the virtual DOM has applied all mutations queued before it. The callback is enqueued as a mutation and defers via `requestAnimationFrame`, so it always runs in a frame after the pending batch's DOM writes — including batches split across frames by the render budget — without interleaving layout reads with DOM writes. This makes it a safer replacement for `requestAnimationFrame` when doing imperative work that depends on the updated DOM (e.g. measuring `scrollHeight`, scrolling containers, focusing inputs):
+
+```jsx
+import { Component, requestNextMutation } from "@vistta/js";
+
+export default class Example extends Component {
+  onAdd() {
+    this.items = [...this.items, newItem];
+    requestNextMutation(() => this.container.scrollTo({ top: this.container.scrollHeight }));
+  }
+}
+```
+
+Note: the callback runs in its own rAF callback, so an uncaught error in it does not affect the mutation queue. No-op on the server.
+
 ### `VirtualContainer`
 
 `VirtualContainer` supports two rendering modes:

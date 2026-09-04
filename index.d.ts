@@ -131,7 +131,7 @@ export {
   Suspense,
   VirtualContainer,
 } from "./core/classes.js";
-
+export { requestNextMutation } from "./core/dom.js";
 export {
   Anchor,
   Clipboard,

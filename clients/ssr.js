@@ -11,7 +11,8 @@ import {
   Safe,
   Suspense,
   VirtualContainer,
-} from "../core/classes";
+} from "../core/classes.js";
+import { requestNextMutation } from "../core/dom.js";
 import { Router, routes } from "../core/router.js";
 import { Socket } from "../core/socket.js";
 import {
@@ -55,6 +56,7 @@ const vistta = {
   Suspense,
   ThemeContext,
   VirtualContainer,
+  requestNextMutation,
 };
 
 defineReadonly(window, "vistta", vistta);

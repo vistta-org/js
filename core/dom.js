@@ -27,6 +27,7 @@ class VirtualDomError extends Error {
 }
 let frameBudget = 8;
 let lastFrameTime = 0;
+let active;
 
 class VirtualDom {
   active = false;
@@ -48,6 +49,7 @@ class VirtualDom {
 
   render(element) {
     this.active = true;
+    active = this;
     this.running = true;
     const host = {
       type: VirtualDom,
@@ -126,12 +128,14 @@ class VirtualDom {
       element.component?.onDisconnect?.();
     });
     this.active = false;
+    active = null;
     this.running = false;
   }
 
   enable() {
     if (!this.virtualTree) throw new VirtualDomError("Virtual Dom not rendered");
     this.active = true;
+    active = this;
     this.running = true;
     traverseVirtualTree(this.virtualTree, (element) => {
       if (element.mutations) for (const mutation of element.mutations) this.enableMutation(mutation);
@@ -763,6 +767,16 @@ class VirtualDom {
       Mutation.current = previousMutation;
     }
   }
+}
+
+/**
+ * Requests a callback function to be executed during the next mutation cycle.
+ * @param {Function} callback - The function to be executed during the next mutation cycle.
+ * @returns {void} - This function does not return a value.
+ */
+export function requestNextMutation(/** @type {any} */ callback) {
+  if (active && active.queue.length > 0) active.enqueue([{ update: () => requestAnimationFrame(callback) }]);
+  else requestAnimationFrame(callback);
 }
 
 export { VirtualDom };
