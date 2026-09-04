@@ -209,8 +209,7 @@ export class Form extends Component {
         ref: Ref.forward(this.ref, (element) => {
           if (this.#parent || !element) return;
           this.#node = element;
-          if (this.context) this.context.form = element;
-          Object.assign(element, {
+          const form = {
             watch: (arg1, arg2) => this.watch(arg1, arg2),
             unwatch: (arg1, arg2) => this.unwatch(arg1, arg2),
             changed: (name) => this.changed(name),
@@ -221,7 +220,9 @@ export class Form extends Component {
             values: () => this.values(),
             field: (name) => this.field(name),
             validate: (name) => this.validate(name),
-          });
+          };
+          if (this.context) this.context.form = form;
+          Object.assign(element, form);
         }),
         onreset: () => this.reset(),
         onsubmit: (event) => {
