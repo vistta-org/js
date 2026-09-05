@@ -8,7 +8,8 @@
     ".": "./index.js",
     "./global": "./global.d.ts",
     "./server": "./server/index.js",
-    "./loader": "./cli/default.js",
+    "./cli": "./cli/index.js",
+    "./cli/loaders": "./cli/loaders/index.js",
     "./config": "./tsconfig.json",
     "./builder": "./builder.js"
   },
