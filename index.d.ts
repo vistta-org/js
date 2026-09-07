@@ -24,6 +24,40 @@ export type ContextProxyListener = {
 
 export type ContextActionStatus = "pending" | "completed" | "rejected";
 
+/**
+ * A callable reactive unit. `prop()`/`child()` create renderer-internal DOM
+ * mutations; `new Mutation(factory, ...args)` creates a cached reactive value
+ * re-derived when an input changes or `.update()` is called.
+ */
+export interface Mutation<Value = any> {
+  /**
+   * Evaluates the mutation: returns the cached value (recomputing when
+   * dirty), applying call arguments to a function-valued result.
+   */
+  (...callArgs: any[]): Value;
+  /**
+   * Re-derives the value, optionally replacing its inputs. A bare call
+   * refreshes with the current inputs.
+   */
+  update(...args: any[]): void;
+}
+
+export interface MutationConstructor {
+  /**
+   * The mutation currently capturing reactive reads.
+   */
+  current: Mutation | null;
+  /**
+   * Creates a standalone reactive value derived from explicit inputs.
+   *
+   * @param factory - Derives the value from the given inputs.
+   * @param args - Initial inputs, replaceable via `.update(...)`.
+   */
+  new <Value = any>(factory: (...args: any[]) => Value, ...args: any[]): Mutation<Value>;
+}
+
+export const Mutation: MutationConstructor;
+
 export interface Context<
   Value extends Record<string, any> = Record<string, any>,
   Actions extends ContextActions<Value> = ContextActions<Value>,

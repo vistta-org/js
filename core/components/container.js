@@ -1,6 +1,6 @@
 import { Component } from "../component.js";
 import { Element } from "../element.js";
-import { Mutation } from "../mutation.js";
+import { createDomMutation } from "../mutation.js";
 import { spreadProps } from "../props.js";
 import { Ref } from "../ref.js";
 
@@ -112,7 +112,7 @@ export class VirtualContainer extends Component {
           {
             ref: this.#inner,
           },
-          new Mutation(() => (this.#update(), this.visible)),
+          createDomMutation(() => (this.#update(), this.visible)),
         ),
       );
 
@@ -122,7 +122,7 @@ export class VirtualContainer extends Component {
         ref: Ref.forward(this.ref, this.#container),
         ...spreadProps(() => this.props(...VIRTUAL_CONTAINER_HANDLED_PROPS)),
       },
-      new Mutation(() => this.visible && this.children),
+      createDomMutation(() => this.visible && this.children),
     );
   }
 }

@@ -9,14 +9,14 @@ export { Fragment, TextNode } from "./symbols.js";
 
 import { defineReadonly } from "../utils/index.js";
 import { Element } from "./element.js";
-import { Mutation } from "./mutation.js";
+import { createDomMutation } from "./mutation.js";
 import { spreadProps } from "./props.js";
 import { Fragment } from "./symbols.js";
 
 // Global
 
 defineReadonly(window, "Fragment", Fragment);
-defineReadonly(window, "prop", (caller) => new Mutation(caller));
-defineReadonly(window, "child", (caller) => new Mutation(caller));
+defineReadonly(window, "prop", (caller) => createDomMutation(caller));
+defineReadonly(window, "child", (caller) => createDomMutation(caller));
 defineReadonly(window, "spread", spreadProps);
 defineReadonly(window, "element", (type, props, ...children) => new Element(type, props, ...children));

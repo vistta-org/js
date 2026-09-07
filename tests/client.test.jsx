@@ -196,6 +196,71 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(total.innerText).toEqual("42");
   });
 
+  await test("Mutation: Computed Args", async () => {
+    await document.mount(basic.ComputedMutation);
+    const greeting = document.querySelector("#greeting");
+    const derived = document.querySelector("#derived");
+
+    expect(greeting.innerText).toEqual("Hello");
+    expect(derived.innerText).toEqual("HELLO");
+
+    await document.querySelector("#lang-pt").click();
+    expect(greeting.innerText).toEqual("Olá");
+    expect(derived.innerText).toEqual("OLÁ");
+
+    await document.querySelector("#lang-en").click();
+    expect(greeting.innerText).toEqual("Hello");
+    expect(derived.innerText).toEqual("HELLO");
+  });
+
+  await test("Mutation: Computed Lifecycle", async () => {
+    await document.mount(basic.ComputedLifecycle);
+    const toggle = document.querySelector("#toggle");
+    const bump = document.querySelector("#bump");
+
+    // Laziness: with no readers, .update() must not evaluate the factory.
+    await bump.click();
+    expect(basic.getComputedSourceCalls()).toEqual(0);
+
+    await toggle.click();
+    let output = document.querySelector("#output");
+    expect(output.innerText).toEqual("1");
+    expect(basic.getComputedSourceCalls()).toEqual(1);
+
+    await bump.click();
+    expect(output.innerText).toEqual("2");
+
+    // Unmount the reader.
+    await toggle.click();
+    expect(document.querySelector("#output")).toEqual(null);
+
+    // Unsubscribed: .update() must not evaluate the factory.
+    await bump.click();
+    expect(basic.getComputedSourceCalls()).toEqual(2);
+
+    // Re-mount (keyed reuse): nodes are restored as-is, subscription re-enabled.
+    await toggle.click();
+    output = document.querySelector("#output");
+    expect(output.innerText).toEqual("2");
+
+    await bump.click();
+    expect(output.innerText).toEqual("3");
+    expect(basic.getComputedSourceCalls()).toEqual(3);
+  });
+
+  await test("Mutation: Computed Raw Render", async () => {
+    await document.mount(basic.ComputedRawRender);
+    const raw = document.querySelector("#raw");
+    const wrapped = document.querySelector("#wrapped");
+
+    expect(raw.innerText).toEqual(TEXT_VALUE);
+    expect(wrapped.innerText).toEqual(TEXT_VALUE);
+
+    await document.querySelector("#refresh").click();
+    expect(raw.innerText).toEqual(TEXT_UPDATE_VALUE);
+    expect(wrapped.innerText).toEqual(TEXT_UPDATE_VALUE);
+  });
+
   await test("Basic: Ref", async () => {
     await document.mount(basic.RefExample);
 

@@ -1,4 +1,4 @@
-import { Component, Context, Ref } from "@vistta/js";
+import { Component, Context, Mutation, Ref } from "@vistta/js";
 import { TEXT_UPDATE_VALUE, TEXT_VALUE, TIMEOUT } from "../defaults.js";
 
 export class ComponentLifecycle extends Component {
@@ -257,6 +257,83 @@ export class RefExample extends Component {
     );
   }
 }
+
+const language = new Context("computed_language_test", { value: "en" });
+const labels = new Mutation(
+  (lang) => (key) => ({ en: { greeting: "Hello" }, pt: { greeting: "Olá" } })[lang][key] ?? "",
+  "en",
+);
+const derived = new Mutation(() => /** @type {any} */ (labels("greeting")).toUpperCase());
+
+export class ComputedMutation extends Component {
+  render() {
+    return (
+      <>
+        <button id="lang-pt" onClick={() => labels.update("pt")}>
+          pt
+        </button>
+        <button id="lang-en" onClick={() => labels.update("en")}>
+          en
+        </button>
+        <p id="greeting">{labels("greeting")}</p>
+        <p id="derived">{derived()}</p>
+      </>
+    );
+  }
+}
+
+let sourceCalls = 0;
+const sourceValue = new Mutation(() => ++sourceCalls);
+
+export function getComputedSourceCalls() {
+  return sourceCalls;
+}
+
+export class ComputedLifecycle extends Component {
+  toggle = false;
+
+  render() {
+    return (
+      <>
+        <button id="toggle" onClick={() => (this.toggle = !this.toggle)}>
+          toggle
+        </button>
+        <button id="bump" onClick={() => sourceValue.update()}>
+          bump
+        </button>
+        {this.toggle && <ComputedLifecycleChild key="child" />}
+      </>
+    );
+  }
+}
+
+class ComputedLifecycleChild extends Component {
+  render() {
+    return <p id="output">{sourceValue()}</p>;
+  }
+}
+
+let rawValue = TEXT_VALUE;
+const rawComputed = new Mutation(() => rawValue);
+
+export class ComputedRawRender extends Component {
+  render() {
+    return (
+      <>
+        <button
+          id="refresh"
+          onClick={() => {
+            rawValue = TEXT_UPDATE_VALUE;
+            rawComputed.update();
+          }}
+        />
+        <span id="raw">{rawComputed}</span>
+        <span id="wrapped">{rawComputed()}</span>
+      </>
+    );
+  }
+}
+
 const contextBasic = new Context("context_basic_test", { counter: 0 });
 export class ContextBasic extends Component {
   context = contextBasic();

@@ -1,4 +1,4 @@
-import { Mutation } from "./mutation.js";
+import { createDomMutation, Mutation } from "./mutation.js";
 
 export function spreadProps(caller) {
   const previous = Mutation.current;
@@ -13,7 +13,7 @@ export function spreadProps(caller) {
   const keys = Object.keys(obj);
   for (let i = 0, len = keys.length; i < len; i++) {
     const key = keys[i];
-    result[key] = new Mutation(() => caller()[key]);
+    result[key] = createDomMutation(() => caller()[key]);
   }
   return result;
 }

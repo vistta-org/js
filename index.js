@@ -6,6 +6,7 @@ export {
   Element,
   Form,
   Fragment,
+  Mutation,
   Profiler,
   Ref,
   Render,

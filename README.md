@@ -513,6 +513,31 @@ export default class Example extends Component {
 
 The computed value is accessed directly as a property — no `.value` needed. It re-evaluates only when one of its reactive dependencies fires. Getters that return a `Promise` are excluded from memoization to preserve async/Suspense behavior.
 
+#### Mutation (Reactive Values)
+
+`Mutation` is the framework's unit of recalculation — and also a standalone reactive value you can create outside components. `new Mutation(factory, ...args)` wraps a factory with initial inputs; the value is computed lazily on first read, cached, and re-derived when you call `.update(...)`:
+
+```js
+import { Mutation } from "@vistta/js";
+
+const labels = new Mutation((language) => (key) => DATA[key][language], "en");
+
+labels("greeting"); // "Hello"
+labels.update("pt");
+labels("greeting"); // "Olá"
+```
+
+Behavior:
+
+- **Lazy + cached**: the factory runs on first read and only re-runs when dirty. Repeated reads return the cached value.
+- **Call-through**: calling with arguments applies them to the value when it is a function (as above, where the value is a translator function).
+- **`.update(...args)`**: replaces the inputs, re-derives, and re-runs exactly the DOM expressions that read the value — component renders, `{...}` children, and attribute expressions update on the next frame. A bare `.update()` refreshes with the current inputs without wiping them.
+- **Reactive inputs**: reactive reads inside the factory (Contexts, component properties, other Mutations) are tracked — the value re-derives when they change, without `.update()`.
+- **Derived values**: a Mutation whose factory reads another Mutation re-derives when its input does.
+- **Renderable values**: a Mutation returning a primitive/Element/array/object can be used directly as a JSX child. If the value is a function, call it in the expression (`{labels("greeting")}`).
+
+The renderer-internal mutations behind `prop()`/`child()` expressions are the same class, created through a package-internal path — the public constructor always creates a reactive value.
+
 #### Keys
 
 The `key` prop preserves component identity across renders. When a keyed component is conditionally removed and later re-added, its full state (instance fields, input values, scroll position, etc.) is restored — effectively providing "keep-alive" behavior without a dedicated API.

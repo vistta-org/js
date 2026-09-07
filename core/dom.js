@@ -13,6 +13,20 @@ import {
   Suspense,
   TextNode,
 } from "./classes.js";
+import {
+  createDomMutation,
+  getMutationCallback,
+  getMutationDomUpdate,
+  getMutationElementUpdate,
+  getMutationTracked,
+  isMutationDisabled,
+  setMutationCallback,
+  setMutationDisabled,
+  setMutationDomUpdate,
+  setMutationElementUpdate,
+  setMutationScheduler,
+  setMutationTracked,
+} from "./mutation.js";
 import { Style, VirtualStyleSheet } from "./stylesheet.js";
 
 const STRICT_MODE = new Error("Event strict mode active");
@@ -28,6 +42,8 @@ class VirtualDomError extends Error {
 let frameBudget = 8;
 let lastFrameTime = 0;
 let active;
+
+setMutationScheduler((mutations) => active?.enqueue(mutations));
 
 class VirtualDom {
   active = false;
@@ -100,7 +116,10 @@ class VirtualDom {
       const mutation = this.queue[index++];
       this.queued.delete(mutation);
       processed++;
-      mutation.update?.(components, profilers);
+      if (mutation instanceof Mutation) {
+        getMutationDomUpdate(mutation)?.(components, profilers);
+        getMutationElementUpdate(mutation)?.(components, profilers);
+      } else /** @type {any} */ (mutation).update?.(components, profilers);
       if ((processed & (BUDGET_CHECK_INTERVAL - 1)) === 0 && performance.now() - startTime > frameBudget) {
         this.queueStart = index;
         if (this.queueStart > 1024 && this.queueStart * 2 >= this.queue.length) {
@@ -264,7 +283,7 @@ class VirtualDom {
               if (nextProp instanceof Mutation) {
                 const prev = previous.props[key];
                 if (prev instanceof Mutation && prev !== nextProp) {
-                  prev.callback = nextProp.callback;
+                  setMutationCallback(prev, getMutationCallback(nextProp));
                   this.enqueue([prev]);
                 }
                 continue;
@@ -306,7 +325,7 @@ class VirtualDom {
       element.component = component;
       if (element.instance) Ref.assign(element.instance, component);
       element.attributes = {};
-      const mutation = new Mutation(() => component.render());
+      const mutation = createDomMutation(() => component.render());
       const internal = INTERNAL_COMPONENTS.has(element.Component);
       if (element.Component === Profiler && "production" !== process.env.NODE_ENV) context.profiler = component;
       else if (element.Component === Form) {
@@ -370,7 +389,8 @@ class VirtualDom {
                 const parent = !partOfArray && path.substring(0, path.lastIndexOf("."));
                 if (parent && mutations[parent]) {
                   mutations[parent].delete(current);
-                  if (current.tracked) current.tracked.delete(mutations[parent]);
+                  const tracked = getMutationTracked(current);
+                  if (tracked) tracked.delete(mutations[parent]);
                 }
                 if (!mutations[path]) mutations[path] = new Set();
                 this.trackMutation(current, mutations[path]);
@@ -454,12 +474,12 @@ class VirtualDom {
           let cached;
           let dirty = true;
           let computing = false;
-          const tracker = new Mutation(callback);
-          tracker.update = () => {
+          const tracker = createDomMutation(callback);
+          setMutationDomUpdate(tracker, () => {
             if (computing) return;
             dirty = true;
             if (dependents.size > 0) this.enqueue(dependents);
-          };
+          });
           const compute = () => {
             computing = true;
             const previousMutation = Mutation.current;
@@ -475,7 +495,8 @@ class VirtualDom {
           compute();
           // @ts-ignore
           if (cached instanceof Promise) {
-            if (tracker.tracked) for (const set of tracker.tracked) set.delete(tracker);
+            const tracked = getMutationTracked(tracker);
+            if (tracked) for (const set of tracked) set.delete(tracker);
             continue;
           }
           element.mutations.add(tracker);
@@ -577,7 +598,7 @@ class VirtualDom {
       for (let i = 0, len = keys.length; i < len; i++) {
         const prop = props[keys[i]];
         if (prop instanceof Mutation && element.props[keys[i]] !== prop) {
-          element.props[keys[i]].callback = prop.callback;
+          setMutationCallback(element.props[keys[i]], getMutationCallback(prop));
           this.enqueue([element.props[keys[i]]]);
         }
       }
@@ -684,9 +705,9 @@ class VirtualDom {
   }
 
   applyMutation({ element, mutation, init, update }) {
-    mutation.disabled = undefined;
-    mutation.update = (components, profilers) => {
-      if (mutation.disabled) return;
+    setMutationDisabled(mutation, undefined);
+    setMutationElementUpdate(mutation, (components, profilers) => {
+      if (isMutationDisabled(mutation)) return;
       const previousMutation = Mutation.current;
       Mutation.current = mutation;
       try {
@@ -716,7 +737,7 @@ class VirtualDom {
       } finally {
         Mutation.current = previousMutation;
       }
-    };
+    });
     const previousMutation = Mutation.current;
     Mutation.current = mutation;
     try {
@@ -741,21 +762,24 @@ class VirtualDom {
   }
 
   trackMutation(mutation, set) {
-    if (!mutation.tracked) mutation.tracked = new Set();
-    mutation.tracked.add(set);
+    let tracked = getMutationTracked(mutation);
+    if (!tracked) setMutationTracked(mutation, (tracked = new Set()));
+    tracked.add(set);
     set.add(mutation);
   }
 
   enableMutation(mutation) {
-    if (!mutation.tracked) return;
-    mutation.disabled = undefined;
-    for (const set of mutation.tracked) set.add(mutation);
+    const tracked = getMutationTracked(mutation);
+    if (!tracked) return;
+    setMutationDisabled(mutation, undefined);
+    for (const set of tracked) set.add(mutation);
   }
 
   disableMutation(mutation) {
-    if (!mutation.tracked) return;
-    mutation.disabled = true;
-    for (const set of mutation.tracked) set.delete(mutation);
+    const tracked = getMutationTracked(mutation);
+    if (!tracked) return;
+    setMutationDisabled(mutation, true);
+    for (const set of tracked) set.delete(mutation);
   }
 
   preventMutation(callback) {
