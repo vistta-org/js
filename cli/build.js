@@ -49,7 +49,6 @@ export default class BuildCommand extends DefaultCommand {
       type: buildApp ? "app" : "web",
       output: buildApp ? fs.resolve(buildDir, "www") : outputDir,
       config: assign(
-        options.setup ? (await (await import(fs.resolve(process.cwd(), options.setup))).default?.()) || {} : {},
         buildApp
           ? {
               csp: {
@@ -59,6 +58,7 @@ export default class BuildCommand extends DefaultCommand {
               },
             }
           : {},
+        options.setup ? (await (await import(fs.resolve(process.cwd(), options.setup))).default?.()) || {} : {},
       ),
     });
     if (buildApp) {

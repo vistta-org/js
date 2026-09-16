@@ -57,7 +57,6 @@ export default class extends DefaultCommand {
       type: "app",
       output: fs.resolve(buildDir, "www"),
       config: assign(
-        options.setup ? (await (await import(fs.resolve(process.cwd(), options.setup))).default?.()) || {} : {},
         {
           csp: {
             "default-src": "ipc: http://ipc.localhost",
@@ -65,6 +64,7 @@ export default class extends DefaultCommand {
             "img-src": "data: http: https:",
           },
         },
+        options.setup ? (await (await import(fs.resolve(process.cwd(), options.setup))).default?.()) || {} : {},
       ),
     });
     config.platform = target;
