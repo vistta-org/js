@@ -683,7 +683,7 @@ class Server {
                 socket,
               }),
             );
-            if (!response.writableEnded) response.send(value);
+            if (!response.writableEnded && !response.rejected) response.send(value);
           } catch (e) {
             this.#emit("error", e?.stack || e?.message || e);
             response.reject(e.message || "Internal Server Error", 500);
@@ -784,7 +784,10 @@ class Server {
             break;
         }
       };
-      response.reject = (message, code) => this.#reject(request, response, message, code);
+      response.reject = (message, code) => {
+        response.rejected = true;
+        return this.#reject(request, response, message, code);
+      };
       response.redirect = (url, permanent) => {
         if (response.writableEnded || response.headersSent) return;
         response.statusCode = 301;
@@ -798,7 +801,7 @@ class Server {
         typeof content === "object" && !Buffer.isBuffer(content)
           ? this.#send(request, response, 200, stringify(content), type || "application/json")
           : this.#send(request, response, 200, content, type);
-      response.sendFile = (filepath, type) => this.#sendFile(request, response, filepath, type);
+      response.sendFile = (filepath, type, options) => this.#sendFile(request, response, filepath, type, options);
       const middleware = matchRoute(this.#subdomains[request.subdomain]?.middleware, request.pathname, { exact: false });
       if (middleware) middleware.handler(request, response, () => this.#resolve(request, response));
       else this.#resolve(request, response);
@@ -942,15 +945,20 @@ class Server {
     }
   }
 
-  #sendFile(request, response, filepath, type) {
+  #sendFile(request, response, filepath, type, options = {}) {
     if (response.writableEnded || response.headersSent) return;
-    const stream = fs.createReadStream(filepath);
-    const headers = defaultHeaders(request, response, type);
-    headers["Content-Length"] = fs.statSync(filepath).size;
-    response.statusCode = 200;
+    const info = fs.statSync(filepath);
+    const ranged = options.start != null || options.end != null;
+    const start = options.start ?? 0;
+    const end = options.end ?? info.size - 1;
+    const stream = ranged ? fs.createReadStream(filepath, { start, end }) : fs.createReadStream(filepath);
+    const headers = Object.assign(defaultHeaders(request, response, type), options.headers || {});
+    headers["Content-Length"] = ranged ? Math.max(0, end - start + 1) : info.size;
+    response.statusCode = options.statusCode || 200;
     response.writeHead(response.statusCode, headers);
     stream.pipe(response);
-    stream.on("error", () => {
+    stream.on("error", (error) => {
+      if (response.headersSent) return response.destroy(error);
       response.statusCode = 500;
       response.writeHead(response.statusCode, headers);
       response.end("500 Internal Server Error");
@@ -1068,10 +1076,13 @@ function getRequestBody(request) {
     const onEnd = () => {
       cleanup();
       let body = Buffer.concat(chunks, size);
-      try {
-        body = body.toString() ? JSON.parse(body.toString()) : body;
-      } catch {
-        /* Return as raw if not JSON */
+      const contentType = request.headers["content-type"]?.split(";", 1)[0].trim().toLowerCase();
+      if (contentType !== "application/octet-stream") {
+        try {
+          body = body.toString() ? JSON.parse(body.toString()) : body;
+        } catch {
+          /* Return as raw if not JSON. */
+        }
       }
       resolve(body);
     };

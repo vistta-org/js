@@ -927,8 +927,13 @@ function removeNode(parent, node) {
     parent = parent.parent;
   }
   parent = node.parentNode === parent.node ? parent.node : node.parentNode;
-  if (!node.getAnimations || !node.setAttribute || !node.element.context["exiting-style"]) return parent?.removeChild(node);
-  Style.waitForExit(node).then(() => parent?.removeChild(node));
+  if (!node.getAnimations || !node.setAttribute || !node.element.context["exiting-style"]) {
+    if (parent && node.parentNode === parent) parent.removeChild(node);
+    return;
+  }
+  Style.waitForExit(node).then(() => {
+    if (parent && node.parentNode === parent) parent.removeChild(node);
+  });
 }
 
 function traverseVirtualTree(element, callback) {

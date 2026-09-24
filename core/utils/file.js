@@ -34,7 +34,7 @@ export class File {
       element.addEventListener("change", () => {
         const result = options?.multiple ? element.files : element.files[0];
         resolve(/** @type {any} */ (result));
-        document.body.removeChild(element);
+        element.remove();
       });
       element.click();
     });
