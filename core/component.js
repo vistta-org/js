@@ -38,4 +38,12 @@ export class Component {
       enumerable: false,
     });
   }
+
+  /**
+   * Renders the component.
+   * @returns {JSX.Element | null} The rendered output of the component.
+   */
+  render() {
+    return null;
+  }
 }
