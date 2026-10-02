@@ -1,11 +1,11 @@
-import { TestRunner } from "@vistta/cli";
-import router from "../app/router.js";
+import { TestRunner } from "@vistta/cli/test-runner";
 import {
   Component,
   Context,
   Element,
   Form,
   Fragment,
+  Mutation,
   Profiler,
   Ref,
   Render,
@@ -14,7 +14,8 @@ import {
   VirtualContainer,
 } from "../core/classes.js";
 import { VirtualDom } from "../core/dom.js";
-import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils.js";
+import { Router as router } from "../core/router.js";
+import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils/index.js";
 import { defineReadonly, sleep } from "../utils/index.js";
 
 /** @type {any} */ (window).platform = "desktop";
@@ -29,6 +30,7 @@ const vistta = {
   Element,
   Context,
   Ref,
+  Mutation,
   Component,
   Suspense,
   VirtualContainer,
@@ -65,8 +67,7 @@ defineReadonly(document, "mount", async (content, props = {}, config = {}) => {
   await sleep(FEEDBACK_TIMEOUT);
   return dom;
 });
-if (process.env.NODE_DEBUG === "true")
-  defineReadonly(window, "requestAnimationFrame", (callback) => setTimeout(callback, 1));
+if (globalThis.testOptions.debug) defineReadonly(window, "requestAnimationFrame", (callback) => setTimeout(callback, 1));
 
 const consoleLevels = ["log", "info", "warn", "error", "debug"];
 const originalConsole = {};
@@ -136,4 +137,5 @@ HTMLElement.prototype.click = async function () {
 
 sleep(FEEDBACK_TIMEOUT)
   .then(() => runner.run())
-  .then((results) => ipc.send("test-results", results));
+  .then((results) => ipc.send("test-results", results))
+  .catch((error) => ipc.send("test-error", error?.stack || String(error)));
