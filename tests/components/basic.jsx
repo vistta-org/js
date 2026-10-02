@@ -78,6 +78,12 @@ export class ListRender extends Component {
         >
           sort
         </button>
+        <button id="removeLast" onClick={() => (this.list = this.list.slice(0, -1))}>
+          remove last
+        </button>
+        <button id="addLast" onClick={() => (this.list = [...this.list, 5])}>
+          add last
+        </button>
         <div id="containerWithoutKeys">
           {this.list.map((value) => (
             <input value={value} />
@@ -85,7 +91,7 @@ export class ListRender extends Component {
         </div>
         <div id="containerWithKeys">
           {this.list.map((value) => (
-            <input key={"input-" + value} value={value} />
+            <input key={"input-" + value} value={value} style={{ ":exit": { opacity: "0" } }} />
           ))}
         </div>
       </>

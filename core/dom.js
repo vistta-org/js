@@ -647,7 +647,7 @@ class VirtualDom {
         const child = element.children[i];
         const lastNode = child.node || child.lastNode;
         if (lastNode && lastNode.nextSibling !== referenceNode) {
-          removeElement(child);
+          transferElementToFragment(this.createElement("fragment"), child);
           appendElement(element, child, referenceNode);
         }
       }

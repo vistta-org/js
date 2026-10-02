@@ -85,6 +85,14 @@ suite("VisttaJS Client Unit Tests", async () => {
     await sort.click();
     expect(document.querySelector(firstSelectorWithoutKey).value).toEqual("1");
     expect(document.querySelector(firstSelectorWithKey).value).toEqual(TEXT_UPDATE_VALUE);
+
+    await document.querySelector("#removeLast").click();
+    expect(document.querySelectorAll("#containerWithKeys > input").length).toEqual(4);
+    expect(document.querySelector(firstSelectorWithKey).value).toEqual(TEXT_UPDATE_VALUE);
+
+    await document.querySelector("#addLast").click();
+    expect(document.querySelectorAll("#containerWithKeys > input").length).toEqual(5);
+    expect(document.querySelector(firstSelectorWithKey).value).toEqual(TEXT_UPDATE_VALUE);
   });
 
   await test("Basic: Promises", async () => {
