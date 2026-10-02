@@ -18,9 +18,9 @@ Vistta.js is a convention-driven JavaScript framework for building web (SSR + hy
 - **Error boundaries & forms**: `Safe` error boundary, `Form` value collection + validation.
 - **Virtual lists**: `VirtualContainer` with virtual scroll (renders only visible rows) and lazy render (IntersectionObserver) modes.
 - **CSS-in-JS styling**: built-in style engine via the `style` prop (string/object/array) with enter/exit transitions (`:initial`/`:exit`), plus optional `@vistta/ui` presets, plus a CSS loader that converts `.css` into style objects.
-- **Mobile & Desktop apps**: build native apps for Android, Linux, and Windows from the same codebase with client-side routing via a generated route manifest. Requires `@vistta/js-runtime`.
+- **Mobile & Desktop apps**: build native apps for Android, Linux, and Windows from the same codebase with client-side routing via a generated route manifest. Requires `@vistta/js-native`.
 - **Platform detection**: `window.platform` global (one of `"server"`, `"browser"`, `"mobile"`, `"desktop"`) for cross-platform code.
-- **Native helpers**: `Clipboard`, `Haptics`, `Notification`, `Scheduler`, and `File` utilities that adapt per platform (native via `@vistta/js-runtime/plugins`, Web APIs on browser, no-op on server).
+- **Native helpers**: `Clipboard`, `Haptics`, `Notification`, `Scheduler`, and `File` utilities that adapt per platform (native via `@vistta/js-native/plugins`, Web APIs on browser, no-op on server).
 - **CLI + loaders**: works with `@vistta/cli` (bundler/loaders like `api`) and enables extra commands (`serve`, `build`, `run`, `test`).
 
 This package is designed to be used with `@vistta/cli` (peer dependency), which provides the loader/bundler features used by Vistta (e.g. `import ... with { type: "bundler" }`).
@@ -29,7 +29,7 @@ This package is designed to be used with `@vistta/cli` (peer dependency), which 
 
 - Node.js `>= 22`
 - `@vistta/cli` installed in your project (peer dependency)
-- For native apps (mobile/desktop): `@vistta/js-runtime` (provides native plugin bridges and build/run runtime)
+- For native apps (mobile/desktop): `@vistta/js-native` (provides native plugin bridges and build/run runtime)
 
 ## **Getting Started (Web App)**
 
@@ -903,14 +903,14 @@ Both work with `transition` and `animation` properties. If no animation duration
 
 ## **Mobile & Desktop Apps**
 
-Vistta.js supports building native mobile (Android) and desktop (Linux/Windows) apps from the same codebase, powered by `@vistta/js-runtime`.
+Vistta.js supports building native mobile (Android) and desktop (Linux/Windows) apps from the same codebase, powered by `@vistta/js-native`.
 
 ### **Setup**
 
 1.  **Install dependencies**:
 
     ```sh
-    npm install @vistta/js-runtime
+    npm install @vistta/js-native
     ```
 
 2.  **Run the app**:
@@ -937,7 +937,7 @@ if (window.platform === "mobile") {
 
 ### **Native Features**
 
-Vistta provides unified helpers that work across platforms. On native targets they lazily import `@vistta/js-runtime/plugins`; on the browser they fall back to Web APIs; on the server they no-op.
+Vistta provides unified helpers that work across platforms. On native targets they lazily import `@vistta/js-native/plugins`; on the browser they fall back to Web APIs; on the server they no-op.
 
 ```jsx
 import { Clipboard, Haptics, Notification, Scheduler, File } from "@vistta/js";
@@ -1015,20 +1015,20 @@ npx vistta run ./app android
 npx vistta run ./app linux
 npx vistta run ./app windows
 
-# Run tests (using the Vistta test runner, powered by Electron)
+# Run tests in headless Chromium (requires npm install -D @vistta/js-testing)
 npx vistta test
 ```
 
 ## **Mobile & Desktop Apps (Native)**
 
-Vistta supports building native apps for Android, Linux, and Windows from the same codebase, powered by `@vistta/js-runtime`. The same pre-built static bundle is shared across all targets.
+Vistta supports building native apps for Android, Linux, and Windows from the same codebase, powered by `@vistta/js-native`. The same pre-built static bundle is shared across all targets.
 
 ### **Setup**
 
 Install the runtime package:
 
 ```sh
-npm install @vistta/js-runtime
+npm install @vistta/js-native
 ```
 
 ### **Build & Run**
@@ -1071,7 +1071,7 @@ if (window.platform === "mobile") {
 
 ### **Native Helpers**
 
-Vistta provides unified helpers (`Clipboard`, `Haptics`, `Notification`, `Scheduler`, `File`) that work across platforms. On native targets they lazily import `@vistta/js-runtime/plugins`; on the browser they fall back to Web APIs (e.g. `navigator.clipboard`, `navigator.vibrate`, `Notification`); on the server they no-op.
+Vistta provides unified helpers (`Clipboard`, `Haptics`, `Notification`, `Scheduler`, `File`) that work across platforms. On native targets they lazily import `@vistta/js-native/plugins`; on the browser they fall back to Web APIs (e.g. `navigator.clipboard`, `navigator.vibrate`, `Notification`); on the server they no-op.
 
 ```js
 import { Clipboard, Haptics, Notification, Scheduler, File } from "@vistta/js";

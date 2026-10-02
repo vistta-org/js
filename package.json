@@ -10,6 +10,7 @@
     "./server": "./server/index.js",
     "./cli": "./cli/index.js",
     "./cli/loaders": "./cli/loaders/index.js",
+    "./testing/renderer": "./tests/renderer.js",
     "./config": "./tsconfig.json",
     "./builder": "./builder.js"
   },

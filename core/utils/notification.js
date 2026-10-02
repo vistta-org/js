@@ -9,7 +9,7 @@ export class Notification {
       return (await window.Notification.requestPermission()) === "granted" ? "granted" : "denied";
     // Native (mobile/desktop)
     try {
-      const app = await import("@vistta/js-runtime/plugins");
+      const app = await import("@vistta/js-native/plugins");
       return (await app.Notification.requestPermission()) === "denied" ? "denied" : "granted";
     } catch {
       /* Do Nothing */
@@ -31,7 +31,7 @@ export class Notification {
     }
     // Native (mobile/desktop)
     try {
-      const app = await import("@vistta/js-runtime/plugins");
+      const app = await import("@vistta/js-native/plugins");
       await app.Notification.sendNotification(/** @type {any} */ (options));
     } catch {
       /* Do Nothing */

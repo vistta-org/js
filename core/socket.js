@@ -8,7 +8,7 @@ export class Socket {
       return null;
     };
     if (window.platform === "mobile") {
-      instance = import("@vistta/js-runtime/plugins")
+      instance = import("@vistta/js-native/plugins")
         .then(({ Net: { Socket } }) => {
           const id = Socket.connect(host, options);
           Socket.on(id, "connect_error", errorHandler);

@@ -32,9 +32,9 @@ export default class extends DefaultCommand {
 
     let runtime;
     try {
-      runtime = await import("@vistta/js-runtime");
+      runtime = await import("@vistta/js-native");
     } catch {
-      throw new Error("Missing dependency: @vistta/js-runtime. Please run `npm install @vistta/js-runtime` to install it.");
+      throw new Error("Missing dependency: @vistta/js-native. Please run `npm install @vistta/js-native` to install it.");
     }
 
     if (!APP_TARGETS.has(target)) {

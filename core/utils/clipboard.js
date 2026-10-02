@@ -12,7 +12,7 @@ export class Clipboard {
     }
     // Native (mobile/desktop)
     try {
-      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      const { Clipboard } = await import("@vistta/js-native/plugins");
       await Clipboard.writeText(text);
     } catch {
       /* Do Nothing */
@@ -31,7 +31,7 @@ export class Clipboard {
     }
     // Native (mobile/desktop)
     try {
-      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      const { Clipboard } = await import("@vistta/js-native/plugins");
       return await Clipboard.readText();
     } catch {
       return "";
@@ -66,7 +66,7 @@ export class Clipboard {
     }
     // Native (mobile/desktop)
     try {
-      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      const { Clipboard } = await import("@vistta/js-native/plugins");
       await Clipboard.writeHtml(html, altText);
     } catch {
       /* Do Nothing */
@@ -93,7 +93,7 @@ export class Clipboard {
     }
     // Native (mobile/desktop)
     try {
-      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      const { Clipboard } = await import("@vistta/js-native/plugins");
       const data = image instanceof Blob ? await image.arrayBuffer() : image;
       await Clipboard.writeImage(/** @type {any} */ (data));
     } catch {
@@ -123,7 +123,7 @@ export class Clipboard {
     }
     // Native (mobile/desktop)
     try {
-      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      const { Clipboard } = await import("@vistta/js-native/plugins");
       const image = await Clipboard.readImage();
       if (!image) return null;
       const rgba = await image.rgba();
@@ -145,7 +145,7 @@ export class Clipboard {
     }
     // Native (mobile/desktop)
     try {
-      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      const { Clipboard } = await import("@vistta/js-native/plugins");
       await Clipboard.clear();
     } catch {
       /* Do Nothing */
@@ -159,7 +159,7 @@ export class Clipboard {
   static async syncClipboard() {
     if (window.platform !== "mobile") return false;
     try {
-      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      const { Clipboard } = await import("@vistta/js-native/plugins");
       return Clipboard.syncClipboard() === true;
     } catch {
       return false;
@@ -200,7 +200,7 @@ export class Clipboard {
     }
     // Native (mobile/desktop)
     try {
-      const { Clipboard } = await import("@vistta/js-runtime/plugins");
+      const { Clipboard } = await import("@vistta/js-native/plugins");
       return Clipboard.watchBackground(onClip, pollIntervalMs);
     } catch {
       return () => {};
