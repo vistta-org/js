@@ -638,16 +638,25 @@ class Server {
   }
 
   /**
-   * Emits an event to all connected sockets in a subdomain or globally.
+   * Emits an event to a connected socket, a registered subdomain, or globally.
    *
-   * @param {string} subdomain The subdomain of the socket to emit to. If not specified, the event will be emitted globally.
+   * @param {string} target A socket ID, subdomain, or "*" for all sockets.
    * @param {string} event The name of the event to emit.
    * @param {...any} args Additional arguments to pass to the event listener.
    */
-  emit(subdomain, event, ...args) {
-    if (typeof event !== "string") return this.#emit("warning", "Cannot emit an empty event");
-    if (subdomain && subdomain !== "*") this.#socket.to(subdomain).emit(event, ...args);
-    else this.#socket.emit(event, ...args);
+  emit(target, event, ...args) {
+    if (typeof event !== "string") {
+      args = event === undefined ? args : [event, ...args];
+      event = target;
+      target = "*";
+    }
+    if (typeof event !== "string" || !event) return this.#emit("warning", "Cannot emit an empty event");
+    const socket = this.#socket.sockets.sockets.get(target);
+    if (socket?.connected) socket.emit(event, ...args);
+    else if (target === "*" || target === "") this.#socket.emit(event, ...args);
+    else if (Object.hasOwn(this.#subdomains, target)) this.#socket.to(target).emit(event, ...args);
+    else return false;
+    return true;
   }
 
   /**
@@ -669,6 +678,7 @@ class Server {
       const socket = {
         emit: this.emit.bind(this, subdomain),
         on: this.on.bind(this, subdomain),
+        send: this.emit.bind(this),
       };
       new arg({ socket });
       traverse(arg, (handler) => {

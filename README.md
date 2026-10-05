@@ -374,13 +374,15 @@ import { Controller, GET } from "@vistta/js";
 
 export default class Ws extends Controller {
   // `socket` is available inside handler functions and provides
-  // `emit`/`on` bound to the controller's subdomain.
+  // `emit`/`on` bound to the controller's subdomain, plus `send` for one socket.
   join = GET("/join", function ({ room, socket }) {
     socket.emit("joined", { room });
     return { ok: true };
   });
 }
 ```
+
+On the server, `server.emit(target, event, ...args)` routes to a connected socket ID first, then a registered subdomain; `"*"` or `""` broadcasts globally. It returns `false` when neither target exists (including an offline socket), and `true` when it emits. `server.emit(event, ...args)` also broadcasts globally when the second argument is not a string; use `"*"` as the target when sending a string payload. In controllers, `socket.emit(event, ...args)` broadcasts to the controller's subdomain, while `socket.send(socketId, event, ...args)` targets one socket and returns the same boolean result.
 
 > **Note:** Use the `socket` handler argument (not `request.socket.emit/on`). The raw `request.socket` is the underlying TCP socket; overriding its `emit`/`on` methods breaks Node.js stream backpressure and causes large `response.sendFile` downloads to stall.
 
