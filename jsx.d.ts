@@ -202,7 +202,7 @@ interface EventHandlers {
 }
 
 interface CustomElement {
-  style?: JSX.Style | string | string[];
+  style?: JSX.Style;
   validator: (target?: Element) => string | boolean;
   [key: string]: any;
 }
@@ -254,7 +254,9 @@ declare namespace JSX {
     props(exclude?: string[]): Partial<T & Record<string, any>>;
   }
 
-  type Style = string | string[] | Record<string, Style>;
+  type Style = string | number | boolean | null | undefined | Style[] | StyleObject;
+
+  type StyleObject = { [key: string]: Style };
 
   type BaseIntrinsicElementMap = {
     [K in keyof HTMLElementTagNameMap]: HTMLProps<HTMLElementTagNameMap[K]>;
@@ -277,15 +279,32 @@ declare namespace JSX {
   // Index signatures would collapse `keyof` into `string` and hide the declared props.
   type KnownKeys<P> = keyof { [K in keyof P as string extends K ? never : number extends K ? never : K]: 0 } & string;
 
-  // `onClick` -> `on:click`; object props `style` -> `style:${key}`.
+  type IsObject<T> = [ObjectProp<T>] extends [never] ? false : true;
+
+  // `onClick` -> `on:click`; object props `style` -> `style:${key}` for declared keys.
   type NamespacedKeys<P> = {
     [K in KnownKeys<P>]: K extends `on${infer E}`
       ? E extends Capitalize<E>
         ? E extends ""
           ? never
           : `on:${Uncapitalize<E>}`
-        : `${K}:${keyof ObjectProp<P[K]> & string}`
-      : `${K}:${keyof ObjectProp<P[K]> & string}`;
+        : IsObject<P[K]> extends true
+          ? `${K}:${KnownKeys<ObjectProp<P[K]>>}`
+          : never
+      : IsObject<P[K]> extends true
+        ? `${K}:${KnownKeys<ObjectProp<P[K]>>}`
+        : never;
+  }[KnownKeys<P>];
+
+  // Kept apart from NamespacedKeys: a `style:${string}` pattern would absorb literal keys like `style:variant`.
+  type NamespacedIndexKeys<P> = {
+    [K in KnownKeys<P>]: K extends "on" | `on${Capitalize<string>}`
+      ? never
+      : IsObject<P[K]> extends true
+        ? string extends keyof ObjectProp<P[K]>
+          ? `${K}:${string}`
+          : never
+        : never;
   }[KnownKeys<P>];
 
   type NamespacedValue<P, N> = N extends `on:${infer E}`
@@ -294,7 +313,9 @@ declare namespace JSX {
       ? ObjectProp<P[K & keyof P]>[S & keyof ObjectProp<P[K & keyof P]>]
       : never;
 
-  type Namespaced<P> = { [N in NamespacedKeys<P>]?: NamespacedValue<P, N> };
+  type Namespaced<P> = { [N in NamespacedKeys<P>]?: NamespacedValue<P, N> } & {
+    [N in NamespacedIndexKeys<P>]?: NamespacedValue<P, N>;
+  };
 
   interface IntrinsicAttributes {
     key?: string | number;
