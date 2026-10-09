@@ -218,7 +218,7 @@ interface HTMLElement {
   allowtransparency?: boolean;
 }
 
-declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
+declare type BaseHTMLProps<E extends HTMLElement | SVGElement> = Partial<
   Omit<
     {
       [K in keyof E as E[K] extends Readonly<any> ? never : K]?: E[K];
@@ -230,6 +230,8 @@ declare type HTMLProps<E extends HTMLElement | SVGElement> = Partial<
   } & EventHandlers &
     CustomElement
 >;
+
+declare type HTMLProps<E extends HTMLElement | SVGElement> = BaseHTMLProps<E> & JSX.Namespaced<BaseHTMLProps<E>>;
 
 declare namespace JSX {
   type Element = {};
@@ -267,8 +269,32 @@ declare namespace JSX {
   interface IntrinsicElements extends IntrinsicElementMap {}
 
   type LibraryManagedAttributes<C, _> = C extends new (props?: infer P, ...args: any[]) => any
-    ? Partial<P> & { children?: any }
+    ? Partial<P> & { children?: any } & Namespaced<P>
     : never;
+
+  type ObjectProp<T> = Exclude<NonNullable<T>, string | number | boolean | bigint | symbol | Function | readonly any[]>;
+
+  // Index signatures would collapse `keyof` into `string` and hide the declared props.
+  type KnownKeys<P> = keyof { [K in keyof P as string extends K ? never : number extends K ? never : K]: 0 } & string;
+
+  // `onClick` -> `on:click`; object props `style` -> `style:${key}`.
+  type NamespacedKeys<P> = {
+    [K in KnownKeys<P>]: K extends `on${infer E}`
+      ? E extends Capitalize<E>
+        ? E extends ""
+          ? never
+          : `on:${Uncapitalize<E>}`
+        : `${K}:${keyof ObjectProp<P[K]> & string}`
+      : `${K}:${keyof ObjectProp<P[K]> & string}`;
+  }[KnownKeys<P>];
+
+  type NamespacedValue<P, N> = N extends `on:${infer E}`
+    ? P[`on${Capitalize<E>}` & keyof P]
+    : N extends `${infer K}:${infer S}`
+      ? ObjectProp<P[K & keyof P]>[S & keyof ObjectProp<P[K & keyof P]>]
+      : never;
+
+  type Namespaced<P> = { [N in NamespacedKeys<P>]?: NamespacedValue<P, N> };
 
   interface IntrinsicAttributes {
     key?: string | number;

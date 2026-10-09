@@ -1,6 +1,6 @@
 import { assign } from "../utils/index.js";
 import { Component } from "./component.js";
-import { Mutation } from "./mutation.js";
+import { Mutation, createDomMutation } from "./mutation.js";
 
 /**
  * @template Props
@@ -14,7 +14,7 @@ export class Element {
    * @param {JSX.Node[]} [children] - The children of the element, can be other Elements, strings, numbers, or any other type.
    */
   constructor(type, props, ...children) {
-    this.props = /** @type {any} */ (props || {});
+    this.props = /** @type {any} */ (groupProps(props || {}));
     this.children = children;
     const typeOf = typeof type;
     if (typeOf === "function") {
@@ -84,6 +84,44 @@ export class Element {
     if (this.mutation) cloned.mutation = this.mutation;
     return cloned;
   }
+}
+
+function groupProps(props) {
+  let groups;
+  for (const key in props) {
+    const split = key.indexOf(":");
+    if (split < 1) continue;
+    const name = key.slice(0, split);
+    const value = props[key];
+    delete props[key];
+    if (name === "on") {
+      const event = key.slice(split + 1);
+      const handler = "on" + event.charAt(0).toUpperCase() + event.slice(1);
+      if (handler in props) throw new Error(`Cannot combine "${handler}" with "${key}" props`);
+      props[handler] = value;
+      continue;
+    }
+    let group = groups?.get(name);
+    if (!group) {
+      if (name in props) throw new Error(`Cannot combine "${name}" with "${key}" props`);
+      group = {};
+      (groups ??= new Map()).set(name, group);
+      props[name] = group;
+    }
+    group[key.slice(split + 1)] = value;
+    // The mutation reads the group lazily, so keys added after the switch are still included.
+    if (value instanceof Mutation && props[name] === group) props[name] = createDomMutation(() => resolveGroup(group));
+  }
+  return props;
+}
+
+function resolveGroup(group) {
+  const result = {};
+  for (const key in group) {
+    const value = group[key];
+    result[key] = value instanceof Mutation ? value() : value;
+  }
+  return result;
 }
 
 function cloneProps(props) {

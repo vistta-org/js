@@ -579,6 +579,28 @@ const tree = new Element("div", { class: "box" }, "Hello");
 const group = new Element(Fragment, {}, "A", "B");
 ```
 
+#### Namespaced props
+
+`name:key={value}` sets a single key of an object prop. Namespaced props with the same prefix are grouped into one object and stay reactive:
+
+```jsx
+<Button style:col="auto" style:width={this.width} />
+// same as
+<Button style={{ col: "auto", width: this.width }} />
+```
+
+Combining `name` and `name:*` on the same element (including through spreads) throws.
+
+Event handlers are the exception: `on:event` expands to the regular `onEvent` prop (first letter capitalized, rest kept as written), so it works for both DOM elements and components:
+
+```jsx
+<Button on:click={() => this.save()} on:contextMenu={this.menu} />
+// same as
+<Button onClick={() => this.save()} onContextMenu={this.menu} />
+```
+
+Combining `onClick` and `on:click` on the same element throws.
+
 ### `Render.If` and `Render.Each`
 
 ```jsx
