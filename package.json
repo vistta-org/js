@@ -28,15 +28,14 @@
   "dependencies": {
     "@vistta/fs": "latest",
     "@vistta/utils": "latest",
-    "autoprefixer": "^10.5.2",
+    "autoprefixer": "^10.6.1",
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
     "mime": "^4.1.0",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.4"
   },
-  "devDependencies": {},
   "peerDependencies": {
-    "@vistta/cli": "*"
+    "@vistta/cli": "^1.0.1"
   },
   "engines": {
     "node": ">=22.0.0"
