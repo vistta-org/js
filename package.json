@@ -24,7 +24,7 @@
     "url": "https://github.com/vistta-org/js.git"
   },
   "author": "Tiago Terenas Almeida",
-  "license": "Apache 2.0 with Commons Clause",
+  "license": "GPL-3.0-only",
   "dependencies": {
     "@vistta/fs": "latest",
     "@vistta/utils": "latest",
