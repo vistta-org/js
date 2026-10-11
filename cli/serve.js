@@ -30,7 +30,7 @@ export default class ServeCommand extends DefaultCommand {
     options.https ||= process.env.NODE_ENV === "development" ? null : 443;
     const counter = { page: [], api: [] };
     const server = new Server(options);
-    server.use("/", fs.resolve(process.cwd(), folder));
+    server.routes.use("/", fs.resolve(process.cwd(), folder));
     server.on("warning", console.warn);
     server.on("error", (error) => console.error(error.trace || error.message || error));
     server.on("ready", ({ type, port, pathname }) => {
