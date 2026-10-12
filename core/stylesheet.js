@@ -323,7 +323,9 @@ function format(key, value, options = /** @type {StyleFormatOptions} */ ({})) {
       Object.assign(flags, property.flags);
       return property.value;
     }
-    return `${key.startsWith("$") ? "--" + key.slice(1) : key}:${formatValue(value, false, functions)};`;
+    value = formatValue(value, false, functions);
+
+    return `${key.startsWith("$") ? "--" + key.slice(1) : key}:${key === "content" && value === "" ? `""` : value};`;
   }
   if (key === "animation") return createAnimation ? createAnimation(value) : "";
   if (queries[key]) return `@media ${queries[key]} { ${value.trim()} }`;
@@ -451,6 +453,15 @@ export class Style {
    */
   static assign(target, ...sources) {
     return Object.assign(ensureObject(target), ...sources.map(ensureObject));
+  }
+
+  /**
+   * Ensures that the target is an object. If it's a string, it will be converted to an object style.
+   * @param {object | string | string[]} target
+   * @returns {object}
+   */
+  static ensureObject(target) {
+    return ensureObject(target);
   }
 
   /**

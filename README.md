@@ -126,6 +126,8 @@ Use bracket folders:
 - `app/users/[id]/page.jsx` → `/users/:id`
 - `app/docs/[...slug]/page.jsx` → `/docs/*`
 
+The final named parameter is optional: `/chats/:id` matches both `/chats` and `/chats/123`. Parameters before fixed segments remain required, so `/chats/:id/title` requires an ID.
+
 ### **Static assets**
 
 Files inside an `assets/` folder are served as static resources.

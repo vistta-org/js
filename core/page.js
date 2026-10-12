@@ -31,7 +31,7 @@ export function createHtml(innerHTML, config) {
     ${config.manifest ? `<link rel="manifest" href="${config.manifest}" />` : ""}
     ${config.style ? `<style data-ssr>${config.style}</style>` : ""}
     ${config.links?.reduce((acc, obj) => acc + `\n\t<link ${convertToAttributes(obj)} />`, "") || ""}
-    <script type="module" src="./${RESOURCES_PATH}/client.js"></script>
+    <script type="module" src="/${RESOURCES_PATH}/client.js"></script>
   </head>
   <body>
     ${innerHTML}
@@ -73,7 +73,7 @@ export async function createPage(type, filepath, pathname, layout, configs) {
     },
     async html(request, props, build) {
       this.location = new URL(request.url, request.headers.referer || `http://${request.headers.host}/`);
-      const key = "html." + stringify(props);
+      const key = "html." + this.location.pathname + stringify(props);
       let html = this.cache.get(key);
       if (!html) {
         const config = this.config;

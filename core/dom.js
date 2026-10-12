@@ -48,6 +48,8 @@ setMutationScheduler((mutations) => active?.enqueue(mutations));
 class VirtualDom {
   active = false;
   running = false;
+  /** @type {ChildNode[]} */
+  nodes = [];
   queue = [];
   queueStart = 0;
   queued = new Set();
@@ -142,6 +144,7 @@ class VirtualDom {
 
   disable() {
     if (!this.virtualTree) throw new VirtualDomError("Virtual Dom not rendered");
+    this.nodes = Array.from(this.host.childNodes);
     traverseVirtualTree(this.virtualTree, (element) => {
       if (element.mutations) for (const mutation of element.mutations) this.disableMutation(mutation);
       element.component?.onDisconnect?.();
@@ -161,20 +164,7 @@ class VirtualDom {
       element.component?.onConnect?.();
     });
     const fragment = this.createElement("fragment");
-    const firstNode = this.virtualTree.node || this.virtualTree.firstNode;
-    if (firstNode) {
-      const lastNode = this.virtualTree.lastNode;
-      if (!lastNode || firstNode === lastNode) fragment.appendChild(firstNode);
-      else {
-        let currentNode = firstNode;
-        while (currentNode) {
-          const next = currentNode.nextSibling;
-          fragment.appendChild(currentNode);
-          if (currentNode === lastNode) currentNode = null;
-          else currentNode = next;
-        }
-      }
-    }
+    fragment.append(...this.nodes);
     document.adoptedStyleSheets = [this.stylesheet.content];
     this.host.replaceChildren(fragment);
     this.update();

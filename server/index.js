@@ -84,8 +84,11 @@ class Route {
     this.#pathname = pathname;
     if (type === "collection") this.#collection = [];
     else {
-      this.#route = pathname.replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)")).replace(/\*$/, ".*");
-      if (this.#route.endsWith("/([^/]+)")) this.#route = this.#route.slice(0, -8) + "/?([^/]+)?";
+      this.#route = pathname
+        .replace(/\/:(\w+)$/, "(?:/:$1)?")
+        .replace(/:(\w+)/g, (_, param) => (this.#params.push(param), "([^/]+)"))
+        .replace(/\*$/, ".*");
+      if (this.#params.length) this.#route += "/?";
       this[["page", "config", "layout"].includes(type) ? type : "handler"] = handler;
     }
     this.#page = page;
@@ -1009,7 +1012,13 @@ export default Server;
 //
 
 function pathnameToRegex(pathname) {
-  return new RegExp("^" + pathname.replace(/:(\w+)/g, "([^/]+)").replace(/\*$/, ".*"));
+  return new RegExp(
+    "^" +
+      pathname
+        .replace(/\/:(\w+)$/, "(?:/:$1)?")
+        .replace(/:(\w+)/g, "([^/]+)")
+        .replace(/\*$/, ".*"),
+  );
 }
 
 function parseArguments(method, subdomain, pathname, arg) {

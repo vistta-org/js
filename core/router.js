@@ -57,6 +57,7 @@ export class Router {
           routes[pathname] = new VirtualDom(pathname, document.body, config);
           const effect = transition || config?.transition;
           await async((resolve) => startViewTransition(resolve, effect));
+          updateHistory(pathname + search + hash);
           routes.$current = routes[pathname].render(
             layout ? new Element(layout.component, {}, new Element(app, props)) : new Element(app, props),
           );
@@ -64,6 +65,7 @@ export class Router {
         } else {
           const effect = transition || cachedVirtualDom.config?.transition;
           await async((resolve) => startViewTransition(resolve, effect));
+          updateHistory(pathname + search + hash);
           routes.$current = cachedVirtualDom.enable();
           updateConfig(routes.$current.config);
         }
@@ -80,7 +82,8 @@ export class Router {
       );
 
     routes.$previous = { pathname, hash, search };
-    updateHistory(pathname + search + hash);
+    if (window.location.pathname !== pathname || window.location.search !== search || window.location.hash !== hash)
+      updateHistory(pathname + search + hash);
   }
 
   /**
