@@ -1,6 +1,6 @@
 {
   "name": "@vistta/js",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Vistta.js Javascript Framework",
   "main": "index.js",
   "types": "index.d.ts",
@@ -26,9 +26,9 @@
   "author": "Tiago Terenas Almeida",
   "license": "GPL-3.0-only",
   "dependencies": {
-    "@vistta/css-loader": "*",
-    "@vistta/fs": "latest",
-    "@vistta/utils": "latest",
+    "@vistta/css-loader": "^0.0.0",
+    "@vistta/fs": "^1.1.0",
+    "@vistta/utils": "^1.1.0",
     "autoprefixer": "^10.6.1",
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
