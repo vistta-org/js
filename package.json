@@ -26,6 +26,7 @@
   "author": "Tiago Terenas Almeida",
   "license": "GPL-3.0-only",
   "dependencies": {
+    "@vistta/css-loader": "*",
     "@vistta/fs": "latest",
     "@vistta/utils": "latest",
     "autoprefixer": "^10.6.1",
