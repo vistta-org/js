@@ -687,9 +687,12 @@ class VirtualDom {
     if (value == null || value === false) node.removeAttribute(name);
     else if (name === "value") node.value = value;
     else if (name === "style") {
-      const [id, flags] = this.stylesheet.resolve(value);
-      node.setAttribute(`style-group`, id);
-      if (flags?.["exiting-style"]) element.context["exiting-style"] = true;
+      const resolved = this.stylesheet.resolve(value);
+      if (resolved === "") node.removeAttribute("style-group");
+      else {
+        node.setAttribute("style-group", resolved[0]);
+        if (resolved[1]["exiting-style"]) element.context["exiting-style"] = true;
+      }
     } else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(value, " "));
     else node.setAttribute(name, typeof value === "boolean" ? "" : value);
   }
