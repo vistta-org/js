@@ -27,7 +27,7 @@ import {
   setMutationScheduler,
   setMutationTracked,
 } from "./mutation.js";
-import { Style, VirtualStyleSheet } from "@vistta/css-loader";
+import { STYLE_REF_ATTRIBUTE, Style, VirtualStyleSheet } from "@vistta/css-loader";
 
 const STRICT_MODE = new Error("Event strict mode active");
 const INTERNAL_COMPONENTS = new Set([Form, Profiler, Render.If, Render.Each, Safe, Suspense]);
@@ -688,9 +688,9 @@ class VirtualDom {
     else if (name === "value") node.value = value;
     else if (name === "style") {
       const resolved = this.stylesheet.resolve(value);
-      if (resolved === "") node.removeAttribute("style-group");
+      if (resolved === "") node.removeAttribute(STYLE_REF_ATTRIBUTE);
       else {
-        node.setAttribute("style-group", resolved[0]);
+        node.setAttribute(STYLE_REF_ATTRIBUTE, resolved[0]);
         if (resolved[1]["exiting-style"]) element.context["exiting-style"] = true;
       }
     } else if (name === "class" && Array.isArray(value)) node.setAttribute(name, join(value, " "));
