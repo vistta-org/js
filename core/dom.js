@@ -27,7 +27,7 @@ import {
   setMutationScheduler,
   setMutationTracked,
 } from "./mutation.js";
-import { Style, VirtualStyleSheet } from "./stylesheet.js";
+import { Style, VirtualStyleSheet } from "@vistta/css-loader";
 
 const STRICT_MODE = new Error("Event strict mode active");
 const INTERNAL_COMPONENTS = new Set([Form, Profiler, Render.If, Render.Each, Safe, Suspense]);

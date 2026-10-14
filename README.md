@@ -859,9 +859,17 @@ export default class Example extends Component {
 
 ### Styling (`style` prop + `@vistta/ui` presets)
 
-Vistta includes a style engine that supports `style` as a string, object, or array.
+Vistta uses [`@vistta/css-loader`](../css-loader/README.md), a framework-independent
+runtime style engine that supports `style` as a string, object, or array. It is
+installed as a dependency and used automatically by the renderer; existing
+`style` props and `import { Style } from "@vistta/js"` continue to work.
 
-You can also import `.css` files directly. The CSS loader converts rules into a style object and exports it as the default export. For simple top-level selectors (like `.my-style` or `button`) it also emits named exports when the selector maps to an object. Nested blocks are supported, and `:scope { ... }` merges its contents into the current level.
+The same engine can be used directly in React or a custom renderer via
+`import { VirtualStyleSheet, Style } from "@vistta/css-loader"`. See the package
+documentation for stylesheet adoption, automatic React `style`-prop integration, and exit-animation
+lifecycle integration.
+
+You can also import `.css` files directly. The VISTTA JS CLI's build-time CSS loader converts rules into a style object and exports it as the default export. For simple top-level selectors (like `.my-style` or `button`) it also emits named exports when the selector maps to an object. Nested blocks are supported, and `:scope { ... }` merges its contents into the current level.
 
 To get a great default UI baseline, add `@vistta/ui` styles to your page config:
 
@@ -1045,7 +1053,15 @@ npx vistta run ./app windows
 
 # Run tests in headless Chromium (requires npm install -D @vistta/js-testing)
 npx vistta test
+
+# Select a runner explicitly and choose compatible test files
+npx vistta test ".\packages\js\tests\client.test.jsx" --environment=browser
+npx vistta test ".\packages\cli\tests\*.test.js" --environment=node
 ```
+
+The `--environment` option belongs to VISTTA JS's test command only. Its default
+is `browser`; `node` delegates to the unchanged, Node-only VISTTA CLI test runner.
+Select compatible files for each invocation; test imports and suites stay unchanged.
 
 ## **Mobile & Desktop Apps (Native)**
 
