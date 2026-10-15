@@ -5,7 +5,7 @@ export class Router {
    * Returns the current location object.
    * @returns {Location} The current location object.
    */
-  get location() {
+  static get location() {
     return window["page"]?.location ?? window.location;
   }
 

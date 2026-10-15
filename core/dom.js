@@ -1,3 +1,4 @@
+import { STYLE_REF_ATTRIBUTE, Style, VirtualStyleSheet } from "@vistta/css";
 import { ensureArray, join, proxy, stringify } from "../utils/index.js";
 import {
   Component,
@@ -27,7 +28,6 @@ import {
   setMutationScheduler,
   setMutationTracked,
 } from "./mutation.js";
-import { STYLE_REF_ATTRIBUTE, Style, VirtualStyleSheet } from "@vistta/css-loader";
 
 const STRICT_MODE = new Error("Event strict mode active");
 const INTERNAL_COMPONENTS = new Set([Form, Profiler, Render.If, Render.Each, Safe, Suspense]);

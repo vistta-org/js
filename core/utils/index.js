@@ -1,4 +1,4 @@
-export { Style } from "@vistta/css-loader";
+export { Style } from "@vistta/css";
 export { Anchor } from "./anchor.js";
 export { Clipboard } from "./clipboard.js";
 export { HistoryContext, ThemeContext } from "./context.js";

@@ -859,13 +859,13 @@ export default class Example extends Component {
 
 ### Styling (`style` prop + `@vistta/ui` presets)
 
-Vistta uses [`@vistta/css-loader`](../css-loader/README.md), a framework-independent
+Vistta uses [`@vistta/css`](../css/README.md), a framework-independent
 runtime style engine that supports `style` as a string, object, or array. It is
 installed as a dependency and used automatically by the renderer; existing
 `style` props and `import { Style } from "@vistta/js"` continue to work.
 
 The same engine can be used directly in React or a custom renderer via
-`import { VirtualStyleSheet, Style } from "@vistta/css-loader"`. See the package
+`import { VirtualStyleSheet, Style } from "@vistta/css"`. See the package
 documentation for stylesheet adoption, automatic React `style`-prop integration, and exit-animation
 lifecycle integration.
 
