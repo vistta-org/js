@@ -128,6 +128,21 @@ Use bracket folders:
 
 The final named parameter is optional: `/chats/:id` matches both `/chats` and `/chats/123`. Parameters before fixed segments remain required, so `/chats/:id/title` requires an ID.
 
+For static web builds, set `static.params` in a dynamic page's exported `config`. It may be an array of parameter objects, or a synchronous or asynchronous function returning one:
+
+```jsx
+// app/projects/[slug]/page.jsx
+export const config = {
+  static: {
+    params: [{}, { slug: "cli" }, { slug: "js" }],
+  },
+};
+```
+
+This generates `/projects/`, `/projects/cli/`, and `/projects/js/`. For computed or fetched entries, `params` can instead be `() => catalog.map(({ slug }) => ({ slug }))` or an async function. Omitting the final parameter with `{}` generates the base path; parameters before fixed segments are required. Catch-all parameters use their folder name: for `docs/[...slug]/page.jsx`, `{ slug: "guide/setup" }` and `{ slug: ["guide", "setup"] }` both generate `/docs/guide/setup/`. Each URL segment is URI-encoded. Read the concrete URL through `Router.location` during prerendering, as with server rendering. The `config.static` section is build-only metadata and is excluded from runtime/client config.
+
+Dynamic pages without `config.static.params` are skipped with a warning in static web builds. App builds retain dynamic route patterns without requiring or evaluating `config.static.params`.
+
 ### **Static assets**
 
 Files inside an `assets/` folder are served as static resources.
@@ -1014,7 +1029,9 @@ npx vistta build ./app linux
 npx vistta build ./app windows
 ```
 
-The build process generates a unified `build` folder (relative to your app folder) containing your app's assets and a route manifest for client-side navigation. By default, the output folder is cleaned before each build.
+Static web builds write `<path>/index.html` and `<path>/page.js` under `dist` for each static page and each dynamic page's `config.static.params` entry. The page script is generated once and reused across entries. Prerendering receives each concrete URL, including for static pages. Duplicate output paths fail the build, including collisions between static pages and generated routes. Serve the output with a static host that resolves directory `index.html` files; URLs not enumerated in `config.static.params` are not generated, and no `404.html` fallback is emitted.
+
+Native app builds generate `build/www` with assets, one route module per page, and a client-side route manifest. Dynamic patterns support named and catch-all parameters, including the optional final named parameter. The native web output folder is cleaned before each build.
 
 ## **Programmatic Server Usage**
 

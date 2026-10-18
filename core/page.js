@@ -50,7 +50,7 @@ export async function createPage(type, filepath, pathname, layout, configs) {
     type,
     pathname,
     get config() {
-      return {
+      const result = {
         title: "Vistta JS",
         description: "Page generated using VisttaJS",
         theme: "#ffffff",
@@ -60,8 +60,11 @@ export async function createPage(type, filepath, pathname, layout, configs) {
         ...this.inherited.configs.reduce((acc, { config }) => assign(acc, config || {}), {}),
         ...config,
       };
+      delete result.static;
+      return result;
     },
     content,
+    static: config?.static,
     resources,
     get pwa() {
       return !!this.config.pwa;

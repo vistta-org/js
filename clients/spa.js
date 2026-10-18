@@ -162,15 +162,20 @@ Router.navigate({ href: window.location.pathname || "/", pushState: false });
 function resolve(pathname) {
   if (routes.$manifest[pathname]) return routes.$manifest[pathname];
   const segments = pathname.split("/").filter(Boolean);
+  const normalized = "/" + segments.join("/");
+  if (routes.$manifest[normalized]) return routes.$manifest[normalized];
   const keys = Object.keys(routes.$manifest);
   for (let i = 0, len = keys.length; i < len; i++) {
     const pattern = keys[i];
     const patternSegments = pattern.split("/").filter(Boolean);
-    if (patternSegments.length !== segments.length && !pattern.includes("[...")) continue;
+    const trailing = patternSegments[patternSegments.length - 1];
+    const optional = trailing?.startsWith(":") || trailing === "*";
+    if (segments.length < patternSegments.length - (optional ? 1 : 0)) continue;
+    if (segments.length > patternSegments.length && trailing !== "*") continue;
     let match = true;
     for (let j = 0, jlen = patternSegments.length; j < jlen; j++) {
-      if (patternSegments[j].startsWith("[...")) break;
-      if (patternSegments[j].startsWith("[") && patternSegments[j].endsWith("]")) continue;
+      if (patternSegments[j] === "*") break;
+      if (patternSegments[j].startsWith(":")) continue;
       if (patternSegments[j] !== segments[j]) {
         match = false;
         break;

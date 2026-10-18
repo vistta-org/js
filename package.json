@@ -17,7 +17,7 @@
   "type": "module",
   "scripts": {
     "postinstall": "",
-    "tests": "vistta test --debug"
+    "tests": "vistta test \"tests/*.test.js\" --environment=node --debug && vistta test \"tests/*.test.jsx\" --environment=browser --debug"
   },
   "repository": {
     "type": "git",

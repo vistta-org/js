@@ -170,7 +170,7 @@ export class Builder {
           resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] = page.resources[resourceKeys[i2]];
         }
       }
-      pages.push(page);
+      pages.push({ page, catchAllParam: filepath.match(/\[\.\.\.([^\]]+)\]/)?.[1] });
     }
 
     const createFile = async (file, content) => {
@@ -184,20 +184,46 @@ export class Builder {
     };
 
     if (type === "web") {
-      for (let i = 0, len = pages.length; i < len; i++) {
-        const page = pages[i];
-        if (page.pathname.includes(":")) continue;
-        await fs.ensureDir(fs.resolve(output, "." + page.pathname));
-
-        await createFile(page.pathname + "/index.html", await page.html({ headers: { host: "localhost" } }, {}, true));
-        await createFile(page.pathname + "/page.js", await page.js({}, {}));
-        result.routes.push({ pathname: page.pathname });
+      const outputs = new Map();
+      const generated = [];
+      for (const { page, catchAllParam } of pages) {
+        let pathnames = [page.pathname];
+        if (page.pathname.includes(":") || page.pathname.includes("*")) {
+          const staticParams = page.static?.params;
+          if (staticParams === undefined) {
+            console.warn(`Skipping dynamic page ${page.pathname}: no config.static.params.`);
+            continue;
+          }
+          const params = typeof staticParams === "function" ? await staticParams() : staticParams;
+          if (!Array.isArray(params)) throw new Error(`config.static.params for ${page.pathname} must return an array.`);
+          pathnames = params.map((entry) => staticPathname(page.pathname, entry, catchAllParam));
+        }
+        for (const pathname of pathnames) {
+          const outputPath = fs.resolve(output, "." + ensureEndsWith(pathname, "/"));
+          if (outputs.has(outputPath)) {
+            throw new Error(`Duplicate output path ${pathname}: ${outputs.get(outputPath)} and ${page.pathname}`);
+          }
+          outputs.set(outputPath, page.pathname);
+        }
+        generated.push({ page, pathnames });
+      }
+      for (const { page, pathnames } of generated) {
+        if (!pathnames.length) continue;
+        const script = await page.js({}, {});
+        for (const pathname of pathnames) {
+          const prefix = ensureEndsWith(pathname, "/");
+          await createFile(
+            prefix + "index.html",
+            await page.html({ url: pathname, headers: { host: "localhost" } }, {}, true),
+          );
+          await createFile(prefix + "page.js", script);
+          result.routes.push({ pathname });
+        }
       }
     } else if (type === "app") {
       await fs.ensureDir(fs.resolve(output, "routes"));
       for (let i = 0, len = pages.length; i < len; i++) {
-        const page = pages[i];
-        if (page.pathname.includes(":")) continue;
+        const { page } = pages[i];
         let name;
         if (page.pathname === "/") {
           name = "index";
@@ -255,3 +281,43 @@ export class Builder {
 }
 
 export default Builder;
+
+function staticPathname(pattern, params, catchAllParam) {
+  if (!params || typeof params !== "object" || Array.isArray(params)) {
+    throw new Error(`config.static.params entries for ${pattern} must be parameter objects.`);
+  }
+  const segments = pattern.split("/").filter(Boolean);
+  const result = [];
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index];
+    if (!segment.startsWith(":") && segment !== "*") {
+      result.push(segment);
+      continue;
+    }
+    const name = segment === "*" ? catchAllParam : segment.slice(1);
+    const value = params[name];
+    if (value === undefined && index === segments.length - 1) continue;
+    if (segment === "*" && (typeof value === "string" || Array.isArray(value))) {
+      const parts = (Array.isArray(value) ? value : [value]).flatMap((part) => {
+        if (typeof part !== "string") throw new Error(`Invalid config.static.params parameter ${name} for ${pattern}.`);
+        return part.split("/");
+      });
+      if (parts.some((part) => !part || part === "." || part === "..")) {
+        throw new Error(`Invalid config.static.params parameter ${name} for ${pattern}.`);
+      }
+      result.push(...parts.map((part) => encodeURIComponent(part)));
+    } else {
+      if (
+        segment === "*" ||
+        !["string", "number"].includes(typeof value) ||
+        value === "" ||
+        value === "." ||
+        value === ".."
+      ) {
+        throw new Error(`Missing or invalid config.static.params parameter ${name} for ${pattern}.`);
+      }
+      result.push(encodeURIComponent(value));
+    }
+  }
+  return ensureEndsWith("/" + result.join("/"), "/");
+}
