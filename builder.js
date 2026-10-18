@@ -137,22 +137,9 @@ export class Builder {
       if (!inserted) layouts.push(layoutRoute);
     }
 
-    // Register pages (collect inherited configs and matching layout)
+    // Register pages (matching layout; inherited configs are resolved after all pages are registered)
     for (let i = 0, len = entries.page.length; i < len; i++) {
       const [, pathname, filepath] = entries.page[i];
-
-      // Collect inherited configs
-      const configs = [{ config }];
-      const segments = pathname.split("/");
-      for (let j = 0, segLen = pathname === "/" ? 1 : segments.length; j < segLen; j++) {
-        const prefix = segments.slice(0, j + 1).join("/") || "/";
-        for (let k = 0, kLen = configs.length; k < kLen; k++) {
-          if (configs[k].pathname === ensureEndsWith(prefix, "/")) {
-            configs.push(configs[k]);
-            break;
-          }
-        }
-      }
 
       // Find matching layout (most specific prefix match)
       let layout = null;
@@ -163,14 +150,42 @@ export class Builder {
         }
       }
 
-      const page = await createPage("page", filepath, pathname, layout ? { layout } : null, configs);
+      const inheritedConfigs = [];
+      const page = await createPage("page", filepath, pathname, layout ? { layout } : null, inheritedConfigs);
       if (page.resources) {
         const resourceKeys = Object.keys(page.resources);
         for (let i2 = 0, resourcesLen = resourceKeys.length; i2 < resourcesLen; i2++) {
           resources[`/${RESOURCES_PATH}/${resourceKeys[i2]}`] = page.resources[resourceKeys[i2]];
         }
       }
-      pages.push({ page, catchAllParam: filepath.match(/\[\.\.\.([^\]]+)\]/)?.[1] });
+      pages.push({ page, inheritedConfigs, catchAllParam: filepath.match(/\[\.\.\.([^\]]+)\]/)?.[1] });
+    }
+
+    // Resolve inherited configs for every page, shortest pathname first so ancestor
+    // pages are merged before descendants: build options, then config route files and
+    // ancestor page configs from the root down (most specific wins, like the server)
+    const pageConfigs = new Map();
+    const pageOrder = pages
+      .map((_, index) => index)
+      .sort((a, b) => pages[a].page.pathname.length - pages[b].page.pathname.length);
+    for (let i = 0, len = pageOrder.length; i < len; i++) {
+      const { page, inheritedConfigs } = pages[pageOrder[i]];
+      const ownPathname = ensureEndsWith(page.pathname, "/");
+      inheritedConfigs.push({ config });
+      const segments = page.pathname.split("/");
+      for (let j = 0, segLen = page.pathname === "/" ? 1 : segments.length; j < segLen; j++) {
+        const prefix = ensureEndsWith(segments.slice(0, j + 1).join("/") || "/", "/");
+        for (let k = 0, kLen = configs.length; k < kLen; k++) {
+          if (configs[k].pathname === prefix) {
+            inheritedConfigs.push(configs[k]);
+            break;
+          }
+        }
+        if (prefix === ownPathname) continue;
+        const parentConfig = pageConfigs.get(prefix);
+        if (parentConfig) inheritedConfigs.push({ config: parentConfig });
+      }
+      pageConfigs.set(ownPathname, page.config);
     }
 
     const createFile = async (file, content) => {

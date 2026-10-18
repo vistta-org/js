@@ -287,7 +287,7 @@ export const config = {
 
 When `pwa: true`, Vistta will expose `./manifest.json` for the route and serve `./worker.js`.
 
-All config keys are applied to the document `<head>` on initial render (SSR/SSG via `createHtml`) and updated client-side on every navigation by `updateConfig` (`packages/js/core/router.js`): `title`, `description`, `keywords`, `robots`, `author`, `language`, `copyright`, `publisher`, and `viewport` map to `<meta name="...">`; `theme` → `<meta name="theme-color">`, `colorScheme` → `<meta name="color-scheme">`, `revisitAfter` → `<meta name="revisit-after">`, `referrer` → `<meta name="referrer">`; `contentType` → `<meta http-equiv="Content-Type">`, `csp` → `<meta http-equiv="Content-Security-Policy">`, `refresh` → `<meta http-equiv="refresh">`; `icon` → all `<link rel$="icon">` (icon + apple-touch-icon); `manifest` → `<link rel="manifest">`; `lang` → `<html lang>`; `href` → `<base href>`; `links` → updates or creates `<link>` elements matched by `rel`+`href`.
+All config keys are applied to the document `<head>` on initial render (SSR/SSG via `createHtml`) and updated client-side on every navigation by `updateConfig` (`packages/js/core/router.js`): `title`, `description`, `keywords`, `robots`, `author`, `language`, `copyright`, `publisher`, and `viewport` map to `<meta name="...">`; `theme` → `<meta name="theme-color">`, `colorScheme` → `<meta name="color-scheme">`, `revisitAfter` → `<meta name="revisit-after">`, `referrer` → `<meta name="referrer">`; `contentType` → `<meta http-equiv="Content-Type">`, `csp` → `<meta http-equiv="Content-Security-Policy">`, `refresh` → `<meta http-equiv="refresh">`; `icon` → all `<link rel$="icon">` (icon + apple-touch-icon); `manifest` → `<link rel="manifest">`; `lang` → `<html lang>`; `href` → `<base href>`; `links` → updates or creates `<link>` elements matched by `rel`+`href`. A page's merged config is also inherited by pages under its path, both on the server and in static builds, so shared design systems (`styles`) only need to be declared once on the root page.
 
 ## **API Routes (Controllers)**
 
@@ -1028,6 +1028,8 @@ npx vistta build ./app android
 npx vistta build ./app linux
 npx vistta build ./app windows
 ```
+
+In static builds, page config merges exactly like the server: build options, then `config.js` routes and ancestor page configs from the root down, with the most specific config winning. So a `styles` design system (or theme, icon, links) exported from a parent page's config is inherited by all child pages in both the serialized client config and the prerendered `<style data-ssr>` markup.
 
 Static web builds write `<path>/index.html` and `<path>/page.js` under `dist` for each static page and each dynamic page's `config.static.params` entry. The page script is generated once and reused across entries. Prerendering receives each concrete URL, including for static pages. Duplicate output paths fail the build, including collisions between static pages and generated routes. Serve the output with a static host that resolves directory `index.html` files; URLs not enumerated in `config.static.params` are not generated, and no `404.html` fallback is emitted.
 

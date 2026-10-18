@@ -90,6 +90,29 @@ suite("Static builds", () => {
     }
   });
 
+  test("web inherits config routes and ancestor page configs", () => {
+    const build = fixture({
+      "page.jsx": `${component}\nexport const config = { title: "Root", styles: [{ body: { background: "$back-color" } }] };`,
+      "config.js": 'export default { theme: "#123456" };',
+      "projects/page.jsx": `${component}\nexport const config = { title: "Projects" };`,
+      "projects/about/page.jsx": component,
+    });
+    try {
+      assert.equal(build.result.status, 0, build.result.stdout + build.result.stderr);
+      const about = build.read("projects/about/page.js");
+      assert.match(about, /"theme":"#123456"/);
+      assert.match(about, /"title":"Projects"/);
+      assert.ok(about.includes('"styles"'));
+      assert.ok(build.read("projects/about/index.html").includes("background"));
+      const projects = build.read("projects/page.js");
+      assert.match(projects, /"title":"Projects"/);
+      assert.match(projects, /"theme":"#123456"/);
+      assert.ok(projects.includes('"styles"'));
+    } finally {
+      build.clean();
+    }
+  });
+
   test("web rejects duplicate output paths before writing pages", () => {
     for (const files of [
       {
