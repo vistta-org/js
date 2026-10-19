@@ -343,7 +343,7 @@ function replaceUrlsInValue(value, basePath, resources, resourceMap) {
       resourceMap.add(urlHash);
       resources.push({ path: resourcePath, hash: urlHash });
     }
-    return `url(${quote || ""}${RESOURCES_PATH}/${urlHash}${quote || ""})`;
+    return `url(${quote || ""}/${RESOURCES_PATH}/${urlHash}${quote || ""})`;
   });
 }
 

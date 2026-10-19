@@ -11,7 +11,7 @@ export default class FileLoader extends Loader {
         resources: [{ path, hash: urlHash }],
       };
     return {
-      code: `export default "./${RESOURCES_PATH}/${urlHash}";`,
+      code: `export default "/${RESOURCES_PATH}/${urlHash}";`,
       resources: [{ path, hash: urlHash }],
     };
   }
