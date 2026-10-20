@@ -244,6 +244,34 @@ export class ComputedDependencyTracking extends Component {
   }
 }
 
+class ComputedInstanceChild extends Component {
+  value;
+
+  get doubled() {
+    return this.value * 2;
+  }
+
+  render() {
+    return <div id={this.id}>{this.doubled}</div>;
+  }
+}
+
+export class ComputedInstances extends Component {
+  count = 1;
+
+  render() {
+    return (
+      <>
+        <button id="increment" onClick={() => this.count++}>
+          increment
+        </button>
+        <ComputedInstanceChild id="first" value={this.count} />
+        <ComputedInstanceChild id="second" value={100} />
+      </>
+    );
+  }
+}
+
 export class RefExample extends Component {
   ref = new Ref();
   render() {

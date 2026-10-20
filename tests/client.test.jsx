@@ -204,6 +204,18 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(total.innerText).toEqual("42");
   });
 
+  await test("Basic: Computed Getters Per Instance", async () => {
+    await document.mount(basic.ComputedInstances);
+    const first = document.querySelector("#first");
+    const second = document.querySelector("#second");
+
+    expect(first.innerText).toEqual("2");
+    expect(second.innerText).toEqual("200");
+    await document.querySelector("#increment").click();
+    expect(first.innerText).toEqual("4");
+    expect(second.innerText).toEqual("200");
+  });
+
   await test("Mutation: Computed Args", async () => {
     await document.mount(basic.ComputedMutation);
     const greeting = document.querySelector("#greeting");

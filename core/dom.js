@@ -464,7 +464,7 @@ class VirtualDom {
           let cached;
           let dirty = true;
           let computing = false;
-          const tracker = createDomMutation(callback);
+          const tracker = createDomMutation(() => callback.call(component));
           setMutationDomUpdate(tracker, () => {
             if (computing) return;
             dirty = true;
