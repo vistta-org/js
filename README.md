@@ -1047,6 +1047,15 @@ const server = new Server({ http: 3000 });
 await server.routes.use("/", fs.realpathSync("./app"));
 ```
 
+Servers listen on all interfaces by default. Pass `host` to bind a specific address, either for both protocols or per protocol:
+
+```js
+// HTTP only on loopback; HTTPS on every interface.
+const server = new Server({ http: 3000, https: 3443, cert, key, host: { http: "127.0.0.1" } });
+```
+
+`server.stop(protocol)` waits for open connections to end; `server.stop(protocol, { force: true })` destroys them. A stopped protocol can be started again with `server.start(protocol)`.
+
 ## **CLI Commands**
 
 After registering the commands in `tsconfig.json` / `jsconfig.json` (see above), you can run:

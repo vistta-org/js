@@ -480,10 +480,11 @@ class Server {
    * @property {boolean} [start] - Start server, default is true
    * @property {boolean} [strict] - Strict routing, default is true
    * @property {number} [timeout] - Timeout for requests, default is 5 minutes
+   * @property {string | { http?: string, https?: string }} [host] - Bind address for both servers, or per protocol. Default is all interfaces
    *
    * @param {Options} [options] - Server options or callback
    */
-  constructor({ http: httpPort, https: httpsPort, cert, key, start, strict, timeout = TIMEOUT_TIME } = {}) {
+  constructor({ http: httpPort, https: httpsPort, cert, key, start, strict, timeout = TIMEOUT_TIME, host } = {}) {
     if (httpPort === true) httpPort = process.env.NODE_ENV === "development" ? 3000 : 80;
     if (httpsPort === true) httpsPort = 443;
     if (!(httpPort || httpsPort)) throw new Error("Missing ports for either HTTP or HTTPS");
@@ -511,6 +512,7 @@ class Server {
           ),
         ),
         port: httpPort,
+        host: typeof host === "string" ? host : host?.http,
       };
     if (httpsPort) {
       if (!fs.existsSync(cert) || !fs.existsSync(key))
@@ -537,6 +539,7 @@ class Server {
               ),
           ),
           port: httpsPort,
+          host: typeof host === "string" ? host : host?.https,
           certs: { cert, key },
         };
     }
@@ -579,10 +582,19 @@ class Server {
     if (protocol?.warning) this.#emit("warning", protocol.warning);
     if (!protocol?.server) return null;
     if (protocol.active) throw new Error(protocol.name.toUpperCase() + " Server already running");
-    const { server, port } = protocol;
-    await async((resolve) => server.listen(port, resolve));
-    this.#socket.attach(server);
-    server.on("upgrade", this.#socketHandler.bind(this, "upgrade"));
+    const { server, port, host } = protocol;
+    await async((resolve) => (host ? server.listen(port, host, resolve) : server.listen(port, resolve)));
+    // A stopped protocol can be started again; attach the handlers only once.
+    if (!protocol.attached) {
+      this.#socket.attach(server);
+      server.on("upgrade", this.#socketHandler.bind(this, "upgrade"));
+      protocol.sockets = new Set();
+      server.on("connection", (socket) => {
+        protocol.sockets.add(socket);
+        socket.once("close", () => protocol.sockets.delete(socket));
+      });
+      protocol.attached = true;
+    }
     shareToLoader("host", { protocol: protocol.name, port });
     protocol.active = true;
     this.#emit("ready", { type: protocol.name, port });
@@ -592,19 +604,22 @@ class Server {
    * Stops the server using the specified protocol (http or https). If no protocol is specified, both http and https are stopped.
    *
    * @param {string} [target] The protocol to use for stopping the server (http or https)
+   * @param {{ force?: boolean }} [options] `force` destroys open connections instead of waiting for them to end
    * @returns {Promise<void>} True if the server was successfully stopped, false otherwise
    */
-  async stop(target) {
+  async stop(target, options = {}) {
     let protocol;
     if (target === "http") protocol = this.#http;
     else if (target === "https") protocol = this.#https;
     else {
-      await this.stop("http");
-      await this.stop("https");
+      await this.stop("http", options);
+      await this.stop("https", options);
       return;
     }
     if (!protocol?.server || !protocol.active) return;
-    await async((resolve) => protocol.server.close(resolve));
+    const closed = async((resolve) => protocol.server.close(resolve));
+    if (options.force) for (const socket of protocol.sockets ?? []) socket.destroy();
+    await closed;
     protocol.active = false;
   }
 
