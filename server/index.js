@@ -132,6 +132,7 @@ class Server {
   };
   #proxy = proxy.createProxyServer({});
   #socket = new SocketIO({
+    pingInterval: 60_000,
     cors: {
       origin: true,
       credentials: true,

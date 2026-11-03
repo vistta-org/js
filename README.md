@@ -415,6 +415,8 @@ Socket.emit("join", { room: "general" });
 
 By default the page reloads when a dropped connection is restored. Pass an `onReconnect` callback to `Socket.connect` to handle it yourself instead (or `null` to do nothing). `auth` can be a function returning the auth object (or a promise of it); it is called before each connection attempt, so tokens can be refreshed. When the server rejects a connection, it is retried only if the function returns a different value.
 
+The server sends a heartbeat every 60 seconds (Socket.IO default: 25) so idle mobile clients wake the radio less often; a silently dropped connection is detected after up to 80 seconds.
+
 ## **Client Router**
 
 Vistta includes a client router used for SPA-style navigation with native View Transitions API support.
