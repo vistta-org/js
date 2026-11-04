@@ -415,6 +415,14 @@ Socket.emit("join", { room: "general" });
 
 By default the page reloads when a dropped connection is restored. Pass an `onReconnect` callback to `Socket.connect` to handle it yourself instead (or `null` to do nothing). `auth` can be a function returning the auth object (or a promise of it); it is called before each connection attempt, so tokens can be refreshed. When the server rejects a connection, it is retried only if the function returns a different value.
 
+On mobile, events are only delivered while the app is in the foreground by default. Pass `{ mobile: { background: true } }` to keep delivering an event while the app is backgrounded:
+
+```js
+Socket.on("sync:changed", onSyncChanged, { mobile: { background: true } });
+```
+
+On Android, while any such listener is registered, the app runs a foreground service (with its persistent notification) so the connection stays alive; with none, no service runs. Events dropped while backgrounded are not replayed: on resume the socket reports `disconnect` and reconnects, so `onReconnect` runs and the app can resync. Desktop and web always deliver every event, whether or not the window is visible.
+
 The server sends a heartbeat every 60 seconds (Socket.IO default: 25) so idle mobile clients wake the radio less often; a silently dropped connection is detected after up to 80 seconds.
 
 ## **Client Router**

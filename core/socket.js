@@ -54,7 +54,7 @@ export class Socket {
           watchReconnect((name, handler) => Socket.on(id, name, handler));
           return {
             emit: (name, ...args) => Socket.emit(id, name, ...args),
-            on: (name, handler) => Socket.on(id, name, handler),
+            on: (name, handler, options) => Socket.on(id, name, handler, options),
             off: (name, handler) => Socket.off(id, name, handler),
           };
         })
@@ -98,12 +98,15 @@ export class Socket {
    * Registers an event listener on the socket.
    * @param {string} event - The event name.
    * @param {Function} callback - The callback function to execute when the event is triggered.
+   * @param {{ mobile?: { background?: boolean } }} [options] - `mobile.background` keeps delivering the event while the mobile app is backgrounded; other events are dropped there until it resumes. Ignored on desktop and web.
    */
-  static on(event, callback) {
+  static on(event, callback, options = {}) {
+    if (options.mobile?.background !== undefined && typeof options.mobile.background !== "boolean")
+      throw new TypeError("mobile.background must be a boolean");
     if (!instance) return console.warn("Socket not connected");
     instance.then((socket) => {
       if (!socket) return console.warn("Socket not connected");
-      socket.on(event, callback);
+      socket.on(event, callback, options);
     });
   }
 
