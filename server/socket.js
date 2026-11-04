@@ -23,8 +23,9 @@ export class Socket {
    * Registers an event listener on the socket.
    * @param {string} event - The event name.
    * @param {Function} callback - The callback function to execute when the event is triggered.
+   * @param {{ mobile?: { background?: boolean } }} [options] - Options for mobile background delivery.
    */
-  static on(event, callback) {
+  static on(event, callback, { mobile: { background = false } = {} } = {}) {
     throw new Error("Socket is not available on server environment.");
   }
 

@@ -157,7 +157,10 @@ window.addEventListener("click", (event) => {
 // @ts-ignore
 // eslint-disable-next-line no-undef
 routes.$manifest = APP_ROUTES;
-Router.navigate({ href: window.location.pathname || "/", pushState: false });
+// Native plugins set up their request fetch before the first route makes a request.
+Promise.resolve(window.platform === "mobile" && import("@vistta/js-native/plugins").catch(() => null)).then(() =>
+  Router.navigate({ href: window.location.pathname || "/", pushState: false }),
+);
 
 function resolve(pathname) {
   if (routes.$manifest[pathname]) return routes.$manifest[pathname];
