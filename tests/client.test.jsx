@@ -1,3 +1,4 @@
+import { Context, Element, Router } from "@vistta/js";
 import * as basic from "./components/basic.jsx";
 import * as components from "./components/components.jsx";
 import { FALLBACK_VALUE, LOADED_VALUE, LOADING_VALUE, TEXT_UPDATE_VALUE, TEXT_VALUE, TIMEOUT } from "./defaults.js";
@@ -457,55 +458,49 @@ suite("VisttaJS Client Unit Tests", async () => {
     expect(output.innerText).toEqual("valid");
   });
 
-  /*test("Style", async () => {
-    const page = await browser.mount("./components/style.jsx");
-    const target = await (await page.get("#target", { wait: true })).boundingBox();
-    expect(target.height).toEqual(SIZE);
-    expect(target.width).toEqual(SIZE);
+  await test("Style: Dimensions", async () => {
+    await document.mount(() => ({
+      render: () => new Element("div", { id: "target", style: { width: "120px", height: "80px" } }),
+    }));
+    const target = document.querySelector("#target").getBoundingClientRect();
+    expect(target.width).toEqual(120);
+    expect(target.height).toEqual(80);
   });
 
-  test("Router", async () => {
-    const page = await browser.mount("./components/router.jsx");
-    const output = "#output";
-
-    expect(await page.get(output, "innerText")).toEqual((await page.location()).pathname);
-    await page.click("#update");
-    expect(await page.get(output, "innerText")).toEqual("1");
-    await page.click("#refresh");
-    expect(await page.get(output, "innerText")).toEqual((await page.location()).pathname);
-    await page.click("#update");
-    expect(await page.get(output, "innerText")).toEqual("1");
-    await page.click("#navigate");
-    expect(await page.url()).toEqual(URL);
+  await test("Router: Events", async () => {
+    const values = [];
+    const listener = (event) => values.push(event.detail);
+    Router.on("fixture-event", listener);
+    Router.emit("fixture-event", "first");
+    Router.off("fixture-event", listener);
+    Router.emit("fixture-event", "second");
+    expect(values.join(",")).toEqual("first");
+    expect(Router.location.pathname).toEqual(window.location.pathname);
   });
 
-  test("Context: Cached", async () => {
-    const page = await browser.mount("./components/context/cached.jsx");
-    let output = await page.get("#output", { wait: true });
-
-    expect(await output.get("innerText")).toEqual("0");
-    await page.click("#update");
-    expect(await output.get("innerText")).toEqual("1");
-
-    await page.reload();
-    output = await page.get("#output", { wait: true });
-    expect(await output.get("innerText")).toEqual("1");
-    await page.click("#update");
-    expect(await output.get("innerText")).toEqual("2");
+  await test("Context: Async Action Status", async () => {
+    let complete;
+    const context = new Context(
+      "async_status_test",
+      { counter: 0 },
+      {
+        actions: {
+          increment: (prev) =>
+            new Promise((resolve) => {
+              complete = () => resolve({ counter: prev.counter + 1 });
+            }),
+        },
+      },
+    );
+    const statuses = [];
+    const unsubscribe = context.on("increment", (status) => statuses.push(status));
+    const action = context.increment();
+    expect(statuses.join(",")).toEqual("pending");
+    expect(context.value.counter).toEqual(0);
+    complete();
+    await action;
+    expect(context.value.counter).toEqual(1);
+    expect(statuses.join(",")).toEqual("pending,completed");
+    unsubscribe();
   });
-
-  test("Context: Controller", async () => {
-    const page = await browser.mount("./components/context/controller.jsx");
-    const output = await page.get("#output", { wait: true });
-    const status = await page.get("#status", { wait: true });
-
-    expect(await output.get("innerText")).toEqual("0");
-    expect(await status.get("innerText")).toEqual("");
-    await page.click("#update");
-    expect(await output.get("innerText")).toEqual("0");
-    expect(await status.get("innerText")).toEqual("pending");
-    await page.wait(TIMEOUT);
-    expect(await output.get("innerText")).toEqual("1");
-    expect(await status.get("innerText")).toEqual("completed");
-  });*/
 });

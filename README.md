@@ -331,11 +331,12 @@ Vistta can generate a client-side request wrapper for your controller via the lo
 ```js
 import UsersApi from "./users/api.js" with { type: "api" };
 
-const { data } = await UsersApi.list();
+const users = await UsersApi.list();
 await UsersApi.update({ id: "123", value: "hello" });
 ```
 
 This works because the server shares each controller route with the loader, and the `api` loader converts `GET/POST/PUT/...` methods into HTTP requests.
+Generated calls resolve to the controller's returned payload directly, not a `{ data }` response wrapper.
 
 Each generated method accepts two arguments:
 
@@ -791,7 +792,7 @@ import { Component, Suspense } from "@vistta/js";
 import UsersApi from "./users/api.js" with { type: "api" };
 
 export default class Page extends Component {
-  users = UsersApi.list().then((r) => r.data?.users ?? []);
+  users = UsersApi.list().then((users) => users ?? []);
 
   render() {
     return (
@@ -1066,6 +1067,20 @@ const server = new Server({ http: 3000, https: 3443, cert, key, host: { http: "1
 
 `server.stop(protocol)` waits for open connections to end; `server.stop(protocol, { force: true })` destroys them. A stopped protocol can be started again with `server.start(protocol)`.
 
+Same-origin requests and apps built with `@vistta/js-native` work by default for HTTP and WebSockets. Native apps require no CORS setup. Requests without `Origin` remain supported. To enable credentialed requests from another web origin, explicitly allow its exact HTTP(S) origin (including a non-default port):
+
+```js
+const server = new Server({ http: 3000, cors: { origins: ["https://app.example.com"] } });
+```
+
+Unapproved origins receive HTTP 403 and cannot open WebSocket connections. Behind TLS-terminating proxies, explicitly allow the public origin; forwarded headers are not trusted for this decision. Origin checks are not a substitute for authentication or CSRF tokens.
+
+Custom web/development origins still use `cors.origins`; arbitrary localhost ports, `null`, and wildcards are not automatically allowed. Native compatibility does not replace authentication or authorization. Web-only deployments can disable native access with `cors: { native: false }`; explicitly configured `cors.origins` still apply.
+
+SSR escapes interpolated text, attributes, and page metadata. CSS serialization prevents HTML style-tag breakouts, but untrusted CSS and URLs still require application validation. Cookie values are percent-encoded on write and decoded on read. Internal exceptions return generic errors to clients; details remain available through `server.on("error", ...)`.
+
+Generated pages include a meta CSP with `default-src 'self'`, inline styles, and data images enabled for CSS-in-JS compatibility. This is not a strict CSP: configure the page's `csp` and deployment security headers for your application's trust boundaries.
+
 ## **CLI Commands**
 
 After registering the commands in `tsconfig.json` / `jsconfig.json` (see above), you can run:
@@ -1100,6 +1115,10 @@ npx vistta test ".\packages\cli\tests\*.test.js" --environment=node
 The `--environment` option belongs to VISTTA JS's test command only. Its default
 is `browser`; `node` delegates to the unchanged, Node-only VISTTA CLI test runner.
 Select compatible files for each invocation; test imports and suites stay unchanged.
+
+From the `@vistta/js` package directory, `npm test` runs `test:node` and `test:browser`; `npm run tests` remains an alias. Browser validation targets the functional client suite. Performance tests are opt-in via `npm run test:benchmarks` (or `vistta test "tests/benchmarks.test.jsx" --environment=browser --benchmarks`) and are skipped during ordinary discovery.
+
+Public JavaScript subpaths use JSDoc for editor types. TypeScript consumers should enable `allowJs` to infer those types; the existing root declaration remains supported. The companion `@vistta/js-native` and `@vistta/js-testing` packages require framework version 0.0.1 or later; publish their updated peer metadata alongside the framework release.
 
 ## **Mobile & Desktop Apps (Native)**
 

@@ -5,7 +5,10 @@
   "main": "index.js",
   "types": "index.d.ts",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
     "./global": "./global.d.ts",
     "./server": "./server/index.js",
     "./cli": "./cli/index.js",
@@ -15,9 +18,27 @@
     "./builder": "./builder.js"
   },
   "type": "module",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "global.d.ts",
+    "jsx.d.ts",
+    "tsconfig.json",
+    "builder.js",
+    "core",
+    "clients",
+    "server",
+    "cli",
+    "utils",
+    "tests/renderer.js"
+  ],
   "scripts": {
     "postinstall": "",
-    "tests": "vistta test \"tests/*.test.js\" --environment=node --debug && vistta test \"tests/*.test.jsx\" --environment=browser --debug"
+    "test": "npm run test:node && npm run test:browser",
+    "tests": "npm test",
+    "test:node": "vistta test \"tests/*.test.js\" --environment=node --debug",
+    "test:browser": "vistta test \"tests/client.test.jsx\" --environment=browser --debug",
+    "test:benchmarks": "vistta test \"tests/benchmarks.test.jsx\" --environment=browser --debug --benchmarks"
   },
   "repository": {
     "type": "git",
@@ -26,10 +47,10 @@
   "author": "Tiago Terenas Almeida",
   "license": "GPL-3.0-only",
   "dependencies": {
+    "@vistta/console": "^1.1.0",
     "@vistta/css": "^0.1.0",
     "@vistta/fs": "^1.1.0",
     "@vistta/utils": "^1.1.0",
-    "autoprefixer": "^10.6.1",
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
     "mime": "^4.1.0",

@@ -42,6 +42,54 @@ const DEFAULT_PROXY_OPTIONS = {
 };
 
 const ALL_METHODS = ["copy", "delete", "get", "head", "move", "options", "patch", "post", "put"];
+
+/**
+ * @typedef {import("node:http").IncomingMessage & {
+ *   protocol: string, port: number, address: string, subdomain: string,
+ *   resource: boolean|string, href: string, pathname: string,
+ *   params: Record<string, string>, cookies: Record<string, string>, body: () => Promise<any>
+ * }} Request
+ */
+
+/**
+ * @typedef {import("node:http").ServerResponse & {
+ *   cookies: string[], props: Record<string, any>, headers: Record<string, any>,
+ *   rejected?: boolean, message?: string,
+ *   set: (type: string, ...args: any[]) => void,
+ *   reject: (message?: string, code?: number) => void,
+ *   redirect: (url: string, permanent?: boolean) => void,
+ *   send: (content: any, type?: string) => void,
+ *   sendFile: (filepath: string, type?: string, options?: object) => void
+ * }} Response
+ */
+
+/**
+ * @callback Handler
+ * @param {Request} request
+ * @param {Response} response
+ * @param {...any} args
+ * @returns {any}
+ */
+
+/**
+ * @typedef {{
+ *   get: {
+ *     (type: "subdomains"): string[],
+ *     (type: string, pathname: `/${string}`): Route|undefined,
+ *     (type: string, subdomain?: string): Route[],
+ *     (type: string, subdomain: string, pathname: string): Route|undefined
+ *   },
+ *   set: {
+ *     (type: string, pathname: string, handler: Handler|string|object): Route,
+ *     (type: string, subdomain: string, pathname: string, handler: Handler|string|object): Route
+ *   },
+ *   use: {
+ *     (pathname: string, target: string|Handler|object): Promise<Route>,
+ *     (subdomain: string, pathname: string, target: string|Handler|object): Promise<Route>
+ *   }
+ * }} RouteRegistry
+ */
+
 class Route {
   #subdomain;
   #pathname;
@@ -131,13 +179,8 @@ class Server {
     [`/${RESOURCES_PATH}/client.js`]: client,
   };
   #proxy = proxy.createProxyServer({});
-  #socket = new SocketIO({
-    pingInterval: 60_000,
-    cors: {
-      origin: true,
-      credentials: true,
-    },
-  });
+  #socket;
+  #origins = new Set(["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"]);
   #timeout;
 
   get ports() {
@@ -195,7 +238,7 @@ class Server {
    */
   get routes() {
     return {
-      get: (arg1, arg2, arg3) => {
+      get: (arg1, arg2 = undefined, arg3 = undefined) => {
         if (arg1 === "subdomains") return Object.keys(this.#subdomains);
         // Flexible arg form: (type, subdomain, pathname) | (type, pathname) | (type, subdomain) | (type).
         // A leading "/" on arg2 marks a pathname on the default subdomain.
@@ -217,7 +260,7 @@ class Server {
         }
         return this.#subdomains[subdomain]?.[arg1] || [];
       },
-      set: (arg1, arg2, arg3, arg4) => {
+      set: (arg1, arg2, arg3, arg4 = undefined) => {
         if (arg1 === "subdomains") throw new TypeError("Cannot set subdomains directly.");
         let [subdomain, pathname, handler] = parseArguments(arg1, arg2, arg3, arg4);
         if (arg1 === "redirect") {
@@ -249,7 +292,7 @@ class Server {
               if (!options.preservePathname) req.url = removeFromPathname(req.url, pathname + "*");
               this.#proxy.web(req, res, options, (error) => {
                 this.#emit("error", error?.stack || error?.message || error);
-                if (!res.writableEnded) this.#send(req, res, 502, error?.message || "Bad Gateway");
+                if (!res.writableEnded) this.#send(req, res, 502, "Bad Gateway");
               });
             }),
           );
@@ -263,7 +306,7 @@ class Server {
         }
         return this.#register(arg1, subdomain, pathname, handler);
       },
-      use: async (arg1, arg2, arg3) => {
+      use: async (arg1, arg2, arg3 = undefined) => {
         let [subdomain, basepath, target] = parseArguments("use", arg1, arg2, arg3);
         const typeOfTarget = typeof target;
         if (typeOfTarget === "function") return this.#register("middleware", subdomain, basepath, target);
@@ -359,7 +402,7 @@ class Server {
                           .then((js) => res.send(js, "text/javascript"))
                           .catch((e) => {
                             this.#emit("error", e?.stack || e?.message || e);
-                            this.#send(req, res, 500, e?.message || e);
+                            this.#send(req, res, 500, "Internal Server Error");
                           });
                       else if (req.resource === "manifest") res.reject("Resource not found", 404);
                       else
@@ -368,7 +411,7 @@ class Server {
                           .then((html) => res.send(html, "text/html"))
                           .catch((e) => {
                             this.#emit("error", e?.stack || e?.message || e);
-                            this.#send(req, res, 500, e?.message || e);
+                            this.#send(req, res, 500, "Internal Server Error");
                           });
                     },
                     true,
@@ -387,7 +430,10 @@ class Server {
                         page
                           .js(req, res.props)
                           .then((js) => res.send(js, "text/javascript"))
-                          .catch((e) => res.reject(e?.stack || e?.message || e || "Internal Server Error", 500));
+                          .catch((e) => {
+                            this.#emit("error", e?.stack || e?.message || e);
+                            res.reject("Internal Server Error", 500);
+                          });
                       else if (req.resource === "worker") {
                         if (page.pwa) res.send(worker, "text/javascript");
                         else res.reject("Resource not found", 404);
@@ -396,13 +442,19 @@ class Server {
                           page
                             .manifest(req, req.props)
                             .then((manifest) => res.send(manifest, "text/json"))
-                            .catch((e) => res.reject(e?.stack || e?.message || e || "Internal Server Error", 500));
+                            .catch((e) => {
+                              this.#emit("error", e?.stack || e?.message || e);
+                              res.reject("Internal Server Error", 500);
+                            });
                         else res.reject("Resource not found", 404);
                       } else
                         page
                           .html(req, res.props)
                           .then((html) => res.send(html, "text/html"))
-                          .catch((e) => res.reject(e?.stack || e?.message || e || "Internal Server Error", 500));
+                          .catch((e) => {
+                            this.#emit("error", e?.stack || e?.message || e);
+                            res.reject("Internal Server Error", 500);
+                          });
                     },
                     true,
                   ),
@@ -482,10 +534,30 @@ class Server {
    * @property {boolean} [strict] - Strict routing, default is true
    * @property {number} [timeout] - Timeout for requests, default is 5 minutes
    * @property {string | { http?: string, https?: string }} [host] - Bind address for both servers, or per protocol. Default is all interfaces
+   * @property {{ origins?: string[], native?: boolean }} [cors] - Additional allowed origins; standard Tauri shell origins are enabled unless native is false
    *
    * @param {Options} [options] - Server options or callback
    */
-  constructor({ http: httpPort, https: httpsPort, cert, key, start, strict, timeout = TIMEOUT_TIME, host } = {}) {
+  constructor({ http: httpPort, https: httpsPort, cert, key, start, strict, timeout = TIMEOUT_TIME, host, cors } = {}) {
+    if (cors?.native === false) this.#origins.clear();
+    if (cors?.origins != null && !Array.isArray(cors.origins)) throw new TypeError("cors.origins must be an array");
+    for (const origin of cors?.origins || []) {
+      if (
+        typeof origin !== "string" ||
+        (origin !== "tauri://localhost" && (!/^https?:\/\//.test(origin) || new URL(origin).origin !== origin))
+      )
+        throw new TypeError("cors.origins must contain exact HTTP(S) origins or tauri://localhost");
+      this.#origins.add(origin);
+    }
+    this.#socket = new SocketIO({
+      pingInterval: 60_000,
+      cors: (request, callback) =>
+        callback(null, {
+          origin: this.#allowedOrigin(request) ? request.headers.origin || false : false,
+          credentials: true,
+        }),
+      allowRequest: (request, callback) => callback(null, this.#allowedOrigin(request)),
+    });
     if (httpPort === true) httpPort = process.env.NODE_ENV === "development" ? 3000 : 80;
     if (httpsPort === true) httpsPort = 443;
     if (!(httpPort || httpsPort)) throw new Error("Missing ports for either HTTP or HTTPS");
@@ -559,7 +631,7 @@ class Server {
       this.#emit("error", error?.stack || error?.message || error);
       if (res && !res.writableEnded) {
         res.writeHead(502, { "Content-Type": "text/plain" });
-        res.end(error?.message || "Bad Gateway");
+        res.end("Bad Gateway");
       }
     });
     if (start !== false) this.start();
@@ -584,7 +656,7 @@ class Server {
     if (!protocol?.server) return null;
     if (protocol.active) throw new Error(protocol.name.toUpperCase() + " Server already running");
     const { server, port, host } = protocol;
-    await async((resolve) => (host ? server.listen(port, host, resolve) : server.listen(port, resolve)));
+    await async((resolve) => server.listen({ port, host }, () => resolve()));
     // A stopped protocol can be started again; attach the handlers only once.
     if (!protocol.attached) {
       this.#socket.attach(server);
@@ -715,7 +787,7 @@ class Server {
             if (!response.writableEnded && !response.rejected) response.send(value);
           } catch (e) {
             this.#emit("error", e?.stack || e?.message || e);
-            response.reject(e.message || "Internal Server Error", 500);
+            response.reject("Internal Server Error", 500);
           }
         });
       });
@@ -746,6 +818,20 @@ class Server {
     return (routes.push(route), route);
   }
 
+  #allowedOrigin(request) {
+    const origin = request.headers.origin;
+    if (!origin) return true;
+    try {
+      const protocol = request.protocol || (request.socket?.encrypted ? "https" : "http");
+      return (
+        origin === new URL(`${protocol}://${request.headers.host || request.headers[":authority"]}`).origin ||
+        this.#origins.has(origin)
+      );
+    } catch {
+      return false;
+    }
+  }
+
   #handler(config, request, response) {
     try {
       request.timeout = setTimeout(() => this.#send(request, response, 408, "Request timeout"), this.#timeout);
@@ -766,6 +852,8 @@ class Server {
       if (!request.headers.host) return this.#reject(request, response, "Missing host header", 500);
       request.protocol = config.protocol;
       request.port = config.port;
+      if (!this.#allowedOrigin(request)) return this.#send(request, response, 403, "Origin not allowed");
+      request.corsOrigin = request.headers.origin;
       request.address = request.socket.remoteAddress;
       request.subdomain = getSubdomain(request.headers.host);
       request.resource = fs.extname(request.url) !== "";
@@ -780,7 +868,7 @@ class Server {
         for (let i = 0, len = cookies.length; i < len; i++) {
           const parts = cookies[i].split("=");
           const name = parts.shift().trim();
-          request.cookies[name] = parts.join("=").trim();
+          request.cookies[name] = decodeCookieValue(parts.join("=").trim());
         }
       }
       response.cookies = [];
@@ -791,7 +879,7 @@ class Server {
           case "cookie":
             setCookies(response, {
               [args[0]]: {
-                value: args[1] || "",
+                value: args[1] ?? "",
                 options: args[2] || {},
               },
             });
@@ -836,7 +924,7 @@ class Server {
       else this.#resolve(request, response);
     } catch (e) {
       this.#emit("error", e?.stack || e?.message || e);
-      this.#reject(request, response, e?.message || "Internal Server Error", 500);
+      this.#reject(request, response, "Internal Server Error", 500);
     }
   }
 
@@ -845,7 +933,7 @@ class Server {
       const method = request.method.toLowerCase();
       // Handle CORS preflight requests
       if (method === "options" && request.headers.origin) {
-        const origin = request.headers.origin;
+        const origin = request.corsOrigin;
         response.writeHead(204, {
           "Access-Control-Allow-Origin": origin,
           "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD, COPY, MOVE",
@@ -878,7 +966,7 @@ class Server {
       this.#reject(request, response);
     } catch (e) {
       this.#emit("error", e?.stack || e?.message || e);
-      this.#reject(request, response, e?.message || "Internal Server Error", 500);
+      this.#reject(request, response, "Internal Server Error", 500);
     }
   }
 
@@ -905,7 +993,7 @@ class Server {
       this.#send(request, response, response?.statusCode, response?.message);
     } catch (e) {
       this.#emit("error", e?.stack || e?.message || e);
-      this.#send(request, response, 500, e.message || "Internal Server Error");
+      this.#send(request, response, 500, "Internal Server Error");
     }
   }
 
@@ -929,6 +1017,7 @@ class Server {
       }
       case "upgrade": {
         const [request, socket, head] = args;
+        if (!this.#allowedOrigin(request)) return socket.destroy();
         if (request.url.startsWith("/socket.io/")) return;
         request.subdomain = getSubdomain(request.headers.host);
         const url = new URL(request.url, request.headers.origin || `ws://${request.headers.host}`);
@@ -957,7 +1046,7 @@ class Server {
           for (let i = 0, len = cookies?.length; i < len; i++) {
             const parts = cookies[i].split("=");
             const name = parts.shift().trim();
-            request.cookies[name] = parts.join("=").trim();
+            request.cookies[name] = decodeCookieValue(parts.join("=").trim());
           }
         }
         socket.cookies = [];
@@ -1148,12 +1237,11 @@ function xForwardHeaders(proxyReq, originalReq) {
 }
 
 function defaultHeaders(request, response, type) {
-  const origin = request.headers.origin;
+  const origin = request.corsOrigin;
   const headers = Object.assign(
     {
       Connection: "keep-alive",
       "X-DNS-Prefetch-Control": "off",
-      "Expect-CT": "max-age=86400, enforce",
       "X-Frame-Options": "DENY",
       "X-Powered-By": "",
       "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
@@ -1170,6 +1258,7 @@ function defaultHeaders(request, response, type) {
     headers["Access-Control-Allow-Origin"] = origin;
     headers["Access-Control-Allow-Credentials"] = "true";
   }
+  headers.Vary = [headers.Vary, "Origin"].filter(Boolean).join(", ");
   if (response.cookies) headers["Set-Cookie"] = response.cookies;
   if (request.resource && request.resource !== "page") headers["Cache-Control"] = "public, max-age=14400, immutable";
   else headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate";
@@ -1181,12 +1270,21 @@ function defaultHeaders(request, response, type) {
   return headers;
 }
 
+function decodeCookieValue(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function setCookies(response, cookies) {
   const cookieNames = Object.keys(cookies);
   for (let i = 0, len = cookieNames.length; i < len; i++) {
     const cookie = cookies[cookieNames[i]];
     if (cookie.value == null) continue;
-    let value = `${cookieNames[i]}=${cookie.value}; SameSite=${cookie?.options?.sameSite || "Lax"}; Path=${cookie?.options?.path || "/"}; `;
+    if (!/^[!#$%&'*+.^_`|~\w-]+$/.test(cookieNames[i])) throw new TypeError("Invalid cookie name");
+    let value = `${cookieNames[i]}=${encodeURIComponent(String(cookie.value))}; SameSite=${cookie?.options?.sameSite || "Lax"}; Path=${cookie?.options?.path || "/"}; `;
     if (cookie?.options?.expires) value += `; Expires=${cookie.options.expires}`;
     if (cookie?.options?.maxAge) value += `; Max-Age=${cookie.options.maxAge}`;
     if (cookie?.options?.domain) value += `; Domain=${cookie.options.domain}`;

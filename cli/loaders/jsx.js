@@ -1,6 +1,10 @@
 import TypescriptLoader from "@vistta/cli/loaders/typescript";
 
 export default class JSXLoader extends TypescriptLoader {
+  /**
+   * @param {string} source
+   * @param {{ path?: string, extension?: string, [key: string]: any }} options
+   */
   async load(source, options) {
     try {
       if (options.extension === "tsx") return super.load(transform(source), options);

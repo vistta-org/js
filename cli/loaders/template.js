@@ -1,7 +1,12 @@
 import JSXLoader from "./jsx.js";
 
 export default class TemplateLoader extends JSXLoader {
-  async load(source) {
+  /**
+   * @param {string} source
+   * @param {{ path?: string, extension?: string, [key: string]: any }} [options]
+   */
+  // eslint-disable-next-line no-unused-vars
+  async load(source, options = undefined) {
     source = source.match(/(?<=(<template>)).*(?=(<\/template>))/gs)?.[0];
     if (!source)
       return {

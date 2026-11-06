@@ -44,8 +44,7 @@ export class File {
    * Read a file as text
    *
    * @param {Blob} file
-   * @param {Object} [options]
-   * @param {"text" | "arraybuffer" | "data"} [options.type='text']
+   * @param {"text" | "arraybuffer" | "data"} [type='text']
    * @returns {Promise<any>}
    */
   static read(file, type = "text") {

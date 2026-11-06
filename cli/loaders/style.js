@@ -3,6 +3,11 @@ import fs from "@vistta/fs";
 import { RESOURCES_PATH } from "../../utils/index.js";
 
 export default class StyleLoader extends Loader {
+  /**
+   * @param {string} source
+   * @param {{ path: string }} options
+   * @returns {Promise<{ code?: string, errors?: string[], resources?: { path: string, hash: string }[] }>}
+   */
   async load(source, { path }) {
     try {
       const style = parseCssToStyle(source);

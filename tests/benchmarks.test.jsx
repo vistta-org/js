@@ -8,7 +8,7 @@ import {
 
 const DURATION_SECS = 20;
 
-suite("VisttaJS Benchmarks", async () => {
+(globalThis.testOptions?.benchmarks ? suite : suite.skip)("VisttaJS Benchmarks", async () => {
   await test("Benchmark: Attribute Update", async () => {
     await document.mount(AttributeUpdate);
 

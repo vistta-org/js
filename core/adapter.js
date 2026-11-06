@@ -13,7 +13,9 @@
         scripts: [],
         createDocumentFragment: () => createElement("fragment"),
         createTextNode: (text) => ({
-          toString: () => "" + text,
+          toString() {
+            return escapeHtml(this.textContent);
+          },
           textContent: "" + text,
         }),
         createElement: (tag) => createElement(tag),
@@ -139,7 +141,7 @@ function createElement(type) {
         const value = name === "style" ? styleToString(props[name]) : props[name];
         if (value == null || value === false || ["function", "object"].includes(typeof value)) continue;
         if (value === true) attributes += ` ${name}`;
-        else attributes += ` ${name}="${value}"`;
+        else attributes += ` ${name}="${escapeHtml(value)}"`;
       }
       return `<${type}${attributes}>${this.innerHTML}</${type}>`;
     },
@@ -176,6 +178,20 @@ function styleToString(style) {
   }
   result = result.trim();
   return result === "" ? null : result;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character],
+  );
 }
 
 class NodeCSSStyleDeclaration {

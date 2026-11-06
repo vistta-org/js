@@ -3,7 +3,12 @@ import fs from "@vistta/fs";
 import { RESOURCES_PATH } from "../../utils/index.js";
 
 export default class FileLoader extends Loader {
-  async load(_, { path, type, encoding }) {
+  /**
+   * @param {string} source
+   * @param {{ path: string, type?: string, encoding?: string }} options
+   * @returns {Promise<{ code: string, resources: { path: string, hash: string }[] }>}
+   */
+  async load(source, { path, type, encoding }) {
     const urlHash = fs.fileId(path) + fs.extname(path);
     if (type === "reader")
       return {

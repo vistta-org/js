@@ -65,10 +65,9 @@ export class Form extends Component {
     }
 
     /**
-     * Returns an object containing only the fields whose current value differs from their default value.
-     * Returns `null` if no fields have changed.
+     * Returns whether any matching field differs from its default value.
      * @param {string} [path] - Optional dot-separated path pattern (supports `*` wildcard) to filter fields.
-     * @returns {Object|null}
+     * @returns {boolean|undefined}
      */
     changed(path) {
       if (!this.form) return;
@@ -336,10 +335,9 @@ export class Form extends Component {
   }
 
   /**
-   * Returns an object containing only the fields whose current value differs from their default value.
-   * Returns `null` if no fields have changed.
+   * Returns whether any matching field differs from its default value.
    * @param {string} [path] - Optional dot-separated path pattern (supports `*` wildcard) to filter fields.
-   * @returns {boolean}
+   * @returns {boolean|undefined}
    */
   changed(path = "*") {
     if (path === "*" || path.endsWith(".*")) {

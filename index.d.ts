@@ -81,6 +81,7 @@ export interface ContextConstructor {
       cache?: "none" | "session" | "local" | "storage";
       actions?: Actions;
       encode?: boolean;
+      sync?: boolean;
     },
   ): Context<Value, Actions> & ContextActionMethods<Actions>;
 }
@@ -177,7 +178,7 @@ export {
   Style,
   ThemeContext,
 } from "./core/utils/index.js";
-export { worker } from "./index.js";
+export const Worker: ServiceWorkerRegistration;
 export { COPY, default as Controller, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./server/controller.js";
 export { default as Router } from "./server/router.js";
 export { default as Socket } from "./server/socket.js";

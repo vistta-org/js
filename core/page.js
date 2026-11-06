@@ -7,6 +7,29 @@ import { VirtualDom } from "./dom.js";
 const IS_DEV = process.env.NODE_ENV === "development";
 
 export function createHtml(innerHTML, config) {
+  config = { ...config };
+  for (const key of [
+    "lang",
+    "title",
+    "referrer",
+    "contentType",
+    "viewport",
+    "description",
+    "colorScheme",
+    "theme",
+    "keywords",
+    "robots",
+    "author",
+    "language",
+    "refresh",
+    "revisitAfter",
+    "copyright",
+    "publisher",
+    "icon",
+    "manifest",
+  ]) {
+    if (config[key] != null) config[key] = escapeHtml(config[key]);
+  }
   return `<!doctype html>
 <html lang="${config?.lang || "en"}">
   <head>
@@ -14,7 +37,7 @@ export function createHtml(innerHTML, config) {
     <meta name="referrer" content="${config.referrer || "origin"}" />
     <meta http-equiv="Content-Type" content="${config.contentType || "text/html; charset=utf-8"}" />
     <meta name="viewport" content="${config?.viewport || "width=device-width,initial-scale=1"}" />
-    <meta http-equiv="Content-Security-Policy" content="${convertCSP(config?.csp)}" />
+    <meta http-equiv="Content-Security-Policy" content="${escapeHtml(convertCSP(config?.csp))}" />
     <meta name="description" content="${config.description || ""}" />
     <meta name="color-scheme" content="${config.colorScheme || "light dark"}" />
     <meta name="theme-color" content="${config.theme || "#ffffff"}" />
@@ -29,7 +52,7 @@ export function createHtml(innerHTML, config) {
     ${config.icon ? `<link rel="icon" href="${config.icon}" />` : ""}
     ${config.icon ? `<link rel="apple-touch-icon" href="${config.icon}" />` : ""}
     ${config.manifest ? `<link rel="manifest" href="${config.manifest}" />` : ""}
-    ${config.style ? `<style data-ssr>${config.style}</style>` : ""}
+    ${config.style ? `<style data-ssr>${String(config.style).replace(/</g, "\\3c ")}</style>` : ""}
     ${config.links?.reduce((acc, obj) => acc + `\n\t<link ${convertToAttributes(obj)} />`, "") || ""}
     <script type="module" src="/${RESOURCES_PATH}/client.js"></script>
   </head>
@@ -177,6 +200,21 @@ function cache() {
 function convertToAttributes(obj) {
   if (!obj || typeof obj !== "object") return "";
   return Object.keys(obj)
-    .map((key) => `${key}="${obj[key]}"`)
+    .filter((key) => /^[a-zA-Z][\w:.-]*$/.test(key) && !/^on/i.test(key))
+    .map((key) => `${key}="${escapeHtml(obj[key])}"`)
     .join(" ");
+}
+
+function escapeHtml(value) {
+  return String(value).replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character],
+  );
 }

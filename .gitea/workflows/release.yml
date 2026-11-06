@@ -52,9 +52,13 @@ jobs:
         working-directory: ./packages/${{ env.module }}
         run: npx eslint .
 
-      - name: Unit Tests
+      - name: Node Tests
         working-directory: ./packages/${{ env.module }}
-        run: npx vistta test
+        run: npm run test:node
+
+      - name: Browser Tests
+        working-directory: ./packages/${{ env.module }}
+        run: npm run test:browser
 
   Release:
     needs: Validation

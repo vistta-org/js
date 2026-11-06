@@ -14,7 +14,7 @@ import {
   VirtualContainer,
 } from "../core/classes.js";
 import { VirtualDom } from "../core/dom.js";
-import { Router as router } from "../core/router.js";
+import { Router } from "../core/router.js";
 import { Anchor, File, HistoryContext, Style, ThemeContext } from "../core/utils/index.js";
 import { defineReadonly, sleep } from "../utils/index.js";
 
@@ -38,7 +38,7 @@ const vistta = {
   Render,
   Safe,
   Form,
-  router,
+  Router,
   socket: {
     emit(event, ...args) {
       ipc.send(event, { args });

@@ -6,7 +6,12 @@ import { isPlainObject, stringify } from "../../utils/index.js";
 const global = /** @type {any} */ globalThis;
 
 export default class APILoader extends Loader {
-  async load(_, options) {
+  /**
+   * @param {string} source
+   * @param {{ path: string, pathname?: string, subdomain?: string, bundler?: boolean }} options
+   * @returns {Promise<{ code?: string, errors?: string[] }>}
+   */
+  async load(source, options) {
     try {
       const shared = global.main?.shared || global.loaders?.shared;
       if (!shared?.[options.path]) {
