@@ -2,6 +2,8 @@
 
 Vistta.js is a convention-driven JavaScript framework for building web (SSR + hydration), mobile (Android), and desktop (Linux/Windows) apps with an instance-based JSX UI model, file-based routing, and built-in server features.
 
+> **Production readiness:** This package has not yet been tested in production. Validate it for your use case before deploying.
+
 ## **Features**
 
 - **Component-first UI (instance-based)**: components are `Component` instances. Use class components that extend `Component` (recommended), or function components that return an object with `render()` (adapted into a `Component` internally).
