@@ -36,9 +36,9 @@
     "postinstall": "",
     "test": "npm run test:node && npm run test:browser",
     "tests": "npm test",
-    "test:node": "vistta test \"tests/*.test.js\" --environment=node --debug",
-    "test:browser": "vistta test \"tests/client.test.jsx\" --environment=browser --debug",
-    "test:benchmarks": "vistta test \"tests/benchmarks.test.jsx\" --environment=browser --debug --benchmarks"
+    "test:node": "vistta test \"tests/*.test.js\" --environment=node",
+    "test:browser": "vistta test \"tests/client.test.jsx\" --environment=browser",
+    "test:benchmarks": "vistta test \"tests/benchmarks.test.jsx\" --environment=browser --benchmarks"
   },
   "repository": {
     "type": "git",
