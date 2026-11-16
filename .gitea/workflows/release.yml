@@ -53,13 +53,14 @@ jobs:
         working-directory: ./packages/${{ env.module }}
         run: npx vistta check .
 
-      - name: Node Tests
-        working-directory: ./packages/${{ env.module }}
-        run: npm run test:node
+      - name: Install Chromium and Browser Dependencies
+        run: npx playwright install --with-deps chromium
 
-      - name: Browser Tests
+      - name: Unit Tests
         working-directory: ./packages/${{ env.module }}
-        run: npm run test:browser
+        run: |
+          npm run test:node
+          npm run test:browser
 
   Release:
     needs: Validation
