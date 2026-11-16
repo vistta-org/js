@@ -204,7 +204,13 @@ export class ComputedGetters extends Component {
         <button id="decrement" onClick={() => this.filter--}>
           decrement
         </button>
-        <button id="noop" onClick={() => (this.filter = this.filter)}>
+        <button
+          id="noop"
+          onClick={() => {
+            // eslint-disable-next-line no-self-assign -- Verify that setting the same value does not recompute.
+            this.filter = this.filter;
+          }}
+        >
           noop
         </button>
         <div id="filtered">{this.filtered}</div>
@@ -292,7 +298,6 @@ export class RefExample extends Component {
   }
 }
 
-const language = new Context("computed_language_test", { value: "en" });
 const labels = new Mutation(
   (lang) => (key) => ({ en: { greeting: "Hello" }, pt: { greeting: "Olá" } })[lang][key] ?? "",
   "en",

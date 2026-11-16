@@ -5,8 +5,13 @@ import Server from "../server/index.js";
 
 async function freePort() {
   const listener = createServer();
-  await new Promise((resolve) => listener.listen(0, "127.0.0.1", resolve));
-  const port = listener.address().port;
+  await new Promise((resolve, reject) => {
+    listener.once("error", reject);
+    listener.listen(0, "127.0.0.1", () => resolve(undefined));
+  });
+  const address = listener.address();
+  assert.ok(address && typeof address !== "string");
+  const port = address.port;
   await new Promise((resolve) => listener.close(resolve));
   return port;
 }
@@ -30,7 +35,7 @@ function websocketHandshake(base, origin) {
       response.resume();
       resolve(response.statusCode);
     });
-    request.on("error", (error) => (error.code === "ECONNRESET" ? resolve(0) : reject(error)));
+    request.on("error", (error) => ("code" in error && error.code === "ECONNRESET" ? resolve(0) : reject(error)));
     request.setTimeout(5000, () => request.destroy(new Error("WebSocket handshake timed out")));
     request.end();
   });

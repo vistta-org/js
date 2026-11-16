@@ -178,7 +178,7 @@ export {
   Style,
   ThemeContext,
 } from "./core/utils/index.js";
-export const Worker: ServiceWorkerRegistration;
 export { COPY, default as Controller, DELETE, GET, MOVE, PATCH, POST, PUT, REST } from "./server/controller.js";
 export { default as Router } from "./server/router.js";
 export { default as Socket } from "./server/socket.js";
+export const Worker: ServiceWorkerRegistration;

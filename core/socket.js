@@ -3,7 +3,7 @@ let instance = null;
 export class Socket {
   /**
    * Connects to a Socket.IO server.
-   * @param {string} host - The server URL.
+   * @param {string} [host] - The server URL. Defaults to the current origin in browsers.
    * @param {Record<string, any> & { onReconnect?: (() => void) | null, auth?: Record<string, any> | (() => Record<string, any> | Promise<Record<string, any>>) }} [options] - Socket.IO options. `onReconnect` runs when the connection is restored after a drop or failed attempt (default: reload the page; `null` to do nothing). `auth` can be a function, called before each connection attempt.
    */
   static connect(host, { onReconnect = () => location.reload(), auth, ...options } = {}) {

@@ -479,6 +479,7 @@ suite("VisttaJS Client Unit Tests", async () => {
   });
 
   await test("Context: Async Action Status", async () => {
+    /** @type {(() => void) | undefined} */
     let complete;
     const context = new Context(
       "async_status_test",
@@ -497,6 +498,7 @@ suite("VisttaJS Client Unit Tests", async () => {
     const action = context.increment();
     expect(statuses.join(",")).toEqual("pending");
     expect(context.value.counter).toEqual(0);
+    if (!complete) throw new Error("The increment action must register its completion callback");
     complete();
     await action;
     expect(context.value.counter).toEqual(1);
