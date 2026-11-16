@@ -1,6 +1,6 @@
 {
   "name": "@vistta/js",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Vistta.js Javascript Framework",
   "main": "index.js",
   "types": "index.d.ts",
@@ -53,7 +53,7 @@
     "@vistta/utils": "^1.2.0",
     "compressible": "^2.0.18",
     "http-proxy": "^1.18.1",
-    "mime": "^4.1.0",
+    "mime": "^4.1.2",
     "socket.io": "^4.8.4"
   },
   "peerDependencies": {
