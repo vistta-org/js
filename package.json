@@ -42,7 +42,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://git.vistta.org/js.git"
+    "url": "https://git.vistta.org/vistta/js.git"
   },
   "author": "Tiago Terenas Almeida",
   "license": "GPL-3.0-only",
