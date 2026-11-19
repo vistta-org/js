@@ -149,6 +149,13 @@ suite("Server security", () => {
       const same = await fetch(base, { headers: { Origin: base } });
       assert.equal(same.headers.get("access-control-allow-origin"), base);
       await same.text();
+      const httpsOrigin = `https://127.0.0.1:${port}`;
+      const proxied = await fetch(base, { headers: { Origin: httpsOrigin, "X-Forwarded-Proto": "https" } });
+      assert.equal(proxied.status, 200, "same host behind a TLS-terminating proxy");
+      await proxied.text();
+      const unproxied = await fetch(base, { headers: { Origin: httpsOrigin } });
+      assert.equal(unproxied.status, 403);
+      await unproxied.text();
       for (const method of ["GET", "POST", "OPTIONS"]) {
         const denied = await fetch(base, { method, headers: { Origin: "https://evil.example" } });
         assert.equal(denied.status, 403);

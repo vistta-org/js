@@ -822,7 +822,12 @@ class Server {
     const origin = request.headers.origin;
     if (!origin) return true;
     try {
-      const protocol = request.protocol || (request.socket?.encrypted ? "https" : "http");
+      // TLS-terminating reverse proxies forward plain HTTP; trust their reported scheme
+      const forwarded = String(request.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
+      const protocol =
+        (forwarded === "http" || forwarded === "https" ? forwarded : "") ||
+        request.protocol ||
+        (request.socket?.encrypted ? "https" : "http");
       return (
         origin === new URL(`${protocol}://${request.headers.host || request.headers[":authority"]}`).origin ||
         this.#origins.has(origin)
