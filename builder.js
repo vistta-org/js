@@ -10,7 +10,7 @@ export class Builder {
    * Register an external API controller so the APILoader can resolve
    * `import ... with { type: "api" }` for files outside the build target.
    *
-   * @param {string} path - Absolute or relative path to the service/controller file
+   * @param {string} path - Absolute or relative path to the controller file
    * @param {object} metadata
    * @param {string} [metadata.subdomain=""] - Subdomain for the API
    * @param {string} metadata.pathname - HTTP pathname for the API (e.g. "/api/users")
@@ -18,35 +18,6 @@ export class Builder {
   static registerAPI(path, metadata) {
     global.loaders.shared ??= {};
     global.loaders.shared[fs.resolve(path)] = metadata;
-  }
-
-  /**
-   * Scan a directory for service.js files and auto-register them as APIs.
-   *
-   * @param {string} dir - Directory to scan (e.g. "./connect/components")
-   * @param {object} [options]
-   * @param {string} [options.subdomain=""] - Subdomain for all discovered APIs
-   * @param {string} [options.basePath="/api"] - Base pathname prefix
-   * @param {string} [options.pattern="service.js"] - Filename pattern to match
-   * @returns {Promise<string[]>} Array of registered API paths
-   */
-  static async discoverAPIs(dir, { subdomain = "", basePath = "/api", pattern = "service.js" } = {}) {
-    const registered = [];
-    const resolvedDir = fs.resolve(dir);
-    if (!fs.existsSync(resolvedDir)) return registered;
-
-    const entries = await fs.readdir(resolvedDir);
-    for (const name of entries) {
-      const servicePath = fs.resolve(resolvedDir, name, pattern);
-      if (fs.existsSync(servicePath)) {
-        Builder.registerAPI(servicePath, {
-          subdomain,
-          pathname: `${ensureEndsWith(basePath, "/")}${name}`,
-        });
-        registered.push(servicePath);
-      }
-    }
-    return registered;
   }
 
   /**
