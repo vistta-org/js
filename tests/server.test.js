@@ -128,6 +128,42 @@ suite("Server security", () => {
     }
   });
 
+  test("allows configured browser extension origins and rejects malformed ones", async () => {
+    for (const origin of [
+      "chrome-extension://",
+      "chrome-extension://abc/",
+      "chrome-extension://abc.evil",
+      "moz-extension://abc/path",
+      "other-extension://abc",
+    ]) {
+      assert.equal(Server.isValidOrigin(origin), false, origin);
+      assert.throws(() => new Server({ http: 3000, start: false, cors: { origins: [origin] } }), TypeError);
+    }
+    const extension = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
+    const port = await freePort();
+    const server = new Server({
+      http: port,
+      host: "127.0.0.1",
+      start: false,
+      cors: { origins: [extension, "moz-extension://0a1b2c3d-4e5f-6789-abcd-ef0123456789"] },
+    });
+    server.routes.set("get", "/", (request, response) => response.send("ok"));
+    await server.start();
+    const base = `http://127.0.0.1:${port}`;
+    try {
+      const allowed = await fetch(base, { headers: { Origin: extension } });
+      assert.equal(allowed.status, 200);
+      assert.equal(allowed.headers.get("access-control-allow-origin"), extension);
+      await allowed.text();
+      assert.equal(await websocketHandshake(base, extension), 101);
+      const denied = await fetch(base, { headers: { Origin: "chrome-extension://ponmlkjihgfedcbaponmlkjihgfedcba" } });
+      assert.equal(denied.status, 403);
+      await denied.text();
+    } finally {
+      await server.stop(undefined, { force: true });
+    }
+  });
+
   test("enforces origins, encodes cookies, and hides internal errors", async () => {
     const port = await freePort();
     const server = new Server({ http: port, host: "127.0.0.1", start: false });

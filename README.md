@@ -1079,7 +1079,7 @@ const server = new Server({ http: 3000, cors: { origins: ["https://app.example.c
 
 Unapproved origins receive HTTP 403 and cannot open WebSocket connections. Behind TLS-terminating proxies, explicitly allow the public origin; forwarded headers are not trusted for this decision. Origin checks are not a substitute for authentication or CSRF tokens.
 
-Custom web/development origins still use `cors.origins`; arbitrary localhost ports, `null`, and wildcards are not automatically allowed. Native compatibility does not replace authentication or authorization. Web-only deployments can disable native access with `cors: { native: false }`; explicitly configured `cors.origins` still apply.
+Custom web/development origins still use `cors.origins`; arbitrary localhost ports, `null`, and wildcards are not automatically allowed. Browser extensions are allowed by listing their exact origin, such as `chrome-extension://<id>`, `moz-extension://<uuid>`, or `safari-web-extension://<id>`; `Server.isValidOrigin(origin)` checks whether a value is accepted. Native compatibility does not replace authentication or authorization. Web-only deployments can disable native access with `cors: { native: false }`; explicitly configured `cors.origins` still apply.
 
 SSR escapes interpolated text, attributes, and page metadata. CSS serialization prevents HTML style-tag breakouts, but untrusted CSS and URLs still require application validation. Cookie values are percent-encoded on write and decoded on read. Internal exceptions return generic errors to clients; details remain available through `server.on("error", ...)`.
 

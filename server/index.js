@@ -30,6 +30,8 @@ import { default as Controller, RESTMethod, shareToLoader } from "./controller.j
 const TIMEOUT_TIME = 5 * 60 * 1000; // 5 minutes
 const BODY_IDLE_TIMEOUT_TIME = 15 * 1000; // 15 seconds
 const MAX_BODY_SIZE = 50 * 1024 * 1024; // 50MB
+// Chrome/Edge (chrome-extension), Firefox (moz-extension) and Safari (safari-web-extension) extension origins.
+const EXTENSION_ORIGIN_REGEX = /^(?:chrome-extension|moz-extension|safari-web-extension):\/\/[a-z0-9-]+$/i;
 const DEFAULT_PROXY_OPTIONS = {
   ws: true,
   secure: false,
@@ -525,6 +527,24 @@ class Server {
   }
 
   /**
+   * Whether a value is an exact origin accepted by `cors.origins`: an HTTP(S) origin,
+   * a browser extension origin, or `tauri://localhost`.
+   * @param {unknown} origin
+   * @returns {boolean}
+   */
+  static isValidOrigin(origin) {
+    if (typeof origin !== "string") return false;
+    if (origin === "tauri://localhost") return true;
+    if (EXTENSION_ORIGIN_REGEX.test(origin)) return true;
+    if (!/^https?:\/\//.test(origin)) return false;
+    try {
+      return new URL(origin).origin === origin;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * @typedef {Object} Options
    * @property {number | boolean} [http] - Use http or http port
    * @property {number | boolean} [https] - Use https or https port
@@ -534,7 +554,7 @@ class Server {
    * @property {boolean} [strict] - Strict routing, default is true
    * @property {number} [timeout] - Timeout for requests, default is 5 minutes
    * @property {string | { http?: string, https?: string }} [host] - Bind address for both servers, or per protocol. Default is all interfaces
-   * @property {{ origins?: string[], native?: boolean }} [cors] - Additional allowed origins; standard Tauri shell origins are enabled unless native is false
+   * @property {{ origins?: string[], native?: boolean }} [cors] - Additional allowed origins (HTTP(S), browser extension, or tauri://localhost); standard Tauri shell origins are enabled unless native is false
    *
    * @param {Options} [options] - Server options or callback
    */
@@ -542,11 +562,10 @@ class Server {
     if (cors?.native === false) this.#origins.clear();
     if (cors?.origins != null && !Array.isArray(cors.origins)) throw new TypeError("cors.origins must be an array");
     for (const origin of cors?.origins || []) {
-      if (
-        typeof origin !== "string" ||
-        (origin !== "tauri://localhost" && (!/^https?:\/\//.test(origin) || new URL(origin).origin !== origin))
-      )
-        throw new TypeError("cors.origins must contain exact HTTP(S) origins or tauri://localhost");
+      if (!Server.isValidOrigin(origin))
+        throw new TypeError(
+          "cors.origins must contain exact HTTP(S) origins, browser extension origins, or tauri://localhost",
+        );
       this.#origins.add(origin);
     }
     this.#socket = new SocketIO({
